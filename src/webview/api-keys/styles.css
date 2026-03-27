@@ -1,0 +1,114 @@
+body {
+  font-family: var(--vscode-font-family);
+  color: var(--vscode-foreground);
+  background: var(--vscode-editor-background);
+  padding: 16px;
+}
+
+h1 {
+  font-size: 35px;
+  margin-bottom: 6px;
+}
+
+.subtitle {
+  color: var(--vscode-descriptionForeground);
+  margin-bottom: 20px;
+  font-size: 15px;
+}
+
+.card {
+  background: #1e1e1e;
+  border: 1px solid var(--vscode-widget-border);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 18px;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--vscode-widget-border);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+button {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.btn-primary {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.btn-primary:hover {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--vscode-textLink-foreground);
+  border: 1px solid var(--vscode-textLink-foreground);
+}
+
+.btn-danger {
+  background: transparent;
+  color: #f14c4c;
+  border: 1px solid #f14c4c;
+}
+
+.row-end {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+.checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.inline-fields {
+  display: flex;
+  gap: 14px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 220px;
+}
+
+input[type="text"],
+input[type="number"] {
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border, var(--vscode-widget-border));
+  border-radius: 8px;
+  padding: 10px 12px;
+}

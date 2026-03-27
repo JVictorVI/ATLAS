@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="
+            default-src 'none';
+            img-src {{cspSource}} https:;
+            style-src {{cspSource}};
+            script-src {{cspSource}};
+        "
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ATLAS</title>
+    <link rel="stylesheet" href="{{styleUri}}" />
+  </head>
+  <body>
+    <nav>
+      <button id="chat-btn">Chat</button>
+      <button id="config-panel-btn">Configurações</button>
+    </nav>
+
+    <div id="content-container"></div>
+
+    <script src="{{markedUri}}"></script>
+    <script src="{{scriptUri}}"></script>
+  </body>
+</html>

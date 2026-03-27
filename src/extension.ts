@@ -1,8 +1,8 @@
 import * as vscode from "vscode";
-import { ChatViewProvider } from "./test/chatProvider";
+import { ChatViewProvider } from "./providers/ChatViewProvider";
 
 export function activate(context: vscode.ExtensionContext) {
-  const provider = new ChatViewProvider(context.extensionUri);
+  const provider = new ChatViewProvider(context);
 
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
