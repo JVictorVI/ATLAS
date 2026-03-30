@@ -51,17 +51,19 @@
       <div class="section-title">Configurações de Segurança</div>
 
       <div class="checkbox-group">
-        <label>
-          <input type="checkbox" id="confirmCloud" />
-          Confirmar antes de enviar código para nuvem
-        </label>
+        <div>
+          <label class="checkBoxSection">
+            <input type="checkbox" id="confirmCloud" />
+            Confirmar antes de enviar código para nuvem
+          </label>
+        </div>
 
-        <label>
+        <label class="checkBoxSection">
           <input type="checkbox" id="blockRag" />
           Bloquear envio automático de contexto RAG
         </label>
 
-        <label>
+        <label class="checkBoxSection">
           <input type="checkbox" id="limitPayload" checked />
           Limitar tamanho máximo de payload (tokens)
         </label>
@@ -74,8 +76,8 @@
         </div>
 
         <div class="field">
-          <label for="timeout">Timeout máximo da requisição</label>
-          <input id="timeout" type="text" value="30s" />
+          <label for="timeout">Timeout máximo da requisição (segundos)</label>
+          <input id="timeout" type="number" value="30" />
         </div>
       </div>
 

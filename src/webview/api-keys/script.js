@@ -11,23 +11,11 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   if (saveSecurityBtn) {
-    saveSecurityBtn.addEventListener("click", () => {
-      vscode.postMessage({
-        type: "salvarConfiguracoesSeguranca",
-        payload: {
-          confirmCloud:
-            document.getElementById("confirmCloud")?.checked ?? false,
-          blockRag: document.getElementById("blockRag")?.checked ?? false,
-          limitPayload:
-            document.getElementById("limitPayload")?.checked ?? false,
-          maxTokens: document.getElementById("maxTokens")?.value ?? "",
-          timeout: document.getElementById("timeout")?.value ?? "",
-        },
-      });
-    });
+    saveSecurityBtn.addEventListener("click", saveCloudSecuritySettings);
   }
 
   vscode.postMessage({ type: "listarChaves" });
+  vscode.postMessage({ type: "carregarConfiguracoesSeguranca" });
 });
 
 window.addEventListener("message", (event) => {
@@ -38,7 +26,8 @@ window.addEventListener("message", (event) => {
   }
 
   if (message.type === "configuracoesSegurancaCarregadas") {
-    fillSecuritySettings(message.value);
+    fillCloudSecuritySettings(message.value);
+    deactivateInputs();
   }
 });
 
@@ -118,7 +107,7 @@ function bindCredentialActions() {
   });
 }
 
-function fillSecuritySettings(settings) {
+function fillCloudSecuritySettings(settings) {
   if (!settings) return;
 
   const confirmCloud = document.getElementById("confirmCloud");
@@ -140,6 +129,25 @@ function fillSecuritySettings(settings) {
   }
 }
 
+function saveCloudSecuritySettings() {
+  const confirmCloud = document.getElementById("confirmCloud");
+  const blockRag = document.getElementById("blockRag");
+  const limitPayload = document.getElementById("limitPayload");
+  const maxTokens = document.getElementById("maxTokens");
+  const timeout = document.getElementById("timeout");
+
+  vscode.postMessage({
+    type: "salvarConfiguracoesSeguranca",
+    payload: {
+      confirmCloud: Boolean(confirmCloud?.checked),
+      blockRag: Boolean(blockRag?.checked),
+      limitPayload: Boolean(limitPayload?.checked),
+      maxTokens: maxTokens?.value ? Number(maxTokens.value) : undefined,
+      timeout: timeout?.value ? Number(timeout.value) : undefined,
+    },
+  });
+}
+
 function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -148,3 +156,18 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 }
+
+function deactivateInputs() {
+  const inputs = document.querySelectorAll("#timeout, #maxTokens");
+  const limitPayload = document.getElementById("limitPayload");
+
+  const enabled = Boolean(limitPayload?.checked);
+
+  inputs.forEach((input) => {
+    input.disabled = !enabled;
+  });
+}
+
+document
+  .getElementById("limitPayload")
+  .addEventListener("change", deactivateInputs);

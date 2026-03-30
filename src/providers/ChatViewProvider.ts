@@ -3,16 +3,19 @@ import * as fs from "fs";
 import * as path from "path";
 import { ApiKeyManager } from "../managers/ApiKeyManager";
 import { SecretStorageService } from "../services/SecretStorageService";
+import { AtlasConfigManager } from "../services/AtlasConfigManager";
 
 export class ChatViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "atlas-chat.view";
   private _view?: vscode.WebviewView;
   private _panel?: vscode.WebviewPanel;
   private readonly apiKeyManager: ApiKeyManager;
+  private readonly configManager: AtlasConfigManager;
 
   constructor(private readonly context: vscode.ExtensionContext) {
     const secretStorage = new SecretStorageService(context);
     this.apiKeyManager = new ApiKeyManager(secretStorage);
+    this.configManager = new AtlasConfigManager(context);
   }
 
   public resolveWebviewView(webviewView: vscode.WebviewView) {
@@ -64,6 +67,46 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
     if (data.type === "abrirPainelConfig") {
       this._abrirPainelNoEditor(data.selectedView);
+    }
+
+    if (data.type === "salvarConfiguracoesSeguranca") {
+      try {
+        const updatedConfig = this.configManager.updateSecuritySettings(
+          data.payload,
+        );
+
+        await webview.postMessage({
+          type: "configuracoesSegurancaSalvas",
+          value: updatedConfig.cloudSecurity,
+        });
+
+        vscode.window.showInformationMessage(
+          "Configurações de segurança salvas.",
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Erro desconhecido";
+        vscode.window.showErrorMessage(
+          `Erro ao salvar configurações: ${message}`,
+        );
+      }
+    }
+
+    if (data.type === "carregarConfiguracoesSeguranca") {
+      try {
+        const securitySettings = this.configManager.getSection("cloudSecurity");
+
+        await webview.postMessage({
+          type: "configuracoesSegurancaCarregadas",
+          value: securitySettings,
+        });
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Erro desconhecido";
+        vscode.window.showErrorMessage(
+          `Erro ao carregar configurações: ${message}`,
+        );
+      }
     }
   }
 
@@ -128,6 +171,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this._panel = vscode.window.createWebviewPanel(
       "atlasEditorPanel",
       "Configurações",
+
       vscode.ViewColumn.One,
       {
         enableScripts: true,

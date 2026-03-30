@@ -50,7 +50,7 @@ td {
 
 button {
   border: none;
-  border-radius: 8px;
+  border-radius: 5px;
   padding: 8px 14px;
   cursor: pointer;
   font-size: 13px;
@@ -111,4 +111,62 @@ input[type="number"] {
   border: 1px solid var(--vscode-input-border, var(--vscode-widget-border));
   border-radius: 8px;
   padding: 10px 12px;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus {
+  outline: none;
+  border-color: var(--vscode-focusBorder);
+  box-shadow: 0 0 0 1px var(--vscode-focusBorder);
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"]:disabled {
+  background: var(--vscode-disabledBackground);
+  color: var(--vscode-disabledForeground);
+  border-color: var(--vscode-disabledBackground);
+  cursor: not-allowed;
+}
+
+input[type="checkbox"] {
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  background-color: var(--vscode-checkbox-background);
+  border: 1px solid var(--vscode-checkbox-border);
+  border-radius: 3px;
+  position: relative;
+  cursor: pointer;
+}
+
+input[type="checkbox"]:checked {
+  background-color: var(--vscode-button-background);
+  border-color: var(--vscode-button-background);
+}
+
+input[type="checkbox"]:focus {
+  outline: none;
+  border-color: var(--vscode-focusBorder);
+  box-shadow: 0 0 0 2px var(--vscode-focusBorder);
+}
+
+input[type="checkbox"]:checked::after {
+  content: "✔";
+  color: white;
+  position: absolute;
+  top: -1px;
+  left: 2px;
+  font-size: 12px;
+}
+
+.checkBoxSection {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
 }

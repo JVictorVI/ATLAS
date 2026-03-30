@@ -1,0 +1,51 @@
+{
+  "version": "1.0.0",
+  "updatedAt": "2026-03-30T02:50:28.710Z",
+  "general": {
+    "theme": "system",
+    "language": "pt-BR",
+    "autoSave": true,
+    "logLevel": "info"
+  },
+  "cloudSecurity": {
+    "confirmCloud": true,
+    "blockRag": true,
+    "limitPayload": false,
+    "maxTokens": 2048,
+    "timeout": 15
+  },
+  "rag": {
+    "enabled": true,
+    "autoIndex": false,
+    "allowCloudContext": false,
+    "offlineOnly": true,
+    "chunkSize": 1000,
+    "chunkOverlap": 200,
+    "ignoredPaths": [
+      "node_modules",
+      "dist",
+      ".git"
+    ]
+  },
+  "runtime": {
+    "mode": "local",
+    "preferGpu": true,
+    "fallbackToCpu": true
+  },
+  "ui": {
+    "defaultView": "chat",
+    "showTips": true
+  },
+  "llm": {
+    "activeModelId": null,
+    "defaults": {
+      "temperature": 0.2,
+      "maxTokens": 2048,
+      "topP": 0.95,
+      "stream": true,
+      "provider": "local"
+    },
+    "models": {}
+  },
+  "custom": {}
+}
