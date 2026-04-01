@@ -97,6 +97,14 @@ export interface AtlasConfigSchema {
   ui: AtlasUiSettings;
   llm: AtlasLlmSettings;
   custom?: JsonMap;
+  providers?: ProviderConfig[];
+}
+
+export interface ProviderConfig {
+  id: string;
+  label: string;
+  baseUrl: string;
+  apiKeyPlaceholder: string;
 }
 
 export class AtlasConfigManager {
@@ -147,20 +155,28 @@ export class AtlasConfigManager {
     return defaults;
   }
 
-  public getSection<K extends keyof AtlasConfigSchema>(section: K): AtlasConfigSchema[K] {
+  public getSection<K extends keyof AtlasConfigSchema>(
+    section: K,
+  ): AtlasConfigSchema[K] {
     const config = this.getConfig();
     return config[section];
   }
 
   public updateSection<K extends keyof AtlasConfigSchema>(
     section: K,
-    partialData: Partial<AtlasConfigSchema[K]>
+    partialData: Partial<AtlasConfigSchema[K]>,
   ): AtlasConfigSchema {
     const current = this.getConfig();
 
     const currentSection = current[section];
-    if (typeof currentSection !== "object" || currentSection === null || Array.isArray(currentSection)) {
-      throw new Error(`A seção "${String(section)}" não é atualizável como objeto.`);
+    if (
+      typeof currentSection !== "object" ||
+      currentSection === null ||
+      Array.isArray(currentSection)
+    ) {
+      throw new Error(
+        `A seção "${String(section)}" não é atualizável como objeto.`,
+      );
     }
 
     const updated: AtlasConfigSchema = {
@@ -176,27 +192,39 @@ export class AtlasConfigManager {
     return updated;
   }
 
-  public updateSecuritySettings(settings: Partial<AtlasSecuritySettings>): AtlasConfigSchema {
+  public updateSecuritySettings(
+    settings: Partial<AtlasSecuritySettings>,
+  ): AtlasConfigSchema {
     return this.updateSection("cloudSecurity", settings);
   }
 
-  public updateRagSettings(settings: Partial<AtlasRagSettings>): AtlasConfigSchema {
+  public updateRagSettings(
+    settings: Partial<AtlasRagSettings>,
+  ): AtlasConfigSchema {
     return this.updateSection("rag", settings);
   }
 
-  public updateRuntimeSettings(settings: Partial<AtlasRuntimeSettings>): AtlasConfigSchema {
+  public updateRuntimeSettings(
+    settings: Partial<AtlasRuntimeSettings>,
+  ): AtlasConfigSchema {
     return this.updateSection("runtime", settings);
   }
 
-  public updateUiSettings(settings: Partial<AtlasUiSettings>): AtlasConfigSchema {
+  public updateUiSettings(
+    settings: Partial<AtlasUiSettings>,
+  ): AtlasConfigSchema {
     return this.updateSection("ui", settings);
   }
 
-  public updateGeneralSettings(settings: Partial<AtlasGeneralSettings>): AtlasConfigSchema {
+  public updateGeneralSettings(
+    settings: Partial<AtlasGeneralSettings>,
+  ): AtlasConfigSchema {
     return this.updateSection("general", settings);
   }
 
-  public updateLlmDefaults(defaults: Partial<AtlasLlmDefaults>): AtlasConfigSchema {
+  public updateLlmDefaults(
+    defaults: Partial<AtlasLlmDefaults>,
+  ): AtlasConfigSchema {
     const config = this.getConfig();
 
     config.llm.defaults = {
@@ -237,7 +265,10 @@ export class AtlasConfigManager {
     return config;
   }
 
-  public updateModel(modelId: string, partialData: Partial<AtlasModelConfig>): AtlasConfigSchema {
+  public updateModel(
+    modelId: string,
+    partialData: Partial<AtlasModelConfig>,
+  ): AtlasConfigSchema {
     const config = this.getConfig();
     const existing = config.llm.models[modelId];
 
@@ -286,7 +317,9 @@ export class AtlasConfigManager {
     const config = this.getConfig();
 
     if (modelId !== null && !config.llm.models[modelId]) {
-      throw new Error(`Não é possível ativar o modelo "${modelId}" porque ele não existe.`);
+      throw new Error(
+        `Não é possível ativar o modelo "${modelId}" porque ele não existe.`,
+      );
     }
 
     config.llm.activeModelId = modelId;
@@ -306,6 +339,37 @@ export class AtlasConfigManager {
     return config.llm.models;
   }
 
+  public getAllProviders(): ProviderConfig[] {
+    const config = this.getConfig();
+    return config.providers ?? [];
+  }
+
+  public saveProviders(providers: ProviderConfig[]): AtlasConfigSchema {
+    const config = this.getConfig();
+
+    config.providers = providers;
+    config.updatedAt = new Date().toISOString();
+
+    this.writeConfig(config);
+    return config;
+  }
+
+  public addProvider(provider: ProviderConfig): AtlasConfigSchema {
+    const config = this.getConfig();
+    const providers = config.providers ?? [];
+
+    const alreadyExists = providers.some((p) => p.id === provider.id);
+    if (alreadyExists) {
+      throw new Error(`O provedor "${provider.label}" já existe.`);
+    }
+
+    config.providers = [...providers, provider];
+    config.updatedAt = new Date().toISOString();
+
+    this.writeConfig(config);
+    return config;
+  }
+
   public updateCustomRoot(customData: JsonMap): AtlasConfigSchema {
     const config = this.getConfig();
 
@@ -319,7 +383,10 @@ export class AtlasConfigManager {
     return config;
   }
 
-  public setNestedValue(pathSegments: string[], value: unknown): AtlasConfigSchema {
+  public setNestedValue(
+    pathSegments: string[],
+    value: unknown,
+  ): AtlasConfigSchema {
     if (pathSegments.length === 0) {
       throw new Error("O caminho para atualização não pode ser vazio.");
     }
@@ -355,7 +422,7 @@ export class AtlasConfigManager {
     fs.writeFileSync(
       this.configFilePath,
       JSON.stringify(config, null, 2),
-      "utf8"
+      "utf8",
     );
   }
 
@@ -406,10 +473,32 @@ export class AtlasConfigManager {
         models: {},
       },
       custom: {},
+      providers: [
+        {
+          id: "OpenAI",
+          label: "OpenAI",
+          baseUrl: "https://api.openai.com/v1",
+          apiKeyPlaceholder: "sk-...",
+        },
+        {
+          id: "OpenRouter",
+          label: "OpenRouter",
+          baseUrl: "https://openrouter.ai/api/v1",
+          apiKeyPlaceholder: "sk-or-v1-...",
+        },
+        {
+          id: "Groq",
+          label: "Groq",
+          baseUrl: "https://api.groq.com/openai/v1",
+          apiKeyPlaceholder: "gsk_...",
+        },
+      ],
     };
   }
 
-  private mergeWithDefaults(partial: Partial<AtlasConfigSchema>): AtlasConfigSchema {
+  private mergeWithDefaults(
+    partial: Partial<AtlasConfigSchema>,
+  ): AtlasConfigSchema {
     const defaults = this.createDefaultConfig();
 
     return {

@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-03-30T02:50:28.710Z",
+  "updatedAt": "2026-04-01T14:59:49.622Z",
   "general": {
     "theme": "system",
     "language": "pt-BR",
@@ -9,10 +9,10 @@
   },
   "cloudSecurity": {
     "confirmCloud": true,
-    "blockRag": true,
-    "limitPayload": false,
+    "blockRag": false,
+    "limitPayload": true,
     "maxTokens": 2048,
-    "timeout": 15
+    "timeout": 10
   },
   "rag": {
     "enabled": true,
@@ -21,11 +21,7 @@
     "offlineOnly": true,
     "chunkSize": 1000,
     "chunkOverlap": 200,
-    "ignoredPaths": [
-      "node_modules",
-      "dist",
-      ".git"
-    ]
+    "ignoredPaths": ["node_modules", "dist", ".git"]
   },
   "runtime": {
     "mode": "local",
@@ -47,5 +43,25 @@
     },
     "models": {}
   },
-  "custom": {}
+  "custom": {},
+  "providers": [
+    {
+      "id": "OpenAI",
+      "label": "OpenAI",
+      "baseUrl": "https://api.openai.com/v1",
+      "apiKeyPlaceholder": "sk-..."
+    },
+    {
+      "id": "OpenRouter",
+      "label": "OpenRouter",
+      "baseUrl": "https://openrouter.ai/api/v1",
+      "apiKeyPlaceholder": "sk-or-v1-..."
+    },
+    {
+      "id": "Groq",
+      "label": "Groq",
+      "baseUrl": "https://api.groq.com/openai/v1",
+      "apiKeyPlaceholder": "gsk_..."
+    }
+  ]
 }

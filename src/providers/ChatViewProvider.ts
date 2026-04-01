@@ -14,8 +14,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
   constructor(private readonly context: vscode.ExtensionContext) {
     const secretStorage = new SecretStorageService(context);
-    this.apiKeyManager = new ApiKeyManager(secretStorage);
     this.configManager = new AtlasConfigManager(context);
+    this.apiKeyManager = new ApiKeyManager(secretStorage, this.configManager);
   }
 
   public resolveWebviewView(webviewView: vscode.WebviewView) {

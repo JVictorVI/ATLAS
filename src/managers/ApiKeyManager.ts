@@ -1,14 +1,11 @@
 import * as vscode from "vscode";
 import { SecretStorageService } from "../services/SecretStorageService";
+import {
+  AtlasConfigManager,
+  ProviderConfig,
+} from "../services/AtlasConfigManager";
 
-export type ProviderName = "OpenAI" | "OpenRouter" | "Groq";
-
-interface ProviderConfig {
-  id: ProviderName;
-  label: string;
-  baseUrl: string;
-  apiKeyPlaceholder: string;
-}
+export type ProviderName = string;
 
 export interface ApiCredentialView {
   provider: ProviderName;
@@ -24,28 +21,14 @@ interface StoredApiCredentialMetadata {
 }
 
 export class ApiKeyManager {
-  private readonly providers: ProviderConfig[] = [
-    {
-      id: "OpenAI",
-      label: "OpenAI",
-      baseUrl: "https://api.openai.com/v1",
-      apiKeyPlaceholder: "sk-...",
-    },
-    {
-      id: "OpenRouter",
-      label: "OpenRouter",
-      baseUrl: "https://openrouter.ai/api/v1",
-      apiKeyPlaceholder: "sk-or-v1-...",
-    },
-    {
-      id: "Groq",
-      label: "Groq",
-      baseUrl: "https://api.groq.com/openai/v1",
-      apiKeyPlaceholder: "gsk_...",
-    },
-  ];
+  constructor(
+    private readonly secretStorage: SecretStorageService,
+    private readonly configManager: AtlasConfigManager,
+  ) {
+    this.configManager = configManager;
+  }
 
-  constructor(private readonly secretStorage: SecretStorageService) {}
+  private providers: ProviderConfig[] = this.configManager.getAllProviders();
 
   async handleMessage(data: any, webview: vscode.Webview): Promise<boolean> {
     if (data.type === "adicionarChave") {
@@ -68,7 +51,7 @@ export class ApiKeyManager {
 
   async addKey(webview: vscode.Webview): Promise<void> {
     const provider = await vscode.window.showQuickPick(
-      this.providers.map((item) => ({
+      this.getProvidersWithCustomProvider().map((item) => ({
         label: item.label,
         description: item.baseUrl,
         providerId: item.id,
@@ -82,6 +65,42 @@ export class ApiKeyManager {
 
     if (!provider) {
       return;
+    }
+
+    if (provider.providerId === "Provedor Personalizado") {
+      const customProviderId = await vscode.window.showInputBox({
+        title: "Nome do Provedor Personalizado",
+        prompt: "Digite um nome para o provedor personalizado",
+        placeHolder: "Nome do provedor",
+        ignoreFocusOut: true,
+      });
+
+      if (!customProviderId) {
+        return;
+      }
+
+      provider.providerId = customProviderId as ProviderName;
+
+      const customBaseUrl = await vscode.window.showInputBox({
+        title: "URL Base do Provedor Personalizado",
+        prompt: "Digite a URL base para o provedor personalizado",
+        placeHolder: "Ex: https://api.meuprovedor.com/v1",
+        ignoreFocusOut: true,
+      });
+
+      if (!customBaseUrl) {
+        return;
+      }
+
+      const customProvider: ProviderConfig = {
+        id: customProviderId as ProviderName,
+        label: customProviderId,
+        baseUrl: customBaseUrl,
+        apiKeyPlaceholder: "Chave de API",
+      };
+
+      this.configManager.addProvider(customProvider);
+      this.providers = this.configManager.getAllProviders();
     }
 
     const selectedProvider = this.getProviderConfig(provider.providerId);
@@ -282,5 +301,21 @@ export class ApiKeyManager {
       dateStyle: "short",
       timeStyle: "short",
     }).format(date);
+  }
+
+  getProvidersWithCustomProvider(): ProviderConfig[] {
+    const filtered = this.providers.filter(
+      (p) => p.id !== "Provedor Personalizado",
+    );
+
+    return [
+      ...filtered,
+      {
+        id: "Provedor Personalizado",
+        label: "Adicionar provedor personalizado",
+        baseUrl: "",
+        apiKeyPlaceholder: "Chave de API",
+      },
+    ];
   }
 }
