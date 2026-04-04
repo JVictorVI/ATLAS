@@ -1,0 +1,262 @@
+body {
+  font-family: var(--vscode-font-family);
+  color: var(--vscode-foreground);
+  background: var(--vscode-editor-background);
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Layout (Sidebar + Conteúdo) */
+.layout {
+  display: flex;
+  height: 100vh;
+}
+
+.sidebar {
+  width: 260px;
+  background: var(--vscode-sideBar-background);
+  border-right: 1px solid var(--vscode-widget-border);
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--vscode-widget-border);
+}
+
+.search-input {
+  width: 100%;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border, var(--vscode-widget-border));
+  border-radius: 8px;
+  padding: 8px 12px;
+  box-sizing: border-box;
+  outline: none;
+}
+
+.search-input:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+.sidebar-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.model-list-item {
+  padding: 12px 16px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--vscode-widget-border);
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.model-list-item:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.model-list-item.active {
+  background: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+}
+
+.model-badge {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  font-weight: 600;
+}
+.model-list-item.active .model-badge {
+  color: inherit;
+}
+
+.content {
+  flex: 1;
+  padding: 24px 32px;
+  overflow-y: auto;
+}
+
+/* Design importado da aba de Chaves API */
+.header-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+h1 {
+  font-size: 35px;
+  margin: 0 0 6px 0;
+}
+
+.subtitle {
+  color: var(--vscode-descriptionForeground);
+  font-size: 15px;
+  margin-bottom: 20px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.card {
+  background: #1e1e1e;
+  border: 1px solid var(--vscode-widget-border);
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 18px;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+/* Campos e Inputs */
+.inline-fields {
+  display: flex;
+  gap: 14px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 220px;
+}
+
+.readonly-value {
+  background: transparent;
+  color: var(--vscode-foreground);
+  font-weight: 500;
+  padding: 8px 0;
+}
+
+input[type="text"],
+input[type="number"],
+textarea {
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border, var(--vscode-widget-border));
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: var(--vscode-font-family);
+}
+
+input:focus, textarea:focus {
+  outline: none;
+  border-color: var(--vscode-focusBorder);
+  box-shadow: 0 0 0 1px var(--vscode-focusBorder);
+}
+
+textarea:disabled {
+  background: var(--vscode-disabledBackground);
+  color: var(--vscode-disabledForeground);
+  border-color: var(--vscode-disabledBackground);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Rádios */
+.checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 10px;
+}
+.row-checkbox {
+  flex-direction: row;
+  gap: 24px;
+}
+
+.checkBoxSection {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+input[type="radio"] {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--vscode-checkbox-border, var(--vscode-widget-border));
+  border-radius: 50%;
+  background-color: var(--vscode-checkbox-background);
+  position: relative;
+  cursor: pointer;
+  margin: 0;
+}
+
+input[type="radio"]:checked {
+  border-color: var(--vscode-button-background);
+}
+
+input[type="radio"]:checked::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--vscode-button-background);
+}
+
+/* Botões */
+button {
+  border: none;
+  border-radius: 5px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: var(--vscode-font-family);
+}
+
+.btn-primary {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.btn-primary:hover {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.btn-danger {
+  background: transparent;
+  color: #f14c4c;
+  border: 1px solid #f14c4c;
+}
+
+.btn-danger:hover {
+  background: rgba(241, 76, 76, 0.1);
+}
+
+.row-end {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--vscode-descriptionForeground);
+  font-size: 15px;
+}

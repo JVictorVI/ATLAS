@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Minha Biblioteca</title>
+  <link rel="stylesheet" href="{{styleUri}}" />
+</head>
+<body>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <input type="text" placeholder="Filtrar modelos..." class="search-input" />
+      </div>
+      <div class="sidebar-list" id="model-list">
+        </div>
+    </aside>
+
+    <main class="content">
+      <div id="empty-state" class="empty-state">
+        Selecione um modelo na barra lateral.
+      </div>
+      
+      <div id="model-details" class="hidden">
+        <div class="header-actions">
+          <div class="header-titles">
+            <h1 id="model-name-title">gemma-3-1b</h1>
+            <div class="subtitle" id="info-tag">Q4_K_M · 24.68 GB</div>
+          </div>
+          <div class="actions">
+            <button class="btn-primary" id="btn-load-model">Carregar Modelo</button>
+            <button class="btn-danger" id="btn-delete-model">Excluir Modelo</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="section-title">Informações do Modelo</div>
+          <div class="inline-fields">
+            <div class="field">
+              <label>Modelo</label>
+              <span class="readonly-value" id="info-model">google/gemma-3-1b</span>
+            </div>
+            <div class="field">
+              <label>Quantização</label>
+              <span class="readonly-value" id="info-quant">Q6_Q4</span>
+            </div>
+            <div class="field">
+              <label>Data de Instalação</label>
+              <span class="readonly-value" id="info-date">16/02/2025</span>
+            </div>
+            <div class="field">
+              <label>Arquivo</label>
+              <span class="readonly-value" id="info-file">gemma-3-1b-it.gguf</span>
+            </div>
+            <div class="field">
+              <label>Tamanho em Disco</label>
+              <span class="readonly-value" id="info-size">720.5 MB</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="section-title">Parâmetros de Execução do Modelo</div>
+          <div class="subtitle">Ajuste como o modelo será executado na sua máquina</div>
+          
+          <div class="inline-fields">
+            <div class="field">
+              <label for="param-gpu">N.º de camadas na GPU</label>
+              <input type="number" id="param-gpu" value="40" />
+            </div>
+            <div class="field">
+              <label for="param-tokens-res">Tokens Processados Por Resposta</label>
+              <input type="number" id="param-tokens-res" value="512" />
+            </div>
+            <div class="field">
+              <label for="param-temp">Temperatura</label>
+              <input type="number" id="param-temp" value="0.7" step="0.1" />
+            </div>
+            <div class="field">
+              <label for="param-context">Tamanho do Contexto</label>
+              <input type="number" id="param-context" value="4096" />
+            </div>
+            <div class="field">
+              <label for="param-max-tokens">N.º Máximo de Tokens Gerados</label>
+              <input type="number" id="param-max-tokens" value="300" />
+            </div>
+          </div>
+          <div class="row-end">
+            <button class="btn-primary" id="btn-save-params">Salvar</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="section-title">Comportamento do Modelo</div>
+          <div class="subtitle">Personalize parcialmente o comportamento base do modelo</div>
+          
+          <div class="checkbox-group row-checkbox">
+            <label class="checkBoxSection">
+              <input type="radio" name="behavior" id="toggle-default" checked />
+              Comportamento Padrão
+            </label>
+            <label class="checkBoxSection">
+              <input type="radio" name="behavior" id="toggle-custom" />
+              Comportamento Personalizado
+            </label>
+          </div>
+
+          <div class="field" style="margin-top: 14px;">
+            <label for="system-prompt">Prompt de Sistema Personalizado</label>
+            <textarea id="system-prompt" rows="3" disabled placeholder="Exemplo: 'Sempre me chame de Doutor'"></textarea>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+  <script src="{{scriptUri}}"></script>
+</body>
+</html>
