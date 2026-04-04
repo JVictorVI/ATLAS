@@ -22,12 +22,18 @@ function renderChatView() {
         </div>
 
         <div class="input-area">
+            <div class="model-selector">
+                <div class="model-tag">
+                    <i class="codicon codicon-chevron-down"></i>
+                    <span>Teste</span>
+                </div>
+                <i class="codicon codicon-screenfull" title="Tela cheia"></i>
+            </div>
+
             <div class="input-container">
                 <input type="text" id="pergunta" placeholder="Pergunte ao ATLAS" />
                 <button id="send-btn" title="Enviar">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                        <path d="M1.176 8.005L14.804 1 13 15l-4.5-4.5-2 2V9l-5.324-.995z"/>
-                    </svg>
+                    <i class="codicon codicon-arrow-up"></i>
                 </button>
             </div>
         </div>

@@ -170,3 +170,120 @@ nav button {
 nav button:hover {
   background-color: var(--vscode-list-activeSelectionBackground);
 }
+
+
+.navbar {
+  display: flex;
+  justify-content: center; 
+  gap: 30px; 
+  padding: 12px;
+  background-color: var(--vscode-sideBar-background);
+  border-bottom: 1px solid var(--vscode-widget-border);
+}
+
+.navbar button {
+  background: none;
+  border: none;
+  color: #858585; 
+  cursor: pointer;
+  font-size: 20px;
+  padding: 15px;
+}
+
+.navbar button:hover {
+  color: var(--vscode-foreground);
+  transform: scale(1.15);
+}
+
+
+.message {
+  max-width: 85%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.user {
+  align-self: flex-end;
+  background-color: #007acc; 
+  color: #ffffff;
+  border-bottom-right-radius: 2px;
+}
+
+.bot {
+  align-self: flex-start;
+  background-color: #3a3a3a; 
+  color: #cccccc;
+  border-bottom-left-radius: 2px;
+  border: none;
+}
+
+
+.input-area {
+  padding: 16px;
+  background-color: var(--vscode-sideBar-background);
+}
+
+.model-selector {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  color: #858585;
+}
+
+.model-tag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #2d2d2d;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid #444;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.input-container {
+  display: flex;
+  align-items: center;
+  background-color: #252526; 
+  border: 1px solid #454545;
+  border-radius: 4px;
+  padding: 4px 6px 4px 12px;
+}
+
+input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #cccccc;
+  outline: none;
+  font-size: 13px;
+}
+
+#send-btn {
+  background-color: #007acc !important; 
+  color: white !important;
+  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+#send-btn:hover {
+  background-color: #1c97ea !important;
+}
+
+/* Isso garante que o ícone realmente cresça */
+.navbar button i {
+  font-size: 26px !important; /* O !important garante que ignore estilos padrão da biblioteca */
+  display: block; /* Ajuda no alinhamento centralizado */
+}
+
+
