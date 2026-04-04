@@ -73,6 +73,7 @@ export interface AtlasModelConfig {
   name: string;
   provider: string;
   enabled: boolean;
+  source: "local" | "cloud";
   path?: string;
   apiModelName?: string;
   baseUrl?: string;
@@ -81,10 +82,28 @@ export interface AtlasModelConfig {
   custom?: JsonMap;
 }
 
+export interface AtlasLlmSelection {
+  mode: "local" | "cloud";
+  local: {
+    modelId: string | null;
+  };
+  cloud: {
+    providerId: string | null;
+    modelId: string | null;
+  };
+}
+
 export interface AtlasLlmSettings {
-  activeModelId: string | null;
+  selection: AtlasLlmSelection;
   defaults: AtlasLlmDefaults;
   models: Record<string, AtlasModelConfig>;
+}
+
+export interface ProviderConfig {
+  id: string;
+  label: string;
+  baseUrl: string;
+  apiKeyPlaceholder: string;
 }
 
 export interface AtlasConfigSchema {
@@ -98,13 +117,6 @@ export interface AtlasConfigSchema {
   llm: AtlasLlmSettings;
   custom?: JsonMap;
   providers?: ProviderConfig[];
-}
-
-export interface ProviderConfig {
-  id: string;
-  label: string;
-  baseUrl: string;
-  apiKeyPlaceholder: string;
 }
 
 export class AtlasConfigManager {
@@ -332,29 +344,17 @@ export class AtlasConfigManager {
   public removeModel(modelId: string): AtlasConfigSchema {
     const config = this.getConfig();
 
-    if (config.llm.activeModelId === modelId) {
-      config.llm.activeModelId = null;
+    if (config.llm.selection.local.modelId === modelId) {
+      config.llm.selection.local.modelId = null;
+    }
+
+    if (config.llm.selection.cloud.modelId === modelId) {
+      config.llm.selection.cloud.modelId = null;
     }
 
     delete config.llm.models[modelId];
 
     config.updatedAt = new Date().toISOString();
-    this.writeConfig(config);
-    return config;
-  }
-
-  public setActiveModel(modelId: string | null): AtlasConfigSchema {
-    const config = this.getConfig();
-
-    if (modelId !== null && !config.llm.models[modelId]) {
-      throw new Error(
-        `Não é possível ativar o modelo "${modelId}" porque ele não existe.`,
-      );
-    }
-
-    config.llm.activeModelId = modelId;
-    config.updatedAt = new Date().toISOString();
-
     this.writeConfig(config);
     return config;
   }
@@ -492,7 +492,16 @@ export class AtlasConfigManager {
         showTips: true,
       },
       llm: {
-        activeModelId: null,
+        selection: {
+          mode: "local",
+          local: {
+            modelId: null,
+          },
+          cloud: {
+            providerId: null,
+            modelId: null,
+          },
+        },
         defaults: {
           temperature: 0.2,
           maxTokens: 2048,
@@ -557,6 +566,18 @@ export class AtlasConfigManager {
       llm: {
         ...defaults.llm,
         ...(partial.llm ?? {}),
+        selection: {
+          ...defaults.llm.selection,
+          ...(partial.llm?.selection ?? {}),
+          local: {
+            ...defaults.llm.selection.local,
+            ...(partial.llm?.selection?.local ?? {}),
+          },
+          cloud: {
+            ...defaults.llm.selection.cloud,
+            ...(partial.llm?.selection?.cloud ?? {}),
+          },
+        },
         defaults: {
           ...defaults.llm.defaults,
           ...(partial.llm?.defaults ?? {}),
@@ -573,5 +594,146 @@ export class AtlasConfigManager {
       updatedAt: partial.updatedAt ?? defaults.updatedAt,
       version: partial.version ?? defaults.version,
     };
+  }
+
+  public setLlmMode(mode: "local" | "cloud"): AtlasConfigSchema {
+    const config = this.getConfig();
+
+    config.llm.selection.mode = mode;
+    config.runtime.mode = mode;
+    config.updatedAt = new Date().toISOString();
+
+    this.writeConfig(config);
+    return config;
+  }
+
+  public setSelectedLocalModel(modelId: string | null): AtlasConfigSchema {
+    const config = this.getConfig();
+
+    if (modelId !== null) {
+      const model = config.llm.models[modelId];
+
+      if (!model) {
+        throw new Error(`Modelo "${modelId}" não encontrado.`);
+      }
+
+      if (model.source !== "local") {
+        throw new Error(`O modelo "${modelId}" não é um modelo local.`);
+      }
+    }
+
+    config.llm.selection.local.modelId = modelId;
+    config.updatedAt = new Date().toISOString();
+
+    this.writeConfig(config);
+    return config;
+  }
+
+  public setSelectedCloudProvider(
+    providerId: string | null,
+  ): AtlasConfigSchema {
+    const config = this.getConfig();
+
+    if (providerId !== null) {
+      const providerExists = (config.providers ?? []).some(
+        (p) => p.id === providerId,
+      );
+
+      if (!providerExists) {
+        throw new Error(`Provedor "${providerId}" não encontrado.`);
+      }
+    }
+
+    config.llm.selection.cloud.providerId = providerId;
+    config.llm.selection.cloud.modelId = null;
+    config.updatedAt = new Date().toISOString();
+
+    this.writeConfig(config);
+    return config;
+  }
+
+  public setSelectedCloudModel(modelId: string | null): AtlasConfigSchema {
+    const config = this.getConfig();
+
+    if (modelId !== null) {
+      const model = config.llm.models[modelId];
+
+      if (!model) {
+        throw new Error(`Modelo "${modelId}" não encontrado.`);
+      }
+
+      if (model.source !== "cloud") {
+        throw new Error(`O modelo "${modelId}" não é um modelo em nuvem.`);
+      }
+
+      const selectedProviderId = config.llm.selection.cloud.providerId;
+
+      if (!selectedProviderId) {
+        throw new Error("Nenhum provedor em nuvem foi selecionado.");
+      }
+
+      if (model.provider !== selectedProviderId) {
+        throw new Error(
+          `O modelo "${modelId}" não pertence ao provedor "${selectedProviderId}".`,
+        );
+      }
+    }
+
+    config.llm.selection.cloud.modelId = modelId;
+    config.updatedAt = new Date().toISOString();
+
+    this.writeConfig(config);
+    return config;
+  }
+
+  public getSelectedLocalModel(): AtlasModelConfig | null {
+    const config = this.getConfig();
+    const modelId = config.llm.selection.local.modelId;
+
+    if (!modelId) {
+      return null;
+    }
+
+    return config.llm.models[modelId] ?? null;
+  }
+
+  public getSelectedCloudModel(): AtlasModelConfig | null {
+    const config = this.getConfig();
+    const modelId = config.llm.selection.cloud.modelId;
+
+    if (!modelId) {
+      return null;
+    }
+
+    return config.llm.models[modelId] ?? null;
+  }
+
+  public getSelectedModelForCurrentMode(): AtlasModelConfig | null {
+    const config = this.getConfig();
+
+    return config.llm.selection.mode === "local"
+      ? this.getSelectedLocalModel()
+      : this.getSelectedCloudModel();
+  }
+
+  public getCloudModelsBySelectedProvider(): AtlasModelConfig[] {
+    const config = this.getConfig();
+    const providerId = config.llm.selection.cloud.providerId;
+
+    if (!providerId) {
+      return [];
+    }
+
+    return Object.values(config.llm.models).filter(
+      (model) => model.source === "cloud" && model.provider === providerId,
+    );
+  }
+
+  public getLocalModels(): AtlasModelConfig[] {
+    const config = this.getConfig();
+
+    return Object.values(config.llm.models).filter(
+      (model) => model.source === "local",
+    );
   }
 }
