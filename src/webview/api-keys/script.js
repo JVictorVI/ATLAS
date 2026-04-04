@@ -105,6 +105,18 @@ function bindCredentialActions() {
       });
     });
   });
+
+  editButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const provider = button.getAttribute("data-provider");
+      if (!provider) return;
+
+      vscode.postMessage({
+        type: "editarChave",
+        provider,
+      });
+    });
+  });
 }
 
 function fillCloudSecuritySettings(settings) {

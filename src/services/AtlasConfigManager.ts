@@ -237,6 +237,36 @@ export class AtlasConfigManager {
     return config;
   }
 
+  public updateProvider(
+    providerId: string,
+    partialData: Partial<ProviderConfig>,
+  ): AtlasConfigSchema {
+    const config = this.getConfig();
+    const providers = config.providers ?? [];
+
+    const index = providers.findIndex((p) => p.id === providerId);
+
+    if (index === -1) {
+      throw new Error(`Provedor "${providerId}" não encontrado.`);
+    }
+
+    const currentProvider = providers[index];
+
+    const updatedProvider: ProviderConfig = {
+      ...currentProvider,
+      ...partialData,
+      id: currentProvider.id,
+    };
+
+    providers[index] = updatedProvider;
+
+    config.providers = providers;
+    config.updatedAt = new Date().toISOString();
+
+    this.writeConfig(config);
+    return config;
+  }
+
   public upsertModel(model: AtlasModelConfig): AtlasConfigSchema {
     const config = this.getConfig();
 

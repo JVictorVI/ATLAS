@@ -46,6 +46,11 @@ export class ApiKeyManager {
       return true;
     }
 
+    if (data.type === "editarChave") {
+      await this.editKey(data.provider, webview);
+      return true;
+    }
+
     return false;
   }
 
@@ -205,6 +210,136 @@ export class ApiKeyManager {
     await this.sendCredentialsToWebview(webview);
   }
 
+  async editKey(
+    provider: ProviderName,
+    webview: vscode.Webview,
+  ): Promise<void> {
+    if (!provider) {
+      return;
+    }
+
+    const providerConfig = this.getProviderConfig(provider);
+
+    if (!providerConfig) {
+      vscode.window.showErrorMessage("Provedor inválido.");
+      return;
+    }
+
+    const providerName = await vscode.window.showInputBox({
+      title: "Editar provedor",
+      prompt: `Digite o nome para ${providerConfig.label}`,
+      value: providerConfig.label,
+      placeHolder: "Nome do provedor",
+      ignoreFocusOut: true,
+      validateInput: (value) => {
+        if (!value.trim()) {
+          return "O nome do provedor não pode ficar vazio.";
+        }
+        return undefined;
+      },
+    });
+
+    if (!providerName) {
+      return;
+    }
+
+    const providerBaseUrl = await vscode.window.showInputBox({
+      title: "Editar URL base do provedor",
+      prompt: `Digite a URL base para ${providerConfig.label}`,
+      value: providerConfig.baseUrl,
+      placeHolder: "Ex: https://api.meuprovedor.com/v1",
+      ignoreFocusOut: true,
+      validateInput: (value) => {
+        const normalized = value.trim();
+
+        if (!normalized) {
+          return "A URL base não pode ficar vazia.";
+        }
+
+        try {
+          new URL(normalized);
+          return undefined;
+        } catch {
+          return "Digite uma URL válida.";
+        }
+      },
+    });
+
+    if (!providerBaseUrl) {
+      return;
+    }
+
+    const currentKey = await this.getRawKey(provider);
+
+    const editedApiKey = await vscode.window.showInputBox({
+      title: "Editar chave de API",
+      prompt: `Digite a nova chave para ${providerConfig.label}`,
+      placeHolder: providerConfig.apiKeyPlaceholder,
+      password: true,
+      ignoreFocusOut: true,
+      validateInput: (value) => {
+        const normalized = value.trim();
+
+        if (!normalized) {
+          return "A chave não pode ficar vazia.";
+        }
+
+        if (normalized.length < 10) {
+          return "A chave parece curta demais.";
+        }
+
+        return undefined;
+      },
+    });
+
+    if (!editedApiKey) {
+      return;
+    }
+
+    const confirm = await vscode.window.showInformationMessage(
+      `Deseja salvar as alterações do provedor ${providerConfig.label}?`,
+      { modal: true },
+      "Salvar",
+    );
+
+    if (confirm !== "Salvar") {
+      return;
+    }
+
+    try {
+      const secretKey = this.buildSecretStorageKey(provider);
+      const metadataKey = this.buildMetadataStorageKey(provider);
+
+      await this.secretStorage.store(secretKey, editedApiKey.trim());
+
+      const existingMetadata = await this.getCredentialMetadata(provider);
+
+      const metadata: StoredApiCredentialMetadata = {
+        addedAt: existingMetadata?.addedAt ?? new Date().toISOString(),
+      };
+
+      await this.secretStorage.store(metadataKey, JSON.stringify(metadata));
+
+      this.configManager.updateProvider(provider, {
+        label: providerName.trim(),
+        baseUrl: providerBaseUrl.trim(),
+      });
+
+      this.providers = this.configManager.getAllProviders();
+
+      vscode.window.showInformationMessage(
+        `Provedor ${providerName.trim()} editado com sucesso.`,
+      );
+
+      await this.sendCredentialsToWebview(webview);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Erro ao editar o provedor.";
+
+      vscode.window.showErrorMessage(message);
+    }
+  }
+
   async listCredentials(): Promise<ApiCredentialView[]> {
     const result: ApiCredentialView[] = [];
 
@@ -317,5 +452,16 @@ export class ApiKeyManager {
         apiKeyPlaceholder: "Chave de API",
       },
     ];
+  }
+
+  async getRawKey(provider: ProviderName): Promise<string | undefined> {
+    if (!provider) {
+      return undefined;
+    }
+
+    const secretKey = this.buildSecretStorageKey(provider);
+    const storedValue = await this.secretStorage.get(secretKey);
+
+    return storedValue?.trim() || undefined;
   }
 }
