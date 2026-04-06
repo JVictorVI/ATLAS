@@ -4,6 +4,7 @@ import * as path from "path";
 import { ApiKeyManager } from "../managers/ApiKeyManager";
 import { SecretStorageService } from "../services/SecretStorageService";
 import { AtlasConfigManager } from "../services/AtlasConfigManager";
+import { ChatMessage, CloudApiService } from "../services/CloudApiService";
 
 export class ChatViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "atlas-chat.view";
@@ -11,11 +12,16 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private _panel?: vscode.WebviewPanel;
   private readonly apiKeyManager: ApiKeyManager;
   private readonly configManager: AtlasConfigManager;
+  private readonly cloudApiService: CloudApiService;
 
   constructor(private readonly context: vscode.ExtensionContext) {
     const secretStorage = new SecretStorageService(context);
     this.configManager = new AtlasConfigManager(context);
     this.apiKeyManager = new ApiKeyManager(secretStorage, this.configManager);
+    this.cloudApiService = new CloudApiService(
+      this.configManager,
+      this.apiKeyManager,
+    );
   }
 
   public resolveWebviewView(webviewView: vscode.WebviewView) {
@@ -62,6 +68,17 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         type: "novaResposta",
         value: `Você disse: ${data.value}`,
       });
+
+      const chatMessage: ChatMessage[] = [
+        { role: "user", content: data.value },
+      ];
+      const response = await this.cloudApiService.sendChat(chatMessage);
+
+      await webview.postMessage({
+        type: "novaResposta",
+        value: response,
+      });
+
       return;
     }
 

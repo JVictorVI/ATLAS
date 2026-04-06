@@ -1,7 +1,7 @@
 import { AtlasConfigManager } from "../services/AtlasConfigManager";
 import { ApiKeyManager } from "../managers/ApiKeyManager";
 
-interface ChatMessage {
+export interface ChatMessage {
   role: "system" | "user" | "assistant";
   content: string;
 }
@@ -11,6 +11,7 @@ interface OpenAiCompatibleResponse {
     message?: {
       content?: string;
     };
+    finish_reason?: string;
   }>;
   error?: {
     message?: string;
@@ -25,26 +26,22 @@ export class CloudApiService {
 
   public async sendChat(messages: ChatMessage[]): Promise<string> {
     const config = this.configManager.getConfig();
-    const activeModelId = config.llm.selection.cloud.modelId;
 
-    if (!activeModelId) {
-      throw new Error("Nenhum modelo ativo foi configurado.");
+    if (!this.configManager.isCloudMode()) {
+      throw new Error(
+        "O ATLAS não está configurado para execução em nuvem no momento.",
+      );
     }
 
-    const model = this.configManager.getModel(activeModelId);
+    const resolved = this.configManager.getResolvedCloudSelection();
 
-    if (!model) {
-      throw new Error(`Modelo "${activeModelId}" não encontrado.`);
+    if (!resolved) {
+      throw new Error(
+        "A seleção em nuvem está incompleta. Defina o provedor e o modelo antes de enviar a mensagem.",
+      );
     }
 
-    const provider = this.configManager
-      .getAllProviders()
-      .find((p) => p.id === model.provider);
-
-    if (!provider) {
-      throw new Error(`Provedor "${model.provider}" não encontrado.`);
-    }
-
+    const { provider, modelId } = resolved;
     const apiKey = await this.apiKeyManager.getRawKey(provider.id);
 
     if (!apiKey) {
@@ -53,7 +50,7 @@ export class CloudApiService {
       );
     }
 
-    const baseUrl = (model.baseUrl || provider.baseUrl).replace(/\/+$/, "");
+    const baseUrl = provider.baseUrl.replace(/\/+$/, "");
     const endpoint = `${baseUrl}/chat/completions`;
 
     const response = await fetch(endpoint, {
@@ -63,20 +60,11 @@ export class CloudApiService {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: model.apiModelName || model.name,
+        model: modelId,
         messages,
-        temperature:
-          typeof model.parameters.temperature === "number"
-            ? model.parameters.temperature
-            : config.llm.defaults.temperature,
-        max_tokens:
-          typeof model.parameters.maxTokens === "number"
-            ? model.parameters.maxTokens
-            : config.llm.defaults.maxTokens,
-        top_p:
-          typeof model.parameters.topP === "number"
-            ? model.parameters.topP
-            : config.llm.defaults.topP,
+        temperature: config.llm.defaults.temperature,
+        max_tokens: config.llm.defaults.maxTokens,
+        top_p: config.llm.defaults.topP,
         stream: false,
       }),
     });
@@ -89,6 +77,12 @@ export class CloudApiService {
       );
     }
 
-    return data.choices?.[0]?.message?.content ?? "";
+    const content = data.choices?.[0]?.message?.content?.trim();
+
+    if (!content) {
+      throw new Error("O provedor retornou uma resposta vazia.");
+    }
+
+    return content;
   }
 }
