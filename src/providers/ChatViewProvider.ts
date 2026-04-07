@@ -69,15 +69,26 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         value: `Você disse: ${data.value}`,
       });
 
-      const chatMessage: ChatMessage[] = [
-        { role: "user", content: data.value },
-      ];
-      const response = await this.cloudApiService.sendChat(chatMessage);
+      if (data.value.toLowerCase().includes("modelos")) {
+        const response =
+          await this.cloudApiService.getModelsForCurrentProvider();
 
-      await webview.postMessage({
-        type: "novaResposta",
-        value: response,
-      });
+        const modelos = response.map((model) => model.id).join("\n");
+
+        await webview.postMessage({
+          type: "novaResposta",
+          value: modelos,
+        });
+      } else {
+        const chatMessage: ChatMessage[] = [
+          { role: "user", content: data.value },
+        ];
+        const response = await this.cloudApiService.sendChat(chatMessage);
+        await webview.postMessage({
+          type: "novaResposta",
+          value: response,
+        });
+      }
 
       return;
     }
