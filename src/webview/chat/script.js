@@ -14,6 +14,7 @@ let bufferResposta = "";
 const agentData = {
   openai: { 
     name: "OpenAI", 
+    type: "cloud",
     models: [
       { id: "gpt-4.1", name: "GPT 4.1" }, 
       { id: "gpt-3.5-turbo", name: "GPT 3.5 Turbo" }
@@ -21,6 +22,7 @@ const agentData = {
   },
   local: { 
     name: "Local Agent", 
+    type: "local",
     models: [
       { id: "qwen-3-12b", name: "Qwen 3 12B" }, 
       { id: "llama-3-8b", name: "Llama 3 8B" }
@@ -97,18 +99,38 @@ function renderChatView() {
   setupChatEvents();
 }
 
+// Função auxiliar para enviar a escolha ao VS Code
+function salvarAgenteBackend() {
+    vscode.postMessage({
+        type: "salvarAgente",
+        payload: {
+            provider: selectedProvider,
+            model: selectedModel
+        }
+    });
+}
+
 function renderPopoverContent() {
     const popover = document.getElementById("agent-popover");
     if (!popover) return;
 
+    // Identifica se o agente atual é 'local' ou 'cloud'
+    const currentType = selectedProvider ? agentData[selectedProvider].type : "local";
     let providerText = selectedProvider ? agentData[selectedProvider].name : "Selecione um provedor";
     let modelText = selectedModel ? selectedModel.name : "Selecione um modelo";
 
+    // Filtra para mostrar apenas provedores da aba selecionada (PC ou Nuvem)
+    const filteredProviders = Object.entries(agentData).filter(([key, val]) => val.type === currentType);
+
     popover.innerHTML = `
         <div class="popover-header">
-            <button class="popover-icon-btn" title="Local"><i class="codicon codicon-device-desktop"></i></button>
+            <button class="popover-icon-btn ${currentType === 'local' ? 'active' : ''}" id="tab-local" title="Agente Local">
+                <i class="codicon codicon-device-desktop"></i>
+            </button>
             <div class="popover-separator"></div>
-            <button class="popover-icon-btn active" title="Nuvem"><i class="codicon codicon-cloud"></i></button>
+            <button class="popover-icon-btn ${currentType === 'cloud' ? 'active' : ''}" id="tab-cloud" title="Nuvem">
+                <i class="codicon codicon-cloud"></i>
+            </button>
         </div>
 
         <div class="custom-dropdown">
@@ -117,7 +139,7 @@ function renderPopoverContent() {
                 <i class="codicon codicon-chevron-down"></i>
             </button>
             <div class="dropdown-list hidden" id="list-provider">
-                ${Object.entries(agentData).map(([key, val]) => `<div class="dropdown-item provider-item" data-value="${key}">${val.name}</div>`).join('')}
+                ${filteredProviders.map(([key, val]) => `<div class="dropdown-item provider-item" data-value="${key}">${val.name}</div>`).join('')}
             </div>
         </div>
 
@@ -134,6 +156,30 @@ function renderPopoverContent() {
         ` : ''}
     `;
 
+    // --- Eventos das Abas (Ícones) ---
+    document.getElementById("tab-local")?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (currentType !== "local") {
+            selectedProvider = "local";
+            selectedModel = agentData["local"].models[0];
+            renderPopoverContent();
+            updateMainButton();
+            salvarAgenteBackend();
+        }
+    });
+
+    document.getElementById("tab-cloud")?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (currentType !== "cloud") {
+            selectedProvider = "openai"; // Muda automaticamente para um de nuvem
+            selectedModel = agentData["openai"].models[0];
+            renderPopoverContent();
+            updateMainButton();
+            salvarAgenteBackend();
+        }
+    });
+
+    // --- Eventos do Provedor ---
     const btnProvider = document.getElementById("btn-provider");
     const listProvider = document.getElementById("list-provider");
 
@@ -150,9 +196,11 @@ function renderPopoverContent() {
             selectedModel = agentData[selectedProvider].models[0]; 
             renderPopoverContent(); 
             updateMainButton(); 
+            salvarAgenteBackend();
         });
     });
 
+    // --- Eventos do Modelo ---
     const btnModel = document.getElementById("btn-model");
     const listModel = document.getElementById("list-model");
 
@@ -172,15 +220,7 @@ function renderPopoverContent() {
             listModel.classList.add("hidden"); 
             renderPopoverContent(); 
             updateMainButton(); 
-            
-            // --- NOVO: Avisa o VS Code para SALVAR permanentemente ---
-            vscode.postMessage({
-                type: "salvarAgente",
-                payload: {
-                    provider: selectedProvider,
-                    model: selectedModel
-                }
-            });
+            salvarAgenteBackend();
         });
     });
 }
@@ -240,7 +280,7 @@ function setupChatEvents() {
       type: "enviarPergunta",
       value: texto,
       selectedView: currentView,
-      agentId: selectedModel ? selectedModel.id : null // Envia a escolha na pergunta
+      agentId: selectedModel ? selectedModel.id : null
     });
 
     input.value = "";
@@ -336,7 +376,6 @@ window.addEventListener("message", (event) => {
   const message = event.data;
 
   switch (message.type) {
-    // --- NOVO: Recebe a confirmação do VS Code com o Agente salvo ---
     case "agenteCarregado": {
       if (message.value) {
         selectedProvider = message.value.provider || "local";
@@ -349,7 +388,6 @@ window.addEventListener("message", (event) => {
       }
       break;
     }
-    // -----------------------------------------------------------------
     case "novaResposta": {
       removeLoading();
       addMessage(message.value, "bot", true);
