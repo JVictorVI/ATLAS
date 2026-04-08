@@ -2,6 +2,7 @@
   --spacing: 12px;
 }
 
+
 body {
   display: flex;
   flex-direction: column;
@@ -12,8 +13,69 @@ body {
   font-size: var(--vscode-font-size);
   color: var(--vscode-foreground);
   background-color: var(--vscode-sideBar-background);
+  overflow: hidden; 
 }
 
+#content-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
+}
+
+.navbar {
+  display: flex;
+  justify-content: center; 
+  align-items: center;
+  padding: var(--spacing);
+  background-color: var(--vscode-sideBar-background);
+  border-bottom: 1px solid var(--vscode-widget-border);
+}
+
+.nav-left {
+  display: flex;
+  gap: 15px; 
+  align-items: center;
+}
+
+.navbar button {
+  background: none;
+  border: none;
+  color: var(--vscode-icon-foreground);
+  cursor: pointer;
+  padding: 8px; 
+  transition: all 0.2s ease-in-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px; 
+}
+
+/* Efeito de Hover (passar o mouse) */
+.navbar button:hover {
+  color: var(--vscode-foreground);
+  background-color: var(--vscode-list-hoverBackground);
+}
+
+
+.navbar button.active {
+  
+  background-color: #242424; 
+  
+
+  color: #ffffff !important; 
+  pointer-events: none;
+  border-radius: 6px;
+}
+
+
+.navbar button i {
+  font-size: 18px; /* Tamanho do ícone */
+  filter: none !important; /* Remove sombras que adicionamos antes */
+}
+
+/* --- ÁREA DE CHAT --- */
 #chat-container {
   flex: 1;
   overflow-y: auto;
@@ -24,41 +86,53 @@ body {
 }
 
 .message {
-  max-width: 90%;
-  padding: 8px 12px;
-  border-radius: 8px;
+  max-width: 85%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 13px;
   line-height: 1.4;
   word-wrap: break-word;
 }
 
 .user {
   align-self: flex-end;
-  background-color: var(--vscode-button-background);
-  color: var(--vscode-button-foreground);
-  border-bottom-right-radius: 2px;
+  background-color: #007acc; 
+  color: #ffffff;
+  border-bottom-right-radius: 4px;
 }
 
 .bot {
   align-self: flex-start;
-  background-color: var(--vscode-editor-inactiveSelectionBackground);
-  color: var(--vscode-foreground);
-  border-bottom-left-radius: 2px;
-  border: 1px solid var(--vscode-widget-border);
+  background-color: #3a3a3a; 
+  color: #cccccc;
+  border-bottom-left-radius: 4px;
 }
+
 
 .input-area {
   padding: var(--spacing);
   background-color: var(--vscode-sideBar-background);
   border-top: 1px solid var(--vscode-widget-border);
+  position: relative;
+}
+
+.model-selector {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #888;
+  margin-bottom: 8px;
 }
 
 .input-container {
   display: flex;
   gap: 8px;
-  background-color: var(--vscode-input-background);
-  border: 1px solid var(--vscode-input-border);
+  background-color: #252526; 
+  border: 1px solid #444;
   border-radius: 4px;
-  padding: 4px 8px;
+  padding: 4px 6px 4px 10px;
+  align-items: center;
 }
 
 .input-container:focus-within {
@@ -72,6 +146,7 @@ input {
   color: var(--vscode-input-foreground);
   outline: none;
   padding: 4px 0;
+  font-size: 13px;
 }
 
 #send-btn {
@@ -79,14 +154,46 @@ input {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: none;
+  background-color: #007acc; 
+  color: white;
   border: none;
-  color: var(--vscode-icon-foreground);
+  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  transition: background 0.2s;
 }
 
 #send-btn:hover {
-  color: var(--vscode-button-background);
+  background-color: #1c97ea;
 }
+
+#send-btn i {
+  font-size: 16px;
+}
+
+
+#settings-view {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-option {
+  padding: 20px;
+  border: 1px solid var(--vscode-widget-border);
+  background-color: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  cursor: pointer;
+  text-align: left;
+}
+
+.settings-option:hover {
+  background-color: var(--vscode-list-hoverBackground);
+}
+
+.settings-option:active {
+  background-color: var(--vscode-list-activeSelectionBackground);
+}
+
 
 .loading {
   display: flex;
@@ -110,180 +217,137 @@ input {
   }
 }
 
-#content-container {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-#chat-container {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px;
-}
-
+/* --- NOVA ESTRUTURA DA ÁREA DE INPUT --- */
 .input-area {
   padding: 12px;
+  background-color: var(--vscode-sideBar-background);
   border-top: 1px solid var(--vscode-widget-border);
 }
 
-#settings-view {
+.top-controls {
   display: flex;
-  flex-direction: column;
-}
-
-.settings-option {
-  padding: 20px;
-  border: 1px solid var(--vscode-widget-border);
-  background-color: var(--vscode-button-secondaryBackground);
-  color: var(--vscode-button-secondaryForeground);
-  cursor: pointer;
-}
-
-.settings-option:hover {
-  background-color: var(--vscode-list-hoverBackground);
-}
-
-.settings-option:active {
-  background-color: var(--vscode-list-activeSelectionBackground);
-}
-
-nav {
-  display: flex;
-  gap: 8px;
-  padding: 8px;
-  background-color: var(--vscode-sideBar-background);
-  border-bottom: 1px solid var(--vscode-widget-border);
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
+  margin-bottom: 8px;
 }
 
-nav button {
-  padding: 6px 12px;
-  background-color: var(--vscode-list-hoverBackground);
-  color: var(--vscode-button-foreground);
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-nav button:hover {
-  background-color: var(--vscode-list-activeSelectionBackground);
-}
-
-
-.navbar {
-  display: flex;
-  justify-content: center; 
-  gap: 30px; 
-  padding: 12px;
-  background-color: var(--vscode-sideBar-background);
-  border-bottom: 1px solid var(--vscode-widget-border);
-}
-
-.navbar button {
-  background: none;
-  border: none;
-  color: #858585; 
-  cursor: pointer;
-  font-size: 20px;
-  padding: 15px;
-}
-
-.navbar button:hover {
-  color: var(--vscode-foreground);
-  transform: scale(1.15);
-}
-
-
-.message {
-  max-width: 85%;
-  padding: 10px 14px;
-  border-radius: 12px;
-  font-size: 13px;
-  margin-bottom: 4px;
-}
-
-.user {
-  align-self: flex-end;
-  background-color: #007acc; 
-  color: #ffffff;
-  border-bottom-right-radius: 2px;
-}
-
-.bot {
-  align-self: flex-start;
-  background-color: #3a3a3a; 
-  color: #cccccc;
-  border-bottom-left-radius: 2px;
-  border: none;
-}
-
-
-.input-area {
-  padding: 16px;
-  background-color: var(--vscode-sideBar-background);
-}
-
+/* O botão "Qwen" estilo pílula */
 .model-selector {
   display: flex;
-  justify-content: flex-start;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
-  color: #858585;
+  gap: 8px;
+  background: #1e1e1e;
+  border: 1px solid #444;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #ccc;
+  font-size: 12px;
 }
 
-.model-tag {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+.model-selector:hover {
   background: #2d2d2d;
-  padding: 2px 8px;
+  border-color: #007acc;
+}
+
+/* Botões de ação azuis (direita) */
+.action-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.action-btn {
+  background: transparent;
+  border: 1px solid #004b7a;
+  color: #007acc;
+  font-size: 10px;
+  padding: 4px 8px;
   border-radius: 4px;
-  border: 1px solid #444;
-  font-size: 11px;
   cursor: pointer;
 }
 
-.input-container {
-  display: flex;
-  align-items: center;
-  background-color: #252526; 
-  border: 1px solid #454545;
-  border-radius: 4px;
-  padding: 4px 6px 4px 12px;
+.action-btn:hover {
+  background: rgba(0, 122, 204, 0.1);
 }
 
-input {
-  flex: 1;
+
+.agent-popover {
+  position: absolute;
+  bottom: 85px; /* Altura exata acima da barra de texto */
+  left: 12px;
+  width: 260px; /* Largura similar à da imagem */
+  background: #252526;
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 -4px 15px rgba(0,0,0,0.5);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 16px; /* Espaço entre os ícones do topo e o botão de seleção */
+}
+
+.hidden { display: none !important; }
+
+/* Cabeçalho do Popover (Ícones Local / Nuvem) */
+.popover-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+}
+
+.popover-icon-btn {
   background: transparent;
   border: none;
-  color: #cccccc;
-  outline: none;
-  font-size: 13px;
-}
-
-#send-btn {
-  background-color: #007acc !important; 
-  color: white !important;
-  border-radius: 4px;
-  width: 28px;
-  height: 28px;
+  color: #888;
+  cursor: pointer;
+  padding: 8px 16px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s;
+  transition: all 0.2s;
 }
 
-#send-btn:hover {
-  background-color: #1c97ea !important;
+.popover-icon-btn i {
+  font-size: 20px;
 }
 
-/* Isso garante que o ícone realmente cresça */
-.navbar button i {
-  font-size: 26px !important; /* O !important garante que ignore estilos padrão da biblioteca */
-  display: block; /* Ajuda no alinhamento centralizado */
+.popover-icon-btn:hover {
+  color: #ccc;
+  background: #333;
 }
 
+/* Estado ativo (O fundo mais claro no ícone da nuvem, como na imagem) */
+.popover-icon-btn.active {
+  color: #fff;
+  background: #3a3a3a;
+}
+
+.popover-separator {
+  width: 1px;
+  height: 24px;
+  background: #444;
+}
+
+/* Botão "Selecione um provedor" */
+.popover-dropdown-btn {
+  width: 100%;
+  background: #1e1e1e; /* Fundo mais escuro */
+  border: 1px solid #444;
+  color: #ccc;
+  padding: 10px 12px;
+  border-radius: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  font-size: 13px;
+  transition: border-color 0.2s;
+}
+
+.popover-dropdown-btn:hover {
+  border-color: #007acc; /* Azul ao passar o mouse */
+}
 
