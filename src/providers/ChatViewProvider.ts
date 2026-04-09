@@ -30,19 +30,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     webviewView.webview.options = {
       enableScripts: true,
       localResourceRoots: [
-        vscode.Uri.joinPath(
-          this.context.extensionUri,
-          "src",
-          "webview",
-          "chat",
-        ),
-        vscode.Uri.joinPath(
-          this.context.extensionUri,
-          "src",
-          "webview",
-          "api-keys",
-        ),
+        vscode.Uri.joinPath(this.context.extensionUri, "src", "webview", "chat"),
+        vscode.Uri.joinPath(this.context.extensionUri, "src", "webview", "api-keys"),
         vscode.Uri.joinPath(this.context.extensionUri, "src", "webview", "rag"),
+        vscode.Uri.joinPath(this.context.extensionUri, "src", "webview", "library"),
       ],
     };
 
@@ -54,10 +45,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   }
 
   private async _handleMessage(data: any, webview: vscode.Webview) {
-    const handledByApiKeyManager = await this.apiKeyManager.handleMessage(
-      data,
-      webview,
-    );
+    const handledByApiKeyManager = await this.apiKeyManager.handleMessage(data, webview);
 
     if (handledByApiKeyManager) {
       return;
@@ -95,83 +83,132 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
     if (data.type === "abrirPainelConfig") {
       this._abrirPainelNoEditor(data.selectedView);
+      return;
     }
 
     if (data.type === "salvarConfiguracoesSeguranca") {
       try {
-        const updatedConfig = this.configManager.updateSecuritySettings(
-          data.payload,
-        );
-
+        const updatedConfig = this.configManager.updateSecuritySettings(data.payload);
         await webview.postMessage({
           type: "configuracoesSegurancaSalvas",
           value: updatedConfig.cloudSecurity,
         });
-
-        vscode.window.showInformationMessage(
-          "Configurações de segurança salvas.",
-        );
+        vscode.window.showInformationMessage("Configurações de segurança salvas.");
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Erro desconhecido";
-        vscode.window.showErrorMessage(
-          `Erro ao salvar configurações: ${message}`,
-        );
+        const message = error instanceof Error ? error.message : "Erro desconhecido";
+        vscode.window.showErrorMessage(`Erro ao salvar configurações: ${message}`);
       }
+      return;
     }
 
     if (data.type === "carregarConfiguracoesSeguranca") {
       try {
         const securitySettings = this.configManager.getSection("cloudSecurity");
-
         await webview.postMessage({
           type: "configuracoesSegurancaCarregadas",
           value: securitySettings,
         });
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Erro desconhecido";
-        vscode.window.showErrorMessage(
-          `Erro ao carregar configurações: ${message}`,
-        );
+        const message = error instanceof Error ? error.message : "Erro desconhecido";
+        vscode.window.showErrorMessage(`Erro ao carregar configurações: ${message}`);
       }
+      return;
+    }
+
+    if (data.type === "requestModels") {
+      this._sendModelsToWebview(webview);
+      return;
+    }
+
+    if (data.type === "saveModelParams") {
+      try {
+        const { modelId, params, customPrompt, systemPrompt } = data;
+        const currentModel = this.configManager.getModel(modelId);
+        
+        if (currentModel) {
+          this.configManager.updateModel(modelId, {
+            parameters: {
+              ...currentModel.parameters,
+              gpuLayers: params.gpuLayers,
+              temperature: params.temperature,
+              contextWindow: params.contextWindow,
+              maxTokens: params.maxTokens
+            },
+            custom: {
+              ...currentModel.custom,
+              tokensRes: params.tokensRes,
+              systemPrompt: customPrompt ? systemPrompt : ""
+            }
+          });
+          vscode.window.showInformationMessage("Parâmetros do modelo guardados com sucesso!");
+          this._sendModelsToWebview(webview); 
+        }
+      } catch (error) {
+        vscode.window.showErrorMessage("Erro ao guardar: " + error);
+      }
+      return;
     }
   }
 
-  private _getHtmlForWebview(
-    webview: vscode.Webview,
-    selectedView?: string,
-  ): string {
-    selectedView = selectedView === "config" ? "api-keys" : "chat";
+  private _sendModelsToWebview(webview: vscode.Webview) {
+    const rawModels = this.configManager.getAllModels();
+    const modelsList = Object.values(rawModels).map(model => ({
+      id: model.id,
+      name: model.name || model.id,
+      tag: model.metadata?.tags?.[0] || "LLM",
+      quant: model.metadata?.quantization || "-",
+      date: model.metadata?.installedAt ? new Date(model.metadata.installedAt).toLocaleDateString('pt-BR') : "-",
+      file: model.path ? path.basename(model.path) : "-",
+      size: model.metadata?.size || "-",
+      params: {
+        gpu: model.parameters?.gpuLayers ?? 40,
+        tokensRes: model.custom?.tokensRes ?? 512,
+        temp: model.parameters?.temperature ?? 0.7,
+        context: model.parameters?.contextWindow ?? 4096,
+        maxTokens: model.parameters?.maxTokens ?? 300
+      },
+      customPrompt: !!model.custom?.systemPrompt,
+      systemPrompt: model.custom?.systemPrompt || ""
+    }));
 
-    const webviewPath = path.join(
-      this.context.extensionUri.fsPath,
-      "src",
-      "webview",
-      selectedView,
-    );
+    webview.postMessage({
+      type: "updateModelsList",
+      models: modelsList
+    });
+  }
+
+  private _getHtmlForWebview(webview: vscode.Webview, selectedView?: string): string {
+    if (!selectedView || selectedView === "chat") {
+      selectedView = "chat";
+    } else if (selectedView === "config") {
+      selectedView = "api-keys";
+    } else if (selectedView === "library") {
+      selectedView = "library";
+    }
+
+    const webviewPath = path.join(this.context.extensionUri.fsPath, "src", "webview", selectedView);
 
     let htmlPath = "";
-
-    if (selectedView === "config" || selectedView === "api-keys") {
+    if (selectedView === "api-keys") {
       htmlPath = path.join(webviewPath, "api-keys.html");
     } else if (selectedView === "rag") {
       htmlPath = path.join(webviewPath, "rag.html");
+    } else if (selectedView === "library") {
+      htmlPath = path.join(webviewPath, "library.html");
     } else {
       htmlPath = path.join(webviewPath, "chat.html");
     }
 
-    const styleUri = webview.asWebviewUri(
-      vscode.Uri.file(path.join(webviewPath, "styles.css")),
-    );
+    const styleUri = webview.asWebviewUri(vscode.Uri.file(path.join(webviewPath, "styles.css")));
+    const scriptUri = webview.asWebviewUri(vscode.Uri.file(path.join(webviewPath, "script.js")));
 
-    const scriptUri = webview.asWebviewUri(
-      vscode.Uri.file(path.join(webviewPath, "script.js")),
-    );
-
-    const markedUri = webview.asWebviewUri(
-      vscode.Uri.file(path.join(webviewPath, "vendor", "marked.min.js")),
-    );
+    let markedUriStr = "";
+    try {
+      const markedUri = webview.asWebviewUri(
+        vscode.Uri.file(path.join(this.context.extensionUri.fsPath, "src", "webview", "chat", "vendor", "marked.min.js"))
+      );
+      markedUriStr = markedUri.toString();
+    } catch (e) {}
 
     let html = fs.readFileSync(htmlPath, "utf8");
 
@@ -179,7 +216,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       .replace(/{{cspSource}}/g, webview.cspSource)
       .replace(/{{styleUri}}/g, styleUri.toString())
       .replace(/{{scriptUri}}/g, scriptUri.toString())
-      .replace(/{{markedUri}}/g, markedUri.toString());
+      .replace(/{{markedUri}}/g, markedUriStr);
 
     return html;
   }
@@ -187,30 +224,27 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private _abrirPainelNoEditor(selectedView?: string) {
     if (this._panel) {
       this._panel.reveal(vscode.ViewColumn.One);
-
-      this._panel.webview.html = this._getHtmlForWebview(
-        this._panel.webview,
-        selectedView,
-      );
-
+      this._panel.webview.html = this._getHtmlForWebview(this._panel.webview, selectedView);
       return;
     }
 
     this._panel = vscode.window.createWebviewPanel(
       "atlasEditorPanel",
       "Configurações",
-
       vscode.ViewColumn.One,
       {
         enableScripts: true,
         retainContextWhenHidden: true,
+        localResourceRoots: [
+          vscode.Uri.joinPath(this.context.extensionUri, "src", "webview", "chat"),
+          vscode.Uri.joinPath(this.context.extensionUri, "src", "webview", "api-keys"),
+          vscode.Uri.joinPath(this.context.extensionUri, "src", "webview", "rag"),
+          vscode.Uri.joinPath(this.context.extensionUri, "src", "webview", "library"),
+        ]
       },
     );
 
-    this._panel.webview.html = this._getHtmlForWebview(
-      this._panel.webview,
-      selectedView,
-    );
+    this._panel.webview.html = this._getHtmlForWebview(this._panel.webview, selectedView);
 
     this._panel.webview.onDidReceiveMessage(async (data) => {
       await this._handleMessage(data, this._panel!.webview);

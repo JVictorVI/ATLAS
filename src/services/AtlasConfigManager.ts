@@ -633,7 +633,55 @@ export class AtlasConfigManager {
           stream: true,
           provider: "local",
         },
-        models: {},
+        models: {
+          "google/gemma-3-1b": {
+            id: "google/gemma-3-1b",
+            name: "gemma-3-1b",
+            provider: "Local",
+            enabled: true,
+            path: "C:/modelos/gemma-3-1b-it-QAT-Q4_0.gguf",
+            parameters: {
+              temperature: 0.7,
+              maxTokens: 300,
+              gpuLayers: 40,
+              contextWindow: 4096,
+            },
+            metadata: {
+              tags: ["1B"],
+              quantization: "Q4_K_M",
+              size: "720.5 MB",
+              installedAt: "2026-02-16T10:00:00Z",
+            },
+            custom: {
+              tokensRes: 512,
+              systemPrompt: "",
+            },
+          },
+          "qwen/qwen3-4b-2507": {
+            id: "qwen/qwen3-4b-2507",
+            name: "qwen3-4b-2507",
+            provider: "Local",
+            enabled: true,
+            path: "C:/modelos/qwen3-4b-2507-Q5_K_M.gguf",
+            parameters: {
+              temperature: 0.5,
+              maxTokens: 500,
+              gpuLayers: 32,
+              contextWindow: 2048,
+            },
+            metadata: {
+              tags: ["4B"],
+              quantization: "Q5_K_M",
+              size: "2.8 GB",
+              installedAt: "2026-01-10T10:00:00Z",
+            },
+            custom: {
+              tokensRes: 256,
+              systemPrompt:
+                "Sempre responda em Português do Brasil com tom formal.",
+            },
+          },
+        },
       },
       custom: {},
       providers: [

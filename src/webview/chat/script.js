@@ -39,19 +39,22 @@ function renderChatView() {
 function renderConfigView() {
   currentView = "config";
 
-  vscode.postMessage({
-    type: "abrirPainelConfig",
-    selectedView: currentView,
-  });
-
   contentContainer.innerHTML = `
         <div id="settings-view">
+            <button id="library-btn" class="settings-option">Minha Biblioteca (Modelos)</button>
             <button id="rag-btn" class="settings-option">Configurações de RAG</button>
             <button id="keys-btn" class="settings-option">Chaves de API</button>
         </div>
     `;
-}
 
+  document.getElementById("keys-btn")?.addEventListener("click", () => {
+    vscode.postMessage({ type: "abrirPainelConfig", selectedView: "config" });
+  });
+
+  document.getElementById("library-btn")?.addEventListener("click", () => {
+    vscode.postMessage({ type: "abrirPainelConfig", selectedView: "library" });
+  });
+}
 function setupChatEvents() {
   const input = document.getElementById("pergunta");
   const btn = document.getElementById("send-btn");
