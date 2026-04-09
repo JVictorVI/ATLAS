@@ -6,6 +6,7 @@ let selectedModelId = null;
 document.addEventListener("DOMContentLoaded", () => {
   setupToggles();
   setupButtons();
+  setupDropdown();
   
   vscode.postMessage({ type: "requestModels" });
 });
@@ -15,40 +16,43 @@ window.addEventListener("message", (event) => {
   
   if (message.type === "updateModelsList") {
     loadedModels = message.models;
-    renderModelList();
+    renderModelDropdown();
     
+    // Se não houver seleção mas tivermos modelos, seleciona o primeiro
+    if (!selectedModelId && loadedModels.length > 0) {
+      selectedModelId = loadedModels[0].id;
+    }
+
     if (selectedModelId) {
       selectModel(selectedModelId);
     }
   }
 });
 
-function renderModelList() {
-  const listContainer = document.getElementById("model-list");
-  listContainer.innerHTML = "";
+function renderModelDropdown() {
+  const select = document.getElementById("model-select");
+  select.innerHTML = "";
 
   if (loadedModels.length === 0) {
-    listContainer.innerHTML = "<div style='padding:16px; color:var(--vscode-descriptionForeground); font-size:13px;'>Nenhum modelo encontrado na configuração.</div>";
+    document.getElementById("empty-state").classList.remove("hidden");
+    document.getElementById("model-details").classList.add("hidden");
     return;
   }
 
+  // Preenche o dropdown
   loadedModels.forEach(model => {
-    const item = document.createElement("div");
-    item.className = "model-list-item";
-    if (model.id === selectedModelId) item.classList.add("active");
-    
-    item.innerHTML = `
-      <span class="model-badge">${model.tag}</span>
-      <span>${model.name}</span>
-    `;
-    
-    item.addEventListener("click", () => {
-      document.querySelectorAll(".model-list-item").forEach(el => el.classList.remove("active"));
-      item.classList.add("active");
-      selectModel(model.id);
-    });
+    const option = document.createElement("option");
+    option.value = model.id;
+    // Formato: "[1B] gemma-3-1b"
+    option.textContent = `[${model.tag}] ${model.name}`; 
+    select.appendChild(option);
+  });
+}
 
-    listContainer.appendChild(item);
+function setupDropdown() {
+  const select = document.getElementById("model-select");
+  select.addEventListener("change", (e) => {
+    selectModel(e.target.value);
   });
 }
 
@@ -60,7 +64,13 @@ function selectModel(id) {
   document.getElementById("empty-state").classList.add("hidden");
   document.getElementById("model-details").classList.remove("hidden");
 
-  document.getElementById("model-name-title").textContent = model.name;
+  // Sincroniza o valor do dropdown se for chamado via código
+  const select = document.getElementById("model-select");
+  if (select.value !== id) {
+    select.value = id;
+  }
+
+  // Atualiza as labels e tags
   document.getElementById("info-tag").textContent = `${model.quant} · ${model.size}`;
   document.getElementById("info-model").textContent = model.id;
   document.getElementById("info-quant").textContent = model.quant;
@@ -68,12 +78,14 @@ function selectModel(id) {
   document.getElementById("info-file").textContent = model.file;
   document.getElementById("info-size").textContent = model.size;
 
+  // Atualiza os inputs
   document.getElementById("param-gpu").value = model.params.gpu;
   document.getElementById("param-tokens-res").value = model.params.tokensRes;
   document.getElementById("param-temp").value = model.params.temp;
   document.getElementById("param-context").value = model.params.context;
   document.getElementById("param-max-tokens").value = model.params.maxTokens;
 
+  // Atualiza Rádios de Comportamento
   const tDefault = document.getElementById("toggle-default");
   const tCustom = document.getElementById("toggle-custom");
   const textarea = document.getElementById("system-prompt");

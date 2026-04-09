@@ -3,85 +3,17 @@ body {
   color: var(--vscode-foreground);
   background: var(--vscode-editor-background);
   margin: 0;
-  padding: 0;
-  height: 100vh;
-  overflow: hidden;
-}
-
-/* Layout (Sidebar + Conteúdo) */
-.layout {
-  display: flex;
-  height: 100vh;
-}
-
-.sidebar {
-  width: 260px;
-  background: var(--vscode-sideBar-background);
-  border-right: 1px solid var(--vscode-widget-border);
-  display: flex;
-  flex-direction: column;
-}
-
-.sidebar-header {
-  padding: 16px;
-  border-bottom: 1px solid var(--vscode-widget-border);
-}
-
-.search-input {
-  width: 100%;
-  background: var(--vscode-input-background);
-  color: var(--vscode-input-foreground);
-  border: 1px solid var(--vscode-input-border, var(--vscode-widget-border));
-  border-radius: 8px;
-  padding: 8px 12px;
-  box-sizing: border-box;
-  outline: none;
-}
-
-.search-input:focus {
-  border-color: var(--vscode-focusBorder);
-}
-
-.sidebar-list {
-  flex: 1;
+  padding: 24px 32px;
   overflow-y: auto;
-}
-
-.model-list-item {
-  padding: 12px 16px;
-  cursor: pointer;
-  border-bottom: 1px solid var(--vscode-widget-border);
-  font-size: 13px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.model-list-item:hover {
-  background: var(--vscode-list-hoverBackground);
-}
-
-.model-list-item.active {
-  background: var(--vscode-list-activeSelectionBackground);
-  color: var(--vscode-list-activeSelectionForeground);
-}
-
-.model-badge {
-  font-size: 11px;
-  color: var(--vscode-descriptionForeground);
-  font-weight: 600;
-}
-.model-list-item.active .model-badge {
-  color: inherit;
+  box-sizing: border-box;
 }
 
 .content {
-  flex: 1;
-  padding: 24px 32px;
-  overflow-y: auto;
+  max-width: 1000px;
+  margin: 0 auto;
 }
 
-/* Design importado da aba de Chaves API */
+
 .header-actions {
   display: flex;
   justify-content: space-between;
@@ -89,16 +21,56 @@ body {
   margin-bottom: 24px;
 }
 
-h1 {
-  font-size: 35px;
-  margin: 0 0 6px 0;
+.header-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.model-dropdown {
+  background-color: var(--vscode-dropdown-background);
+  color: var(--vscode-dropdown-foreground);
+  border: 1px solid var(--vscode-widget-border);
+  font-size: 24px;
+  font-weight: 600;
+  padding: 8px 40px 8px 12px;
+  border-radius: 8px;
+  outline: none;
+  font-family: var(--vscode-font-family);
+  cursor: pointer;
+  min-width: 320px;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23cccccc' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 18px;
+  transition: all 0.2s ease;
+}
+
+.model-dropdown:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.model-dropdown:focus {
+  border-color: var(--vscode-focusBorder);
+  box-shadow: 0 0 0 1px var(--vscode-focusBorder);
+}
+
+.model-dropdown option {
+  background-color: var(--vscode-dropdown-background);
+  color: var(--vscode-dropdown-foreground);
+  font-size: 14px;
+  font-weight: normal;
+  padding: 8px;
 }
 
 .subtitle {
   color: var(--vscode-descriptionForeground);
-  font-size: 15px;
-  margin-bottom: 20px;
+  font-size: 14px;
+  margin-left: 8px; 
 }
+
 
 .actions {
   display: flex;
@@ -109,7 +81,7 @@ h1 {
   background: #1e1e1e;
   border: 1px solid var(--vscode-widget-border);
   border-radius: 14px;
-  padding: 20px;
+  padding: 24px;
   margin-bottom: 18px;
 }
 
@@ -119,10 +91,9 @@ h1 {
   margin-bottom: 10px;
 }
 
-/* Campos e Inputs */
 .inline-fields {
   display: flex;
-  gap: 14px;
+  gap: 20px;
   margin-top: 14px;
   flex-wrap: wrap;
 }
@@ -131,7 +102,7 @@ h1 {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-width: 220px;
+  min-width: 200px;
 }
 
 .readonly-value {
@@ -150,12 +121,18 @@ textarea {
   border-radius: 8px;
   padding: 10px 12px;
   font-family: var(--vscode-font-family);
+  box-sizing: border-box;
 }
 
 input:focus, textarea:focus {
   outline: none;
   border-color: var(--vscode-focusBorder);
   box-shadow: 0 0 0 1px var(--vscode-focusBorder);
+}
+
+textarea {
+  width: 100%;
+  resize: vertical;
 }
 
 textarea:disabled {
@@ -166,7 +143,7 @@ textarea:disabled {
   opacity: 0.7;
 }
 
-/* Rádios */
+
 .checkbox-group {
   display: flex;
   flex-direction: column;
@@ -213,7 +190,6 @@ input[type="radio"]:checked::after {
   background: var(--vscode-button-background);
 }
 
-/* Botões */
 button {
   border: none;
   border-radius: 5px;
@@ -256,7 +232,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100%;
+  height: 200px;
   color: var(--vscode-descriptionForeground);
   font-size: 15px;
 }
