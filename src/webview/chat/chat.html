@@ -5,21 +5,27 @@
     <meta
       http-equiv="Content-Security-Policy"
       content="
-            default-src 'none';
-            img-src {{cspSource}} https:;
-            style-src {{cspSource}};
-            script-src {{cspSource}};
-        "
+        default-src 'none';
+        img-src {{cspSource}} https:;
+        style-src {{cspSource}} 'unsafe-inline' https:;
+        font-src https:; 
+        script-src {{cspSource}};
+      "
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ATLAS</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons/dist/codicon.css" />
     <link rel="stylesheet" href="{{styleUri}}" />
   </head>
   <body>
-    <nav>
-      <button id="chat-btn">Chat</button>
-      <button id="config-panel-btn">Configurações</button>
-    </nav>
+    <header class="navbar">
+      <div class="nav-left">
+        <button id="chat-btn" title="Chat"><i class="codicon codicon-comment-discussion"></i></button>
+        <button id="library-btn" title="Biblioteca"><i class="codicon codicon-library"></i></button>
+        <button id="search-btn" title="Pesquisar"><i class="codicon codicon-search"></i></button>
+        <button id="config-panel-btn" title="Configurações"><i class="codicon codicon-settings"></i></button>
+      </div>
+    </header>
 
     <div id="content-container"></div>
 

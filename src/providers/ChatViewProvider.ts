@@ -51,10 +51,39 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       return;
     }
 
+    // --- NOVO: Lógica que salva e carrega a escolha do Seletor ---
+    if (data.type === "salvarAgente") {
+      try {
+        // Salva a escolha na memória global da extensão
+        await this.context.globalState.update("atlas.defaultAgent", data.payload);
+      } catch (error) {
+        console.error("Erro ao salvar agente", error);
+      }
+      return;
+    }
+
+    if (data.type === "carregarAgente") {
+      try {
+        // Busca a escolha salva e devolve para o HTML
+        const savedAgent = this.context.globalState.get("atlas.defaultAgent");
+        if (savedAgent) {
+          await webview.postMessage({
+            type: "agenteCarregado",
+            value: savedAgent,
+          });
+        }
+      } catch (error) {
+        console.error("Erro ao carregar agente", error);
+      }
+      return;
+    }
+    // --------------------------------------------------------------
+
     if (data.type === "enviarPergunta") {
+      // Agora você pode usar data.agentId aqui para mandar para a API real!
       await webview.postMessage({
         type: "novaResposta",
-        value: `Você disse: ${data.value}`,
+        value: `Você disse: ${data.value} (Usando modelo: ${data.agentId || 'Padrão'})`,
       });
 
       if (data.value.toLowerCase().includes("modelos")) {
