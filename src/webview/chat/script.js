@@ -82,7 +82,7 @@ function renderChatView() {
                 </div>
                 
                 <div class="action-buttons">
-                    <button class="action-btn">Analisar Arquitetura do Código</button>
+                    <button class="action-btn">Analisar Arquiteturas</button>
                     <button class="action-btn">Procurar violações</button>
                 </div>
             </div>

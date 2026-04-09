@@ -2,7 +2,6 @@
   --spacing: 12px;
 }
 
-
 body {
   display: flex;
   flex-direction: column;
@@ -24,6 +23,7 @@ body {
   overflow: hidden;
 }
 
+/* --- BARRA DE NAVEGAÇÃO --- */
 .navbar {
   display: flex;
   justify-content: center; 
@@ -52,27 +52,22 @@ body {
   border-radius: 6px; 
 }
 
-/* Efeito de Hover (passar o mouse) */
 .navbar button:hover {
   color: var(--vscode-foreground);
   background-color: var(--vscode-list-hoverBackground);
 }
 
-
 .navbar button.active {
-  
   background-color: #242424; 
-  
-
   color: #ffffff !important; 
   pointer-events: none;
   border-radius: 6px;
 }
 
-
+/* Ícones da Navbar Maiores */
 .navbar button i {
-  font-size: 18px; /* Tamanho do ícone */
-  filter: none !important; /* Remove sombras que adicionamos antes */
+  font-size: 24px; /* Aumentado para 24px */
+  filter: none !important; 
 }
 
 /* --- ÁREA DE CHAT --- */
@@ -108,21 +103,70 @@ body {
   border-bottom-left-radius: 4px;
 }
 
-
+/* --- ÁREA DE INPUT E CONTROLES (AGORA RESPONSIVOS) --- */
 .input-area {
-  padding: var(--spacing);
+  padding: 12px;
   background-color: var(--vscode-sideBar-background);
   border-top: 1px solid var(--vscode-widget-border);
-  position: relative;
+  position: relative; /* Mantém o balão ancorado corretamente */
+}
+
+/* Flex-wrap permite que os itens desçam se faltar espaço */
+.top-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  gap: 8px;
+  flex-wrap: wrap; 
 }
 
 .model-selector {
   display: flex;
   align-items: center;
-  gap: 5px;
-  font-size: 11px;
-  color: #888;
-  margin-bottom: 8px;
+  gap: 8px;
+  background: #1e1e1e;
+  border: 1px solid #444;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #ccc;
+  font-size: 12px;
+  flex-shrink: 0; /* Impede o botão principal de ser esmagado */
+}
+
+.model-selector:hover {
+  background: #2d2d2d;
+  border-color: #007acc;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap; /* Se os botões não couberem, eles empilham */
+  justify-content: flex-end;
+  flex: 1;
+  min-width: 140px; /* Garante um tamanho mínimo antes de quebrar a linha */
+}
+
+.action-btn {
+  background: transparent;
+  border: 1px solid #004b7a;
+  color: #007acc;
+  font-size: 10px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  flex: 1 1 auto;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis; /* Adiciona os '...' se o texto não couber */
+  max-width: 100%;
+}
+
+.action-btn:hover {
+  background: rgba(0, 122, 204, 0.1);
 }
 
 .input-container {
@@ -161,17 +205,99 @@ input {
   width: 28px;
   height: 28px;
   transition: background 0.2s;
+  flex-shrink: 0;
 }
 
 #send-btn:hover {
   background-color: #1c97ea;
 }
 
+/* Ícone de enviar um pouco maior */
 #send-btn i {
-  font-size: 16px;
+  font-size: 18px; 
 }
 
+/* --- O POPOVER (BALÃO FLUTUANTE) --- */
+.agent-popover {
+  position: absolute;
+  bottom: 100%; /* Ajustado para 100% para nascer colado ao input */
+  left: 12px;
+  margin-bottom: 10px;
+  width: 260px; 
+  background: #252526;
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 -4px 15px rgba(0,0,0,0.5);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 16px; 
+}
 
+.hidden { display: none !important; }
+
+.popover-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+}
+
+.popover-icon-btn {
+  background: transparent;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  padding: 8px 16px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+/* Ícones de Nuvem e PC maiores */
+.popover-icon-btn i {
+  font-size: 24px; 
+}
+
+.popover-icon-btn:hover {
+  color: #ccc;
+  background: #333;
+}
+
+.popover-icon-btn.active {
+  color: #fff;
+  background: #3a3a3a;
+}
+
+.popover-separator {
+  width: 1px;
+  height: 24px;
+  background: #444;
+}
+
+.popover-dropdown-btn {
+  width: 100%;
+  background: #1e1e1e; 
+  border: 1px solid #444;
+  color: #ccc;
+  padding: 10px 12px;
+  border-radius: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  font-size: 13px;
+  transition: border-color 0.2s;
+}
+
+.popover-dropdown-btn:hover {
+  border-color: #007acc; 
+}
+
+/* --- TELAS DE CONFIGURAÇÃO E LOADING --- */
 #settings-view {
   display: flex;
   flex-direction: column;
@@ -194,7 +320,6 @@ input {
   background-color: var(--vscode-list-activeSelectionBackground);
 }
 
-
 .loading {
   display: flex;
   align-items: center;
@@ -215,172 +340,4 @@ input {
   to {
     transform: rotate(360deg);
   }
-}
-
-/* --- NOVA ESTRUTURA DA ÁREA DE INPUT --- */
-.input-area {
-  padding: 12px;
-  background-color: var(--vscode-sideBar-background);
-  border-top: 1px solid var(--vscode-widget-border);
-}
-
-.top-controls {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-/* O botão "Qwen" estilo pílula */
-.model-selector {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #1e1e1e;
-  border: 1px solid #444;
-  padding: 4px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-  color: #ccc;
-  font-size: 12px;
-}
-
-.model-selector:hover {
-  background: #2d2d2d;
-  border-color: #007acc;
-}
-
-/* Botões de ação azuis (direita) */
-.action-buttons {
-  display: flex;
-  gap: 6px;
-}
-
-.action-btn {
-  background: transparent;
-  border: 1px solid #004b7a;
-  color: #007acc;
-  font-size: 10px;
-  padding: 4px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.action-btn:hover {
-  background: rgba(0, 122, 204, 0.1);
-}
-
-
-.agent-popover {
-  position: absolute;
-  bottom: 85px; /* Altura exata acima da barra de texto */
-  left: 12px;
-  width: 260px; /* Largura similar à da imagem */
-  background: #252526;
-  border: 1px solid #444;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 -4px 15px rgba(0,0,0,0.5);
-  z-index: 100;
-  display: flex;
-  flex-direction: column;
-  gap: 16px; /* Espaço entre os ícones do topo e o botão de seleção */
-}
-
-.hidden { display: none !important; }
-
-/* Cabeçalho do Popover (Ícones Local / Nuvem) */
-.popover-header {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 16px;
-}
-
-.popover-icon-btn {
-  background: transparent;
-  border: none;
-  color: #888;
-  cursor: pointer;
-  padding: 8px 16px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-
-.popover-icon-btn i {
-  font-size: 20px;
-}
-
-.popover-icon-btn:hover {
-  color: #ccc;
-  background: #333;
-}
-
-/* Estado ativo (O fundo mais claro no ícone da nuvem, como na imagem) */
-.popover-icon-btn.active {
-  color: #fff;
-  background: #3a3a3a;
-}
-
-.popover-separator {
-  width: 1px;
-  height: 24px;
-  background: #444;
-}
-
-/* Botão "Selecione um provedor" */
-.popover-dropdown-btn {
-  width: 100%;
-  background: #1e1e1e; /* Fundo mais escuro */
-  border: 1px solid #444;
-  color: #ccc;
-  padding: 10px 12px;
-  border-radius: 6px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  cursor: pointer;
-  font-size: 13px;
-  transition: border-color 0.2s;
-}
-
-.popover-dropdown-btn:hover {
-  border-color: #007acc; 
-}
-
-.custom-dropdown {
-  position: relative;
-  width: 100%;
-}
-
-.dropdown-list {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  width: 100%;
-  background: #252526;
-  border: 1px solid #444;
-  border-radius: 6px;
-  margin-top: 4px;
-  z-index: 101; 
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-}
-
-.dropdown-item {
-  padding: 10px 12px;
-  font-size: 13px;
-  color: #ccc;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.dropdown-item:hover {
-  background: #007acc; 
-  color: white;
 }
