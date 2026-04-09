@@ -30,10 +30,25 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     webviewView.webview.options = {
       enableScripts: true,
       localResourceRoots: [
-        vscode.Uri.joinPath(this.context.extensionUri, "src", "webview", "chat"),
-        vscode.Uri.joinPath(this.context.extensionUri, "src", "webview", "api-keys"),
+        vscode.Uri.joinPath(
+          this.context.extensionUri,
+          "src",
+          "webview",
+          "chat",
+        ),
+        vscode.Uri.joinPath(
+          this.context.extensionUri,
+          "src",
+          "webview",
+          "api-keys",
+        ),
         vscode.Uri.joinPath(this.context.extensionUri, "src", "webview", "rag"),
-        vscode.Uri.joinPath(this.context.extensionUri, "src", "webview", "library"),
+        vscode.Uri.joinPath(
+          this.context.extensionUri,
+          "src",
+          "webview",
+          "library",
+        ),
       ],
     };
 
@@ -45,7 +60,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   }
 
   private async _handleMessage(data: any, webview: vscode.Webview) {
-    const handledByApiKeyManager = await this.apiKeyManager.handleMessage(data, webview);
+    const handledByApiKeyManager = await this.apiKeyManager.handleMessage(
+      data,
+      webview,
+    );
 
     if (handledByApiKeyManager) {
       return;
@@ -55,7 +73,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     if (data.type === "salvarAgente") {
       try {
         // Salva a escolha na memória global da extensão
-        await this.context.globalState.update("atlas.defaultAgent", data.payload);
+        await this.context.globalState.update(
+          "atlas.defaultAgent",
+          data.payload,
+        );
       } catch (error) {
         console.error("Erro ao salvar agente", error);
       }
@@ -83,7 +104,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       // Agora você pode usar data.agentId aqui para mandar para a API real!
       await webview.postMessage({
         type: "novaResposta",
-        value: `Você disse: ${data.value} (Usando modelo: ${data.agentId || 'Padrão'})`,
+        value: `Você disse: ${data.value} (Usando modelo: ${data.agentId || "Padrão"})`,
       });
 
       if (data.value.toLowerCase().includes("modelos")) {
@@ -117,15 +138,22 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
     if (data.type === "salvarConfiguracoesSeguranca") {
       try {
-        const updatedConfig = this.configManager.updateSecuritySettings(data.payload);
+        const updatedConfig = this.configManager.updateSecuritySettings(
+          data.payload,
+        );
         await webview.postMessage({
           type: "configuracoesSegurancaSalvas",
           value: updatedConfig.cloudSecurity,
         });
-        vscode.window.showInformationMessage("Configurações de segurança salvas.");
+        vscode.window.showInformationMessage(
+          "Configurações de segurança salvas.",
+        );
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Erro desconhecido";
-        vscode.window.showErrorMessage(`Erro ao salvar configurações: ${message}`);
+        const message =
+          error instanceof Error ? error.message : "Erro desconhecido";
+        vscode.window.showErrorMessage(
+          `Erro ao salvar configurações: ${message}`,
+        );
       }
       return;
     }
@@ -138,8 +166,11 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           value: securitySettings,
         });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Erro desconhecido";
-        vscode.window.showErrorMessage(`Erro ao carregar configurações: ${message}`);
+        const message =
+          error instanceof Error ? error.message : "Erro desconhecido";
+        vscode.window.showErrorMessage(
+          `Erro ao carregar configurações: ${message}`,
+        );
       }
       return;
     }
@@ -149,6 +180,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       return;
     }
 
+    /*
     if (data.type === "saveModelParams") {
       try {
         const { modelId, params, customPrompt, systemPrompt } = data;
@@ -176,17 +208,19 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         vscode.window.showErrorMessage("Erro ao guardar: " + error);
       }
       return;
-    }
+    }*/
   }
 
   private _sendModelsToWebview(webview: vscode.Webview) {
     const rawModels = this.configManager.getAllModels();
-    const modelsList = Object.values(rawModels).map(model => ({
+    const modelsList = Object.values(rawModels).map((model) => ({
       id: model.id,
       name: model.name || model.id,
       tag: model.metadata?.tags?.[0] || "LLM",
       quant: model.metadata?.quantization || "-",
-      date: model.metadata?.installedAt ? new Date(model.metadata.installedAt).toLocaleDateString('pt-BR') : "-",
+      date: model.metadata?.installedAt
+        ? new Date(model.metadata.installedAt).toLocaleDateString("pt-BR")
+        : "-",
       file: model.path ? path.basename(model.path) : "-",
       size: model.metadata?.size || "-",
       params: {
@@ -194,19 +228,22 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         tokensRes: model.custom?.tokensRes ?? 512,
         temp: model.parameters?.temperature ?? 0.7,
         context: model.parameters?.contextWindow ?? 4096,
-        maxTokens: model.parameters?.maxTokens ?? 300
+        maxTokens: model.parameters?.maxTokens ?? 300,
       },
       customPrompt: !!model.custom?.systemPrompt,
-      systemPrompt: model.custom?.systemPrompt || ""
+      systemPrompt: model.custom?.systemPrompt || "",
     }));
 
     webview.postMessage({
       type: "updateModelsList",
-      models: modelsList
+      models: modelsList,
     });
   }
 
-  private _getHtmlForWebview(webview: vscode.Webview, selectedView?: string): string {
+  private _getHtmlForWebview(
+    webview: vscode.Webview,
+    selectedView?: string,
+  ): string {
     if (!selectedView || selectedView === "chat") {
       selectedView = "chat";
     } else if (selectedView === "config") {
@@ -215,7 +252,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       selectedView = "library";
     }
 
-    const webviewPath = path.join(this.context.extensionUri.fsPath, "src", "webview", selectedView);
+    const webviewPath = path.join(
+      this.context.extensionUri.fsPath,
+      "src",
+      "webview",
+      selectedView,
+    );
 
     let htmlPath = "";
     if (selectedView === "api-keys") {
@@ -228,13 +270,26 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       htmlPath = path.join(webviewPath, "chat.html");
     }
 
-    const styleUri = webview.asWebviewUri(vscode.Uri.file(path.join(webviewPath, "styles.css")));
-    const scriptUri = webview.asWebviewUri(vscode.Uri.file(path.join(webviewPath, "script.js")));
+    const styleUri = webview.asWebviewUri(
+      vscode.Uri.file(path.join(webviewPath, "styles.css")),
+    );
+    const scriptUri = webview.asWebviewUri(
+      vscode.Uri.file(path.join(webviewPath, "script.js")),
+    );
 
     let markedUriStr = "";
     try {
       const markedUri = webview.asWebviewUri(
-        vscode.Uri.file(path.join(this.context.extensionUri.fsPath, "src", "webview", "chat", "vendor", "marked.min.js"))
+        vscode.Uri.file(
+          path.join(
+            this.context.extensionUri.fsPath,
+            "src",
+            "webview",
+            "chat",
+            "vendor",
+            "marked.min.js",
+          ),
+        ),
       );
       markedUriStr = markedUri.toString();
     } catch (e) {}
@@ -253,7 +308,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private _abrirPainelNoEditor(selectedView?: string) {
     if (this._panel) {
       this._panel.reveal(vscode.ViewColumn.One);
-      this._panel.webview.html = this._getHtmlForWebview(this._panel.webview, selectedView);
+      this._panel.webview.html = this._getHtmlForWebview(
+        this._panel.webview,
+        selectedView,
+      );
       return;
     }
 
@@ -265,15 +323,38 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         enableScripts: true,
         retainContextWhenHidden: true,
         localResourceRoots: [
-          vscode.Uri.joinPath(this.context.extensionUri, "src", "webview", "chat"),
-          vscode.Uri.joinPath(this.context.extensionUri, "src", "webview", "api-keys"),
-          vscode.Uri.joinPath(this.context.extensionUri, "src", "webview", "rag"),
-          vscode.Uri.joinPath(this.context.extensionUri, "src", "webview", "library"),
-        ]
+          vscode.Uri.joinPath(
+            this.context.extensionUri,
+            "src",
+            "webview",
+            "chat",
+          ),
+          vscode.Uri.joinPath(
+            this.context.extensionUri,
+            "src",
+            "webview",
+            "api-keys",
+          ),
+          vscode.Uri.joinPath(
+            this.context.extensionUri,
+            "src",
+            "webview",
+            "rag",
+          ),
+          vscode.Uri.joinPath(
+            this.context.extensionUri,
+            "src",
+            "webview",
+            "library",
+          ),
+        ],
       },
     );
 
-    this._panel.webview.html = this._getHtmlForWebview(this._panel.webview, selectedView);
+    this._panel.webview.html = this._getHtmlForWebview(
+      this._panel.webview,
+      selectedView,
+    );
 
     this._panel.webview.onDidReceiveMessage(async (data) => {
       await this._handleMessage(data, this._panel!.webview);
