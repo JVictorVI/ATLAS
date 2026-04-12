@@ -74,7 +74,9 @@ export class AtlasSelectionService {
 
     config.llms.selection.mode = "cloud";
     config.llms.selection.cloud.providerId = providerId;
-    config.llms.selection.cloud.activeModelId = null;
+    if (config.llms.selection.cloud.providerId !== providerId) {
+      config.llms.selection.cloud.activeModelId = null;
+    }
     config.updatedAt = new Date().toISOString();
 
     this.repository.save(config);
