@@ -127,7 +127,15 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
       await webview.postMessage({
         type: "novaResposta",
-        value: response,
+        value: response.content,
+        metadata: {
+          providerId: response.providerId,
+          providerKind: response.providerKind,
+          modelId: response.modelId,
+          finishReason: response.finishReason,
+          usage: response.usage,
+          createdAt: response.createdAt,
+        },
       });
 
       return;

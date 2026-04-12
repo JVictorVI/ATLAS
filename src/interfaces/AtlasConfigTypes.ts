@@ -101,6 +101,7 @@ export interface ProviderConfig {
   label: string;
   baseUrl: string;
   apiKeyPlaceholder: string;
+  kind?: "openai-compatible" | "claude" | "gemini";
 }
 
 export interface AtlasConfigSchema {

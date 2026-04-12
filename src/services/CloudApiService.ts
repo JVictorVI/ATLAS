@@ -1,12 +1,19 @@
 import {
+  AtlasCloudChatResponse,
+  AtlasCloudProviderKind,
   AtlasModelSummary,
   ChatMessage,
+  ClaudeResponse,
+  GeminiResponse,
   ModelsApiResponse,
   OpenAiCompatibleResponse,
   ProviderModelRaw,
 } from "../interfaces/ApiTypes";
 import { ApiKeyManager } from "../managers/ApiKeyManager";
-import { AtlasConfigManager } from "../managers/AtlasConfigManager";
+import {
+  AtlasConfigManager,
+  ProviderConfig,
+} from "../managers/AtlasConfigManager";
 
 export class CloudApiService {
   constructor(
@@ -14,7 +21,9 @@ export class CloudApiService {
     private readonly apiKeyManager: ApiKeyManager,
   ) {}
 
-  public async sendChat(messages: ChatMessage[]): Promise<string> {
+  public async sendChat(
+    messages: ChatMessage[],
+  ): Promise<AtlasCloudChatResponse> {
     const config = this.configManager.getConfig();
 
     if (!this.configManager.isCloudMode()) {
@@ -40,6 +49,56 @@ export class CloudApiService {
       );
     }
 
+    const providerKind = this.getProviderKind(provider);
+
+    switch (providerKind) {
+      case "claude":
+        return this.sendClaudeChat(provider, modelId, apiKey, messages);
+
+      case "gemini":
+        return this.sendGeminiChat(provider, modelId, apiKey, messages);
+
+      case "openai-compatible":
+      default:
+        return this.sendOpenAiCompatibleChat(
+          provider,
+          modelId,
+          apiKey,
+          messages,
+          config.llms.defaults.temperature,
+          config.llms.defaults.maxTokens,
+          config.llms.defaults.topP,
+        );
+    }
+  }
+
+  private getProviderKind(provider: ProviderConfig): AtlasCloudProviderKind {
+    if (provider.kind) {
+      return provider.kind;
+    }
+
+    const normalized = provider.id.trim().toLowerCase();
+
+    if (normalized.includes("claude") || normalized.includes("anthropic")) {
+      return "claude";
+    }
+
+    if (normalized.includes("gemini") || normalized.includes("google")) {
+      return "gemini";
+    }
+
+    return "openai-compatible";
+  }
+
+  private async sendOpenAiCompatibleChat(
+    provider: ProviderConfig,
+    modelId: string,
+    apiKey: string,
+    messages: ChatMessage[],
+    temperature: number,
+    maxTokens: number,
+    topP: number,
+  ): Promise<AtlasCloudChatResponse> {
     const baseUrl = provider.baseUrl.replace(/\/+$/, "");
     const endpoint = `${baseUrl}/chat/completions`;
 
@@ -52,9 +111,9 @@ export class CloudApiService {
       body: JSON.stringify({
         model: modelId,
         messages,
-        temperature: config.llms.defaults.temperature,
-        max_tokens: config.llms.defaults.maxTokens,
-        top_p: config.llms.defaults.topP,
+        temperature,
+        max_tokens: maxTokens,
+        top_p: topP,
         stream: false,
       }),
     });
@@ -63,17 +122,228 @@ export class CloudApiService {
 
     if (!response.ok) {
       throw new Error(
-        data.error?.message || `Erro na chamada HTTP: ${response.status}`,
+        data?.error?.message || `Erro na chamada HTTP: ${response.status}`,
       );
     }
 
-    const content = data.choices?.[0]?.message?.content?.trim();
+    return this.normalizeOpenAiCompatibleResponse(provider, modelId, data);
+  }
+
+  private async sendClaudeChat(
+    provider: ProviderConfig,
+    modelId: string,
+    apiKey: string,
+    messages: ChatMessage[],
+  ): Promise<AtlasCloudChatResponse> {
+    const baseUrl = provider.baseUrl.replace(/\/+$/, "");
+    const endpoint = `${baseUrl}/messages`;
+
+    const systemMessages = messages
+      .filter((message) => message.role === "system")
+      .map((message) => message.content)
+      .join("\n\n")
+      .trim();
+
+    const nonSystemMessages = messages
+      .filter((message) => message.role !== "system")
+      .map((message) => ({
+        role: message.role,
+        content: message.content,
+      }));
+
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: modelId,
+        max_tokens: this.configManager.getConfig().llms.defaults.maxTokens,
+        temperature: this.configManager.getConfig().llms.defaults.temperature,
+        system: systemMessages || undefined,
+        messages: nonSystemMessages,
+      }),
+    });
+
+    const data = (await response.json()) as ClaudeResponse;
+
+    if (!response.ok) {
+      throw new Error(
+        data?.error?.message || `Erro na chamada HTTP: ${response.status}`,
+      );
+    }
+
+    return this.normalizeClaudeResponse(provider, modelId, data);
+  }
+
+  private async sendGeminiChat(
+    provider: ProviderConfig,
+    modelId: string,
+    apiKey: string,
+    messages: ChatMessage[],
+  ): Promise<AtlasCloudChatResponse> {
+    const baseUrl = provider.baseUrl.replace(/\/+$/, "");
+
+    const endpoint = `${baseUrl}/models/${encodeURIComponent(modelId)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+    const systemText = messages
+      .filter((message) => message.role === "system")
+      .map((message) => message.content)
+      .join("\n\n")
+      .trim();
+
+    const contents = messages
+      .filter((message) => message.role !== "system")
+      .map((message) => ({
+        role: message.role === "assistant" ? "model" : "user",
+        parts: [{ text: message.content }],
+      }));
+
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        systemInstruction: systemText
+          ? {
+              parts: [{ text: systemText }],
+            }
+          : undefined,
+        contents,
+        generationConfig: {
+          temperature: this.configManager.getConfig().llms.defaults.temperature,
+          topP: this.configManager.getConfig().llms.defaults.topP,
+          maxOutputTokens:
+            this.configManager.getConfig().llms.defaults.maxTokens,
+        },
+      }),
+    });
+
+    const data = (await response.json()) as GeminiResponse;
+
+    if (!response.ok) {
+      throw new Error(
+        data?.error?.message || `Erro na chamada HTTP: ${response.status}`,
+      );
+    }
+
+    return this.normalizeGeminiResponse(provider, modelId, data);
+  }
+
+  private normalizeOpenAiCompatibleResponse(
+    provider: ProviderConfig,
+    modelId: string,
+    data: OpenAiCompatibleResponse,
+  ): AtlasCloudChatResponse {
+    const choice = data.choices?.[0];
+    const content = choice?.message?.content?.trim();
 
     if (!content) {
       throw new Error("O provedor retornou uma resposta vazia.");
     }
 
-    return content;
+    const usageRaw = (data as any).usage;
+
+    return {
+      providerId: provider.id,
+      providerLabel: provider.label,
+      providerKind: "openai-compatible",
+      modelId,
+      content,
+      finishReason: choice?.finish_reason,
+      usage: {
+        inputTokens:
+          typeof usageRaw?.prompt_tokens === "number"
+            ? usageRaw.prompt_tokens
+            : undefined,
+        outputTokens:
+          typeof usageRaw?.completion_tokens === "number"
+            ? usageRaw.completion_tokens
+            : undefined,
+        totalTokens:
+          typeof usageRaw?.total_tokens === "number"
+            ? usageRaw.total_tokens
+            : undefined,
+      },
+      createdAt: new Date().toISOString(),
+      raw: data,
+    };
+  }
+
+  private normalizeClaudeResponse(
+    provider: ProviderConfig,
+    modelId: string,
+    data: ClaudeResponse,
+  ): AtlasCloudChatResponse {
+    const content = (data.content ?? [])
+      .filter((item) => item.type === "text")
+      .map((item) => item.text?.trim() ?? "")
+      .filter(Boolean)
+      .join("\n\n")
+      .trim();
+
+    if (!content) {
+      throw new Error("O provedor Claude retornou uma resposta vazia.");
+    }
+
+    const inputTokens = data.usage?.input_tokens;
+    const outputTokens = data.usage?.output_tokens;
+
+    return {
+      providerId: provider.id,
+      providerLabel: provider.label,
+      providerKind: "claude",
+      modelId,
+      content,
+      finishReason: data.stop_reason,
+      usage: {
+        inputTokens,
+        outputTokens,
+        totalTokens:
+          typeof inputTokens === "number" && typeof outputTokens === "number"
+            ? inputTokens + outputTokens
+            : undefined,
+      },
+      createdAt: new Date().toISOString(),
+      raw: data,
+    };
+  }
+
+  private normalizeGeminiResponse(
+    provider: ProviderConfig,
+    modelId: string,
+    data: GeminiResponse,
+  ): AtlasCloudChatResponse {
+    const candidate = data.candidates?.[0];
+
+    const content = (candidate?.content?.parts ?? [])
+      .map((part) => part.text?.trim() ?? "")
+      .filter(Boolean)
+      .join("\n\n")
+      .trim();
+
+    if (!content) {
+      throw new Error("O provedor Gemini retornou uma resposta vazia.");
+    }
+
+    return {
+      providerId: provider.id,
+      providerLabel: provider.label,
+      providerKind: "gemini",
+      modelId,
+      content,
+      finishReason: candidate?.finishReason,
+      usage: {
+        inputTokens: data.usageMetadata?.promptTokenCount,
+        outputTokens: data.usageMetadata?.candidatesTokenCount,
+        totalTokens: data.usageMetadata?.totalTokenCount,
+      },
+      createdAt: new Date().toISOString(),
+      raw: data,
+    };
   }
 
   public async getModelsForCurrentProvider(): Promise<AtlasModelSummary[]> {
@@ -95,6 +365,23 @@ export class CloudApiService {
       throw new Error(`API key não encontrada para "${provider.label}".`);
     }
 
+    const providerKind = this.getProviderKind(provider);
+
+    switch (providerKind) {
+      case "claude":
+      case "gemini":
+        return this.getFallbackModelsForProvider(provider);
+
+      case "openai-compatible":
+      default:
+        return this.getOpenAiCompatibleModels(provider, apiKey);
+    }
+  }
+
+  private async getOpenAiCompatibleModels(
+    provider: ProviderConfig,
+    apiKey: string,
+  ): Promise<AtlasModelSummary[]> {
     const baseUrl = provider.baseUrl.replace(/\/+$/, "");
     const endpoint = `${baseUrl}/models`;
 
@@ -131,5 +418,48 @@ export class CloudApiService {
           : undefined,
       raw: model,
     }));
+  }
+
+  private getFallbackModelsForProvider(
+    provider: ProviderConfig,
+  ): AtlasModelSummary[] {
+    const providerName = provider.id.trim().toLowerCase();
+
+    if (providerName.includes("claude") || providerName.includes("anthropic")) {
+      return [
+        {
+          id: "claude-3-7-sonnet-latest",
+          label: "claude-3-7-sonnet-latest",
+          provider: provider.id,
+        },
+        {
+          id: "claude-3-5-sonnet-latest",
+          label: "claude-3-5-sonnet-latest",
+          provider: provider.id,
+        },
+        {
+          id: "claude-3-5-haiku-latest",
+          label: "claude-3-5-haiku-latest",
+          provider: provider.id,
+        },
+      ];
+    }
+
+    if (providerName.includes("gemini") || providerName.includes("google")) {
+      return [
+        {
+          id: "gemini-2.5-pro",
+          label: "gemini-2.5-pro",
+          provider: provider.id,
+        },
+        {
+          id: "gemini-2.5-flash",
+          label: "gemini-2.5-flash",
+          provider: provider.id,
+        },
+      ];
+    }
+
+    return [];
   }
 }

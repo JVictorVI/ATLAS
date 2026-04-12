@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-04-12T21:02:22.723Z",
+  "updatedAt": "2026-04-12T21:37:41.886Z",
   "general": {
     "theme": "system",
     "language": "pt-BR",
@@ -38,8 +38,8 @@
         "activeModelId": "google/gemma-3-1b"
       },
       "cloud": {
-        "providerId": "Groq",
-        "activeModelId": "openai/gpt-oss-20b"
+        "providerId": "OpenRouter",
+        "activeModelId": "switchpoint/router"
       }
     },
     "defaults": {
@@ -82,25 +82,43 @@
       "id": "OpenAI",
       "label": "OpenAI",
       "baseUrl": "https://api.openai.com/v1",
-      "apiKeyPlaceholder": "sk-..."
+      "apiKeyPlaceholder": "sk-...",
+      "kind": "openai-compatible"
     },
     {
       "id": "OpenRouter",
       "label": "OpenRouter",
       "baseUrl": "https://openrouter.ai/api/v1",
-      "apiKeyPlaceholder": "sk-or-v1-..."
+      "apiKeyPlaceholder": "sk-or-v1-...",
+      "kind": "openai-compatible"
     },
     {
       "id": "Groq",
       "label": "Groq",
       "baseUrl": "https://api.groq.com/openai/v1",
-      "apiKeyPlaceholder": "gsk_..."
+      "apiKeyPlaceholder": "gsk_...",
+      "kind": "openai-compatible"
     },
     {
-      "id": "Serpro",
-      "label": "Serpro",
-      "baseUrl": "https://api-serprollm.ni.estaleiro.serpro.gov.br",
-      "apiKeyPlaceholder": "Chave de API"
+      "id": "Claude",
+      "label": "Claude",
+      "baseUrl": "https://api.anthropic.com/v1",
+      "apiKeyPlaceholder": "sk-ant-...",
+      "kind": "claude"
+    },
+    {
+      "id": "Gemini",
+      "label": "Gemini",
+      "baseUrl": "https://generativelanguage.googleapis.com/v1beta",
+      "apiKeyPlaceholder": "AIza...",
+      "kind": "gemini"
+    },
+    {
+      "id": "xAI",
+      "label": "Grok (xAI)",
+      "baseUrl": "https://api.x.ai/v1",
+      "apiKeyPlaceholder": "xai-...",
+      "kind": "openai-compatible"
     }
   ]
 }

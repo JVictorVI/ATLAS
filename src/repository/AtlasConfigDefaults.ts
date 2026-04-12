@@ -123,18 +123,42 @@ export class AtlasConfigDefaults {
         label: "OpenAI",
         baseUrl: "https://api.openai.com/v1",
         apiKeyPlaceholder: "sk-...",
+        kind: "openai-compatible",
       },
       {
         id: "OpenRouter",
         label: "OpenRouter",
         baseUrl: "https://openrouter.ai/api/v1",
         apiKeyPlaceholder: "sk-or-v1-...",
+        kind: "openai-compatible",
       },
       {
         id: "Groq",
         label: "Groq",
         baseUrl: "https://api.groq.com/openai/v1",
         apiKeyPlaceholder: "gsk_...",
+        kind: "openai-compatible",
+      },
+      {
+        id: "Claude",
+        label: "Claude",
+        baseUrl: "https://api.anthropic.com/v1",
+        apiKeyPlaceholder: "sk-ant-...",
+        kind: "claude",
+      },
+      {
+        id: "Gemini",
+        label: "Gemini",
+        baseUrl: "https://generativelanguage.googleapis.com/v1beta",
+        apiKeyPlaceholder: "AIza...",
+        kind: "gemini",
+      },
+      {
+        id: "xAI",
+        label: "Grok (xAI)",
+        baseUrl: "https://api.x.ai/v1",
+        apiKeyPlaceholder: "xai-...",
+        kind: "openai-compatible",
       },
     ];
   }
