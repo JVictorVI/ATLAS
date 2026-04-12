@@ -3,13 +3,16 @@ import * as fs from "fs";
 import * as path from "path";
 import { ApiKeyManager } from "../managers/ApiKeyManager";
 import { SecretStorageService } from "../services/SecretStorageService";
-import { AtlasConfigManager } from "../services/AtlasConfigManager";
-import { ChatMessage, CloudApiService } from "../services/CloudApiService";
+import { CloudApiService } from "../services/CloudApiService";
+import { AtlasConfigManager } from "../managers/AtlasConfigManager";
+import { ChatMessage } from "../interfaces/ApiTypes";
 
 export class ChatViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "atlas-chat.view";
   private _view?: vscode.WebviewView;
-  private _panel?: vscode.WebviewPanel;
+  private _chatPanel?: vscode.WebviewPanel;
+  private _configPanel?: vscode.WebviewPanel;
+  private _libraryPanel?: vscode.WebviewPanel;
   private readonly apiKeyManager: ApiKeyManager;
   private readonly configManager: AtlasConfigManager;
   private readonly cloudApiService: CloudApiService;
@@ -69,70 +72,92 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       return;
     }
 
-    // --- NOVO: Lógica que salva e carrega a escolha do Seletor ---
-    if (data.type === "salvarAgente") {
+    if (data.type === "carregarLLMs") {
       try {
-        // Salva a escolha na memória global da extensão
-        await this.context.globalState.update(
-          "atlas.defaultAgent",
-          data.payload,
-        );
-      } catch (error) {
-        console.error("Erro ao salvar agente", error);
-      }
-      return;
-    }
+        const providers = this.configManager.getAllProviders();
+        const localModels = this.configManager.getLocalModels();
+        const selectedProviderId =
+          this.configManager.getSelectedCloudProviderId() ??
+          providers[0]?.id ??
+          null;
 
-    if (data.type === "carregarAgente") {
-      try {
-        // Busca a escolha salva e devolve para o HTML
-        const savedAgent = this.context.globalState.get("atlas.defaultAgent");
-        if (savedAgent) {
-          await webview.postMessage({
-            type: "agenteCarregado",
-            value: savedAgent,
-          });
-        }
+        await webview.postMessage({
+          type: "informarLLMsCarregados",
+          value: {
+            selectedMode: this.configManager.getCurrentMode(),
+            selectedProviderId: this.configManager.getSelectedCloudProviderId(),
+            selectedCloudModelId: this.configManager.getSelectedCloudModelId(),
+            selectedLocalModelId:
+              this.configManager.getActiveLocalModel()?.id ?? null,
+            providers: providers.map((provider) => ({
+              id: provider.id,
+              name: provider.label,
+              type: "cloud",
+              models: [],
+            })),
+            localModels: localModels.map((model) => ({
+              id: model.id,
+              name: model.name || model.id,
+            })),
+          },
+        });
       } catch (error) {
-        console.error("Erro ao carregar agente", error);
+        const message =
+          error instanceof Error ? error.message : "Erro ao carregar LLMs.";
+
+        await webview.postMessage({
+          type: "erro",
+          value: message,
+        });
       }
+
       return;
     }
-    // --------------------------------------------------------------
 
     if (data.type === "enviarPergunta") {
-      // Agora você pode usar data.agentId aqui para mandar para a API real!
       await webview.postMessage({
         type: "novaResposta",
-        value: `Você disse: ${data.value} (Usando modelo: ${data.agentId || "Padrão"})`,
+        value: `Você disse: ${data.value}`,
       });
 
-      if (data.value.toLowerCase().includes("modelos")) {
-        const response =
-          await this.cloudApiService.getModelsForCurrentProvider();
+      const chatMessage: ChatMessage[] = [
+        { role: "user", content: data.value },
+      ];
+      const response = await this.cloudApiService.sendChat(chatMessage);
 
-        const modelos = response.map((model) => model.id).join("\n");
-
-        await webview.postMessage({
-          type: "novaResposta",
-          value: modelos,
-        });
-      } else {
-        const chatMessage: ChatMessage[] = [
-          { role: "user", content: data.value },
-        ];
-        const response = await this.cloudApiService.sendChat(chatMessage);
-        await webview.postMessage({
-          type: "novaResposta",
-          value: response,
-        });
-      }
+      await webview.postMessage({
+        type: "novaResposta",
+        value: response,
+      });
 
       return;
     }
 
     if (data.type === "abrirPainelConfig") {
       this._abrirPainelNoEditor(data.selectedView);
+      return;
+    }
+
+    if (data.type === "selecionarModo") {
+      try {
+        this.configManager.setMode(data.mode);
+
+        await webview.postMessage({
+          type: "modoSelecionado",
+          value: {
+            mode: data.mode,
+          },
+        });
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Erro ao selecionar modo.";
+
+        await webview.postMessage({
+          type: "erro",
+          value: message,
+        });
+      }
+
       return;
     }
 
@@ -158,6 +183,65 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       return;
     }
 
+    if (data.type === "selecionarProviderCloud") {
+      try {
+        this.configManager.setSelectedCloudProvider(data.providerId);
+
+        const models = await this.cloudApiService.getModelsForCurrentProvider();
+
+        await webview.postMessage({
+          type: "modelosCloudCarregados",
+          value: {
+            providerId: data.providerId,
+            models: models.map((model) => ({
+              id: model.id,
+              name: model.label || model.id,
+            })),
+          },
+        });
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Erro ao carregar modelos cloud.";
+
+        await webview.postMessage({
+          type: "erro",
+          value: message,
+        });
+      }
+
+      return;
+    }
+
+    if (data.type === "selecionarModelo") {
+      try {
+        if (data.mode === "local") {
+          this.configManager.setActiveLocalModel(data.modelId);
+        } else if (data.mode === "cloud") {
+          this.configManager.setActiveCloudModel(data.modelId);
+        }
+
+        await webview.postMessage({
+          type: "modeloSelecionado",
+          value: {
+            mode: data.mode,
+            modelId: data.modelId,
+          },
+        });
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Erro ao selecionar modelo.";
+
+        await webview.postMessage({
+          type: "erro",
+          value: message,
+        });
+      }
+
+      return;
+    }
+
     if (data.type === "carregarConfiguracoesSeguranca") {
       try {
         const securitySettings = this.configManager.getSection("cloudSecurity");
@@ -179,36 +263,6 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       this._sendModelsToWebview(webview);
       return;
     }
-
-    /*
-    if (data.type === "saveModelParams") {
-      try {
-        const { modelId, params, customPrompt, systemPrompt } = data;
-        const currentModel = this.configManager.getModel(modelId);
-        
-        if (currentModel) {
-          this.configManager.updateModel(modelId, {
-            parameters: {
-              ...currentModel.parameters,
-              gpuLayers: params.gpuLayers,
-              temperature: params.temperature,
-              contextWindow: params.contextWindow,
-              maxTokens: params.maxTokens
-            },
-            custom: {
-              ...currentModel.custom,
-              tokensRes: params.tokensRes,
-              systemPrompt: customPrompt ? systemPrompt : ""
-            }
-          });
-          vscode.window.showInformationMessage("Parâmetros do modelo guardados com sucesso!");
-          this._sendModelsToWebview(webview); 
-        }
-      } catch (error) {
-        vscode.window.showErrorMessage("Erro ao guardar: " + error);
-      }
-      return;
-    }*/
   }
 
   private _sendModelsToWebview(webview: vscode.Webview) {
@@ -306,18 +360,33 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   }
 
   private _abrirPainelNoEditor(selectedView?: string) {
-    if (this._panel) {
-      this._panel.reveal(vscode.ViewColumn.One);
-      this._panel.webview.html = this._getHtmlForWebview(
-        this._panel.webview,
-        selectedView,
+    const normalizedView = this._normalizeSelectedView(selectedView);
+    const panelGroup = this._getPanelGroup(normalizedView);
+    const panelTitle = this._getPanelTitle(normalizedView);
+
+    let targetPanel: vscode.WebviewPanel | undefined;
+
+    if (panelGroup === "chat") {
+      targetPanel = this._chatPanel;
+    } else if (panelGroup === "config") {
+      targetPanel = this._configPanel;
+    } else if (panelGroup === "library") {
+      targetPanel = this._libraryPanel;
+    }
+
+    if (targetPanel) {
+      targetPanel.title = panelTitle;
+      targetPanel.reveal(vscode.ViewColumn.One);
+      targetPanel.webview.html = this._getHtmlForWebview(
+        targetPanel.webview,
+        normalizedView,
       );
       return;
     }
 
-    this._panel = vscode.window.createWebviewPanel(
-      "atlasEditorPanel",
-      "Configurações",
+    const panel = vscode.window.createWebviewPanel(
+      `atlasEditorPanel.${panelGroup}`,
+      panelTitle,
       vscode.ViewColumn.One,
       {
         enableScripts: true,
@@ -351,19 +420,80 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       },
     );
 
-    this._panel.webview.html = this._getHtmlForWebview(
-      this._panel.webview,
-      selectedView,
-    );
+    panel.webview.html = this._getHtmlForWebview(panel.webview, normalizedView);
 
-    this._panel.webview.onDidReceiveMessage(async (data) => {
-      await this._handleMessage(data, this._panel!.webview);
+    panel.webview.onDidReceiveMessage(async (data) => {
+      await this._handleMessage(data, panel.webview);
     });
 
-    this._panel.onDidDispose(() => {
-      this._panel = undefined;
+    panel.onDidDispose(() => {
+      if (panelGroup === "chat") {
+        this._chatPanel = undefined;
+      } else if (panelGroup === "config") {
+        this._configPanel = undefined;
+      } else if (panelGroup === "library") {
+        this._libraryPanel = undefined;
+      }
     });
 
-    void this.apiKeyManager.sendCredentialsToWebview(this._panel.webview);
+    if (panelGroup === "chat") {
+      this._chatPanel = panel;
+    } else if (panelGroup === "config") {
+      this._configPanel = panel;
+    } else if (panelGroup === "library") {
+      this._libraryPanel = panel;
+    }
+
+    void this.apiKeyManager.sendCredentialsToWebview(panel.webview);
+  }
+
+  private _normalizeSelectedView(selectedView?: string): string {
+    if (!selectedView || selectedView === "chat") {
+      return "chat";
+    }
+
+    if (selectedView === "config") {
+      return "api-keys";
+    }
+
+    if (selectedView === "rag") {
+      return "rag";
+    }
+
+    if (selectedView === "library") {
+      return "library";
+    }
+
+    return "chat";
+  }
+
+  private _getPanelGroup(selectedView?: string): "chat" | "config" | "library" {
+    const normalizedView = this._normalizeSelectedView(selectedView);
+
+    if (normalizedView === "api-keys" || normalizedView === "rag") {
+      return "config";
+    }
+
+    if (normalizedView === "library") {
+      return "library";
+    }
+
+    return "chat";
+  }
+
+  private _getPanelTitle(selectedView?: string): string {
+    if (
+      selectedView === "rag" ||
+      selectedView === "api-keys" ||
+      selectedView === "config"
+    ) {
+      return "Configurações";
+    }
+
+    if (selectedView === "library") {
+      return "Biblioteca";
+    }
+
+    return "Chat";
   }
 }

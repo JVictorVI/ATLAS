@@ -10,35 +10,26 @@ let currentView = "chat";
 let loadingElement = null;
 let mensagemAtualBot = null;
 let bufferResposta = "";
+let isLoadingCloudModels = false;
 
-const agentData = {
-  openai: { 
-    name: "OpenAI", 
-    type: "cloud",
-    models: [
-      { id: "gpt-4.1", name: "GPT 4.1" }, 
-      { id: "gpt-3.5-turbo", name: "GPT 3.5 Turbo" }
-    ] 
-  },
-  local: { 
-    name: "Local Agent", 
+let modelsData = {
+  local: {
+    name: "Local",
     type: "local",
-    models: [
-      { id: "qwen-3-12b", name: "Qwen 3 12B" }, 
-      { id: "llama-3-8b", name: "Llama 3 8B" }
-    ] 
-  }
+    models: [],
+  },
 };
 
-let selectedProvider = "local";
-let selectedModel = agentData["local"].models[0];
+let selectedMode = "local";
+let selectedProvider = null;
+let selectedModel = null;
 
 document.addEventListener("click", (e) => {
   const popover = document.getElementById("agent-popover");
   const btn = document.getElementById("open-popover");
-  
-  document.querySelectorAll('.dropdown-list').forEach(list => {
-      list.classList.add('hidden');
+
+  document.querySelectorAll(".dropdown-list").forEach((list) => {
+    list.classList.add("hidden");
   });
 
   if (popover && btn && !popover.classList.contains("hidden")) {
@@ -49,13 +40,13 @@ document.addEventListener("click", (e) => {
 });
 
 function updateActiveTab(activeId) {
-  document.querySelectorAll('.navbar button').forEach(btn => {
-    btn.classList.remove('active');
+  document.querySelectorAll(".navbar button").forEach((btn) => {
+    btn.classList.remove("active");
   });
 
   const activeBtn = document.getElementById(activeId);
   if (activeBtn) {
-    activeBtn.classList.add('active');
+    activeBtn.classList.add("active");
   }
 }
 
@@ -77,12 +68,12 @@ function renderChatView() {
             <div class="top-controls">
                 <div class="model-selector" id="open-popover" title="Selecionar Agente">
                     <i class="codicon codicon-chevron-down"></i>
-                    <span id="main-btn-text">${selectedModel.name}</span>
+                    <span id="main-btn-text">${selectedModel ? selectedModel.name : "Selecionar modelo"}</span>
                     <i class="codicon codicon-screenfull" style="font-size: 14px; margin-left: 4px;"></i>
                 </div>
                 
                 <div class="action-buttons">
-                    <button class="action-btn">Analisar Arquiteturas</button>
+                    <button class="action-btn">Analisar arquitetura</button>
                     <button class="action-btn">Procurar violações</button>
                 </div>
             </div>
@@ -99,158 +90,328 @@ function renderChatView() {
   setupChatEvents();
 }
 
+function hydratemodelsDataFromBackend(payload) {
+  modelsData = {
+    local: {
+      name: "Local",
+      type: "local",
+      models: payload.localModels || [],
+    },
+  };
+
+  for (const provider of payload.providers || []) {
+    modelsData[provider.id] = {
+      name: provider.name,
+      type: "cloud",
+      models: provider.models || [],
+    };
+  }
+
+  selectedMode = payload.selectedMode || "local";
+  selectedProvider = payload.selectedProviderId || null;
+
+  if (selectedMode === "local") {
+    const localModels = modelsData.local?.models || [];
+    selectedModel =
+      localModels.find((m) => m.id === payload.selectedLocalModelId) ||
+      localModels[0] ||
+      null;
+  } else {
+    selectedModel = payload.selectedCloudModelId
+      ? {
+          id: payload.selectedCloudModelId,
+          name: payload.selectedCloudModelId,
+        }
+      : null;
+  }
+
+  updateMainButton();
+
+  const popover = document.getElementById("agent-popover");
+  if (popover && !popover.classList.contains("hidden")) {
+    renderPopoverContent();
+  }
+
+  if (selectedMode === "cloud" && selectedProvider) {
+    isLoadingCloudModels = true;
+    vscode.postMessage({
+      type: "selecionarProviderCloud",
+      providerId: selectedProvider,
+    });
+  }
+}
+
 // Função auxiliar para enviar a escolha ao VS Code
 function salvarAgenteBackend() {
-    vscode.postMessage({
-        type: "salvarAgente",
-        payload: {
-            provider: selectedProvider,
-            model: selectedModel
-        }
-    });
+  vscode.postMessage({
+    type: "salvarAgente",
+    payload: {
+      provider: selectedProvider,
+      model: selectedModel,
+    },
+  });
 }
 
 function renderPopoverContent() {
-    const popover = document.getElementById("agent-popover");
-    if (!popover) return;
+  const popover = document.getElementById("agent-popover");
+  if (!popover) return;
 
-    // Identifica se o agente atual é 'local' ou 'cloud'
-    const currentType = selectedProvider ? agentData[selectedProvider].type : "local";
-    let providerText = selectedProvider ? agentData[selectedProvider].name : "Selecione um provedor";
-    let modelText = selectedModel ? selectedModel.name : "Selecione um modelo";
+  const cloudProviders = Object.entries(modelsData).filter(
+    ([, val]) => val.type === "cloud",
+  );
 
-    // Filtra para mostrar apenas provedores da aba selecionada (PC ou Nuvem)
-    const filteredProviders = Object.entries(agentData).filter(([key, val]) => val.type === currentType);
+  const localModels = modelsData.local?.models || [];
+  const cloudModels =
+    selectedProvider && modelsData[selectedProvider]
+      ? modelsData[selectedProvider].models || []
+      : [];
 
-    popover.innerHTML = `
-        <div class="popover-header">
-            <button class="popover-icon-btn ${currentType === 'local' ? 'active' : ''}" id="tab-local" title="Agente Local">
-                <i class="codicon codicon-device-desktop"></i>
-            </button>
-            <div class="popover-separator"></div>
-            <button class="popover-icon-btn ${currentType === 'cloud' ? 'active' : ''}" id="tab-cloud" title="Nuvem">
-                <i class="codicon codicon-cloud"></i>
-            </button>
+  const providerText =
+    selectedProvider && modelsData[selectedProvider]
+      ? modelsData[selectedProvider].name
+      : "Selecione um provedor";
+
+  const modelText = selectedModel ? selectedModel.name : "Selecione um modelo";
+
+  const localModelListHtml = localModels.length
+    ? localModels
+        .map(
+          (m) => `
+            <div
+              class="dropdown-item model-item ${selectedModel?.id === m.id && selectedMode === "local" ? "selected" : ""}"
+              data-mode="local"
+              data-value="${m.id}"
+              data-name="${m.name}"
+              title="${m.name}"
+            >
+              <span class="dropdown-item-label">${m.name}</span>
+            </div>
+          `,
+        )
+        .join("")
+    : `<div class="dropdown-empty">Nenhum modelo local encontrado</div>`;
+
+  const providerListHtml = cloudProviders.length
+    ? cloudProviders
+        .map(
+          ([key, val]) => `
+            <div
+              class="dropdown-item provider-item ${selectedProvider === key ? "selected" : ""}"
+              data-value="${key}"
+              title="${val.name}"
+            >
+              <span class="dropdown-item-label">${val.name}</span>
+            </div>
+          `,
+        )
+        .join("")
+    : `<div class="dropdown-empty">Nenhum provedor encontrado</div>`;
+
+  const cloudModelListHtml = isLoadingCloudModels
+    ? `
+      <div class="dropdown-loading">
+        <div class="spinner small"></div>
+        <span>Buscando modelos...</span>
+      </div>
+    `
+    : cloudModels.length
+      ? cloudModels
+          .map(
+            (m) => `
+              <div
+                class="dropdown-item model-item ${selectedModel?.id === m.id && selectedMode === "cloud" ? "selected" : ""}"
+                data-mode="cloud"
+                data-value="${m.id}"
+                data-name="${m.name}"
+                title="${m.name}"
+              >
+                <span class="dropdown-item-label">${m.name}</span>
+              </div>
+            `,
+          )
+          .join("")
+      : `<div class="dropdown-empty">Nenhum modelo carregado</div>`;
+
+  popover.innerHTML = `
+    <div class="popover-header">
+      <button class="popover-icon-btn ${selectedMode === "local" ? "active" : ""}" id="tab-local" title="Agente Local">
+        <i class="codicon codicon-device-desktop"></i>
+      </button>
+      <div class="popover-separator"></div>
+      <button class="popover-icon-btn ${selectedMode === "cloud" ? "active" : ""}" id="tab-cloud" title="Nuvem">
+        <i class="codicon codicon-cloud"></i>
+      </button>
+    </div>
+
+    ${
+      selectedMode === "local"
+        ? `
+        <div class="custom-dropdown">
+          <button class="popover-dropdown-btn" id="btn-model">
+            <span class="truncate">${modelText}</span>
+            <i class="codicon codicon-chevron-down"></i>
+          </button>
+          <div class="dropdown-list dropdown-scroll hidden" id="list-model">
+            ${localModelListHtml}
+          </div>
+        </div>
+      `
+        : `
+        <div class="custom-dropdown">
+          <button class="popover-dropdown-btn" id="btn-provider">
+            <span class="truncate">${providerText}</span>
+            <i class="codicon codicon-chevron-down"></i>
+          </button>
+          <div class="dropdown-list dropdown-scroll hidden" id="list-provider">
+            ${providerListHtml}
+          </div>
         </div>
 
         <div class="custom-dropdown">
-            <button class="popover-dropdown-btn" id="btn-provider">
-                <span>${providerText}</span>
-                <i class="codicon codicon-chevron-down"></i>
-            </button>
-            <div class="dropdown-list hidden" id="list-provider">
-                ${filteredProviders.map(([key, val]) => `<div class="dropdown-item provider-item" data-value="${key}">${val.name}</div>`).join('')}
-            </div>
+          <button class="popover-dropdown-btn" id="btn-model" ${isLoadingCloudModels ? "disabled" : ""}>
+            <span class="truncate">${isLoadingCloudModels ? "Carregando modelos..." : modelText}</span>
+            <i class="codicon codicon-chevron-down"></i>
+          </button>
+          <div class="dropdown-list dropdown-scroll hidden" id="list-model">
+            ${cloudModelListHtml}
+          </div>
         </div>
+      `
+    }
+  `;
 
-        ${selectedProvider ? `
-        <div class="custom-dropdown">
-            <button class="popover-dropdown-btn" id="btn-model">
-                <span>${modelText}</span>
-                <i class="codicon codicon-chevron-down"></i>
-            </button>
-            <div class="dropdown-list hidden" id="list-model">
-                ${agentData[selectedProvider].models.map(m => `<div class="dropdown-item model-item" data-value="${m.id}" data-name="${m.name}">${m.name}</div>`).join('')}
-            </div>
-        </div>
-        ` : ''}
-    `;
+  document.getElementById("tab-local")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (selectedMode !== "local") {
+      selectedMode = "local";
+      selectedModel = localModels[0] || null;
 
-    // --- Eventos das Abas (Ícones) ---
-    document.getElementById("tab-local")?.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if (currentType !== "local") {
-            selectedProvider = "local";
-            selectedModel = agentData["local"].models[0];
-            renderPopoverContent();
-            updateMainButton();
-            salvarAgenteBackend();
-        }
-    });
+      vscode.postMessage({
+        type: "selecionarModo",
+        mode: "local",
+      });
 
-    document.getElementById("tab-cloud")?.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if (currentType !== "cloud") {
-            selectedProvider = "openai"; // Muda automaticamente para um de nuvem
-            selectedModel = agentData["openai"].models[0];
-            renderPopoverContent();
-            updateMainButton();
-            salvarAgenteBackend();
-        }
-    });
+      renderPopoverContent();
+      updateMainButton();
+    }
+  });
 
-    // --- Eventos do Provedor ---
-    const btnProvider = document.getElementById("btn-provider");
-    const listProvider = document.getElementById("list-provider");
+  document.getElementById("tab-cloud")?.addEventListener("click", (e) => {
+    e.stopPropagation();
 
-    btnProvider?.addEventListener("click", (e) => {
-        e.stopPropagation();
-        listProvider.classList.toggle("hidden");
-        document.getElementById("list-model")?.classList.add("hidden"); 
-    });
+    if (selectedMode !== "cloud") {
+      selectedMode = "cloud";
 
-    document.querySelectorAll(".provider-item").forEach(item => {
-        item.addEventListener("click", (e) => {
-            e.stopPropagation();
-            selectedProvider = item.getAttribute("data-value");
-            selectedModel = agentData[selectedProvider].models[0]; 
-            renderPopoverContent(); 
-            updateMainButton(); 
-            salvarAgenteBackend();
+      if (!selectedProvider) {
+        selectedProvider = cloudProviders[0]?.[0] || null;
+      }
+
+      selectedModel =
+        selectedProvider && modelsData[selectedProvider]
+          ? (modelsData[selectedProvider].models || []).find(
+              (m) => m.id === selectedModel?.id,
+            ) || null
+          : null;
+
+      vscode.postMessage({
+        type: "selecionarModo",
+        mode: "cloud",
+      });
+
+      renderPopoverContent();
+      updateMainButton();
+
+      if (selectedProvider) {
+        isLoadingCloudModels = true;
+        renderPopoverContent();
+
+        vscode.postMessage({
+          type: "selecionarProviderCloud",
+          providerId: selectedProvider,
         });
-    });
+      }
+    }
+  });
 
-    // --- Eventos do Modelo ---
-    const btnModel = document.getElementById("btn-model");
-    const listModel = document.getElementById("list-model");
+  const btnProvider = document.getElementById("btn-provider");
+  const listProvider = document.getElementById("list-provider");
 
-    btnModel?.addEventListener("click", (e) => {
-        e.stopPropagation();
-        listModel.classList.toggle("hidden");
-        document.getElementById("list-provider")?.classList.add("hidden"); 
-    });
+  btnProvider?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    listProvider?.classList.toggle("hidden");
+    document.getElementById("list-model")?.classList.add("hidden");
+  });
 
-    document.querySelectorAll(".model-item").forEach(item => {
-        item.addEventListener("click", (e) => {
-            e.stopPropagation();
-            selectedModel = {
-                id: item.getAttribute("data-value"),
-                name: item.getAttribute("data-name")
-            };
-            listModel.classList.add("hidden"); 
-            renderPopoverContent(); 
-            updateMainButton(); 
-            salvarAgenteBackend();
-        });
+  document.querySelectorAll(".provider-item").forEach((item) => {
+    item.addEventListener("click", (e) => {
+      e.stopPropagation();
+
+      selectedProvider = item.getAttribute("data-value");
+      selectedModel = null;
+      isLoadingCloudModels = true;
+
+      renderPopoverContent();
+      updateMainButton();
+
+      vscode.postMessage({
+        type: "selecionarProviderCloud",
+        providerId: selectedProvider,
+      });
     });
+  });
+
+  const btnModel = document.getElementById("btn-model");
+  const listModel = document.getElementById("list-model");
+
+  btnModel?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    listModel?.classList.toggle("hidden");
+    document.getElementById("list-provider")?.classList.add("hidden");
+  });
+
+  document.querySelectorAll(".model-item").forEach((item) => {
+    item.addEventListener("click", (e) => {
+      e.stopPropagation();
+
+      selectedModel = {
+        id: item.getAttribute("data-value"),
+        name: item.getAttribute("data-name"),
+      };
+
+      listModel?.classList.add("hidden");
+      renderPopoverContent();
+      updateMainButton();
+
+      vscode.postMessage({
+        type: "selecionarModelo",
+        mode: item.getAttribute("data-mode"),
+        modelId: selectedModel.id,
+      });
+    });
+  });
 }
 
 function updateMainButton() {
-    const mainBtnText = document.getElementById("main-btn-text");
-    if (mainBtnText && selectedModel) {
-        mainBtnText.textContent = selectedModel.name;
-    }
+  const mainBtnText = document.getElementById("main-btn-text");
+  if (!mainBtnText) return;
+
+  if (selectedMode === "local") {
+    mainBtnText.textContent = selectedModel
+      ? selectedModel.name
+      : "Selecionar modelo local";
+    return;
+  }
+
+  const providerName =
+    selectedProvider && modelsData[selectedProvider]
+      ? modelsData[selectedProvider].name
+      : "Nuvem";
+
+  const modelName = selectedModel ? selectedModel.name : "Selecionar modelo";
+
+  mainBtnText.textContent = `${providerName} · ${modelName}`;
 }
 
-function renderConfigView() {
-  currentView = "config";
-
-  contentContainer.innerHTML = `
-        <div id="settings-view">
-            <button id="library-btn" class="settings-option">Minha Biblioteca (Modelos)</button>
-            <button id="rag-btn" class="settings-option">Configurações de RAG</button>
-            <button id="keys-btn" class="settings-option">Chaves de API</button>
-        </div>
-    `;
-
-  document.getElementById("keys-btn")?.addEventListener("click", () => {
-    vscode.postMessage({ type: "abrirPainelConfig", selectedView: "config" });
-  });
-
-  document.getElementById("library-btn")?.addEventListener("click", () => {
-    vscode.postMessage({ type: "abrirPainelConfig", selectedView: "library" });
-  });
-}
 function setupChatEvents() {
   const input = document.getElementById("pergunta");
   const btn = document.getElementById("send-btn");
@@ -260,16 +421,16 @@ function setupChatEvents() {
   if (!input || !btn) return;
 
   if (popoverBtn && agentPopover) {
-      popoverBtn.addEventListener("click", (e) => {
-          e.stopPropagation(); 
-          
-          if (agentPopover.classList.contains("hidden")) {
-              agentPopover.classList.remove("hidden");
-              renderPopoverContent(); 
-          } else {
-              agentPopover.classList.add("hidden");
-          }
-      });
+    popoverBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+
+      if (agentPopover.classList.contains("hidden")) {
+        agentPopover.classList.remove("hidden");
+        renderPopoverContent();
+      } else {
+        agentPopover.classList.add("hidden");
+      }
+    });
   }
 
   function enviarPergunta() {
@@ -283,11 +444,11 @@ function setupChatEvents() {
       type: "enviarPergunta",
       value: texto,
       selectedView: currentView,
-      agentId: selectedModel ? selectedModel.id : null
+      agentId: selectedModel ? selectedModel.id : null,
     });
 
     input.value = "";
-    agentPopover?.classList.add("hidden"); 
+    agentPopover?.classList.add("hidden");
   }
 
   btn.addEventListener("click", enviarPergunta);
@@ -301,7 +462,7 @@ function setupChatEvents() {
 
 renderChatView();
 updateActiveTab("chat-btn");
-updateMainButton(); 
+updateMainButton();
 
 function addMessage(content, type, isMarkdown = false) {
   const chatContainer = getChatContainer();
@@ -368,11 +529,12 @@ chatgBtn?.addEventListener("click", () => {
 });
 
 libraryBtn?.addEventListener("click", () => {
-    updateActiveTab("library-btn");
+  renderLibraryView();
+  updateActiveTab("library-btn");
 });
 
 searchBtn?.addEventListener("click", () => {
-    updateActiveTab("search-btn");
+  updateActiveTab("search-btn");
 });
 
 window.addEventListener("message", (event) => {
@@ -382,11 +544,11 @@ window.addEventListener("message", (event) => {
     case "agenteCarregado": {
       if (message.value) {
         selectedProvider = message.value.provider || "local";
-        selectedModel = message.value.model || agentData["local"].models[0];
+        selectedModel = message.value.model || modelsData["local"].models[0];
         updateMainButton();
         const popover = document.getElementById("agent-popover");
         if (popover && !popover.classList.contains("hidden")) {
-            renderPopoverContent();
+          renderPopoverContent();
         }
       }
       break;
@@ -425,10 +587,65 @@ window.addEventListener("message", (event) => {
       mensagemAtualBot = null;
       bufferResposta = "";
       addMessage(message.value || "Ocorreu um erro.", "bot");
+      isLoadingCloudModels = false;
+      break;
+    }
+
+    case "informarLLMsCarregados": {
+      hydratemodelsDataFromBackend(message.value);
+      break;
+    }
+
+    case "modelosCloudCarregados": {
+      const providerId = message.value.providerId;
+      const models = message.value.models || [];
+
+      if (modelsData[providerId]) {
+        modelsData[providerId].models = models;
+      }
+
+      isLoadingCloudModels = false;
+
+      if (selectedMode === "cloud" && selectedProvider === providerId) {
+        const previousSelectedId = selectedModel?.id;
+        selectedModel =
+          models.find((m) => m.id === previousSelectedId) || models[0] || null;
+
+        updateMainButton();
+
+        const popover = document.getElementById("agent-popover");
+        if (popover && !popover.classList.contains("hidden")) {
+          renderPopoverContent();
+        }
+      }
+      break;
+    }
+
+    case "modeloSelecionado": {
       break;
     }
   }
 });
 
+function renderConfigView() {
+  currentView = "config";
+
+  contentContainer.innerHTML = `
+        <div id="settings-view">
+            <button id="keys-btn" class="settings-option">Chaves de API</button>
+        </div>
+    `;
+
+  document.getElementById("keys-btn")?.addEventListener("click", () => {
+    vscode.postMessage({ type: "abrirPainelConfig", selectedView: "config" });
+  });
+}
+
+function renderLibraryView() {
+  currentView = "library";
+  contentContainer.innerHTML = ``;
+  vscode.postMessage({ type: "abrirPainelConfig", selectedView: "library" });
+}
+
 // Assim que o script iniciar, pede ao VS Code para carregar a última escolha
-vscode.postMessage({ type: "carregarAgente" });
+vscode.postMessage({ type: "carregarLLMs" });

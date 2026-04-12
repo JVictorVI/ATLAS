@@ -1,24 +1,11 @@
 import * as vscode from "vscode";
 import { SecretStorageService } from "../services/SecretStorageService";
+import { AtlasConfigManager, ProviderConfig } from "./AtlasConfigManager";
 import {
-  AtlasConfigManager,
-  ProviderConfig,
-} from "../services/AtlasConfigManager";
-
-export type ProviderName = string;
-
-export interface ApiCredentialView {
-  provider: ProviderName;
-  providerLabel: string;
-  baseUrl: string;
-  maskedKey: string;
-  hasKey: boolean;
-  addedAt: string;
-}
-
-interface StoredApiCredentialMetadata {
-  addedAt: string;
-}
+  ApiCredentialView,
+  ProviderName,
+  StoredApiCredentialMetadata,
+} from "../interfaces/ApiKeyTypes";
 
 export class ApiKeyManager {
   constructor(

@@ -1,55 +1,12 @@
-import { AtlasConfigManager } from "../services/AtlasConfigManager";
+import {
+  AtlasModelSummary,
+  ChatMessage,
+  ModelsApiResponse,
+  OpenAiCompatibleResponse,
+  ProviderModelRaw,
+} from "../interfaces/ApiTypes";
 import { ApiKeyManager } from "../managers/ApiKeyManager";
-
-export interface ChatMessage {
-  role: "system" | "user" | "assistant";
-  content: string;
-}
-
-interface OpenAiCompatibleResponse {
-  choices?: Array<{
-    message?: {
-      content?: string;
-    };
-    finish_reason?: string;
-  }>;
-  error?: {
-    message?: string;
-  };
-}
-
-interface ProviderModelRaw {
-  id: string;
-  object?: string;
-  created?: number;
-  owned_by?: string;
-
-  // extensões (Groq, OpenRouter, etc.)
-  active?: boolean;
-  context_window?: number;
-  max_completion_tokens?: number;
-
-  [key: string]: unknown;
-}
-
-interface AtlasModelSummary {
-  id: string;
-  label: string;
-
-  provider: string;
-
-  contextWindow?: number;
-  maxTokens?: number;
-
-  raw?: unknown;
-}
-
-interface ModelsApiResponse {
-  data?: unknown;
-  error?: {
-    message?: string;
-  };
-}
+import { AtlasConfigManager } from "../managers/AtlasConfigManager";
 
 export class CloudApiService {
   constructor(
@@ -95,9 +52,9 @@ export class CloudApiService {
       body: JSON.stringify({
         model: modelId,
         messages,
-        temperature: config.llm.defaults.temperature,
-        max_tokens: config.llm.defaults.maxTokens,
-        top_p: config.llm.defaults.topP,
+        temperature: config.llms.defaults.temperature,
+        max_tokens: config.llms.defaults.maxTokens,
+        top_p: config.llms.defaults.topP,
         stream: false,
       }),
     });
@@ -120,13 +77,17 @@ export class CloudApiService {
   }
 
   public async getModelsForCurrentProvider(): Promise<AtlasModelSummary[]> {
-    const resolved = this.configManager.getResolvedCloudSelection();
+    const providerId = this.configManager.getSelectedCloudProviderId();
 
-    if (!resolved) {
-      throw new Error("Seleção em nuvem incompleta.");
+    if (!providerId) {
+      throw new Error("Nenhum provedor em nuvem foi selecionado.");
     }
 
-    const { provider } = resolved;
+    const provider = this.configManager.getProvider(providerId);
+
+    if (!provider) {
+      throw new Error(`Provedor "${providerId}" não encontrado.`);
+    }
 
     const apiKey = await this.apiKeyManager.getRawKey(provider.id);
 

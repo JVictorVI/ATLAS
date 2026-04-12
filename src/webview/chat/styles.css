@@ -12,7 +12,7 @@ body {
   font-size: var(--vscode-font-size);
   color: var(--vscode-foreground);
   background-color: var(--vscode-sideBar-background);
-  overflow: hidden; 
+  overflow: hidden;
 }
 
 #content-container {
@@ -26,7 +26,7 @@ body {
 /* --- BARRA DE NAVEGAÇÃO --- */
 .navbar {
   display: flex;
-  justify-content: center; 
+  justify-content: center;
   align-items: center;
   padding: var(--spacing);
   background-color: var(--vscode-sideBar-background);
@@ -35,7 +35,7 @@ body {
 
 .nav-left {
   display: flex;
-  gap: 15px; 
+  gap: 15px;
   align-items: center;
 }
 
@@ -44,12 +44,19 @@ body {
   border: none;
   color: var(--vscode-icon-foreground);
   cursor: pointer;
-  padding: 8px; 
+  padding: 15px;
   transition: all 0.2s ease-in-out;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px; 
+  border-radius: 6px;
+}
+
+#chat-btn i,
+#library-btn i,
+#search-btn i,
+#config-panel-btn i {
+  font-size: 22px;
 }
 
 .navbar button:hover {
@@ -58,8 +65,8 @@ body {
 }
 
 .navbar button.active {
-  background-color: #242424; 
-  color: #ffffff !important; 
+  background-color: #242424;
+  color: #ffffff !important;
   pointer-events: none;
   border-radius: 6px;
 }
@@ -67,7 +74,7 @@ body {
 /* Ícones da Navbar Maiores */
 .navbar button i {
   font-size: 24px; /* Aumentado para 24px */
-  filter: none !important; 
+  filter: none !important;
 }
 
 /* --- ÁREA DE CHAT --- */
@@ -91,14 +98,14 @@ body {
 
 .user {
   align-self: flex-end;
-  background-color: #007acc; 
+  background-color: #007acc;
   color: #ffffff;
   border-bottom-right-radius: 4px;
 }
 
 .bot {
   align-self: flex-start;
-  background-color: #3a3a3a; 
+  background-color: #3a3a3a;
   color: #cccccc;
   border-bottom-left-radius: 4px;
 }
@@ -118,7 +125,7 @@ body {
   align-items: center;
   margin-bottom: 8px;
   gap: 8px;
-  flex-wrap: wrap; 
+  flex-wrap: wrap;
 }
 
 .model-selector {
@@ -128,7 +135,7 @@ body {
   background: #1e1e1e;
   border: 1px solid #444;
   padding: 4px 10px;
-  border-radius: 6px;
+  border-radius: 4px;
   cursor: pointer;
   color: #ccc;
   font-size: 12px;
@@ -142,11 +149,11 @@ body {
 
 .action-buttons {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   flex-wrap: wrap; /* Se os botões não couberem, eles empilham */
   justify-content: flex-end;
   flex: 1;
-  min-width: 140px; /* Garante um tamanho mínimo antes de quebrar a linha */
+  min-width: 120px; /* Garante um tamanho mínimo antes de quebrar a linha */
 }
 
 .action-btn {
@@ -154,7 +161,7 @@ body {
   border: 1px solid #004b7a;
   color: #007acc;
   font-size: 10px;
-  padding: 4px 8px;
+  padding: 4px 10px;
   border-radius: 4px;
   cursor: pointer;
   flex: 1 1 auto;
@@ -172,7 +179,7 @@ body {
 .input-container {
   display: flex;
   gap: 8px;
-  background-color: #252526; 
+  background-color: #252526;
   border: 1px solid #444;
   border-radius: 4px;
   padding: 4px 6px 4px 10px;
@@ -198,7 +205,7 @@ input {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #007acc; 
+  background-color: #007acc;
   color: white;
   border: none;
   border-radius: 4px;
@@ -214,7 +221,7 @@ input {
 
 /* Ícone de enviar um pouco maior */
 #send-btn i {
-  font-size: 18px; 
+  font-size: 18px;
 }
 
 /* --- O POPOVER (BALÃO FLUTUANTE) --- */
@@ -223,19 +230,21 @@ input {
   bottom: 100%; /* Ajustado para 100% para nascer colado ao input */
   left: 12px;
   margin-bottom: 10px;
-  width: 260px; 
+  width: 260px;
   background: #252526;
   border: 1px solid #444;
   border-radius: 8px;
   padding: 16px;
-  box-shadow: 0 -4px 15px rgba(0,0,0,0.5);
+  box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.5);
   z-index: 100;
   display: flex;
   flex-direction: column;
-  gap: 16px; 
+  gap: 16px;
 }
 
-.hidden { display: none !important; }
+.hidden {
+  display: none !important;
+}
 
 .popover-header {
   display: flex;
@@ -259,7 +268,7 @@ input {
 
 /* Ícones de Nuvem e PC maiores */
 .popover-icon-btn i {
-  font-size: 24px; 
+  font-size: 24px;
 }
 
 .popover-icon-btn:hover {
@@ -280,7 +289,7 @@ input {
 
 .popover-dropdown-btn {
   width: 100%;
-  background: #1e1e1e; 
+  background: #1e1e1e;
   border: 1px solid #444;
   color: #ccc;
   padding: 10px 12px;
@@ -294,7 +303,7 @@ input {
 }
 
 .popover-dropdown-btn:hover {
-  border-color: #007acc; 
+  border-color: #007acc;
 }
 
 /* --- TELAS DE CONFIGURAÇÃO E LOADING --- */
@@ -340,4 +349,75 @@ input {
   to {
     transform: rotate(360deg);
   }
+}
+
+.custom-dropdown {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dropdown-list {
+  width: 100%;
+  background: #1e1e1e;
+  border: 1px solid #444;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.dropdown-scroll {
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.dropdown-item {
+  padding: 10px 12px;
+  cursor: pointer;
+  color: #ccc;
+  font-size: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.dropdown-item:hover {
+  background: #2d2d2d;
+}
+
+.dropdown-item.selected {
+  background: rgba(0, 122, 204, 0.18);
+  color: #fff;
+}
+
+.dropdown-item-label {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dropdown-empty,
+.dropdown-loading {
+  padding: 12px;
+  font-size: 12px;
+  color: #999;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.truncate {
+  display: inline-block;
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.spinner.small {
+  width: 12px;
+  height: 12px;
+  border-width: 2px;
 }
