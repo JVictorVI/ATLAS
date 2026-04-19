@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-04-19T17:29:40.480Z",
+  "updatedAt": "2026-04-19T18:06:20.711Z",
   "general": {
     "theme": "system",
     "language": "pt-BR",
@@ -9,7 +9,7 @@
   },
   "cloudSecurity": {
     "confirmCloud": false,
-    "blockRag": true,
+    "blockRag": false,
     "limitPayload": true,
     "maxTokens": 4096,
     "timeout": 45
@@ -39,7 +39,7 @@
       },
       "cloud": {
         "providerId": "Groq",
-        "activeModelId": "openai/gpt-oss-120b"
+        "activeModelId": "openai/gpt-oss-20b"
       }
     },
     "defaults": {
@@ -78,8 +78,8 @@
   },
   "custom": {
     "systemPrompt": {
-      "mode": "custom",
-      "enabled": true,
+      "mode": "default",
+      "enabled": false,
       "customInstructions": "Sempre me chame de Doutor. Responda sem markdown."
     }
   },
