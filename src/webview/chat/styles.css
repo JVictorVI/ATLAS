@@ -166,10 +166,18 @@ body {
   cursor: pointer;
   flex: 1 1 auto;
   text-align: center;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis; /* Adiciona os '...' se o texto não couber */
+  text-overflow: ellipsis;
   max-width: 100%;
+
+  position: relative;
 }
 
 .action-btn:hover {
@@ -420,4 +428,30 @@ input {
   width: 12px;
   height: 12px;
   border-width: 2px;
+}
+
+.action-btn.loading {
+  opacity: 0.9;
+  cursor: wait;
+}
+
+.action-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.btn-spinner {
+  width: 10px;
+  height: 10px;
+  border: 2px solid #007acc;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: atlas-spin 0.6s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes atlas-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-04-19T17:03:45.079Z",
+  "updatedAt": "2026-04-19T17:29:40.480Z",
   "general": {
     "theme": "system",
     "language": "pt-BR",
@@ -38,8 +38,8 @@
         "activeModelId": "google/gemma-3-1b"
       },
       "cloud": {
-        "providerId": "OpenRouter",
-        "activeModelId": "openrouter/free"
+        "providerId": "Groq",
+        "activeModelId": "openai/gpt-oss-120b"
       }
     },
     "defaults": {

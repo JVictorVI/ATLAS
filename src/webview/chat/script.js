@@ -12,6 +12,11 @@ let mensagemAtualBot = null;
 let bufferResposta = "";
 let isLoadingCloudModels = false;
 
+let shortcutLoadingState = {
+  quickAnalysis: false,
+  architectureAnalysis: false,
+};
+
 let modelsData = {
   local: {
     name: "Local",
@@ -73,7 +78,7 @@ function renderChatView() {
                 </div>
                 
                 <div class="action-buttons">
-                    <button class="action-btn">Analisar Arquitetura</button>
+                    <button class="action-btn" id="architeture-analysis-btn">Analisar Arquitetura</button>
                     <button class="action-btn" id="quick-analysis-btn">Análise Rápida</button>
                 </div>
             </div>
@@ -418,6 +423,9 @@ function setupChatEvents() {
   const popoverBtn = document.getElementById("open-popover");
   const agentPopover = document.getElementById("agent-popover");
   const quickAnalysisBtn = document.getElementById("quick-analysis-btn");
+  const architetureAnalysisBtn = document.getElementById(
+    "architeture-analysis-btn",
+  );
 
   if (!input || !btn) return;
 
@@ -436,8 +444,29 @@ function setupChatEvents() {
 
   if (quickAnalysisBtn) {
     quickAnalysisBtn.addEventListener("click", () => {
+      if (shortcutLoadingState.quickAnalysis) return;
+
+      shortcutLoadingState.quickAnalysis = true;
+      setShortcutLoading("quick-analysis", true);
+
       vscode.postMessage({
         type: "executarAnaliseRapida",
+      });
+    });
+  }
+
+  if (architetureAnalysisBtn) {
+    architetureAnalysisBtn.addEventListener("click", () => {
+      if (shortcutLoadingState.architectureAnalysis) return;
+
+      shortcutLoadingState.architectureAnalysis = true;
+      setShortcutLoading("architecture-analysis", true);
+
+      vscode.postMessage({
+        type: "enviarPergunta",
+        value: "Realize uma análise arquitetural deste código.",
+        selectedView: currentView,
+        agentId: selectedModel ? selectedModel.id : null,
       });
     });
   }
@@ -564,6 +593,8 @@ window.addEventListener("message", (event) => {
     }
     case "novaResposta": {
       removeLoading();
+      shortcutLoadingState.architectureAnalysis = false;
+      setShortcutLoading("architecture-analysis", false);
       addMessage(message.value, "bot", true);
       break;
     }
@@ -595,8 +626,28 @@ window.addEventListener("message", (event) => {
       removeLoading();
       mensagemAtualBot = null;
       bufferResposta = "";
-      addMessage(message.value || "Ocorreu um erro.", "bot");
       isLoadingCloudModels = false;
+
+      shortcutLoadingState.quickAnalysis = false;
+      shortcutLoadingState.architectureAnalysis = false;
+      setShortcutLoading("quick-analysis", false);
+      setShortcutLoading("architecture-analysis", false);
+
+      addMessage(message.value || "Ocorreu um erro.", "bot");
+      break;
+    }
+
+    case "analiseRapidaStatus": {
+      const isLoading = !!message.value?.loading;
+      shortcutLoadingState.quickAnalysis = isLoading;
+      setShortcutLoading("quick-analysis", isLoading);
+      break;
+    }
+
+    case "analiseRapidaConcluida": {
+      shortcutLoadingState.quickAnalysis = false;
+      setShortcutLoading("quick-analysis", false);
+      console.log("Análise rápida concluída:", message.value);
       break;
     }
 
@@ -668,3 +719,39 @@ function renderLibraryView() {
 
 // Assim que o script iniciar, pede ao VS Code para carregar a última escolha
 vscode.postMessage({ type: "carregarLLMs" });
+
+function getShortcutButton(action) {
+  if (action === "quick-analysis") {
+    return document.getElementById("quick-analysis-btn");
+  }
+
+  if (action === "architecture-analysis") {
+    return document.getElementById("architeture-analysis-btn");
+  }
+
+  return null;
+}
+
+function setShortcutLoading(action, isLoading) {
+  const button = getShortcutButton(action);
+  if (!button) return;
+
+  const originalLabel =
+    button.dataset.originalLabel?.trim() || button.textContent.trim();
+
+  if (!button.dataset.originalLabel) {
+    button.dataset.originalLabel = originalLabel;
+  }
+
+  button.disabled = isLoading;
+  button.classList.toggle("loading", isLoading);
+
+  if (isLoading) {
+    button.innerHTML = `
+      <span class="btn-spinner" aria-hidden="true"></span>
+      <span>${originalLabel}</span>
+    `;
+  } else {
+    button.textContent = button.dataset.originalLabel;
+  }
+}
