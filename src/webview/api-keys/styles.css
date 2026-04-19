@@ -90,6 +90,19 @@ button {
   margin-top: 10px;
 }
 
+.row-checkbox {
+  flex-direction: row;
+  gap: 24px;
+}
+
+.checkBoxPromptSection {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
 .inline-fields {
   display: flex;
   gap: 14px;
@@ -101,7 +114,7 @@ button {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-width: 220px;
+  min-width: 200px;
 }
 
 input[type="text"],
@@ -169,4 +182,67 @@ input[type="checkbox"]:checked::after {
   flex-direction: row;
   align-items: center;
   gap: 6px;
+}
+
+input[type="radio"] {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--vscode-checkbox-border, var(--vscode-widget-border));
+  border-radius: 50%;
+  background-color: var(--vscode-checkbox-background);
+  position: relative;
+  cursor: pointer;
+  margin: 0;
+}
+
+input[type="radio"]:checked {
+  border-color: var(--vscode-button-background);
+}
+
+input[type="radio"]:checked::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--vscode-button-background);
+}
+
+input[type="text"],
+input[type="number"],
+textarea {
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border, var(--vscode-widget-border));
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: var(--vscode-font-family);
+  box-sizing: border-box;
+}
+
+input:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--vscode-focusBorder);
+  box-shadow: 0 0 0 1px var(--vscode-focusBorder);
+}
+
+textarea {
+  width: 100%;
+  resize: vertical;
+}
+
+textarea:disabled {
+  background: var(--vscode-disabledBackground);
+  color: var(--vscode-disabledForeground);
+  border-color: var(--vscode-disabledBackground);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.system-prompt {
+  margin-top: 20px;
 }

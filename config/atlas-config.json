@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-04-12T21:37:41.886Z",
+  "updatedAt": "2026-04-19T01:44:52.581Z",
   "general": {
     "theme": "system",
     "language": "pt-BR",
@@ -8,11 +8,11 @@
     "logLevel": "info"
   },
   "cloudSecurity": {
-    "confirmCloud": true,
-    "blockRag": false,
+    "confirmCloud": false,
+    "blockRag": true,
     "limitPayload": true,
-    "maxTokens": 2048,
-    "timeout": 10
+    "maxTokens": 4096,
+    "timeout": 45
   },
   "rag": {
     "enabled": true,
@@ -38,13 +38,13 @@
         "activeModelId": "google/gemma-3-1b"
       },
       "cloud": {
-        "providerId": "OpenRouter",
-        "activeModelId": "switchpoint/router"
+        "providerId": "Groq",
+        "activeModelId": "openai/gpt-oss-20b"
       }
     },
     "defaults": {
-      "temperature": 0.2,
-      "maxTokens": 2048,
+      "temperature": 0.3,
+      "maxTokens": 4096,
       "topP": 0.95,
       "stream": true
     },
@@ -76,7 +76,13 @@
       }
     }
   },
-  "custom": {},
+  "custom": {
+    "systemPrompt": {
+      "mode": "custom",
+      "enabled": true,
+      "customInstructions": "Sempre me chame de Doutor. Responda sempre em duas linhas. Responda sem markdown."
+    }
+  },
   "providers": [
     {
       "id": "OpenAI",

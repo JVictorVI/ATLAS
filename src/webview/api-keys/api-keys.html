@@ -59,6 +59,11 @@
         </div>
 
         <label class="checkBoxSection">
+          <input type="checkbox" id="stream" checked />
+          Responder em tempo real (streaming)
+        </label>
+
+        <label class="checkBoxSection">
           <input type="checkbox" id="blockRag" />
           Bloquear envio automático de contexto RAG
         </label>
@@ -81,8 +86,67 @@
         </div>
       </div>
 
+      <div class="inline-fields">
+        <div class="field">
+          <label for="temperature">Temperatura (criatividade)</label>
+          <input
+            id="temperature"
+            type="number"
+            step="0.1"
+            min="0"
+            max="2"
+            value="0.2"
+          />
+        </div>
+
+        <div class="field">
+          <label for="topP">Top-p (diversidade)</label>
+          <input
+            id="topP"
+            type="number"
+            step="0.05"
+            min="0"
+            max="1"
+            value="0.95"
+          />
+        </div>
+      </div>
+
       <div class="row-end">
         <button id="save-security-btn" class="btn-primary">Salvar</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Comportamento do ATLAS</div>
+      <div class="subtitle">
+        Configure diretrizes complementares para as respostas, preservando as
+        políticas centrais do sistema
+      </div>
+
+      <div class="checkbox-group row-checkbox">
+        <label class="checkBoxPromptSection">
+          <input type="radio" name="behavior" id="toggle-default" checked />
+          Comportamento Padrão
+        </label>
+        <label class="checkBoxPromptSection">
+          <input type="radio" name="behavior" id="toggle-custom" />
+          Comportamento Personalizado
+        </label>
+      </div>
+
+      <div class="field system-prompt">
+        <label for="system-prompt">Diretivas Complementares</label>
+        <textarea
+          id="system-prompt"
+          rows="3"
+          disabled
+          placeholder="Exemplo: 'Prefira respostas mais objetivas e destaque impactos em testabilidade.'"
+        ></textarea>
+      </div>
+
+      <div class="row-end">
+        <button id="save-prompt-btn" class="btn-primary">Salvar</button>
       </div>
     </div>
 

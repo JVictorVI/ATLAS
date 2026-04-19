@@ -5,7 +5,12 @@ import { ApiKeyManager } from "../managers/ApiKeyManager";
 import { SecretStorageService } from "../services/SecretStorageService";
 import { CloudApiService } from "../services/CloudApiService";
 import { AtlasConfigManager } from "../managers/AtlasConfigManager";
-import { ChatMessage } from "../interfaces/ApiTypes";
+import { AtlasPromptAssemblyService } from "../prompt/AtlasPromptAssemblyService";
+import { AtlasSystemPromptPolicyService } from "../prompt/AtlasSystemPromptPolicyService";
+import { AtlasPromptCustomizationService } from "../prompt/AtlasPromptCustomizationService";
+import { AtlasConfigRepository } from "../repository/AtlasConfigRepository";
+import { AtlasConfigDefaults } from "../repository/AtlasConfigDefaults";
+import { AtlasPromptModeResolver } from "../prompt/AtlasPromptModeResolver";
 
 export class ChatViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "atlas-chat.view";
@@ -16,10 +21,31 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private readonly apiKeyManager: ApiKeyManager;
   private readonly configManager: AtlasConfigManager;
   private readonly cloudApiService: CloudApiService;
+  private readonly promptPolicyService: AtlasSystemPromptPolicyService;
+  private readonly promptCustomizationService: AtlasPromptCustomizationService;
+  private readonly promptAssemblyService: AtlasPromptAssemblyService;
+  private readonly configRepository: AtlasConfigRepository;
+  private readonly configDefaults: AtlasConfigDefaults;
+  private readonly modeResolver: AtlasPromptModeResolver;
 
   constructor(private readonly context: vscode.ExtensionContext) {
     const secretStorage = new SecretStorageService(context);
     this.configManager = new AtlasConfigManager(context);
+    this.promptPolicyService = new AtlasSystemPromptPolicyService();
+    this.configDefaults = new AtlasConfigDefaults();
+    this.modeResolver = new AtlasPromptModeResolver();
+    this.configRepository = new AtlasConfigRepository(
+      context,
+      this.configDefaults,
+    );
+    this.promptCustomizationService = new AtlasPromptCustomizationService(
+      this.configRepository,
+    );
+    this.promptAssemblyService = new AtlasPromptAssemblyService(
+      this.promptPolicyService,
+      this.promptCustomizationService,
+      this.modeResolver,
+    );
     this.apiKeyManager = new ApiKeyManager(secretStorage, this.configManager);
     this.cloudApiService = new CloudApiService(
       this.configManager,
@@ -115,20 +141,23 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     }
 
     if (data.type === "enviarPergunta") {
-      await webview.postMessage({
-        type: "novaResposta",
-        value: `Você disse: ${data.value}`,
+      const promptResult = this.promptAssemblyService.buildMessages({
+        userQuestion: data.value,
+        history: [],
+        analysisContext: [],
+        ragContext: [],
+        hasCodeContext: false,
       });
 
-      const chatMessage: ChatMessage[] = [
-        { role: "user", content: data.value },
-      ];
-      const response = await this.cloudApiService.sendChat(chatMessage);
+      const response = await this.cloudApiService.sendChat(
+        promptResult.messages,
+      );
 
       await webview.postMessage({
         type: "novaResposta",
         value: response.content,
         metadata: {
+          mode: promptResult.mode,
           providerId: response.providerId,
           providerKind: response.providerKind,
           modelId: response.modelId,
@@ -171,52 +200,87 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
     if (data.type === "salvarConfiguracoesSeguranca") {
       try {
-        const updatedConfig = this.configManager.updateSecuritySettings(
-          data.payload,
-        );
+        const {
+          confirmCloud,
+          blockRag,
+          limitPayload,
+          maxTokens,
+          timeout,
+          temperature,
+          topP,
+        } = data.payload ?? {};
+
+        this.configManager.updateSecuritySettings({
+          confirmCloud,
+          blockRag,
+          limitPayload,
+          maxTokens,
+          timeout,
+        });
+
+        this.configManager.updateLlmDefaults({
+          temperature,
+          topP,
+          maxTokens,
+        });
+
+        const securitySettings = this.configManager.getSection("cloudSecurity");
+        const llmDefaults = this.configManager.getConfig().llms.defaults;
+
         await webview.postMessage({
           type: "configuracoesSegurancaSalvas",
-          value: updatedConfig.cloudSecurity,
+          value: {
+            ...securitySettings,
+            temperature: llmDefaults.temperature,
+            topP: llmDefaults.topP,
+          },
         });
+
         vscode.window.showInformationMessage(
-          "Configurações de segurança salvas.",
+          "Configurações de execução salvas.",
         );
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Erro desconhecido";
-        vscode.window.showErrorMessage(
-          `Erro ao salvar configurações: ${message}`,
-        );
-      }
-      return;
-    }
-
-    if (data.type === "selecionarProviderCloud") {
-      try {
-        this.configManager.setSelectedCloudProvider(data.providerId);
-
-        const models = await this.cloudApiService.getModelsForCurrentProvider();
-
-        await webview.postMessage({
-          type: "modelosCloudCarregados",
-          value: {
-            providerId: data.providerId,
-            models: models.map((model) => ({
-              id: model.id,
-              name: model.label || model.id,
-            })),
-          },
-        });
-      } catch (error) {
-        const message =
-          error instanceof Error
-            ? error.message
-            : "Erro ao carregar modelos cloud.";
 
         await webview.postMessage({
           type: "erro",
           value: message,
         });
+
+        vscode.window.showErrorMessage(
+          `Erro ao salvar configurações: ${message}`,
+        );
+      }
+
+      return;
+    }
+
+    if (data.type === "carregarConfiguracoesSeguranca") {
+      try {
+        const securitySettings = this.configManager.getSection("cloudSecurity");
+        const llmDefaults = this.configManager.getConfig().llms.defaults;
+
+        await webview.postMessage({
+          type: "configuracoesSegurancaCarregadas",
+          value: {
+            ...securitySettings,
+            temperature: llmDefaults.temperature,
+            topP: llmDefaults.topP,
+          },
+        });
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Erro desconhecido";
+
+        await webview.postMessage({
+          type: "erro",
+          value: message,
+        });
+
+        vscode.window.showErrorMessage(
+          `Erro ao carregar configurações: ${message}`,
+        );
       }
 
       return;
@@ -264,6 +328,60 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           `Erro ao carregar configurações: ${message}`,
         );
       }
+      return;
+    }
+
+    if (data.type === "carregarComportamentoModelo") {
+      try {
+        const behavior = this.promptCustomizationService.getBehaviorConfig();
+
+        await webview.postMessage({
+          type: "comportamentoModeloCarregado",
+          value: behavior,
+        });
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Erro ao carregar comportamento do modelo.";
+
+        await webview.postMessage({
+          type: "erro",
+          value: message,
+        });
+      }
+
+      return;
+    }
+
+    if (data.type === "salvarComportamentoModelo") {
+      try {
+        const saved = this.promptCustomizationService.saveBehaviorConfig(
+          data.payload,
+        );
+
+        await webview.postMessage({
+          type: "comportamentoModeloSalvo",
+          value: saved,
+        });
+
+        vscode.window.showInformationMessage(
+          "Comportamento do modelo salvo com sucesso.",
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Erro ao salvar comportamento do modelo.";
+
+        await webview.postMessage({
+          type: "erro",
+          value: message,
+        });
+
+        vscode.window.showErrorMessage(message);
+      }
+
       return;
     }
 
