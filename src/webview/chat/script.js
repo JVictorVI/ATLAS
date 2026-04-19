@@ -73,8 +73,8 @@ function renderChatView() {
                 </div>
                 
                 <div class="action-buttons">
-                    <button class="action-btn">Analisar arquitetura</button>
-                    <button class="action-btn">Procurar violações</button>
+                    <button class="action-btn">Analisar Arquitetura</button>
+                    <button class="action-btn" id="quick-analysis-btn">Análise Rápida</button>
                 </div>
             </div>
 
@@ -417,6 +417,7 @@ function setupChatEvents() {
   const btn = document.getElementById("send-btn");
   const popoverBtn = document.getElementById("open-popover");
   const agentPopover = document.getElementById("agent-popover");
+  const quickAnalysisBtn = document.getElementById("quick-analysis-btn");
 
   if (!input || !btn) return;
 
@@ -430,6 +431,14 @@ function setupChatEvents() {
       } else {
         agentPopover.classList.add("hidden");
       }
+    });
+  }
+
+  if (quickAnalysisBtn) {
+    quickAnalysisBtn.addEventListener("click", () => {
+      vscode.postMessage({
+        type: "executarAnaliseRapida",
+      });
     });
   }
 
@@ -624,6 +633,16 @@ window.addEventListener("message", (event) => {
     case "modeloSelecionado": {
       break;
     }
+
+    case "analiseRapidaStatus":
+      const isLoading = !!message.value?.loading;
+      if (quickAnalysisBtn) {
+        quickAnalysisBtn.disabled = isLoading;
+        quickAnalysisBtn.classList.toggle("loading", isLoading);
+      }
+
+    case "analiseRapidaConcluida":
+      console.log("Análise rápida concluída:", message.value);
   }
 });
 

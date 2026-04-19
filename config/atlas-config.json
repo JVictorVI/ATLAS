@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-04-19T01:44:52.581Z",
+  "updatedAt": "2026-04-19T17:03:45.079Z",
   "general": {
     "theme": "system",
     "language": "pt-BR",
@@ -38,8 +38,8 @@
         "activeModelId": "google/gemma-3-1b"
       },
       "cloud": {
-        "providerId": "Groq",
-        "activeModelId": "openai/gpt-oss-20b"
+        "providerId": "OpenRouter",
+        "activeModelId": "openrouter/free"
       }
     },
     "defaults": {
@@ -80,7 +80,7 @@
     "systemPrompt": {
       "mode": "custom",
       "enabled": true,
-      "customInstructions": "Sempre me chame de Doutor. Responda sempre em duas linhas. Responda sem markdown."
+      "customInstructions": "Sempre me chame de Doutor. Responda sem markdown."
     }
   },
   "providers": [

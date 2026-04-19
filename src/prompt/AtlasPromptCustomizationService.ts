@@ -1,12 +1,5 @@
+import { AtlasUserBehaviorConfig } from "../interfaces/AtlasPromptTypes";
 import { AtlasConfigRepository } from "../repository/AtlasConfigRepository";
-
-export type AtlasUserBehaviorMode = "default" | "custom";
-
-export type AtlasUserBehaviorConfig = {
-  mode: AtlasUserBehaviorMode;
-  enabled: boolean;
-  customInstructions: string;
-};
 
 export class AtlasPromptCustomizationService {
   constructor(private readonly repository: AtlasConfigRepository) {}

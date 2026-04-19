@@ -1,23 +1,11 @@
 import { ChatMessage } from "../interfaces/ApiTypes";
 import { AtlasSystemPromptPolicyService } from "./AtlasSystemPromptPolicyService";
 import { AtlasPromptCustomizationService } from "./AtlasPromptCustomizationService";
+import { AtlasPromptModeResolver } from "./AtlasPromptModeResolver";
 import {
-  AtlasPromptMode,
-  AtlasPromptModeResolver,
-} from "./AtlasPromptModeResolver";
-
-export type AtlasPromptAssemblyInput = {
-  userQuestion: string;
-  history?: ChatMessage[];
-  analysisContext?: string[];
-  ragContext?: string[];
-  hasCodeContext?: boolean;
-};
-
-export type AtlasPromptAssemblyResult = {
-  mode: AtlasPromptMode;
-  messages: ChatMessage[];
-};
+  AtlasPromptAssemblyInput,
+  AtlasPromptAssemblyResult,
+} from "../interfaces/AtlasPromptTypes";
 
 export class AtlasPromptAssemblyService {
   constructor(
@@ -34,6 +22,7 @@ export class AtlasPromptAssemblyService {
       hasCodeContext: input.hasCodeContext,
       hasAnalysisContext: Boolean(input.analysisContext?.length),
       hasRagContext: Boolean(input.ragContext?.length),
+      forcedMode: input.forcedMode,
     });
 
     const messages: ChatMessage[] = [];
@@ -44,23 +33,21 @@ export class AtlasPromptAssemblyService {
       content: baseSystemMessage,
     });
 
-    if (mode !== "out-of-scope") {
-      const customizationBlock =
-        this.customizationService.buildCustomizationBlock();
+    const customizationBlock =
+      this.customizationService.buildCustomizationBlock();
 
-      if (customizationBlock) {
-        messages.push({
-          role: "system",
-          content: customizationBlock,
-        });
-      }
+    if (customizationBlock && mode !== "quick-analysis") {
+      messages.push({
+        role: "system",
+        content: customizationBlock,
+      });
     }
 
-    if (mode === "architectural-analysis" && input.analysisContext?.length) {
+    if (input.analysisContext?.length) {
       messages.push({
         role: "system",
         content: [
-          "Contexto de análise estrutural disponível:",
+          "Contexto estrutural disponível:",
           ...input.analysisContext.map((item) => `- ${item}`),
         ].join("\n"),
       });
@@ -76,7 +63,7 @@ export class AtlasPromptAssemblyService {
       });
     }
 
-    if (input.history?.length && mode !== "out-of-scope") {
+    if (input.history?.length && mode !== "quick-analysis") {
       messages.push(...input.history);
     }
 
