@@ -385,6 +385,36 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       return;
     }
 
+    if (data.type === "selecionarProviderCloud") {
+      try {
+        this.configManager.setSelectedCloudProvider(data.providerId);
+
+        const models = await this.cloudApiService.getModelsForCurrentProvider();
+
+        await webview.postMessage({
+          type: "modelosCloudCarregados",
+          value: {
+            providerId: data.providerId,
+            models: models.map((model) => ({
+              id: model.id,
+              name: model.label || model.id,
+            })),
+          },
+        });
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Erro ao carregar modelos cloud.";
+
+        await webview.postMessage({
+          type: "erro",
+          value: message,
+        });
+      }
+      return;
+    }
+
     if (data.type === "requestModels") {
       this._sendModelsToWebview(webview);
       return;
