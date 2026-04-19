@@ -90,6 +90,44 @@ export class CloudApiService {
     return "openai-compatible";
   }
 
+  private handleApiError(response: Response, data?: any): never {
+    const status = response.status;
+    const providerMessage = data?.error?.message || data?.error?.details || "Erro desconhecido retornado pelo provedor.";
+    
+    if (status === 401 || status === 403) {
+      throw new Error(`Falha de autenticação (HTTP ${status}): Verifique sua chave de API. Detalhes: ${providerMessage}`);
+    }
+    if (status === 429) {
+      throw new Error(`Limite de requisições excedido (HTTP 429). Como estamos utilizando cotas gratuitas, tente novamente mais tarde. Detalhes: ${providerMessage}`);
+    }
+    if (status >= 500) {
+      throw new Error(`Indisponibilidade no provedor (HTTP ${status}). Serviço pode estar fora do ar. Detalhes: ${providerMessage}`);
+    }
+    
+    throw new Error(`Falha na requisição (HTTP ${status}): ${providerMessage}`);
+  }
+
+  private async fetchWithTimeout(resource: string, options: RequestInit & { timeout?: number }): Promise<Response> {
+    const timeoutSetting = this.configManager.getConfig().cloudSecurity?.timeout;
+    const defaultTimeout = timeoutSetting ? timeoutSetting * 1000 : 30000;
+    const timeout = options.timeout || defaultTimeout;
+    
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    
+    try {
+      const response = await fetch(resource, { ...options, signal: controller.signal });
+      clearTimeout(id);
+      return response;
+    } catch (error) {
+      clearTimeout(id);
+      if (error instanceof Error && error.name === "AbortError") {
+        throw new Error(`Timeout da requisição: O provedor não respondeu dentro de ${timeout / 1000} segundos.`);
+      }
+      throw new Error(`Falha de rede ou comunicação: ${error instanceof Error ? error.message : "Erro desconhecido"}`);
+    }
+  }
+
   private async sendOpenAiCompatibleChat(
     provider: ProviderConfig,
     modelId: string,
@@ -102,7 +140,7 @@ export class CloudApiService {
     const baseUrl = provider.baseUrl.replace(/\/+$/, "");
     const endpoint = `${baseUrl}/chat/completions`;
 
-    const response = await fetch(endpoint, {
+    const response = await this.fetchWithTimeout(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -118,15 +156,18 @@ export class CloudApiService {
       }),
     });
 
-    const data = (await response.json()) as OpenAiCompatibleResponse;
-
-    if (!response.ok) {
-      throw new Error(
-        data?.error?.message || `Erro na chamada HTTP: ${response.status}`,
-      );
+    let data: any;
+    try {
+      data = await response.json();
+    } catch {
+      data = { error: { message: "Resposta JSON inválida retornada pelo servidor." } };
     }
 
-    return this.normalizeOpenAiCompatibleResponse(provider, modelId, data);
+    if (!response.ok) {
+      this.handleApiError(response, data);
+    }
+
+    return this.normalizeOpenAiCompatibleResponse(provider, modelId, data as OpenAiCompatibleResponse);
   }
 
   private async sendClaudeChat(
@@ -151,7 +192,7 @@ export class CloudApiService {
         content: message.content,
       }));
 
-    const response = await fetch(endpoint, {
+    const response = await this.fetchWithTimeout(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -167,15 +208,18 @@ export class CloudApiService {
       }),
     });
 
-    const data = (await response.json()) as ClaudeResponse;
-
-    if (!response.ok) {
-      throw new Error(
-        data?.error?.message || `Erro na chamada HTTP: ${response.status}`,
-      );
+    let data: any;
+    try {
+      data = await response.json();
+    } catch {
+      data = { error: { message: "Resposta JSON inválida retornada pelo servidor." } };
     }
 
-    return this.normalizeClaudeResponse(provider, modelId, data);
+    if (!response.ok) {
+      this.handleApiError(response, data);
+    }
+
+    return this.normalizeClaudeResponse(provider, modelId, data as ClaudeResponse);
   }
 
   private async sendGeminiChat(
@@ -185,7 +229,6 @@ export class CloudApiService {
     messages: ChatMessage[],
   ): Promise<AtlasCloudChatResponse> {
     const baseUrl = provider.baseUrl.replace(/\/+$/, "");
-
     const endpoint = `${baseUrl}/models/${encodeURIComponent(modelId)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
     const systemText = messages
@@ -201,7 +244,7 @@ export class CloudApiService {
         parts: [{ text: message.content }],
       }));
 
-    const response = await fetch(endpoint, {
+    const response = await this.fetchWithTimeout(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -222,15 +265,18 @@ export class CloudApiService {
       }),
     });
 
-    const data = (await response.json()) as GeminiResponse;
-
-    if (!response.ok) {
-      throw new Error(
-        data?.error?.message || `Erro na chamada HTTP: ${response.status}`,
-      );
+    let data: any;
+    try {
+      data = await response.json();
+    } catch {
+      data = { error: { message: "Resposta JSON inválida retornada pelo servidor." } };
     }
 
-    return this.normalizeGeminiResponse(provider, modelId, data);
+    if (!response.ok) {
+      this.handleApiError(response, data);
+    }
+
+    return this.normalizeGeminiResponse(provider, modelId, data as GeminiResponse);
   }
 
   private normalizeOpenAiCompatibleResponse(
@@ -385,17 +431,22 @@ export class CloudApiService {
     const baseUrl = provider.baseUrl.replace(/\/+$/, "");
     const endpoint = `${baseUrl}/models`;
 
-    const response = await fetch(endpoint, {
+    const response = await this.fetchWithTimeout(endpoint, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${apiKey}`,
       },
     });
 
-    const json = (await response.json()) as ModelsApiResponse;
+    let json: any;
+    try {
+      json = await response.json();
+    } catch {
+      json = { error: { message: "Resposta JSON inválida retornada pelo servidor." } };
+    }
 
     if (!response.ok) {
-      throw new Error(json.error?.message || `Erro HTTP ${response.status}`);
+      this.handleApiError(response, json);
     }
 
     if (!Array.isArray(json.data)) {
@@ -460,6 +511,6 @@ export class CloudApiService {
       ];
     }
 
-    return [];
+    throw new Error(`Provedor "${provider.id}" não possui modelos configurados.`);
   }
 }

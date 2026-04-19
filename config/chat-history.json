@@ -1,0 +1,51 @@
+{
+  "conversations": {
+    "1776629051176": {
+      "id": "1776629051176",
+      "title": "oi...",
+      "messages": [
+        {
+          "role": "user",
+          "content": "oi"
+        },
+        {
+          "role": "assistant",
+          "content": "Oi! Como posso ajudar você hoje?"
+        },
+        {
+          "role": "user",
+          "content": "aa"
+        },
+        {
+          "role": "user",
+          "content": "qual e meu nome"
+        },
+        {
+          "role": "assistant",
+          "content": "Desculpe, mas não tenho acesso a informações pessoais, incluindo seu nome. Se precisar de ajuda com algo mais, é só falar!"
+        },
+        {
+          "role": "user",
+          "content": "meu nome e arthur"
+        },
+        {
+          "role": "assistant",
+          "content": "Oi Arthur! Como posso ajudar você hoje?"
+        },
+        {
+          "role": "user",
+          "content": "qual e meu nome"
+        },
+        {
+          "role": "user",
+          "content": "qual e meu nome"
+        },
+        {
+          "role": "assistant",
+          "content": "Seu nome é Arthur."
+        }
+      ],
+      "updatedAt": "2026-04-19T20:06:18.005Z"
+    }
+  }
+}

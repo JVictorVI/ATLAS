@@ -242,16 +242,7 @@ export class ChatMessageRouter {
 
       vscode.window.showInformationMessage("Configurações de execução salvas.");
     } catch (error) {
-      const message = this.getErrorMessage(error, "Erro desconhecido");
-
-      await webview.postMessage({
-        type: "erro",
-        value: message,
-      });
-
-      vscode.window.showErrorMessage(
-        `Erro ao salvar configurações: ${message}`,
-      );
+      await this.postError(webview, error, "Erro ao salvar configurações de segurança.");
     }
   }
 
@@ -272,16 +263,7 @@ export class ChatMessageRouter {
         },
       });
     } catch (error) {
-      const message = this.getErrorMessage(error, "Erro desconhecido");
-
-      await webview.postMessage({
-        type: "erro",
-        value: message,
-      });
-
-      vscode.window.showErrorMessage(
-        `Erro ao carregar configurações: ${message}`,
-      );
+      await this.postError(webview, error, "Erro ao carregar configurações de segurança.");
     }
   }
 
@@ -345,17 +327,7 @@ export class ChatMessageRouter {
         "Comportamento do modelo salvo com sucesso.",
       );
     } catch (error) {
-      const message = this.getErrorMessage(
-        error,
-        "Erro ao salvar comportamento do modelo.",
-      );
-
-      await webview.postMessage({
-        type: "erro",
-        value: message,
-      });
-
-      vscode.window.showErrorMessage(message);
+      await this.postError(webview, error, "Erro ao salvar comportamento do modelo.");
     }
   }
 
@@ -389,13 +361,13 @@ export class ChatMessageRouter {
     error: unknown,
     fallback: string,
   ): Promise<void> {
+    const errorMessage = error instanceof Error ? error.message : fallback;
+    
+    vscode.window.showErrorMessage(`ATLAS: ${errorMessage}`);
+    
     await webview.postMessage({
       type: "erro",
-      value: this.getErrorMessage(error, fallback),
+      value: errorMessage,
     });
-  }
-
-  private getErrorMessage(error: unknown, fallback: string): string {
-    return error instanceof Error ? error.message : fallback;
   }
 }
