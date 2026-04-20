@@ -23,6 +23,7 @@ export class CloudApiService {
 
   public async sendChat(
     messages: ChatMessage[],
+    onChunk?: (chunk: string) => void // <-- NOVO: Callback para Streaming
   ): Promise<AtlasCloudChatResponse> {
     const config = this.configManager.getConfig();
 
@@ -53,10 +54,10 @@ export class CloudApiService {
 
     switch (providerKind) {
       case "claude":
-        return this.sendClaudeChat(provider, modelId, apiKey, messages);
+        return this.sendClaudeChat(provider, modelId, apiKey, messages, onChunk);
 
       case "gemini":
-        return this.sendGeminiChat(provider, modelId, apiKey, messages);
+        return this.sendGeminiChat(provider, modelId, apiKey, messages, onChunk);
 
       case "openai-compatible":
       default:
@@ -68,6 +69,7 @@ export class CloudApiService {
           config.llms.defaults.temperature,
           config.llms.defaults.maxTokens,
           config.llms.defaults.topP,
+          onChunk
         );
     }
   }
@@ -98,9 +100,12 @@ export class CloudApiService {
     temperature: number,
     maxTokens: number,
     topP: number,
+    onChunk?: (chunk: string) => void
   ): Promise<AtlasCloudChatResponse> {
     const baseUrl = provider.baseUrl.replace(/\/+$/, "");
     const endpoint = `${baseUrl}/chat/completions`;
+
+    const isStreaming = !!onChunk;
 
     const response = await fetch(endpoint, {
       method: "POST",
@@ -114,18 +119,77 @@ export class CloudApiService {
         temperature,
         max_tokens: maxTokens,
         top_p: topP,
-        stream: false,
+        stream: isStreaming, // <-- NOVO: Ativa o stream se o callback existir
       }),
     });
 
-    const data = (await response.json()) as OpenAiCompatibleResponse;
-
     if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
       throw new Error(
-        data?.error?.message || `Erro na chamada HTTP: ${response.status}`,
+        (errorData as any)?.error?.message || `Erro na chamada HTTP: ${response.status}`,
       );
     }
 
+// --- Lógica de Processamento de Stream (SSE) CORRIGIDA ---
+    if (isStreaming && response.body) {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let fullContent = "";
+      let buffer = "";
+
+      try {
+        let isStreamFinished = false; // <-- NOVA FLAG
+        
+        while (!isStreamFinished) { // <-- PARA O LOOP SE RECEBER O [DONE]
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (!trimmedLine.startsWith("data: ")) continue;
+
+            const dataStr = trimmedLine.slice(6).trim();
+            if (dataStr === "[DONE]") {
+              isStreamFinished = true; // <-- MARCA COMO TERMINADO
+              break; // <-- QUEBRA O LOOP INTERNO
+            }
+
+            try {
+              const parsed = JSON.parse(dataStr);
+              const textChunk = parsed.choices?.[0]?.delta?.content || "";
+              if (textChunk) {
+                fullContent += textChunk;
+                if (onChunk) onChunk(textChunk); 
+              }
+            } catch (e) {
+              // Ignora erros de parse causados por chunks fragmentados
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+
+      return {
+        providerId: provider.id,
+        providerLabel: provider.label,
+        providerKind: "openai-compatible",
+        modelId,
+        content: fullContent,
+        finishReason: "stop",
+        usage: {}, 
+        createdAt: new Date().toISOString(),
+        raw: { stream: true },
+      };
+    }
+
+    // Se não for streaming, continua com o comportamento antigo
+    const data = (await response.json()) as OpenAiCompatibleResponse;
     return this.normalizeOpenAiCompatibleResponse(provider, modelId, data);
   }
 
@@ -134,6 +198,7 @@ export class CloudApiService {
     modelId: string,
     apiKey: string,
     messages: ChatMessage[],
+    onChunk?: (chunk: string) => void
   ): Promise<AtlasCloudChatResponse> {
     const baseUrl = provider.baseUrl.replace(/\/+$/, "");
     const endpoint = `${baseUrl}/messages`;
@@ -175,7 +240,14 @@ export class CloudApiService {
       );
     }
 
-    return this.normalizeClaudeResponse(provider, modelId, data);
+    const normalizedResponse = this.normalizeClaudeResponse(provider, modelId, data);
+    
+    // --- NOVO: Fallback (modo não-streaming enviando tudo de uma vez) ---
+    if (onChunk) {
+      onChunk(normalizedResponse.content);
+    }
+
+    return normalizedResponse;
   }
 
   private async sendGeminiChat(
@@ -183,6 +255,7 @@ export class CloudApiService {
     modelId: string,
     apiKey: string,
     messages: ChatMessage[],
+    onChunk?: (chunk: string) => void
   ): Promise<AtlasCloudChatResponse> {
     const baseUrl = provider.baseUrl.replace(/\/+$/, "");
 
@@ -230,7 +303,14 @@ export class CloudApiService {
       );
     }
 
-    return this.normalizeGeminiResponse(provider, modelId, data);
+    const normalizedResponse = this.normalizeGeminiResponse(provider, modelId, data);
+
+    
+    if (onChunk) {
+      onChunk(normalizedResponse.content);
+    }
+
+    return normalizedResponse;
   }
 
   private normalizeOpenAiCompatibleResponse(

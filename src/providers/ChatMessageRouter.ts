@@ -158,13 +158,21 @@ export class ChatMessageRouter {
             : undefined,
       });
 
+
       const response = await this.deps.cloudApiService.sendChat(
         promptResult.messages,
+        async (chunk: string) => {
+          // A cada pedaço recebido, avisamos a Webview para ir desenhando
+          await webview.postMessage({
+            type: "respostaParcial",
+            value: chunk,
+          });
+        }
       );
 
+
       await webview.postMessage({
-        type: "novaResposta",
-        value: response.content,
+        type: "fimResposta",
         metadata: {
           mode: promptResult.mode,
           providerId: response.providerId,
