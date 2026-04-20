@@ -23,6 +23,7 @@ export class CloudApiService {
 
   public async sendChat(
     messages: ChatMessage[],
+    onChunk?: (chunk: string) => void, // <-- NOVO: Callback para Streaming
   ): Promise<AtlasCloudChatResponse> {
     const config = this.configManager.getConfig();
 
@@ -53,10 +54,22 @@ export class CloudApiService {
 
     switch (providerKind) {
       case "claude":
-        return this.sendClaudeChat(provider, modelId, apiKey, messages);
+        return this.sendClaudeChat(
+          provider,
+          modelId,
+          apiKey,
+          messages,
+          onChunk,
+        );
 
       case "gemini":
-        return this.sendGeminiChat(provider, modelId, apiKey, messages);
+        return this.sendGeminiChat(
+          provider,
+          modelId,
+          apiKey,
+          messages,
+          onChunk,
+        );
 
       case "openai-compatible":
       default:
@@ -68,6 +81,7 @@ export class CloudApiService {
           config.llms.defaults.temperature,
           config.llms.defaults.maxTokens,
           config.llms.defaults.topP,
+          onChunk,
         );
     }
   }
@@ -92,39 +106,59 @@ export class CloudApiService {
 
   private handleApiError(response: Response, data?: any): never {
     const status = response.status;
-    const providerMessage = data?.error?.message || data?.error?.details || "Erro desconhecido retornado pelo provedor.";
-    
+    const providerMessage =
+      data?.error?.message ||
+      data?.error?.details ||
+      "Erro desconhecido retornado pelo provedor.";
+
     if (status === 401 || status === 403) {
-      throw new Error(`Falha de autenticação (HTTP ${status}): Verifique sua chave de API. Detalhes: ${providerMessage}`);
+      throw new Error(
+        `Falha de autenticação (HTTP ${status}): Verifique sua chave de API. Detalhes: ${providerMessage}`,
+      );
     }
     if (status === 429) {
-      throw new Error(`Limite de requisições excedido (HTTP 429). Como estamos utilizando cotas gratuitas, tente novamente mais tarde. Detalhes: ${providerMessage}`);
+      throw new Error(
+        `Limite de requisições excedido (HTTP 429). Como estamos utilizando cotas gratuitas, tente novamente mais tarde. Detalhes: ${providerMessage}`,
+      );
     }
     if (status >= 500) {
-      throw new Error(`Indisponibilidade no provedor (HTTP ${status}). Serviço pode estar fora do ar. Detalhes: ${providerMessage}`);
+      throw new Error(
+        `Indisponibilidade no provedor (HTTP ${status}). Serviço pode estar fora do ar. Detalhes: ${providerMessage}`,
+      );
     }
-    
+
     throw new Error(`Falha na requisição (HTTP ${status}): ${providerMessage}`);
   }
 
-  private async fetchWithTimeout(resource: string, options: RequestInit & { timeout?: number }): Promise<Response> {
-    const timeoutSetting = this.configManager.getConfig().cloudSecurity?.timeout;
+  private async fetchWithTimeout(
+    resource: string,
+    options: RequestInit & { timeout?: number },
+  ): Promise<Response> {
+    const timeoutSetting =
+      this.configManager.getConfig().cloudSecurity?.timeout;
     const defaultTimeout = timeoutSetting ? timeoutSetting * 1000 : 30000;
     const timeout = options.timeout || defaultTimeout;
-    
+
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeout);
-    
+
     try {
-      const response = await fetch(resource, { ...options, signal: controller.signal });
+      const response = await fetch(resource, {
+        ...options,
+        signal: controller.signal,
+      });
       clearTimeout(id);
       return response;
     } catch (error) {
       clearTimeout(id);
       if (error instanceof Error && error.name === "AbortError") {
-        throw new Error(`Timeout da requisição: O provedor não respondeu dentro de ${timeout / 1000} segundos.`);
+        throw new Error(
+          `Timeout da requisição: O provedor não respondeu dentro de ${timeout / 1000} segundos.`,
+        );
       }
-      throw new Error(`Falha de rede ou comunicação: ${error instanceof Error ? error.message : "Erro desconhecido"}`);
+      throw new Error(
+        `Falha de rede ou comunicação: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
+      );
     }
   }
 
@@ -136,9 +170,12 @@ export class CloudApiService {
     temperature: number,
     maxTokens: number,
     topP: number,
+    onChunk?: (chunk: string) => void,
   ): Promise<AtlasCloudChatResponse> {
     const baseUrl = provider.baseUrl.replace(/\/+$/, "");
     const endpoint = `${baseUrl}/chat/completions`;
+
+    const isStreaming = !!onChunk;
 
     const response = await this.fetchWithTimeout(endpoint, {
       method: "POST",
@@ -152,7 +189,7 @@ export class CloudApiService {
         temperature,
         max_tokens: maxTokens,
         top_p: topP,
-        stream: false,
+        stream: isStreaming, // <-- NOVO: Ativa o stream se o callback existir
       }),
     });
 
@@ -160,14 +197,77 @@ export class CloudApiService {
     try {
       data = await response.json();
     } catch {
-      data = { error: { message: "Resposta JSON inválida retornada pelo servidor." } };
+      data = {
+        error: { message: "Resposta JSON inválida retornada pelo servidor." },
+      };
     }
 
     if (!response.ok) {
       this.handleApiError(response, data);
     }
 
-    return this.normalizeOpenAiCompatibleResponse(provider, modelId, data as OpenAiCompatibleResponse);
+    // --- Lógica de Processamento de Stream (SSE) CORRIGIDA ---
+    if (isStreaming && response.body) {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let fullContent = "";
+      let buffer = "";
+
+      try {
+        let isStreamFinished = false; // <-- NOVA FLAG
+
+        while (!isStreamFinished) {
+          // <-- PARA O LOOP SE RECEBER O [DONE]
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (!trimmedLine.startsWith("data: ")) continue;
+
+            const dataStr = trimmedLine.slice(6).trim();
+            if (dataStr === "[DONE]") {
+              isStreamFinished = true; // <-- MARCA COMO TERMINADO
+              break; // <-- QUEBRA O LOOP INTERNO
+            }
+
+            try {
+              const parsed = JSON.parse(dataStr);
+              const textChunk = parsed.choices?.[0]?.delta?.content || "";
+              if (textChunk) {
+                fullContent += textChunk;
+                if (onChunk) onChunk(textChunk);
+              }
+            } catch (e) {
+              // Ignora erros de parse causados por chunks fragmentados
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+
+      return {
+        providerId: provider.id,
+        providerLabel: provider.label,
+        providerKind: "openai-compatible",
+        modelId,
+        content: fullContent,
+        finishReason: "stop",
+        usage: {},
+        createdAt: new Date().toISOString(),
+        raw: { stream: true },
+      };
+    }
+
+    // Se não for streaming, continua com o comportamento antigo
+    const data = (await response.json()) as OpenAiCompatibleResponse;
+    return this.normalizeOpenAiCompatibleResponse(provider, modelId, data);
   }
 
   private async sendClaudeChat(
@@ -175,6 +275,7 @@ export class CloudApiService {
     modelId: string,
     apiKey: string,
     messages: ChatMessage[],
+    onChunk?: (chunk: string) => void,
   ): Promise<AtlasCloudChatResponse> {
     const baseUrl = provider.baseUrl.replace(/\/+$/, "");
     const endpoint = `${baseUrl}/messages`;
@@ -212,14 +313,27 @@ export class CloudApiService {
     try {
       data = await response.json();
     } catch {
-      data = { error: { message: "Resposta JSON inválida retornada pelo servidor." } };
+      data = {
+        error: { message: "Resposta JSON inválida retornada pelo servidor." },
+      };
     }
 
     if (!response.ok) {
       this.handleApiError(response, data);
     }
 
-    return this.normalizeClaudeResponse(provider, modelId, data as ClaudeResponse);
+    const normalizedResponse = this.normalizeClaudeResponse(
+      provider,
+      modelId,
+      data,
+    );
+
+    // --- NOVO: Fallback (modo não-streaming enviando tudo de uma vez) ---
+    if (onChunk) {
+      onChunk(normalizedResponse.content);
+    }
+
+    return normalizedResponse;
   }
 
   private async sendGeminiChat(
@@ -227,6 +341,7 @@ export class CloudApiService {
     modelId: string,
     apiKey: string,
     messages: ChatMessage[],
+    onChunk?: (chunk: string) => void,
   ): Promise<AtlasCloudChatResponse> {
     const baseUrl = provider.baseUrl.replace(/\/+$/, "");
     const endpoint = `${baseUrl}/models/${encodeURIComponent(modelId)}:generateContent?key=${encodeURIComponent(apiKey)}`;
@@ -269,14 +384,26 @@ export class CloudApiService {
     try {
       data = await response.json();
     } catch {
-      data = { error: { message: "Resposta JSON inválida retornada pelo servidor." } };
+      data = {
+        error: { message: "Resposta JSON inválida retornada pelo servidor." },
+      };
     }
 
     if (!response.ok) {
       this.handleApiError(response, data);
     }
 
-    return this.normalizeGeminiResponse(provider, modelId, data as GeminiResponse);
+    const normalizedResponse = this.normalizeGeminiResponse(
+      provider,
+      modelId,
+      data,
+    );
+
+    if (onChunk) {
+      onChunk(normalizedResponse.content);
+    }
+
+    return normalizedResponse;
   }
 
   private normalizeOpenAiCompatibleResponse(
@@ -442,7 +569,9 @@ export class CloudApiService {
     try {
       json = await response.json();
     } catch {
-      json = { error: { message: "Resposta JSON inválida retornada pelo servidor." } };
+      json = {
+        error: { message: "Resposta JSON inválida retornada pelo servidor." },
+      };
     }
 
     if (!response.ok) {
@@ -511,6 +640,8 @@ export class CloudApiService {
       ];
     }
 
-    throw new Error(`Provedor "${provider.id}" não possui modelos configurados.`);
+    throw new Error(
+      `Provedor "${provider.id}" não possui modelos configurados.`,
+    );
   }
 }

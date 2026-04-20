@@ -8,8 +8,8 @@
         default-src 'none';
         img-src {{cspSource}} https:;
         style-src {{cspSource}} 'unsafe-inline' https:;
-        font-src https:; 
-        script-src {{cspSource}};
+        font-src https: data:; 
+        script-src {{cspSource}} 'unsafe-inline' https://cdn.jsdelivr.net;
       "
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -29,7 +29,7 @@
 
     <div id="content-container"></div>
 
-    <script src="{{markedUri}}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="{{scriptUri}}"></script>
   </body>
 </html>

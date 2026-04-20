@@ -455,3 +455,64 @@ input {
     transform: rotate(360deg);
   }
 }
+
+
+/* --- ESTILOS DE RENDERIZAÇÃO DO MARKDOWN --- */
+.message p {
+  margin: 0 0 10px 0;
+}
+.message p:last-child {
+  margin: 0;
+}
+
+.message strong {
+  font-weight: 600;
+  color: var(--vscode-editor-foreground);
+}
+
+.message ul, .message ol {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+.message li {
+  margin-bottom: 4px;
+}
+
+.message code {
+  font-family: var(--vscode-editor-font-family), monospace;
+  background-color: rgba(0, 0, 0, 0.3);
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #d4d4d4;
+}
+
+.message pre {
+  background-color: #1e1e1e;
+  border: 1px solid #333;
+  padding: 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 10px 0;
+}
+
+.message pre code {
+  background-color: transparent;
+  padding: 0;
+  color: #9cdcfe; 
+}
+
+.cursor {
+  display: inline-block;
+  width: 8px;
+  height: 14px;
+  background-color: #ccc;
+  vertical-align: middle;
+  margin-left: 2px;
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}

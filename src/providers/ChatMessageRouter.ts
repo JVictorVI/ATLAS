@@ -160,11 +160,17 @@ export class ChatMessageRouter {
 
       const response = await this.deps.cloudApiService.sendChat(
         promptResult.messages,
+        async (chunk: string) => {
+          // A cada pedaço recebido, avisamos a Webview para ir desenhando
+          await webview.postMessage({
+            type: "respostaParcial",
+            value: chunk,
+          });
+        },
       );
 
       await webview.postMessage({
-        type: "novaResposta",
-        value: response.content,
+        type: "fimResposta",
         metadata: {
           mode: promptResult.mode,
           providerId: response.providerId,
@@ -242,7 +248,11 @@ export class ChatMessageRouter {
 
       vscode.window.showInformationMessage("Configurações de execução salvas.");
     } catch (error) {
-      await this.postError(webview, error, "Erro ao salvar configurações de segurança.");
+      await this.postError(
+        webview,
+        error,
+        "Erro ao salvar configurações de segurança.",
+      );
     }
   }
 
@@ -263,7 +273,11 @@ export class ChatMessageRouter {
         },
       });
     } catch (error) {
-      await this.postError(webview, error, "Erro ao carregar configurações de segurança.");
+      await this.postError(
+        webview,
+        error,
+        "Erro ao carregar configurações de segurança.",
+      );
     }
   }
 
@@ -327,7 +341,11 @@ export class ChatMessageRouter {
         "Comportamento do modelo salvo com sucesso.",
       );
     } catch (error) {
-      await this.postError(webview, error, "Erro ao salvar comportamento do modelo.");
+      await this.postError(
+        webview,
+        error,
+        "Erro ao salvar comportamento do modelo.",
+      );
     }
   }
 
@@ -362,9 +380,9 @@ export class ChatMessageRouter {
     fallback: string,
   ): Promise<void> {
     const errorMessage = error instanceof Error ? error.message : fallback;
-    
+
     vscode.window.showErrorMessage(`ATLAS: ${errorMessage}`);
-    
+
     await webview.postMessage({
       type: "erro",
       value: errorMessage,

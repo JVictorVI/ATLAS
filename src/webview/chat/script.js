@@ -12,6 +12,11 @@ let mensagemAtualBot = null;
 let bufferResposta = "";
 let isLoadingCloudModels = false;
 
+// --- VARIÁVEIS PARA O EFEITO MÁQUINA DE ESCREVER ---
+let renderQueue = "";
+let isTyping = false;
+let finishPending = false;
+
 let shortcutLoadingState = {
   quickAnalysis: false,
   architectureAnalysis: false,
@@ -575,6 +580,67 @@ searchBtn?.addEventListener("click", () => {
   updateActiveTab("search-btn");
 });
 
+
+function processQueue() {
+  if (isTyping) return;
+
+  if (renderQueue.length === 0) {
+    if (finishPending) {
+
+      if (mensagemAtualBot) {
+        try {
+          if (typeof marked !== "undefined" && bufferResposta) {
+            mensagemAtualBot.innerHTML = marked.parse(bufferResposta);
+          } else {
+            mensagemAtualBot.innerText = bufferResposta;
+          }
+        } catch (e) {
+          mensagemAtualBot.innerText = bufferResposta;
+        }
+      }
+      mensagemAtualBot = null;
+      bufferResposta = "";
+      finishPending = false;
+    }
+    return;
+  }
+
+  isTyping = true;
+
+  let charsToType = 1;
+  if (renderQueue.length > 20) charsToType = 2;
+  if (renderQueue.length > 50) charsToType = 4;
+  if (renderQueue.length > 100) charsToType = 8;
+
+  const chunk = renderQueue.slice(0, charsToType);
+  renderQueue = renderQueue.slice(charsToType);
+
+  bufferResposta += chunk;
+
+  if (mensagemAtualBot) {
+    try {
+
+      if (typeof marked !== "undefined") {
+        mensagemAtualBot.innerHTML = marked.parse(bufferResposta) + "<span class='cursor'></span>";
+      } else {
+        mensagemAtualBot.innerText = bufferResposta + " █";
+      }
+    } catch (e) {
+      mensagemAtualBot.innerText = bufferResposta + " █";
+    }
+  }
+
+  const chatContainer = getChatContainer();
+  if (chatContainer) {
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+  }
+
+  setTimeout(() => {
+    isTyping = false;
+    processQueue();
+  }, 15);
+}
+// --- ÚNICO OUVINTE DE MENSAGENS DO VS CODE ---
 window.addEventListener("message", (event) => {
   const message = event.data;
 
@@ -591,6 +657,7 @@ window.addEventListener("message", (event) => {
       }
       break;
     }
+
     case "novaResposta": {
       removeLoading();
       shortcutLoadingState.architectureAnalysis = false;
@@ -598,34 +665,36 @@ window.addEventListener("message", (event) => {
       addMessage(message.value, "bot", true);
       break;
     }
+
     case "respostaParcial": {
       removeLoading();
       if (!mensagemAtualBot) {
         bufferResposta = "";
-        mensagemAtualBot = addMessage("", "bot", true);
+        renderQueue = "";
+        mensagemAtualBot = addMessage("", "bot", false);
       }
-      bufferResposta += message.value;
-      if (mensagemAtualBot) {
-        mensagemAtualBot.innerHTML =
-          typeof marked !== "undefined"
-            ? marked.parse(bufferResposta)
-            : bufferResposta;
-      }
-      const chatContainer = getChatContainer();
-      if (chatContainer) {
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-      }
+      
+      renderQueue += message.value;
+      processQueue();
       break;
     }
-    case "fimResposta": {
-      mensagemAtualBot = null;
-      bufferResposta = "";
+
+case "fimResposta": {
+      finishPending = true;
+      processQueue(); 
+      shortcutLoadingState.architectureAnalysis = false;
+      setShortcutLoading("architecture-analysis", false);
+      
       break;
     }
+
     case "erro": {
       removeLoading();
       mensagemAtualBot = null;
       bufferResposta = "";
+      renderQueue = ""; 
+      finishPending = false;
+      isTyping = false;
       isLoadingCloudModels = false;
 
       shortcutLoadingState.quickAnalysis = false;
@@ -641,6 +710,12 @@ window.addEventListener("message", (event) => {
       const isLoading = !!message.value?.loading;
       shortcutLoadingState.quickAnalysis = isLoading;
       setShortcutLoading("quick-analysis", isLoading);
+      
+      const quickAnalysisBtn = document.getElementById("quick-analysis-btn");
+      if (quickAnalysisBtn) {
+        quickAnalysisBtn.disabled = isLoading;
+        quickAnalysisBtn.classList.toggle("loading", isLoading);
+      }
       break;
     }
 
@@ -684,16 +759,6 @@ window.addEventListener("message", (event) => {
     case "modeloSelecionado": {
       break;
     }
-
-    case "analiseRapidaStatus":
-      const isLoading = !!message.value?.loading;
-      if (quickAnalysisBtn) {
-        quickAnalysisBtn.disabled = isLoading;
-        quickAnalysisBtn.classList.toggle("loading", isLoading);
-      }
-
-    case "analiseRapidaConcluida":
-      console.log("Análise rápida concluída:", message.value);
   }
 });
 
@@ -717,7 +782,6 @@ function renderLibraryView() {
   vscode.postMessage({ type: "abrirPainelConfig", selectedView: "library" });
 }
 
-// Assim que o script iniciar, pede ao VS Code para carregar a última escolha
 vscode.postMessage({ type: "carregarLLMs" });
 
 function getShortcutButton(action) {

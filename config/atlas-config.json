@@ -8,11 +8,13 @@
     "logLevel": "info"
   },
   "cloudSecurity": {
-    "confirmCloud": false,
+    "confirmCloud": true,
     "blockRag": false,
     "limitPayload": true,
     "maxTokens": 4096,
-    "timeout": 45
+    "timeout": 45,
+    "temperature": 0.2,
+    "topP": 0.95
   },
   "rag": {
     "enabled": true,
@@ -21,11 +23,7 @@
     "offlineOnly": true,
     "chunkSize": 1000,
     "chunkOverlap": 200,
-    "ignoredPaths": [
-      "node_modules",
-      "dist",
-      ".git"
-    ]
+    "ignoredPaths": ["node_modules", "dist", ".git"]
   },
   "ui": {
     "defaultView": "chat",
@@ -39,7 +37,7 @@
       },
       "cloud": {
         "providerId": "Groq",
-        "activeModelId": "openai/gpt-oss-20b"
+        "activeModelId": "openai/gpt-oss-120b"
       }
     },
     "defaults": {
@@ -62,9 +60,7 @@
           "contextWindow": 4096
         },
         "metadata": {
-          "tags": [
-            "1B"
-          ],
+          "tags": ["1B"],
           "quantization": "Q4_K_M",
           "size": "720.5 MB",
           "installedAt": "2026-02-16T10:00:00Z"
