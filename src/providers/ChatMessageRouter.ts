@@ -158,16 +158,37 @@ export class ChatMessageRouter {
             : undefined,
       });
 
-      const response = await this.deps.cloudApiService.sendChat(
-        promptResult.messages,
-        async (chunk: string) => {
-          // A cada pedaço recebido, avisamos a Webview para ir desenhando
-          await webview.postMessage({
-            type: "respostaParcial",
-            value: chunk,
-          });
-        },
-      );
+      const shouldStream =
+        this.deps.configManager.getConfig().llms.defaults.stream;
+
+      const response = shouldStream
+        ? await this.deps.cloudApiService.sendChat(
+            promptResult.messages,
+            async (chunk: string) => {
+              await webview.postMessage({
+                type: "respostaParcial",
+                value: chunk,
+              });
+            },
+          )
+        : await this.deps.cloudApiService.sendChat(promptResult.messages);
+
+      if (!shouldStream) {
+        await webview.postMessage({
+          type: "novaResposta",
+          value: response.content,
+          metadata: {
+            mode: promptResult.mode,
+            providerId: response.providerId,
+            providerKind: response.providerKind,
+            modelId: response.modelId,
+            finishReason: response.finishReason,
+            usage: response.usage,
+            createdAt: response.createdAt,
+          },
+        });
+        return;
+      }
 
       await webview.postMessage({
         type: "fimResposta",
@@ -217,6 +238,7 @@ export class ChatMessageRouter {
         timeout,
         temperature,
         topP,
+        stream,
       } = data.payload ?? {};
 
       this.deps.configManager.updateSecuritySettings({
@@ -231,6 +253,7 @@ export class ChatMessageRouter {
         temperature,
         topP,
         maxTokens,
+        stream,
       });
 
       const securitySettings =
@@ -243,6 +266,8 @@ export class ChatMessageRouter {
           ...securitySettings,
           temperature: llmDefaults.temperature,
           topP: llmDefaults.topP,
+          maxTokens: llmDefaults.maxTokens,
+          stream: llmDefaults.stream,
         },
       });
 
@@ -270,6 +295,8 @@ export class ChatMessageRouter {
           ...securitySettings,
           temperature: llmDefaults.temperature,
           topP: llmDefaults.topP,
+          maxTokens: llmDefaults.maxTokens,
+          stream: llmDefaults.stream,
         },
       });
     } catch (error) {

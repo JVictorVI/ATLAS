@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-04-19T20:07:36.281Z",
+  "updatedAt": "2026-04-20T20:04:19.800Z",
   "general": {
     "theme": "system",
     "language": "pt-BR",
@@ -8,7 +8,7 @@
     "logLevel": "info"
   },
   "cloudSecurity": {
-    "confirmCloud": true,
+    "confirmCloud": false,
     "blockRag": false,
     "limitPayload": true,
     "maxTokens": 4096,
@@ -23,7 +23,11 @@
     "offlineOnly": true,
     "chunkSize": 1000,
     "chunkOverlap": 200,
-    "ignoredPaths": ["node_modules", "dist", ".git"]
+    "ignoredPaths": [
+      "node_modules",
+      "dist",
+      ".git"
+    ]
   },
   "ui": {
     "defaultView": "chat",
@@ -60,7 +64,9 @@
           "contextWindow": 4096
         },
         "metadata": {
-          "tags": ["1B"],
+          "tags": [
+            "1B"
+          ],
           "quantization": "Q4_K_M",
           "size": "720.5 MB",
           "installedAt": "2026-02-16T10:00:00Z"
@@ -74,9 +80,9 @@
   },
   "custom": {
     "systemPrompt": {
-      "mode": "default",
-      "enabled": false,
-      "customInstructions": "Sempre me chame de Doutor. Responda sem markdown."
+      "mode": "custom",
+      "enabled": true,
+      "customInstructions": "Sempre me chame de Doutor."
     }
   },
   "providers": [
