@@ -33,6 +33,8 @@ type RouterDependencies = {
 };
 
 export class ChatMessageRouter {
+  private activeResponseController: AbortController | null = null;
+
   constructor(private readonly deps: RouterDependencies) {}
 
   public async handle(data: any, webview: vscode.Webview): Promise<void> {
@@ -52,6 +54,11 @@ export class ChatMessageRouter {
 
     if (data.type === "enviarPergunta") {
       await this.handleSendQuestion(data, webview);
+      return;
+    }
+
+    if (data.type === "cancelarGeracao") {
+      await this.handleCancelGeneration(webview);
       return;
     }
 
@@ -141,6 +148,10 @@ export class ChatMessageRouter {
     data: any,
     webview: vscode.Webview,
   ): Promise<void> {
+    this.activeResponseController?.abort();
+    const responseController = new AbortController();
+    this.activeResponseController = responseController;
+
     try {
       const editorContext = this.deps.getChatEditorContext();
 
@@ -170,8 +181,13 @@ export class ChatMessageRouter {
                 value: chunk,
               });
             },
+            { signal: responseController.signal },
           )
-        : await this.deps.cloudApiService.sendChat(promptResult.messages);
+        : await this.deps.cloudApiService.sendChat(
+            promptResult.messages,
+            undefined,
+            { signal: responseController.signal },
+          );
 
       if (!shouldStream) {
         await webview.postMessage({
@@ -203,8 +219,30 @@ export class ChatMessageRouter {
         },
       });
     } catch (error) {
+      if (CloudApiService.isAbortError(error)) {
+        await webview.postMessage({
+          type: "geracaoCancelada",
+        });
+        return;
+      }
+
       await this.postError(webview, error, "Erro ao enviar pergunta.");
+    } finally {
+      if (this.activeResponseController === responseController) {
+        this.activeResponseController = null;
+      }
     }
+  }
+
+  private async handleCancelGeneration(webview: vscode.Webview): Promise<void> {
+    if (!this.activeResponseController) {
+      await webview.postMessage({
+        type: "geracaoCancelada",
+      });
+      return;
+    }
+
+    this.activeResponseController.abort();
   }
 
   private async handleSelectMode(

@@ -227,9 +227,38 @@ input {
   background-color: #1c97ea;
 }
 
+#send-btn.stop {
+  background-color: #c93c37;
+}
+
+#send-btn.stop:hover {
+  background-color: #e0524d;
+}
+
+#send-btn.stop i {
+  font-size: 15px;
+}
+
+#send-btn.stop i {
+  font-size: 15px;
+}
+
+#send-btn.stop i {
+  font-size: 15px;
+}
+
+#pergunta:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 /* Ícone de enviar um pouco maior */
 #send-btn i {
   font-size: 18px;
+}
+
+#send-btn.stop i {
+  font-size: 15px;
 }
 
 /* --- O POPOVER (BALÃO FLUTUANTE) --- */
@@ -510,6 +539,13 @@ input {
   vertical-align: middle;
   margin-left: 2px;
   animation: blink 1s step-end infinite;
+}
+
+.message-status {
+  margin-top: 8px;
+  color: #a6a6a6;
+  font-size: 12px;
+  font-style: italic;
 }
 
 @keyframes blink {

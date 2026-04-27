@@ -24,6 +24,7 @@ export class CloudApiService {
   public async sendChat(
     messages: ChatMessage[],
     onChunk?: (chunk: string) => void,
+    options?: { signal?: AbortSignal },
   ): Promise<AtlasCloudChatResponse> {
     const config = this.configManager.getConfig();
 
@@ -60,6 +61,7 @@ export class CloudApiService {
           apiKey,
           messages,
           onChunk,
+          options?.signal,
         );
 
       case "gemini":
@@ -69,6 +71,7 @@ export class CloudApiService {
           apiKey,
           messages,
           onChunk,
+          options?.signal,
         );
 
       case "openai-compatible":
@@ -82,8 +85,13 @@ export class CloudApiService {
           config.llms.defaults.maxTokens,
           config.llms.defaults.topP,
           onChunk,
+          options?.signal,
         );
     }
+  }
+
+  public static isAbortError(error: unknown): boolean {
+    return error instanceof Error && error.name === "AbortError";
   }
 
   private getProviderKind(provider: ProviderConfig): AtlasCloudProviderKind {
@@ -134,7 +142,7 @@ export class CloudApiService {
 
   private async fetchWithTimeout(
     resource: string,
-    options: RequestInit & { timeout?: number },
+    options: RequestInit & { timeout?: number; signal?: AbortSignal },
   ): Promise<Response> {
     const timeoutSetting =
       this.configManager.getConfig().cloudSecurity?.timeout;
@@ -143,10 +151,20 @@ export class CloudApiService {
 
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeout);
+    const abortFromCaller = () => controller.abort();
+
+    if (options.signal?.aborted) {
+      controller.abort();
+    } else {
+      options.signal?.addEventListener("abort", abortFromCaller, {
+        once: true,
+      });
+    }
 
     try {
+      const { timeout: _timeout, signal: _signal, ...fetchOptions } = options;
       const response = await fetch(resource, {
-        ...options,
+        ...fetchOptions,
         signal: controller.signal,
       });
       clearTimeout(id);
@@ -155,6 +173,10 @@ export class CloudApiService {
       clearTimeout(id);
 
       if (error instanceof Error && error.name === "AbortError") {
+        if (options.signal?.aborted) {
+          throw error;
+        }
+
         throw new Error(
           `Timeout da requisição: O provedor não respondeu dentro de ${timeout / 1000} segundos.`,
         );
@@ -165,6 +187,8 @@ export class CloudApiService {
           error instanceof Error ? error.message : "Erro desconhecido"
         }`,
       );
+    } finally {
+      options.signal?.removeEventListener("abort", abortFromCaller);
     }
   }
 
@@ -189,6 +213,7 @@ export class CloudApiService {
     maxTokens: number,
     topP: number,
     onChunk?: (chunk: string) => void,
+    signal?: AbortSignal,
   ): Promise<AtlasCloudChatResponse> {
     const baseUrl = provider.baseUrl.replace(/\/+$/, "");
     const endpoint = `${baseUrl}/chat/completions`;
@@ -208,6 +233,7 @@ export class CloudApiService {
         top_p: topP,
         stream: isStreaming,
       }),
+      signal,
     });
 
     if (!response.ok) {
@@ -312,6 +338,7 @@ export class CloudApiService {
     apiKey: string,
     messages: ChatMessage[],
     onChunk?: (chunk: string) => void,
+    signal?: AbortSignal,
   ): Promise<AtlasCloudChatResponse> {
     const baseUrl = provider.baseUrl.replace(/\/+$/, "");
     const endpoint = `${baseUrl}/messages`;
@@ -343,6 +370,7 @@ export class CloudApiService {
         system: systemMessages || undefined,
         messages: nonSystemMessages,
       }),
+      signal,
     });
 
     const data = (await this.safeReadJson(response)) as ClaudeResponse;
@@ -370,6 +398,7 @@ export class CloudApiService {
     apiKey: string,
     messages: ChatMessage[],
     onChunk?: (chunk: string) => void,
+    signal?: AbortSignal,
   ): Promise<AtlasCloudChatResponse> {
     const baseUrl = provider.baseUrl.replace(/\/+$/, "");
     const endpoint = `${baseUrl}/models/${encodeURIComponent(
@@ -408,6 +437,7 @@ export class CloudApiService {
             this.configManager.getConfig().llms.defaults.maxTokens,
         },
       }),
+      signal,
     });
 
     const data = (await this.safeReadJson(response)) as GeminiResponse;
@@ -661,3 +691,4 @@ export class CloudApiService {
     );
   }
 }
+5;

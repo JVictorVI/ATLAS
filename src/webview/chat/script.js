@@ -11,6 +11,7 @@ let loadingElement = null;
 let mensagemAtualBot = null;
 let bufferResposta = "";
 let isLoadingCloudModels = false;
+let isGeneratingResponse = false;
 
 // --- VARIÁVEIS PARA O EFEITO MÁQUINA DE ESCREVER ---
 let renderQueue = "";
@@ -462,10 +463,13 @@ function setupChatEvents() {
 
   if (architetureAnalysisBtn) {
     architetureAnalysisBtn.addEventListener("click", () => {
-      if (shortcutLoadingState.architectureAnalysis) return;
+      if (shortcutLoadingState.architectureAnalysis || isGeneratingResponse) {
+        return;
+      }
 
       shortcutLoadingState.architectureAnalysis = true;
       setShortcutLoading("architecture-analysis", true);
+      showLoading();
 
       vscode.postMessage({
         type: "enviarPergunta",
@@ -477,6 +481,11 @@ function setupChatEvents() {
   }
 
   function enviarPergunta() {
+    if (isGeneratingResponse) {
+      cancelarGeracao();
+      return;
+    }
+
     const texto = input.value.trim();
     if (!texto) return;
 
@@ -500,6 +509,14 @@ function setupChatEvents() {
     if (event.key === "Enter") {
       enviarPergunta();
     }
+  });
+}
+
+function cancelarGeracao() {
+  if (!isGeneratingResponse) return;
+
+  vscode.postMessage({
+    type: "cancelarGeracao",
   });
 }
 
@@ -545,6 +562,7 @@ function showLoading() {
   chatContainer.scrollTop = chatContainer.scrollHeight;
 
   loadingElement = div;
+  setGenerationState(true);
 }
 
 function removeLoading() {
@@ -559,6 +577,59 @@ function removeLoading() {
   }
 
   loadingElement = null;
+}
+
+function setGenerationState(isGenerating) {
+  isGeneratingResponse = isGenerating;
+
+  const sendBtn = document.getElementById("send-btn");
+  const input = document.getElementById("pergunta");
+
+  if (sendBtn) {
+    sendBtn.classList.toggle("stop", isGenerating);
+    sendBtn.title = isGenerating ? "Interromper" : "Enviar";
+    sendBtn.innerHTML = isGenerating
+      ? '<i class="codicon codicon-debug-stop"></i>'
+      : '<i class="codicon codicon-arrow-up"></i>';
+  }
+
+  if (input) {
+    input.disabled = isGenerating;
+  }
+}
+
+function finishCurrentBotMessage(cancelled = false) {
+  renderQueue = "";
+  finishPending = false;
+  isTyping = false;
+
+  if (mensagemAtualBot) {
+    const finalText = bufferResposta.trim();
+
+    if (finalText) {
+      try {
+        mensagemAtualBot.innerHTML =
+          typeof marked !== "undefined"
+            ? marked.parse(finalText)
+            : finalText;
+      } catch (e) {
+        mensagemAtualBot.innerText = finalText;
+      }
+    }
+
+    if (cancelled) {
+      const status = document.createElement("div");
+      status.className = "message-status";
+      status.textContent = "Resposta interrompida.";
+      mensagemAtualBot.appendChild(status);
+    }
+  } else if (cancelled) {
+    addMessage("Resposta interrompida.", "bot");
+  }
+
+  mensagemAtualBot = null;
+  bufferResposta = "";
+  setGenerationState(false);
 }
 
 configBtn?.addEventListener("click", () => {
@@ -599,6 +670,7 @@ function processQueue() {
       mensagemAtualBot = null;
       bufferResposta = "";
       finishPending = false;
+      setGenerationState(false);
     }
     return;
   }
@@ -658,6 +730,7 @@ window.addEventListener("message", (event) => {
 
     case "novaResposta": {
       removeLoading();
+      setGenerationState(false);
       shortcutLoadingState.architectureAnalysis = false;
       setShortcutLoading("architecture-analysis", false);
       addMessage(message.value, "bot", true);
@@ -686,6 +759,15 @@ window.addEventListener("message", (event) => {
       break;
     }
 
+    case "geracaoCancelada": {
+      removeLoading();
+      finishCurrentBotMessage(true);
+
+      shortcutLoadingState.architectureAnalysis = false;
+      setShortcutLoading("architecture-analysis", false);
+      break;
+    }
+
     case "erro": {
       removeLoading();
       mensagemAtualBot = null;
@@ -694,6 +776,7 @@ window.addEventListener("message", (event) => {
       finishPending = false;
       isTyping = false;
       isLoadingCloudModels = false;
+      setGenerationState(false);
 
       shortcutLoadingState.quickAnalysis = false;
       shortcutLoadingState.architectureAnalysis = false;
