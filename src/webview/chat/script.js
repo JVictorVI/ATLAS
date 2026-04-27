@@ -473,6 +473,7 @@ function setupChatEvents() {
 
       vscode.postMessage({
         type: "enviarPergunta",
+        forcedMode: "architectural-analysis",
         value: "Realize uma análise arquitetural deste código.",
         selectedView: currentView,
         agentId: selectedModel ? selectedModel.id : null,

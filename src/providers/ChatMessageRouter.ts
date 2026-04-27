@@ -164,9 +164,10 @@ export class ChatMessageRouter {
         ragContext: [],
         hasCodeContext: Boolean(editorContext),
         forcedMode:
-          editorContext?.source === "selection"
+          data.forcedMode ??
+          (editorContext?.source === "selection"
             ? "developer-assistant"
-            : undefined,
+            : undefined),
       });
 
       const shouldStream =
