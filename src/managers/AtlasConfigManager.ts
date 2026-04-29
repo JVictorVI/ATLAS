@@ -199,4 +199,8 @@ export class AtlasConfigManager {
   public updateProvider(providerId: string, partialData: any) {
     return this.providerService.updateProvider(providerId, partialData);
   }
+
+  public removeProvider(providerId: string) {
+    return this.providerService.removeProvider(providerId);
+  }
 }

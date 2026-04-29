@@ -81,4 +81,26 @@ export class AtlasProviderService {
     this.repository.save(config);
     return config;
   }
+
+  public removeProvider(providerId: string): AtlasConfigSchema {
+    const config = this.repository.load();
+    const providers = config.providers ?? [];
+    const filteredProviders = providers.filter((p) => p.id !== providerId);
+
+    if (filteredProviders.length === providers.length) {
+      throw new Error(`Provedor "${providerId}" nÃ£o encontrado.`);
+    }
+
+    config.providers = filteredProviders;
+
+    if (config.llms.selection.cloud.providerId === providerId) {
+      config.llms.selection.cloud.providerId = null;
+      config.llms.selection.cloud.activeModelId = null;
+    }
+
+    config.updatedAt = new Date().toISOString();
+
+    this.repository.save(config);
+    return config;
+  }
 }

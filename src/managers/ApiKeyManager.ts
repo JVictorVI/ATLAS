@@ -189,9 +189,11 @@ export class ApiKeyManager {
 
     await this.secretStorage.delete(secretKey);
     await this.secretStorage.delete(metadataKey);
+    this.configManager.removeProvider(provider);
+    this.providers = this.configManager.getAllProviders();
 
     vscode.window.showInformationMessage(
-      `Chave do provedor ${providerConfig.label} removida com sucesso.`,
+      `Provedor ${providerConfig.label} removido com sucesso.`,
     );
 
     await this.sendCredentialsToWebview(webview);
