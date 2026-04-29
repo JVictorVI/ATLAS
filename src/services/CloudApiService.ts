@@ -3,7 +3,11 @@ import {
   AtlasCloudProviderKind,
   AtlasModelSummary,
   ChatMessage,
+  ClaudeModelRaw,
+  ClaudeModelsApiResponse,
   ClaudeResponse,
+  GeminiModelRaw,
+  GeminiModelsApiResponse,
   GeminiResponse,
   ModelsApiResponse,
   OpenAiCompatibleResponse,
@@ -595,8 +599,10 @@ export class CloudApiService {
 
     switch (providerKind) {
       case "claude":
+        return this.getClaudeModels(provider, apiKey);
+
       case "gemini":
-        return this.getFallbackModelsForProvider(provider);
+        return this.getGeminiModels(provider, apiKey);
 
       case "openai-compatible":
       default:
@@ -646,6 +652,128 @@ export class CloudApiService {
     }));
   }
 
+  private async getClaudeModels(
+    provider: ProviderConfig,
+    apiKey: string,
+  ): Promise<AtlasModelSummary[]> {
+    const baseUrl = provider.baseUrl.replace(/\/+$/, "");
+    let afterId: string | null = null;
+    const models: ClaudeModelRaw[] = [];
+
+    do {
+      const query = new URLSearchParams({
+        limit: "100",
+      });
+
+      if (afterId) {
+        query.set("after_id", afterId);
+      }
+
+      const response = await this.fetchWithTimeout(
+        `${baseUrl}/models?${query.toString()}`,
+        {
+          method: "GET",
+          headers: {
+            "x-api-key": apiKey,
+            "anthropic-version": "2023-06-01",
+          },
+        },
+      );
+
+      const json = (await this.safeReadJson(response)) as ClaudeModelsApiResponse;
+
+      if (!response.ok) {
+        this.handleApiError(response, json);
+      }
+
+      if (!Array.isArray(json.data)) {
+        throw new Error("Formato inesperado ao listar modelos Claude.");
+      }
+
+      models.push(...json.data);
+      afterId = json.has_more ? json.last_id ?? null : null;
+    } while (afterId);
+
+    if (models.length === 0) {
+      return this.getFallbackModelsForProvider(provider);
+    }
+
+    return models.map((model) => ({
+      id: model.id,
+      label: model.display_name || model.id,
+      provider: provider.id,
+      raw: model,
+    }));
+  }
+
+  private async getGeminiModels(
+    provider: ProviderConfig,
+    apiKey: string,
+  ): Promise<AtlasModelSummary[]> {
+    const baseUrl = provider.baseUrl.replace(/\/+$/, "");
+    let pageToken: string | null = null;
+    const models: GeminiModelRaw[] = [];
+
+    do {
+      const query = new URLSearchParams({
+        key: apiKey,
+        pageSize: "100",
+      });
+
+      if (pageToken) {
+        query.set("pageToken", pageToken);
+      }
+
+      const response = await this.fetchWithTimeout(
+        `${baseUrl}/models?${query.toString()}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
+
+      const json = (await this.safeReadJson(response)) as GeminiModelsApiResponse;
+
+      if (!response.ok) {
+        this.handleApiError(response, json);
+      }
+
+      if (!Array.isArray(json.models)) {
+        throw new Error("Formato inesperado ao listar modelos Gemini.");
+      }
+
+      models.push(...json.models);
+      pageToken = json.nextPageToken ?? null;
+    } while (pageToken);
+
+    const generativeModels = models.filter((model) =>
+      Array.isArray(model.supportedGenerationMethods)
+        ? model.supportedGenerationMethods.includes("generateContent")
+        : false,
+    );
+
+    if (generativeModels.length === 0) {
+      return this.getFallbackModelsForProvider(provider);
+    }
+
+    return generativeModels.map((model) => ({
+      id: model.baseModelId || this.normalizeGeminiModelName(model.name),
+      label: model.displayName || model.baseModelId || model.name || "Gemini",
+      provider: provider.id,
+      contextWindow:
+        typeof model.inputTokenLimit === "number"
+          ? model.inputTokenLimit
+          : undefined,
+      maxTokens:
+        typeof model.outputTokenLimit === "number"
+          ? model.outputTokenLimit
+          : undefined,
+      raw: model,
+    }));
+  }
+
   private getFallbackModelsForProvider(
     provider: ProviderConfig,
   ): AtlasModelSummary[] {
@@ -690,5 +818,12 @@ export class CloudApiService {
       `Provedor "${provider.id}" não possui modelos configurados.`,
     );
   }
+
+  private normalizeGeminiModelName(name?: string): string {
+    if (!name) {
+      return "";
+    }
+
+    return name.startsWith("models/") ? name.slice("models/".length) : name;
+  }
 }
-5;

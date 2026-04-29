@@ -35,6 +35,10 @@ let selectedMode = "local";
 let selectedProvider = null;
 let selectedModel = null;
 
+function requestLatestLlmState() {
+  vscode.postMessage({ type: "carregarLLMs" });
+}
+
 document.addEventListener("click", (e) => {
   const popover = document.getElementById("agent-popover");
   const btn = document.getElementById("open-popover");
@@ -99,6 +103,7 @@ function renderChatView() {
     `;
 
   setupChatEvents();
+  requestLatestLlmState();
 }
 
 function hydratemodelsDataFromBackend(payload) {
@@ -440,6 +445,7 @@ function setupChatEvents() {
       e.stopPropagation();
 
       if (agentPopover.classList.contains("hidden")) {
+        requestLatestLlmState();
         agentPopover.classList.remove("hidden");
         renderPopoverContent();
       } else {
@@ -554,7 +560,7 @@ function showLoading() {
   spinner.className = "spinner";
 
   const text = document.createElement("span");
-  text.textContent = "Gerando resposta...";
+  text.textContent = "Pensando...";
 
   div.appendChild(spinner);
   div.appendChild(text);
@@ -610,9 +616,7 @@ function finishCurrentBotMessage(cancelled = false) {
     if (finalText) {
       try {
         mensagemAtualBot.innerHTML =
-          typeof marked !== "undefined"
-            ? marked.parse(finalText)
-            : finalText;
+          typeof marked !== "undefined" ? marked.parse(finalText) : finalText;
       } catch (e) {
         mensagemAtualBot.innerText = finalText;
       }
@@ -864,7 +868,7 @@ function renderLibraryView() {
   vscode.postMessage({ type: "abrirPainelConfig", selectedView: "library" });
 }
 
-vscode.postMessage({ type: "carregarLLMs" });
+requestLatestLlmState();
 
 function getShortcutButton(action) {
   if (action === "quick-analysis") {
