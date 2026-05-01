@@ -809,6 +809,28 @@ window.addEventListener("message", (event) => {
       shortcutLoadingState.quickAnalysis = false;
       setShortcutLoading("quick-analysis", false);
       console.log("Análise rápida concluída:", message.value);
+      const score = message.value?.score;
+
+      if (score) {
+        const levelLabel =
+          {
+            excellent: "Excelente",
+            good: "Bom",
+            attention: "Atenção",
+            critical: "Crítico",
+          }[score.level] ?? score.level;
+
+        addMessage(
+          `## Score arquitetural: ${score.score}/100\n\n` +
+            `**Nível:** ${levelLabel}\n\n` +
+            `**Problemas encontrados:** ${score.totalIssues}\n\n` +
+            `- Baixos: ${score.severityCount.low}\n` +
+            `- Médios: ${score.severityCount.medium}\n` +
+            `- Altos: ${score.severityCount.high}`,
+          "bot",
+          true,
+        );
+      }
       break;
     }
 

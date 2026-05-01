@@ -1,7 +1,12 @@
 import * as vscode from "vscode";
 import { AtlasQuickAnalysisService } from "../services/AtlasQuickAnalysisService";
 import { AtlasEditorContextService } from "./AtlasEditorContextService";
-import { AtlasQuickIssue } from "../interfaces/AtlasQuickAnalysisTypes";
+import {
+  AtlasArchitectureScore,
+  AtlasQuickIssue,
+  AtlasQuickIssueCategory,
+  AtlasQuickIssueSeverity,
+} from "../interfaces/AtlasQuickAnalysisTypes";
 
 export class AtlasQuickAnalysisController {
   private readonly lowIssueDecoration: vscode.TextEditorDecorationType;
@@ -94,6 +99,8 @@ export class AtlasQuickAnalysisController {
         editorContext.lineCount,
       );
 
+      const score = this.calculateArchitectureScore(sanitizedIssues);
+
       if (sanitizedIssues.length === 0) {
         this.clearDecorations(editor);
 
@@ -102,6 +109,7 @@ export class AtlasQuickAnalysisController {
           value: {
             total: 0,
             issues: [],
+            score,
           },
         });
 
@@ -119,6 +127,7 @@ export class AtlasQuickAnalysisController {
         value: {
           total: sanitizedIssues.length,
           issues: sanitizedIssues,
+          score,
         },
       });
 
@@ -220,5 +229,77 @@ export class AtlasQuickAnalysisController {
     editor.setDecorations(this.lowIssueDecoration, lowRanges);
     editor.setDecorations(this.mediumIssueDecoration, mediumRanges);
     editor.setDecorations(this.highIssueDecoration, highRanges);
+  }
+
+  private calculateArchitectureScore(
+    issues: AtlasQuickIssue[],
+  ): AtlasArchitectureScore {
+    const severityWeight: Record<AtlasQuickIssueSeverity, number> = {
+      low: 2,
+      medium: 6,
+      high: 12,
+    };
+
+    const categoryWeight: Record<AtlasQuickIssueCategory, number> = {
+      coupling: 1.25,
+      responsibility: 1.2,
+      dependency: 1.15,
+      layering: 1.15,
+      cohesion: 1.1,
+      abstraction: 1.1,
+      solid: 1.05,
+      grasp: 1.05,
+      maintainability: 0.9,
+    };
+
+    const severityCount: Record<AtlasQuickIssueSeverity, number> = {
+      low: 0,
+      medium: 0,
+      high: 0,
+    };
+
+    const categoryCount: Partial<Record<AtlasQuickIssueCategory, number>> = {};
+
+    let penalty = 0;
+
+    for (const issue of issues) {
+      severityCount[issue.severity] += 1;
+      categoryCount[issue.category] = (categoryCount[issue.category] ?? 0) + 1;
+
+      const basePenalty = severityWeight[issue.severity];
+      const categoryMultiplier = categoryWeight[issue.category] ?? 1;
+
+      penalty += basePenalty * categoryMultiplier;
+
+      const affectedLines = issue.endLine - issue.startLine + 1;
+
+      if (affectedLines >= 12) {
+        penalty += 2;
+      } else if (affectedLines >= 6) {
+        penalty += 1;
+      }
+    }
+
+    const score = Math.max(0, Math.min(100, Math.round(100 - penalty)));
+
+    let level: AtlasArchitectureScore["level"];
+
+    if (score >= 90) {
+      level = "excellent";
+    } else if (score >= 75) {
+      level = "good";
+    } else if (score >= 50) {
+      level = "attention";
+    } else {
+      level = "critical";
+    }
+
+    return {
+      score,
+      level,
+      totalIssues: issues.length,
+      severityCount,
+      categoryCount,
+    };
   }
 }
