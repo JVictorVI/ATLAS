@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-04-19T18:06:20.711Z",
+  "updatedAt": "2026-05-03T17:34:35.622Z",
   "general": {
     "theme": "system",
     "language": "pt-BR",
@@ -11,7 +11,7 @@
     "confirmCloud": false,
     "blockRag": false,
     "limitPayload": true,
-    "maxTokens": 4096,
+    "maxTokens": 1024,
     "timeout": 45
   },
   "rag": {
@@ -44,7 +44,7 @@
     },
     "defaults": {
       "temperature": 0.3,
-      "maxTokens": 4096,
+      "maxTokens": 1024,
       "topP": 0.95,
       "stream": true
     },
