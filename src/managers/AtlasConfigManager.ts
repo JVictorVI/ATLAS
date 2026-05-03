@@ -203,4 +203,24 @@ export class AtlasConfigManager {
   public removeProvider(providerId: string) {
     return this.providerService.removeProvider(providerId);
   }
+
+  public isStudyModeEnabled(): boolean {
+    const config = this.getConfig();
+    return config.custom?.studyMode?.enabled === true;
+  }
+
+  public setStudyModeEnabled(enabled: boolean): void {
+    const config = this.getConfig();
+
+    config.custom = {
+      ...(config.custom ?? {}),
+      studyMode: {
+        ...(config.custom?.studyMode ?? {}),
+        enabled,
+      },
+    };
+
+    config.updatedAt = new Date().toISOString();
+    this.saveConfig(config);
+  }
 }

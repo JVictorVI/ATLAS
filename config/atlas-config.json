@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-04-20T20:04:19.800Z",
+  "updatedAt": "2026-05-03T02:13:17.440Z",
   "general": {
     "theme": "system",
     "language": "pt-BR",
@@ -41,7 +41,7 @@
       },
       "cloud": {
         "providerId": "Groq",
-        "activeModelId": "openai/gpt-oss-120b"
+        "activeModelId": "groq/compound"
       }
     },
     "defaults": {
@@ -83,6 +83,9 @@
       "mode": "custom",
       "enabled": true,
       "customInstructions": "Sempre me chame de Doutor."
+    },
+    "studyMode": {
+      "enabled": false
     }
   },
   "providers": [
@@ -127,6 +130,12 @@
       "baseUrl": "https://api.x.ai/v1",
       "apiKeyPlaceholder": "xai-...",
       "kind": "openai-compatible"
+    },
+    {
+      "id": "Local",
+      "label": "Local",
+      "baseUrl": "http://127.0.0.1:1234/v1",
+      "apiKeyPlaceholder": "Chave de API"
     }
   ]
 }

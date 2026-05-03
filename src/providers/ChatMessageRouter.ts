@@ -110,6 +110,11 @@ export class ChatMessageRouter {
     if (data.type === "executarAnaliseRapida") {
       await this.deps.executeQuickAnalysis(webview);
     }
+
+    if (data.type === "alterarModoEstudo") {
+      await this.handleToggleStudyMode(data, webview);
+      return;
+    }
   }
 
   private async handleLoadLlms(webview: vscode.Webview): Promise<void> {
@@ -127,6 +132,7 @@ export class ChatMessageRouter {
             this.deps.configManager.getSelectedCloudModelId(),
           selectedLocalModelId:
             this.deps.configManager.getActiveLocalModel()?.id ?? null,
+          studyModeEnabled: this.deps.configManager.isStudyModeEnabled(),
           providers: providers.map((provider) => ({
             id: provider.id,
             name: provider.label,
@@ -453,5 +459,25 @@ export class ChatMessageRouter {
       type: "erro",
       value: errorMessage,
     });
+  }
+
+  private async handleToggleStudyMode(
+    data: any,
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      const enabled = data.enabled === true;
+
+      this.deps.configManager.setStudyModeEnabled(enabled);
+
+      await webview.postMessage({
+        type: "modoEstudoAtualizado",
+        value: {
+          enabled,
+        },
+      });
+    } catch (error) {
+      await this.postError(webview, error, "Erro ao alterar modo estudo.");
+    }
   }
 }

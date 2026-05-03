@@ -25,7 +25,8 @@ export type AtlasUserBehaviorConfig = {
 export type AtlasPromptMode =
   | "architectural-analysis"
   | "developer-assistant"
-  | "quick-analysis";
+  | "quick-analysis"
+  | "study-mode";
 
 export type AtlasPromptModeResolverInput = {
   userQuestion: string;

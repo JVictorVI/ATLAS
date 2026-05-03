@@ -23,6 +23,8 @@ let shortcutLoadingState = {
   architectureAnalysis: false,
 };
 
+let isStudyModeEnabled = false;
+
 let modelsData = {
   local: {
     name: "Local",
@@ -93,11 +95,21 @@ function renderChatView() {
                 </div>
             </div>
 
-            <div class="input-container">
-                <input type="text" id="pergunta" placeholder="Perguntar ao ATLAS" />
-                <button id="send-btn" title="Enviar">
-                    <i class="codicon codicon-arrow-up"></i>
-                </button>
+            <div class="main-input-container"> 
+            
+              <div class="input-container">
+                  <input type="text" id="pergunta" placeholder="Perguntar ao ATLAS" />
+                  
+                  <button id="send-btn" title="Enviar">
+                      <i class="codicon codicon-arrow-up"></i>
+                  </button>
+              </div>
+              
+
+              <button id="study-mode-btn" title="Modo Estudo">
+                <i class="codicon codicon-mortar-board"></i>
+              </button>
+            
             </div>
         </div>
     `;
@@ -155,6 +167,8 @@ function hydratemodelsDataFromBackend(payload) {
       providerId: selectedProvider,
     });
   }
+
+  applyStudyModeState(payload.studyModeEnabled === true);
 }
 
 // Função auxiliar para enviar a escolha ao VS Code
@@ -437,6 +451,7 @@ function setupChatEvents() {
   const architetureAnalysisBtn = document.getElementById(
     "architeture-analysis-btn",
   );
+  const studyModeBtn = document.getElementById("study-mode-btn");
 
   if (!input || !btn) return;
 
@@ -487,6 +502,19 @@ function setupChatEvents() {
     });
   }
 
+  if (studyModeBtn) {
+    studyModeBtn.addEventListener("click", () => {
+      const nextValue = !isStudyModeEnabled;
+
+      applyStudyModeState(nextValue);
+
+      vscode.postMessage({
+        type: "alterarModoEstudo",
+        enabled: nextValue,
+      });
+    });
+  }
+
   function enviarPergunta() {
     if (isGeneratingResponse) {
       cancelarGeracao();
@@ -504,6 +532,7 @@ function setupChatEvents() {
       value: texto,
       selectedView: currentView,
       agentId: selectedModel ? selectedModel.id : null,
+      forcedMode: isStudyModeEnabled ? "study-mode" : undefined,
     });
 
     input.value = "";
@@ -845,6 +874,11 @@ window.addEventListener("message", (event) => {
     case "modeloSelecionado": {
       break;
     }
+
+    case "modoEstudoAtualizado": {
+      applyStudyModeState(message.value?.enabled === true);
+      break;
+    }
   }
 });
 
@@ -903,5 +937,25 @@ function setShortcutLoading(action, isLoading) {
     `;
   } else {
     button.textContent = button.dataset.originalLabel;
+  }
+}
+
+function applyStudyModeState(enabled) {
+  isStudyModeEnabled = enabled === true;
+
+  const studyModeBtn = document.getElementById("study-mode-btn");
+  const input = document.getElementById("pergunta");
+
+  if (studyModeBtn) {
+    studyModeBtn.classList.toggle("active", isStudyModeEnabled);
+    studyModeBtn.title = isStudyModeEnabled
+      ? "Modo Estudo ativado"
+      : "Modo Estudo desativado";
+  }
+
+  if (input) {
+    input.placeholder = isStudyModeEnabled
+      ? "Perguntar ao ATLAS em modo estudo"
+      : "Perguntar ao ATLAS";
   }
 }

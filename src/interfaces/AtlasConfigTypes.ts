@@ -104,6 +104,17 @@ export interface ProviderConfig {
   kind?: "openai-compatible" | "claude" | "gemini";
 }
 
+export interface AtlasStudyModeConfig {
+  enabled: boolean;
+}
+
+export interface AtlasCustomSettings {
+  studyMode?: AtlasStudyModeConfig;
+
+  // mantém flexível para futuras extensões
+  [key: string]: unknown;
+}
+
 export interface AtlasConfigSchema {
   version: string;
   updatedAt: string;
@@ -115,10 +126,9 @@ export interface AtlasConfigSchema {
 
   llms: AtlasLlmSettings;
 
-  custom?: JsonMap;
+  custom?: AtlasCustomSettings;
   providers?: ProviderConfig[];
 }
-
 export type AtlasExecutionMode = "local" | "cloud";
 
 export interface AtlasResolvedCloudSelection {
