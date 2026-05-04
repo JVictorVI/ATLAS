@@ -95,7 +95,12 @@ export class CloudApiService {
   }
 
   public static isAbortError(error: unknown): boolean {
-    return error instanceof Error && error.name === "AbortError";
+    return (
+      typeof error === "object" &&
+      error !== null &&
+      "name" in error &&
+      (error as { name?: unknown }).name === "AbortError"
+    );
   }
 
   private getProviderKind(provider: ProviderConfig): AtlasCloudProviderKind {
@@ -222,9 +227,9 @@ export class CloudApiService {
     const baseUrl = provider.baseUrl.replace(/\/+$/, "");
     const endpoint = `${baseUrl}/chat/completions`;
 
-    const isStreaming = !!onChunk;
+    const isStreaming = typeof onChunk === "function";
 
-    const response = await fetch(endpoint, {
+    const response = await this.fetchWithTimeout(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -236,31 +241,38 @@ export class CloudApiService {
         temperature,
         max_tokens: maxTokens,
         top_p: topP,
-        stream: isStreaming, // <-- NOVO: Ativa o stream se o callback existir
+        stream: isStreaming,
       }),
       signal,
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(
-        (errorData as any)?.error?.message || `Erro na chamada HTTP: ${response.status}`,
-      );
+      const errorData = await this.safeReadJson(response);
+      this.handleApiError(response, errorData);
     }
 
 // --- Lógica de Processamento de Stream (SSE) CORRIGIDA ---
-    if (isStreaming && response.body) {
+    if (isStreaming) {
+      if (!response.body) {
+        throw new Error(
+          "O provedor não retornou um corpo de resposta para streaming.",
+        );
+      }
+
       const reader = response.body.getReader();
       const decoder = new TextDecoder("utf-8");
       let fullContent = "";
       let buffer = "";
+      let finishReason: string | undefined;
 
       try {
-        let isStreamFinished = false; // <-- NOVA FLAG
+        let isStreamFinished = false;
         
-        while (!isStreamFinished) { // <-- PARA O LOOP SE RECEBER O [DONE]
+        while (!isStreamFinished) {
           const { done, value } = await reader.read();
-          if (done) break;
+          if (done) {
+            break;
+          }
 
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split("\n");
@@ -269,28 +281,44 @@ export class CloudApiService {
 
           for (const line of lines) {
             const trimmedLine = line.trim();
-            if (!trimmedLine.startsWith("data: ")) continue;
+            if (!trimmedLine.startsWith("data: ")) {
+              continue;
+            }
 
             const dataStr = trimmedLine.slice(6).trim();
+            if (!dataStr) {
+              continue;
+            }
+
             if (dataStr === "[DONE]") {
-              isStreamFinished = true; // <-- MARCA COMO TERMINADO
-              break; // <-- QUEBRA O LOOP INTERNO
+              isStreamFinished = true;
+              break;
             }
 
             try {
               const parsed = JSON.parse(dataStr);
-              const textChunk = parsed.choices?.[0]?.delta?.content || "";
+              const choice = parsed?.choices?.[0];
+              const textChunk = choice?.delta?.content || "";
+
+              if (typeof choice?.finish_reason === "string") {
+                finishReason = choice.finish_reason;
+              }
+
               if (textChunk) {
                 fullContent += textChunk;
-                if (onChunk) onChunk(textChunk); 
+                onChunk?.(textChunk); 
               }
-            } catch (e) {
-              // Ignora erros de parse causados por chunks fragmentados
+            } catch {
+              // Ignora fragmentos incompletos/parciais do SSE.
             }
           }
         }
       } finally {
         reader.releaseLock();
+      }
+
+      if (!fullContent.trim()) {
+        throw new Error("O provedor retornou uma resposta vazia.");
       }
 
       return {
@@ -299,15 +327,15 @@ export class CloudApiService {
         providerKind: "openai-compatible",
         modelId,
         content: fullContent,
-        finishReason: "stop",
-        usage: {}, 
+        finishReason: finishReason ?? "stop",
+        usage: undefined,
         createdAt: new Date().toISOString(),
-        raw: { stream: true },
+        raw: { stream: isStreaming },
       };
     }
 
     // Se não for streaming, continua com o comportamento antigo
-    const data = (await response.json()) as OpenAiCompatibleResponse;
+    const data = (await this.safeReadJson(response)) as OpenAiCompatibleResponse;
     return this.normalizeOpenAiCompatibleResponse(provider, modelId, data);
   }
 
@@ -335,7 +363,7 @@ export class CloudApiService {
         content: message.content,
       }));
 
-    const response = await fetch(endpoint, {
+    const response = await this.fetchWithTimeout(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -352,15 +380,17 @@ export class CloudApiService {
       signal,
     });
 
-    const data = (await response.json()) as ClaudeResponse;
+    const data = (await this.safeReadJson(response)) as ClaudeResponse;
 
     if (!response.ok) {
-      throw new Error(
-        data?.error?.message || `Erro na chamada HTTP: ${response.status}`,
-      );
+      this.handleApiError(response, data);
     }
 
-    const normalizedResponse = this.normalizeClaudeResponse(provider, modelId, data);
+    const normalizedResponse = this.normalizeClaudeResponse(
+      provider,
+      modelId,
+      data,
+    );
     
     // --- NOVO: Fallback (modo não-streaming enviando tudo de uma vez) ---
     if (onChunk) {
@@ -380,7 +410,9 @@ export class CloudApiService {
   ): Promise<AtlasCloudChatResponse> {
     const baseUrl = provider.baseUrl.replace(/\/+$/, "");
 
-    const endpoint = `${baseUrl}/models/${encodeURIComponent(modelId)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+    const endpoint = `${baseUrl}/models/${encodeURIComponent(
+      modelId,
+    )}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
     const systemText = messages
       .filter((message) => message.role === "system")
@@ -395,7 +427,7 @@ export class CloudApiService {
         parts: [{ text: message.content }],
       }));
 
-    const response = await fetch(endpoint, {
+    const response = await this.fetchWithTimeout(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -417,15 +449,17 @@ export class CloudApiService {
       signal,
     });
 
-    const data = (await response.json()) as GeminiResponse;
+    const data = (await this.safeReadJson(response)) as GeminiResponse;
 
     if (!response.ok) {
-      throw new Error(
-        data?.error?.message || `Erro na chamada HTTP: ${response.status}`,
-      );
+      this.handleApiError(response, data);
     }
 
-    const normalizedResponse = this.normalizeGeminiResponse(provider, modelId, data);
+    const normalizedResponse = this.normalizeGeminiResponse(
+      provider,
+      modelId,
+      data,
+    );
 
     
     if (onChunk) {
@@ -589,17 +623,17 @@ export class CloudApiService {
     const baseUrl = provider.baseUrl.replace(/\/+$/, "");
     const endpoint = `${baseUrl}/models`;
 
-    const response = await fetch(endpoint, {
+    const response = await this.fetchWithTimeout(endpoint, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${apiKey}`,
       },
     });
 
-    const json = (await response.json()) as ModelsApiResponse;
+    const json = (await this.safeReadJson(response)) as ModelsApiResponse;
 
     if (!response.ok) {
-      throw new Error(json.error?.message || `Erro HTTP ${response.status}`);
+      this.handleApiError(response, json);
     }
 
     if (!Array.isArray(json.data)) {

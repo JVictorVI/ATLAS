@@ -196,6 +196,23 @@ export class ChatMessageRouter {
             { signal: responseController.signal },
           );
 
+      if (!shouldStream) {
+        await webview.postMessage({
+          type: "novaResposta",
+          value: response.content,
+          metadata: {
+            mode: promptResult.mode,
+            providerId: response.providerId,
+            providerKind: response.providerKind,
+            modelId: response.modelId,
+            finishReason: response.finishReason,
+            usage: response.usage,
+            createdAt: response.createdAt,
+          },
+        });
+        return;
+      }
+
       await webview.postMessage({
         type: "fimResposta",
         metadata: {
@@ -266,6 +283,7 @@ export class ChatMessageRouter {
         timeout,
         temperature,
         topP,
+        stream,
       } = data.payload ?? {};
 
       this.deps.configManager.updateSecuritySettings({
@@ -280,6 +298,7 @@ export class ChatMessageRouter {
         temperature,
         topP,
         maxTokens,
+        stream,
       });
 
       const securitySettings =
@@ -292,6 +311,8 @@ export class ChatMessageRouter {
           ...securitySettings,
           temperature: llmDefaults.temperature,
           topP: llmDefaults.topP,
+          maxTokens: llmDefaults.maxTokens,
+          stream: llmDefaults.stream,
         },
       });
 
@@ -324,6 +345,8 @@ export class ChatMessageRouter {
           ...securitySettings,
           temperature: llmDefaults.temperature,
           topP: llmDefaults.topP,
+          maxTokens: llmDefaults.maxTokens,
+          stream: llmDefaults.stream,
         },
       });
     } catch (error) {
@@ -444,9 +467,13 @@ export class ChatMessageRouter {
     error: unknown,
     fallback: string,
   ): Promise<void> {
+    const message = this.getErrorMessage(error, fallback);
+
+    vscode.window.showErrorMessage(`ATLAS: ${message}`);
+
     await webview.postMessage({
       type: "erro",
-      value: this.getErrorMessage(error, fallback),
+      value: message,
     });
   }
 
