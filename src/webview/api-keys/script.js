@@ -197,12 +197,10 @@ function fillCloudSecuritySettings(settings) {
   const timeout = document.getElementById("timeout");
   const temperature = document.getElementById("temperature");
   const topP = document.getElementById("topP");
-  const stream = document.getElementById("stream");
 
   if (confirmCloud) confirmCloud.checked = Boolean(settings.confirmCloud);
   if (blockRag) blockRag.checked = Boolean(settings.blockRag);
   if (limitPayload) limitPayload.checked = Boolean(settings.limitPayload);
-  if (stream) stream.checked = Boolean(settings.stream);
 
   if (maxTokens && settings.maxTokens !== undefined) {
     maxTokens.value = String(settings.maxTokens);
@@ -229,7 +227,6 @@ function saveCloudSecuritySettings() {
   const timeout = document.getElementById("timeout");
   const temperature = document.getElementById("temperature");
   const topP = document.getElementById("topP");
-  const stream = document.getElementById("stream");
 
   vscode.postMessage({
     type: "salvarConfiguracoesSeguranca",
@@ -241,7 +238,6 @@ function saveCloudSecuritySettings() {
       timeout: timeout?.value ? Number(timeout.value) : undefined,
       temperature: temperature?.value ? Number(temperature.value) : undefined,
       topP: topP?.value ? Number(topP.value) : undefined,
-      stream: stream?.value ? Boolean(stream?.checked) : undefined,
     },
   });
 }
