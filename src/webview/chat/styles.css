@@ -94,6 +94,10 @@ body {
   font-size: 13px;
   line-height: 1.4;
   word-wrap: break-word;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word; 
+  white-space: pre-wrap;
 }
 
 .user {
@@ -494,12 +498,18 @@ input {
   border-radius: 6px;
   overflow-x: auto;
   margin: 10px 0;
+  max-width: 100%;
 }
 
 .message pre code {
   background-color: transparent;
   padding: 0;
   color: #9cdcfe; 
+}
+
+.message img {
+  max-width: 100%;
+  height: auto;
 }
 
 .cursor {
