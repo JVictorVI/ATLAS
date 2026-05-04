@@ -11,6 +11,7 @@ let loadingElement = null;
 let mensagemAtualBot = null;
 let bufferResposta = "";
 let isLoadingCloudModels = false;
+let isGeneratingResponse = false;
 
 // --- VARIÁVEIS PARA O EFEITO MÁQUINA DE ESCREVER ---
 let renderQueue = "";
@@ -21,6 +22,8 @@ let shortcutLoadingState = {
   quickAnalysis: false,
   architectureAnalysis: false,
 };
+
+let isStudyModeEnabled = false;
 
 let modelsData = {
   local: {
@@ -33,6 +36,10 @@ let modelsData = {
 let selectedMode = "local";
 let selectedProvider = null;
 let selectedModel = null;
+
+function requestLatestLlmState() {
+  vscode.postMessage({ type: "carregarLLMs" });
+}
 
 document.addEventListener("click", (e) => {
   const popover = document.getElementById("agent-popover");
@@ -88,16 +95,27 @@ function renderChatView() {
                 </div>
             </div>
 
-            <div class="input-container">
-                <input type="text" id="pergunta" placeholder="Perguntar ao ATLAS" />
-                <button id="send-btn" title="Enviar">
-                    <i class="codicon codicon-arrow-up"></i>
-                </button>
+            <div class="main-input-container"> 
+            
+              <div class="input-container">
+                  <input type="text" id="pergunta" placeholder="Perguntar ao ATLAS" />
+                  
+                  <button id="send-btn" title="Enviar">
+                      <i class="codicon codicon-arrow-up"></i>
+                  </button>
+              </div>
+              
+
+              <button id="study-mode-btn" title="Modo Estudo">
+                <i class="codicon codicon-mortar-board"></i>
+              </button>
+            
             </div>
         </div>
     `;
 
   setupChatEvents();
+  requestLatestLlmState();
 }
 
 function hydratemodelsDataFromBackend(payload) {
@@ -149,6 +167,8 @@ function hydratemodelsDataFromBackend(payload) {
       providerId: selectedProvider,
     });
   }
+
+  applyStudyModeState(payload.studyModeEnabled === true);
 }
 
 // Função auxiliar para enviar a escolha ao VS Code
@@ -431,6 +451,7 @@ function setupChatEvents() {
   const architetureAnalysisBtn = document.getElementById(
     "architeture-analysis-btn",
   );
+  const studyModeBtn = document.getElementById("study-mode-btn");
 
   if (!input || !btn) return;
 
@@ -439,6 +460,7 @@ function setupChatEvents() {
       e.stopPropagation();
 
       if (agentPopover.classList.contains("hidden")) {
+        requestLatestLlmState();
         agentPopover.classList.remove("hidden");
         renderPopoverContent();
       } else {
@@ -462,13 +484,17 @@ function setupChatEvents() {
 
   if (architetureAnalysisBtn) {
     architetureAnalysisBtn.addEventListener("click", () => {
-      if (shortcutLoadingState.architectureAnalysis) return;
+      if (shortcutLoadingState.architectureAnalysis || isGeneratingResponse) {
+        return;
+      }
 
       shortcutLoadingState.architectureAnalysis = true;
       setShortcutLoading("architecture-analysis", true);
+      showLoading();
 
       vscode.postMessage({
         type: "enviarPergunta",
+        forcedMode: "architectural-analysis",
         value: "Realize uma análise arquitetural deste código.",
         selectedView: currentView,
         agentId: selectedModel ? selectedModel.id : null,
@@ -476,7 +502,25 @@ function setupChatEvents() {
     });
   }
 
+  if (studyModeBtn) {
+    studyModeBtn.addEventListener("click", () => {
+      const nextValue = !isStudyModeEnabled;
+
+      applyStudyModeState(nextValue);
+
+      vscode.postMessage({
+        type: "alterarModoEstudo",
+        enabled: nextValue,
+      });
+    });
+  }
+
   function enviarPergunta() {
+    if (isGeneratingResponse) {
+      cancelarGeracao();
+      return;
+    }
+
     const texto = input.value.trim();
     if (!texto) return;
 
@@ -488,6 +532,7 @@ function setupChatEvents() {
       value: texto,
       selectedView: currentView,
       agentId: selectedModel ? selectedModel.id : null,
+      forcedMode: isStudyModeEnabled ? "study-mode" : undefined,
     });
 
     input.value = "";
@@ -500,6 +545,14 @@ function setupChatEvents() {
     if (event.key === "Enter") {
       enviarPergunta();
     }
+  });
+}
+
+function cancelarGeracao() {
+  if (!isGeneratingResponse) return;
+
+  vscode.postMessage({
+    type: "cancelarGeracao",
   });
 }
 
@@ -536,7 +589,7 @@ function showLoading() {
   spinner.className = "spinner";
 
   const text = document.createElement("span");
-  text.textContent = "Gerando resposta...";
+  text.textContent = "Pensando...";
 
   div.appendChild(spinner);
   div.appendChild(text);
@@ -545,6 +598,7 @@ function showLoading() {
   chatContainer.scrollTop = chatContainer.scrollHeight;
 
   loadingElement = div;
+  setGenerationState(true);
 }
 
 function removeLoading() {
@@ -559,6 +613,57 @@ function removeLoading() {
   }
 
   loadingElement = null;
+}
+
+function setGenerationState(isGenerating) {
+  isGeneratingResponse = isGenerating;
+
+  const sendBtn = document.getElementById("send-btn");
+  const input = document.getElementById("pergunta");
+
+  if (sendBtn) {
+    sendBtn.classList.toggle("stop", isGenerating);
+    sendBtn.title = isGenerating ? "Interromper" : "Enviar";
+    sendBtn.innerHTML = isGenerating
+      ? '<i class="codicon codicon-debug-stop"></i>'
+      : '<i class="codicon codicon-arrow-up"></i>';
+  }
+
+  if (input) {
+    input.disabled = isGenerating;
+  }
+}
+
+function finishCurrentBotMessage(cancelled = false) {
+  renderQueue = "";
+  finishPending = false;
+  isTyping = false;
+
+  if (mensagemAtualBot) {
+    const finalText = bufferResposta.trim();
+
+    if (finalText) {
+      try {
+        mensagemAtualBot.innerHTML =
+          typeof marked !== "undefined" ? marked.parse(finalText) : finalText;
+      } catch (e) {
+        mensagemAtualBot.innerText = finalText;
+      }
+    }
+
+    if (cancelled) {
+      const status = document.createElement("div");
+      status.className = "message-status";
+      status.textContent = "Resposta interrompida.";
+      mensagemAtualBot.appendChild(status);
+    }
+  } else if (cancelled) {
+    addMessage("Resposta interrompida.", "bot");
+  }
+
+  mensagemAtualBot = null;
+  bufferResposta = "";
+  setGenerationState(false);
 }
 
 configBtn?.addEventListener("click", () => {
@@ -601,6 +706,7 @@ function processQueue() {
       mensagemAtualBot = null;
       bufferResposta = "";
       finishPending = false;
+      setGenerationState(false);
     }
     return;
   }
@@ -660,6 +766,7 @@ window.addEventListener("message", (event) => {
 
     case "novaResposta": {
       removeLoading();
+      setGenerationState(false);
       shortcutLoadingState.architectureAnalysis = false;
       setShortcutLoading("architecture-analysis", false);
       addMessage(message.value, "bot", true);
@@ -688,6 +795,15 @@ case "fimResposta": {
       break;
     }
 
+    case "geracaoCancelada": {
+      removeLoading();
+      finishCurrentBotMessage(true);
+
+      shortcutLoadingState.architectureAnalysis = false;
+      setShortcutLoading("architecture-analysis", false);
+      break;
+    }
+
     case "erro": {
       removeLoading();
       mensagemAtualBot = null;
@@ -696,6 +812,7 @@ case "fimResposta": {
       finishPending = false;
       isTyping = false;
       isLoadingCloudModels = false;
+      setGenerationState(false);
 
       shortcutLoadingState.quickAnalysis = false;
       shortcutLoadingState.architectureAnalysis = false;
@@ -759,6 +876,11 @@ case "fimResposta": {
     case "modeloSelecionado": {
       break;
     }
+
+    case "modoEstudoAtualizado": {
+      applyStudyModeState(message.value?.enabled === true);
+      break;
+    }
   }
 });
 
@@ -782,7 +904,7 @@ function renderLibraryView() {
   vscode.postMessage({ type: "abrirPainelConfig", selectedView: "library" });
 }
 
-vscode.postMessage({ type: "carregarLLMs" });
+requestLatestLlmState();
 
 function getShortcutButton(action) {
   if (action === "quick-analysis") {
@@ -817,5 +939,25 @@ function setShortcutLoading(action, isLoading) {
     `;
   } else {
     button.textContent = button.dataset.originalLabel;
+  }
+}
+
+function applyStudyModeState(enabled) {
+  isStudyModeEnabled = enabled === true;
+
+  const studyModeBtn = document.getElementById("study-mode-btn");
+  const input = document.getElementById("pergunta");
+
+  if (studyModeBtn) {
+    studyModeBtn.classList.toggle("active", isStudyModeEnabled);
+    studyModeBtn.title = isStudyModeEnabled
+      ? "Modo Estudo ativado"
+      : "Modo Estudo desativado";
+  }
+
+  if (input) {
+    input.placeholder = isStudyModeEnabled
+      ? "Perguntar ao ATLAS em modo estudo"
+      : "Perguntar ao ATLAS";
   }
 }

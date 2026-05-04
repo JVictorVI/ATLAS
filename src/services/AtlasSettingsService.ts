@@ -3,7 +3,6 @@ import {
   AtlasGeneralSettings,
   AtlasLlmDefaults,
   AtlasRagSettings,
-  AtlasRuntimeSettings,
   AtlasSecuritySettings,
   AtlasUiSettings,
   JsonMap,

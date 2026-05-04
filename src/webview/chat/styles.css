@@ -157,7 +157,7 @@ body {
   flex-wrap: wrap; /* Se os botões não couberem, eles empilham */
   justify-content: flex-end;
   flex: 1;
-  min-width: 120px; /* Garante um tamanho mínimo antes de quebrar a linha */
+  min-width: 125px; /* Garante um tamanho mínimo antes de quebrar a linha */
 }
 
 .action-btn {
@@ -188,6 +188,12 @@ body {
   background: rgba(0, 122, 204, 0.1);
 }
 
+.main-input-container {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
 .input-container {
   display: flex;
   gap: 8px;
@@ -195,6 +201,7 @@ body {
   border: 1px solid #444;
   border-radius: 4px;
   padding: 4px 6px 4px 10px;
+  flex: 1;
   align-items: center;
 }
 
@@ -231,9 +238,38 @@ input {
   background-color: #1c97ea;
 }
 
+#send-btn.stop {
+  background-color: #c93c37;
+}
+
+#send-btn.stop:hover {
+  background-color: #e0524d;
+}
+
+#send-btn.stop i {
+  font-size: 15px;
+}
+
+#send-btn.stop i {
+  font-size: 15px;
+}
+
+#send-btn.stop i {
+  font-size: 15px;
+}
+
+#pergunta:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 /* Ícone de enviar um pouco maior */
 #send-btn i {
   font-size: 18px;
+}
+
+#send-btn.stop i {
+  font-size: 15px;
 }
 
 /* --- O POPOVER (BALÃO FLUTUANTE) --- */
@@ -460,7 +496,6 @@ input {
   }
 }
 
-
 /* --- ESTILOS DE RENDERIZAÇÃO DO MARKDOWN --- */
 .message p {
   margin: 0 0 10px 0;
@@ -474,7 +509,8 @@ input {
   color: var(--vscode-editor-foreground);
 }
 
-.message ul, .message ol {
+.message ul,
+.message ol {
   margin: 8px 0;
   padding-left: 24px;
 }
@@ -504,7 +540,7 @@ input {
 .message pre code {
   background-color: transparent;
   padding: 0;
-  color: #9cdcfe; 
+  color: #9cdcfe;
 }
 
 .message img {
@@ -522,7 +558,56 @@ input {
   animation: blink 1s step-end infinite;
 }
 
+.message-status {
+  margin-top: 8px;
+  color: #a6a6a6;
+  font-size: 12px;
+  font-style: italic;
+}
+
 @keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+#study-mode-btn {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  color: #dcdcaa;
+  border: 1px solid #5a5a2a;
+  border-radius: 4px;
+  width: 37px;
+  height: 37px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+#study-mode-btn:hover {
+  background-color: rgba(220, 220, 170, 0.12);
+  border-color: #dcdcaa;
+}
+
+#study-mode-btn.active {
+  background-color: rgba(220, 220, 170, 0.18);
+  color: #fff2a8;
+  border-color: #fff2a8;
+}
+
+#study-mode-btn i {
+  font-size: 16px;
+}
+
+#study-mode-btn.active {
+  background-color: rgba(220, 220, 170, 0.18);
+  color: #fff2a8;
+  border-color: #fff2a8;
+  box-shadow: 0 0 0 1px rgba(220, 220, 170, 0.25);
 }

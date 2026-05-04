@@ -33,6 +33,8 @@ type RouterDependencies = {
 };
 
 export class ChatMessageRouter {
+  private activeResponseController: AbortController | null = null;
+
   constructor(private readonly deps: RouterDependencies) {}
 
   public async handle(data: any, webview: vscode.Webview): Promise<void> {
@@ -52,6 +54,11 @@ export class ChatMessageRouter {
 
     if (data.type === "enviarPergunta") {
       await this.handleSendQuestion(data, webview);
+      return;
+    }
+
+    if (data.type === "cancelarGeracao") {
+      await this.handleCancelGeneration(webview);
       return;
     }
 
@@ -103,6 +110,11 @@ export class ChatMessageRouter {
     if (data.type === "executarAnaliseRapida") {
       await this.deps.executeQuickAnalysis(webview);
     }
+
+    if (data.type === "alterarModoEstudo") {
+      await this.handleToggleStudyMode(data, webview);
+      return;
+    }
   }
 
   private async handleLoadLlms(webview: vscode.Webview): Promise<void> {
@@ -120,6 +132,7 @@ export class ChatMessageRouter {
             this.deps.configManager.getSelectedCloudModelId(),
           selectedLocalModelId:
             this.deps.configManager.getActiveLocalModel()?.id ?? null,
+          studyModeEnabled: this.deps.configManager.isStudyModeEnabled(),
           providers: providers.map((provider) => ({
             id: provider.id,
             name: provider.label,
@@ -141,6 +154,10 @@ export class ChatMessageRouter {
     data: any,
     webview: vscode.Webview,
   ): Promise<void> {
+    this.activeResponseController?.abort();
+    const responseController = new AbortController();
+    this.activeResponseController = responseController;
+
     try {
       const editorContext = this.deps.getChatEditorContext();
 
@@ -153,22 +170,29 @@ export class ChatMessageRouter {
         ragContext: [],
         hasCodeContext: Boolean(editorContext),
         forcedMode:
-          editorContext?.source === "selection"
+          data.forcedMode ??
+          (editorContext?.source === "selection"
             ? "developer-assistant"
-            : undefined,
+            : undefined),
       });
 
 
-      const response = await this.deps.cloudApiService.sendChat(
-        promptResult.messages,
-        async (chunk: string) => {
-          // A cada pedaço recebido, avisamos a Webview para ir desenhando
-          await webview.postMessage({
-            type: "respostaParcial",
-            value: chunk,
-          });
-        }
-      );
+      const response = shouldStream
+        ? await this.deps.cloudApiService.sendChat(
+            promptResult.messages,
+            async (chunk: string) => {
+              await webview.postMessage({
+                type: "respostaParcial",
+                value: chunk,
+              });
+            },
+            { signal: responseController.signal },
+          )
+        : await this.deps.cloudApiService.sendChat(
+            promptResult.messages,
+            undefined,
+            { signal: responseController.signal },
+          );
 
 
       await webview.postMessage({
@@ -184,8 +208,30 @@ export class ChatMessageRouter {
         },
       });
     } catch (error) {
+      if (CloudApiService.isAbortError(error)) {
+        await webview.postMessage({
+          type: "geracaoCancelada",
+        });
+        return;
+      }
+
       await this.postError(webview, error, "Erro ao enviar pergunta.");
+    } finally {
+      if (this.activeResponseController === responseController) {
+        this.activeResponseController = null;
+      }
     }
+  }
+
+  private async handleCancelGeneration(webview: vscode.Webview): Promise<void> {
+    if (!this.activeResponseController) {
+      await webview.postMessage({
+        type: "geracaoCancelada",
+      });
+      return;
+    }
+
+    this.activeResponseController.abort();
   }
 
   private async handleSelectMode(
@@ -403,7 +449,23 @@ export class ChatMessageRouter {
     });
   }
 
-  private getErrorMessage(error: unknown, fallback: string): string {
-    return error instanceof Error ? error.message : fallback;
+  private async handleToggleStudyMode(
+    data: any,
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      const enabled = data.enabled === true;
+
+      this.deps.configManager.setStudyModeEnabled(enabled);
+
+      await webview.postMessage({
+        type: "modoEstudoAtualizado",
+        value: {
+          enabled,
+        },
+      });
+    } catch (error) {
+      await this.postError(webview, error, "Erro ao alterar modo estudo.");
+    }
   }
 }

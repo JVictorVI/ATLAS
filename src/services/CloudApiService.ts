@@ -3,7 +3,11 @@ import {
   AtlasCloudProviderKind,
   AtlasModelSummary,
   ChatMessage,
+  ClaudeModelRaw,
+  ClaudeModelsApiResponse,
   ClaudeResponse,
+  GeminiModelRaw,
+  GeminiModelsApiResponse,
   GeminiResponse,
   ModelsApiResponse,
   OpenAiCompatibleResponse,
@@ -23,7 +27,8 @@ export class CloudApiService {
 
   public async sendChat(
     messages: ChatMessage[],
-    onChunk?: (chunk: string) => void // <-- NOVO: Callback para Streaming
+    onChunk?: (chunk: string) => void,
+    options?: { signal?: AbortSignal },
   ): Promise<AtlasCloudChatResponse> {
     const config = this.configManager.getConfig();
 
@@ -54,10 +59,24 @@ export class CloudApiService {
 
     switch (providerKind) {
       case "claude":
-        return this.sendClaudeChat(provider, modelId, apiKey, messages, onChunk);
+        return this.sendClaudeChat(
+          provider,
+          modelId,
+          apiKey,
+          messages,
+          onChunk,
+          options?.signal,
+        );
 
       case "gemini":
-        return this.sendGeminiChat(provider, modelId, apiKey, messages, onChunk);
+        return this.sendGeminiChat(
+          provider,
+          modelId,
+          apiKey,
+          messages,
+          onChunk,
+          options?.signal,
+        );
 
       case "openai-compatible":
       default:
@@ -69,9 +88,14 @@ export class CloudApiService {
           config.llms.defaults.temperature,
           config.llms.defaults.maxTokens,
           config.llms.defaults.topP,
-          onChunk
+          onChunk,
+          options?.signal,
         );
     }
+  }
+
+  public static isAbortError(error: unknown): boolean {
+    return error instanceof Error && error.name === "AbortError";
   }
 
   private getProviderKind(provider: ProviderConfig): AtlasCloudProviderKind {
@@ -92,6 +116,98 @@ export class CloudApiService {
     return "openai-compatible";
   }
 
+  private handleApiError(response: Response, data?: any): never {
+    const status = response.status;
+    const providerMessage =
+      data?.error?.message ||
+      data?.error?.details ||
+      "Erro desconhecido retornado pelo provedor.";
+
+    if (status === 401 || status === 403) {
+      throw new Error(
+        `Falha de autenticação (HTTP ${status}): Verifique sua chave de API. Detalhes: ${providerMessage}`,
+      );
+    }
+
+    if (status === 429) {
+      throw new Error(
+        `Limite de requisições excedido (HTTP 429). Como estamos utilizando cotas gratuitas, tente novamente mais tarde. Detalhes: ${providerMessage}`,
+      );
+    }
+
+    if (status >= 500) {
+      throw new Error(
+        `Indisponibilidade no provedor (HTTP ${status}). Serviço pode estar fora do ar. Detalhes: ${providerMessage}`,
+      );
+    }
+
+    throw new Error(`Falha na requisição (HTTP ${status}): ${providerMessage}`);
+  }
+
+  private async fetchWithTimeout(
+    resource: string,
+    options: RequestInit & { timeout?: number; signal?: AbortSignal },
+  ): Promise<Response> {
+    const timeoutSetting =
+      this.configManager.getConfig().cloudSecurity?.timeout;
+    const defaultTimeout = timeoutSetting ? timeoutSetting * 1000 : 30000;
+    const timeout = options.timeout || defaultTimeout;
+
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    const abortFromCaller = () => controller.abort();
+
+    if (options.signal?.aborted) {
+      controller.abort();
+    } else {
+      options.signal?.addEventListener("abort", abortFromCaller, {
+        once: true,
+      });
+    }
+
+    try {
+      const { timeout: _timeout, signal: _signal, ...fetchOptions } = options;
+      const response = await fetch(resource, {
+        ...fetchOptions,
+        signal: controller.signal,
+      });
+      clearTimeout(id);
+      return response;
+    } catch (error) {
+      clearTimeout(id);
+
+      if (error instanceof Error && error.name === "AbortError") {
+        if (options.signal?.aborted) {
+          throw error;
+        }
+
+        throw new Error(
+          `Timeout da requisição: O provedor não respondeu dentro de ${timeout / 1000} segundos.`,
+        );
+      }
+
+      throw new Error(
+        `Falha de rede ou comunicação: ${
+          error instanceof Error ? error.message : "Erro desconhecido"
+        }`,
+      );
+    } finally {
+      options.signal?.removeEventListener("abort", abortFromCaller);
+    }
+  }
+
+  private async safeReadJson(response: Response): Promise<any> {
+    try {
+      return await response.json();
+    } catch {
+      return {
+        error: {
+          message: "Resposta JSON inválida retornada pelo servidor.",
+        },
+      };
+    }
+  }
+
   private async sendOpenAiCompatibleChat(
     provider: ProviderConfig,
     modelId: string,
@@ -100,7 +216,8 @@ export class CloudApiService {
     temperature: number,
     maxTokens: number,
     topP: number,
-    onChunk?: (chunk: string) => void
+    onChunk?: (chunk: string) => void,
+    signal?: AbortSignal,
   ): Promise<AtlasCloudChatResponse> {
     const baseUrl = provider.baseUrl.replace(/\/+$/, "");
     const endpoint = `${baseUrl}/chat/completions`;
@@ -121,6 +238,7 @@ export class CloudApiService {
         top_p: topP,
         stream: isStreaming, // <-- NOVO: Ativa o stream se o callback existir
       }),
+      signal,
     });
 
     if (!response.ok) {
@@ -198,7 +316,8 @@ export class CloudApiService {
     modelId: string,
     apiKey: string,
     messages: ChatMessage[],
-    onChunk?: (chunk: string) => void
+    onChunk?: (chunk: string) => void,
+    signal?: AbortSignal,
   ): Promise<AtlasCloudChatResponse> {
     const baseUrl = provider.baseUrl.replace(/\/+$/, "");
     const endpoint = `${baseUrl}/messages`;
@@ -230,6 +349,7 @@ export class CloudApiService {
         system: systemMessages || undefined,
         messages: nonSystemMessages,
       }),
+      signal,
     });
 
     const data = (await response.json()) as ClaudeResponse;
@@ -255,7 +375,8 @@ export class CloudApiService {
     modelId: string,
     apiKey: string,
     messages: ChatMessage[],
-    onChunk?: (chunk: string) => void
+    onChunk?: (chunk: string) => void,
+    signal?: AbortSignal,
   ): Promise<AtlasCloudChatResponse> {
     const baseUrl = provider.baseUrl.replace(/\/+$/, "");
 
@@ -293,6 +414,7 @@ export class CloudApiService {
             this.configManager.getConfig().llms.defaults.maxTokens,
         },
       }),
+      signal,
     });
 
     const data = (await response.json()) as GeminiResponse;
@@ -449,8 +571,10 @@ export class CloudApiService {
 
     switch (providerKind) {
       case "claude":
+        return this.getClaudeModels(provider, apiKey);
+
       case "gemini":
-        return this.getFallbackModelsForProvider(provider);
+        return this.getGeminiModels(provider, apiKey);
 
       case "openai-compatible":
       default:
@@ -500,6 +624,128 @@ export class CloudApiService {
     }));
   }
 
+  private async getClaudeModels(
+    provider: ProviderConfig,
+    apiKey: string,
+  ): Promise<AtlasModelSummary[]> {
+    const baseUrl = provider.baseUrl.replace(/\/+$/, "");
+    let afterId: string | null = null;
+    const models: ClaudeModelRaw[] = [];
+
+    do {
+      const query = new URLSearchParams({
+        limit: "100",
+      });
+
+      if (afterId) {
+        query.set("after_id", afterId);
+      }
+
+      const response = await this.fetchWithTimeout(
+        `${baseUrl}/models?${query.toString()}`,
+        {
+          method: "GET",
+          headers: {
+            "x-api-key": apiKey,
+            "anthropic-version": "2023-06-01",
+          },
+        },
+      );
+
+      const json = (await this.safeReadJson(response)) as ClaudeModelsApiResponse;
+
+      if (!response.ok) {
+        this.handleApiError(response, json);
+      }
+
+      if (!Array.isArray(json.data)) {
+        throw new Error("Formato inesperado ao listar modelos Claude.");
+      }
+
+      models.push(...json.data);
+      afterId = json.has_more ? json.last_id ?? null : null;
+    } while (afterId);
+
+    if (models.length === 0) {
+      return this.getFallbackModelsForProvider(provider);
+    }
+
+    return models.map((model) => ({
+      id: model.id,
+      label: model.display_name || model.id,
+      provider: provider.id,
+      raw: model,
+    }));
+  }
+
+  private async getGeminiModels(
+    provider: ProviderConfig,
+    apiKey: string,
+  ): Promise<AtlasModelSummary[]> {
+    const baseUrl = provider.baseUrl.replace(/\/+$/, "");
+    let pageToken: string | null = null;
+    const models: GeminiModelRaw[] = [];
+
+    do {
+      const query = new URLSearchParams({
+        key: apiKey,
+        pageSize: "100",
+      });
+
+      if (pageToken) {
+        query.set("pageToken", pageToken);
+      }
+
+      const response = await this.fetchWithTimeout(
+        `${baseUrl}/models?${query.toString()}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
+
+      const json = (await this.safeReadJson(response)) as GeminiModelsApiResponse;
+
+      if (!response.ok) {
+        this.handleApiError(response, json);
+      }
+
+      if (!Array.isArray(json.models)) {
+        throw new Error("Formato inesperado ao listar modelos Gemini.");
+      }
+
+      models.push(...json.models);
+      pageToken = json.nextPageToken ?? null;
+    } while (pageToken);
+
+    const generativeModels = models.filter((model) =>
+      Array.isArray(model.supportedGenerationMethods)
+        ? model.supportedGenerationMethods.includes("generateContent")
+        : false,
+    );
+
+    if (generativeModels.length === 0) {
+      return this.getFallbackModelsForProvider(provider);
+    }
+
+    return generativeModels.map((model) => ({
+      id: model.baseModelId || this.normalizeGeminiModelName(model.name),
+      label: model.displayName || model.baseModelId || model.name || "Gemini",
+      provider: provider.id,
+      contextWindow:
+        typeof model.inputTokenLimit === "number"
+          ? model.inputTokenLimit
+          : undefined,
+      maxTokens:
+        typeof model.outputTokenLimit === "number"
+          ? model.outputTokenLimit
+          : undefined,
+      raw: model,
+    }));
+  }
+
   private getFallbackModelsForProvider(
     provider: ProviderConfig,
   ): AtlasModelSummary[] {
@@ -541,5 +787,13 @@ export class CloudApiService {
     }
 
     return [];
+  }
+
+  private normalizeGeminiModelName(name?: string): string {
+    if (!name) {
+      return "";
+    }
+
+    return name.startsWith("models/") ? name.slice("models/".length) : name;
   }
 }

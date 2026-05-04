@@ -145,8 +145,18 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       "chat",
     );
 
+    void this.sendAvailableLlmsToWebview(webviewView.webview);
+
     webviewView.webview.onDidReceiveMessage(async (data) => {
       await this.messageRouter.handle(data, webviewView.webview);
+    });
+
+    webviewView.onDidChangeVisibility(() => {
+      if (!webviewView.visible) {
+        return;
+      }
+
+      void this.sendAvailableLlmsToWebview(webviewView.webview);
     });
   }
 
@@ -177,6 +187,34 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     webview.postMessage({
       type: "updateModelsList",
       models: modelsList,
+    });
+  }
+
+  private async sendAvailableLlmsToWebview(
+    webview: vscode.Webview,
+  ): Promise<void> {
+    const providers = this.configManager.getAllProviders();
+    const localModels = this.configManager.getLocalModels();
+
+    await webview.postMessage({
+      type: "informarLLMsCarregados",
+      value: {
+        selectedMode: this.configManager.getCurrentMode(),
+        selectedProviderId: this.configManager.getSelectedCloudProviderId(),
+        selectedCloudModelId: this.configManager.getSelectedCloudModelId(),
+        selectedLocalModelId:
+          this.configManager.getActiveLocalModel()?.id ?? null,
+        providers: providers.map((provider) => ({
+          id: provider.id,
+          name: provider.label,
+          type: "cloud",
+          models: [],
+        })),
+        localModels: localModels.map((model) => ({
+          id: model.id,
+          name: model.name || model.id,
+        })),
+      },
     });
   }
 

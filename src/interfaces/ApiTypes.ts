@@ -43,6 +43,42 @@ export interface ModelsApiResponse {
   };
 }
 
+export interface ClaudeModelRaw {
+  created_at?: string;
+  display_name?: string;
+  id: string;
+  type?: string;
+}
+
+export interface ClaudeModelsApiResponse {
+  data?: ClaudeModelRaw[];
+  first_id?: string | null;
+  has_more?: boolean;
+  last_id?: string | null;
+  error?: {
+    message?: string;
+  };
+}
+
+export interface GeminiModelRaw {
+  name?: string;
+  baseModelId?: string;
+  version?: string;
+  displayName?: string;
+  description?: string;
+  inputTokenLimit?: number;
+  outputTokenLimit?: number;
+  supportedGenerationMethods?: string[];
+}
+
+export interface GeminiModelsApiResponse {
+  models?: GeminiModelRaw[];
+  nextPageToken?: string;
+  error?: {
+    message?: string;
+  };
+}
+
 export type AtlasCloudProviderKind = "openai-compatible" | "claude" | "gemini";
 
 export interface AtlasTokenUsage {
