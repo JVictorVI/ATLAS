@@ -580,13 +580,11 @@ searchBtn?.addEventListener("click", () => {
   updateActiveTab("search-btn");
 });
 
-
 function processQueue() {
   if (isTyping) return;
 
   if (renderQueue.length === 0) {
     if (finishPending) {
-
       if (mensagemAtualBot) {
         try {
           if (typeof marked !== "undefined" && bufferResposta) {
@@ -619,9 +617,9 @@ function processQueue() {
 
   if (mensagemAtualBot) {
     try {
-
       if (typeof marked !== "undefined") {
-        mensagemAtualBot.innerHTML = marked.parse(bufferResposta) + "<span class='cursor'></span>";
+        mensagemAtualBot.innerHTML =
+          marked.parse(bufferResposta) + "<span class='cursor'></span>";
       } else {
         mensagemAtualBot.innerText = bufferResposta + " █";
       }
@@ -673,18 +671,18 @@ window.addEventListener("message", (event) => {
         renderQueue = "";
         mensagemAtualBot = addMessage("", "bot", false);
       }
-      
+
       renderQueue += message.value;
       processQueue();
       break;
     }
 
-case "fimResposta": {
+    case "fimResposta": {
       finishPending = true;
-      processQueue(); 
+      processQueue();
       shortcutLoadingState.architectureAnalysis = false;
       setShortcutLoading("architecture-analysis", false);
-      
+
       break;
     }
 
@@ -692,7 +690,7 @@ case "fimResposta": {
       removeLoading();
       mensagemAtualBot = null;
       bufferResposta = "";
-      renderQueue = ""; 
+      renderQueue = "";
       finishPending = false;
       isTyping = false;
       isLoadingCloudModels = false;
@@ -710,7 +708,7 @@ case "fimResposta": {
       const isLoading = !!message.value?.loading;
       shortcutLoadingState.quickAnalysis = isLoading;
       setShortcutLoading("quick-analysis", isLoading);
-      
+
       const quickAnalysisBtn = document.getElementById("quick-analysis-btn");
       if (quickAnalysisBtn) {
         quickAnalysisBtn.disabled = isLoading;

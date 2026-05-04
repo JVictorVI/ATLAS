@@ -158,18 +158,37 @@ export class ChatMessageRouter {
             : undefined,
       });
 
+      const shouldStream =
+        this.deps.configManager.getConfig().llms.defaults.stream;
 
-      const response = await this.deps.cloudApiService.sendChat(
-        promptResult.messages,
-        async (chunk: string) => {
-          // A cada pedaço recebido, avisamos a Webview para ir desenhando
-          await webview.postMessage({
-            type: "respostaParcial",
-            value: chunk,
-          });
-        }
-      );
+      const response = shouldStream
+        ? await this.deps.cloudApiService.sendChat(
+            promptResult.messages,
+            async (chunk: string) => {
+              await webview.postMessage({
+                type: "respostaParcial",
+                value: chunk,
+              });
+            },
+          )
+        : await this.deps.cloudApiService.sendChat(promptResult.messages);
 
+      if (!shouldStream) {
+        await webview.postMessage({
+          type: "novaResposta",
+          value: response.content,
+          metadata: {
+            mode: promptResult.mode,
+            providerId: response.providerId,
+            providerKind: response.providerKind,
+            modelId: response.modelId,
+            finishReason: response.finishReason,
+            usage: response.usage,
+            createdAt: response.createdAt,
+          },
+        });
+        return;
+      }
 
       await webview.postMessage({
         type: "fimResposta",
@@ -219,6 +238,7 @@ export class ChatMessageRouter {
         timeout,
         temperature,
         topP,
+        stream,
       } = data.payload ?? {};
 
       this.deps.configManager.updateSecuritySettings({
@@ -233,6 +253,7 @@ export class ChatMessageRouter {
         temperature,
         topP,
         maxTokens,
+        stream,
       });
 
       const securitySettings =
@@ -245,20 +266,17 @@ export class ChatMessageRouter {
           ...securitySettings,
           temperature: llmDefaults.temperature,
           topP: llmDefaults.topP,
+          maxTokens: llmDefaults.maxTokens,
+          stream: llmDefaults.stream,
         },
       });
 
       vscode.window.showInformationMessage("Configurações de execução salvas.");
     } catch (error) {
-      const message = this.getErrorMessage(error, "Erro desconhecido");
-
-      await webview.postMessage({
-        type: "erro",
-        value: message,
-      });
-
-      vscode.window.showErrorMessage(
-        `Erro ao salvar configurações: ${message}`,
+      await this.postError(
+        webview,
+        error,
+        "Erro ao salvar configurações de segurança.",
       );
     }
   }
@@ -277,18 +295,15 @@ export class ChatMessageRouter {
           ...securitySettings,
           temperature: llmDefaults.temperature,
           topP: llmDefaults.topP,
+          maxTokens: llmDefaults.maxTokens,
+          stream: llmDefaults.stream,
         },
       });
     } catch (error) {
-      const message = this.getErrorMessage(error, "Erro desconhecido");
-
-      await webview.postMessage({
-        type: "erro",
-        value: message,
-      });
-
-      vscode.window.showErrorMessage(
-        `Erro ao carregar configurações: ${message}`,
+      await this.postError(
+        webview,
+        error,
+        "Erro ao carregar configurações de segurança.",
       );
     }
   }
@@ -353,17 +368,11 @@ export class ChatMessageRouter {
         "Comportamento do modelo salvo com sucesso.",
       );
     } catch (error) {
-      const message = this.getErrorMessage(
+      await this.postError(
+        webview,
         error,
         "Erro ao salvar comportamento do modelo.",
       );
-
-      await webview.postMessage({
-        type: "erro",
-        value: message,
-      });
-
-      vscode.window.showErrorMessage(message);
     }
   }
 
@@ -397,13 +406,13 @@ export class ChatMessageRouter {
     error: unknown,
     fallback: string,
   ): Promise<void> {
+    const errorMessage = error instanceof Error ? error.message : fallback;
+
+    vscode.window.showErrorMessage(`ATLAS: ${errorMessage}`);
+
     await webview.postMessage({
       type: "erro",
-      value: this.getErrorMessage(error, fallback),
+      value: errorMessage,
     });
-  }
-
-  private getErrorMessage(error: unknown, fallback: string): string {
-    return error instanceof Error ? error.message : fallback;
   }
 }

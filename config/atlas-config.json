@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-05-03T12:55:34.287Z",
+  "updatedAt": "2026-04-20T20:04:19.800Z",
   "general": {
     "theme": "system",
     "language": "pt-BR",
@@ -8,7 +8,7 @@
     "logLevel": "info"
   },
   "cloudSecurity": {
-    "confirmCloud": true,
+    "confirmCloud": false,
     "blockRag": false,
     "limitPayload": true,
     "maxTokens": 4096,
@@ -80,9 +80,9 @@
   },
   "custom": {
     "systemPrompt": {
-      "mode": "default",
-      "enabled": false,
-      "customInstructions": "Sempre me chame de Doutor. Responda sem markdown."
+      "mode": "custom",
+      "enabled": true,
+      "customInstructions": "Sempre me chame de Doutor."
     }
   },
   "providers": [
@@ -128,21 +128,5 @@
       "apiKeyPlaceholder": "xai-...",
       "kind": "openai-compatible"
     }
-  ],
-  "runtime": {
-    "mode": "local",
-    "preferGpu": true,
-    "fallbackToCpu": true
-  },
-  "llm": {
-    "activeModelId": null,
-    "defaults": {
-      "temperature": 0.2,
-      "maxTokens": 2048,
-      "topP": 0.95,
-      "stream": true,
-      "provider": "local"
-    },
-    "models": {}
-  }
+  ]
 }
