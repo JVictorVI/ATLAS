@@ -176,6 +176,8 @@ export class ChatMessageRouter {
             : undefined),
       });
 
+      const shouldStream =
+        this.deps.configManager.getConfig().llms.defaults.stream;
 
       const response = shouldStream
         ? await this.deps.cloudApiService.sendChat(
@@ -193,7 +195,6 @@ export class ChatMessageRouter {
             undefined,
             { signal: responseController.signal },
           );
-
 
       await webview.postMessage({
         type: "fimResposta",
@@ -467,5 +468,9 @@ export class ChatMessageRouter {
     } catch (error) {
       await this.postError(webview, error, "Erro ao alterar modo estudo.");
     }
+  }
+
+  private getErrorMessage(error: unknown, fallback: string): string {
+    return error instanceof Error ? error.message : fallback;
   }
 }

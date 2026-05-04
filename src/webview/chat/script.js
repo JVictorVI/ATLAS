@@ -23,6 +23,13 @@ let shortcutLoadingState = {
   architectureAnalysis: false,
 };
 
+if (typeof marked !== "undefined") {
+  marked.setOptions({
+    gfm: true,
+    breaks: true,
+  });
+}
+
 let isStudyModeEnabled = false;
 
 let modelsData = {
@@ -560,15 +567,52 @@ renderChatView();
 updateActiveTab("chat-btn");
 updateMainButton();
 
+function shouldUseWideMessage(content) {
+  const text = String(content || "");
+  const lines = text.split(/\r?\n/);
+  const longestLineLength = lines.reduce(
+    (longest, line) => Math.max(longest, line.length),
+    0,
+  );
+
+  return (
+    text.length > 700 ||
+    lines.length > 12 ||
+    longestLineLength > 95 ||
+    /```|^\s{0,3}\|.+\||^\s{0,3}#{1,4}\s|^\s{0,3}>\s/m.test(text)
+  );
+}
+
+function updateMessagePresentation(element, content, isMarkdown = false) {
+  if (!element) {
+    return;
+  }
+
+  element.classList.toggle("message-markdown", isMarkdown);
+  element.classList.toggle("message-wide", shouldUseWideMessage(content));
+}
+
+function renderMarkdownContent(element, content, includeCursor = false) {
+  try {
+    const html =
+      typeof marked !== "undefined" ? marked.parse(content) : String(content);
+    element.innerHTML =
+      html + (includeCursor ? "<span class='cursor'></span>" : "");
+  } catch (e) {
+    element.innerText = String(content) + (includeCursor ? " █" : "");
+  }
+}
+
 function addMessage(content, type, isMarkdown = false) {
   const chatContainer = getChatContainer();
   if (!chatContainer) return null;
 
   const div = document.createElement("div");
   div.className = "message " + type;
+  updateMessagePresentation(div, content, isMarkdown);
 
-  if (isMarkdown && typeof marked !== "undefined") {
-    div.innerHTML = marked.parse(content);
+  if (isMarkdown) {
+    renderMarkdownContent(div, content);
   } else {
     div.textContent = content;
   }
@@ -640,15 +684,12 @@ function finishCurrentBotMessage(cancelled = false) {
   isTyping = false;
 
   if (mensagemAtualBot) {
+    updateMessagePresentation(mensagemAtualBot, bufferResposta, true);
     const finalText = bufferResposta.trim();
 
     if (finalText) {
-      try {
-        mensagemAtualBot.innerHTML =
-          typeof marked !== "undefined" ? marked.parse(finalText) : finalText;
-      } catch (e) {
-        mensagemAtualBot.innerText = finalText;
-      }
+      updateMessagePresentation(mensagemAtualBot, finalText, true);
+      renderMarkdownContent(mensagemAtualBot, finalText);
     }
 
     if (cancelled) {
@@ -693,15 +734,8 @@ function processQueue() {
     if (finishPending) {
 
       if (mensagemAtualBot) {
-        try {
-          if (typeof marked !== "undefined" && bufferResposta) {
-            mensagemAtualBot.innerHTML = marked.parse(bufferResposta);
-          } else {
-            mensagemAtualBot.innerText = bufferResposta;
-          }
-        } catch (e) {
-          mensagemAtualBot.innerText = bufferResposta;
-        }
+        updateMessagePresentation(mensagemAtualBot, bufferResposta, true);
+        renderMarkdownContent(mensagemAtualBot, bufferResposta);
       }
       mensagemAtualBot = null;
       bufferResposta = "";
@@ -727,7 +761,8 @@ function processQueue() {
     try {
 
       if (typeof marked !== "undefined") {
-        mensagemAtualBot.innerHTML = marked.parse(bufferResposta) + "<span class='cursor'></span>";
+        updateMessagePresentation(mensagemAtualBot, bufferResposta, true);
+        renderMarkdownContent(mensagemAtualBot, bufferResposta, true);
       } else {
         mensagemAtualBot.innerText = bufferResposta + " █";
       }
