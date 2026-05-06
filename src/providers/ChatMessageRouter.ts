@@ -3,7 +3,6 @@ import { ApiKeyManager } from "../managers/ApiKeyManager";
 import { AtlasConfigManager } from "../managers/AtlasConfigManager";
 import { AtlasPromptAssemblyService } from "../prompt/AtlasPromptAssemblyService";
 import { AtlasPromptCustomizationService } from "../prompt/AtlasPromptCustomizationService";
-import { ChatMessage } from "../interfaces/ApiTypes";
 import { AtlasSession } from "../interfaces/AtlasHistoryTypes";
 import { CloudApiService } from "../services/CloudApiService";
 import { AtlasSessionService } from "../services/AtlasSessionService";
@@ -155,7 +154,8 @@ export class ChatMessageRouter {
     try {
       const session = this.deps.sessionService.ensureActiveSession();
       const editorContext = this.deps.getChatEditorContext();
-      const windowMessages = this.deps.sessionService.getWindowMessages(session);
+      const windowMessages =
+        this.deps.sessionService.getWindowMessages(session);
 
       const promptResult = this.deps.promptAssemblyService.buildMessages({
         userQuestion: data.value,
@@ -430,7 +430,7 @@ export class ChatMessageRouter {
         },
       });
 
-      vscode.window.showInformationMessage("Configuracoes de execucao salvas.");
+      vscode.window.showInformationMessage("Configurações de execução salvas.");
     } catch (error) {
       const message = this.getErrorMessage(error, "Erro desconhecido");
 
@@ -440,7 +440,7 @@ export class ChatMessageRouter {
       });
 
       vscode.window.showErrorMessage(
-        `Erro ao salvar configuracoes: ${message}`,
+        `Erro ao salvar configurações: ${message}`,
       );
     }
   }
@@ -472,7 +472,7 @@ export class ChatMessageRouter {
       });
 
       vscode.window.showErrorMessage(
-        `Erro ao carregar configuracoes: ${message}`,
+        `Erro ao carregar configurações: ${message}`,
       );
     }
   }

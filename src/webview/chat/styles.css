@@ -975,3 +975,19 @@ input {
   border-color: #fff2a8;
   box-shadow: 0 0 0 1px rgba(220, 220, 170, 0.25);
 }
+
+.streaming-message {
+  animation: atlasStreamFade 0.18s ease;
+}
+
+@keyframes atlasStreamFade {
+  from {
+    opacity: 0.72;
+    transform: translateY(1px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

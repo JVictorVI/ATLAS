@@ -16,9 +16,7 @@ let isLoadingCloudModels = false;
 let isGeneratingResponse = false;
 
 // --- VARIÁVEIS PARA O EFEITO MÁQUINA DE ESCREVER ---
-let renderQueue = "";
-let isTyping = false;
-let finishPending = false;
+let fadeFramePending = false;
 
 let shortcutLoadingState = {
   quickAnalysis: false,
@@ -71,6 +69,10 @@ newChatBtn?.addEventListener("click", () => {
     title: "Nova Sessão",
     autoTitle: true,
   });
+
+  // fecha automaticamente a sidebar
+  sidebar.classList.add("collapsed");
+  expandSidebarBtn.classList.remove("hidden");
 });
 
 function promptCreateSession() {
@@ -771,23 +773,25 @@ function setGenerationState(isGenerating) {
 }
 
 function finishCurrentBotMessage(cancelled = false) {
-  renderQueue = "";
-  finishPending = false;
-  isTyping = false;
+  fadeFramePending = false;
 
   if (mensagemAtualBot) {
+    mensagemAtualBot.classList.remove("streaming-message");
+
     updateMessagePresentation(mensagemAtualBot, bufferResposta, true);
+
     const finalText = bufferResposta.trim();
 
     if (finalText) {
-      updateMessagePresentation(mensagemAtualBot, finalText, true);
-      renderMarkdownContent(mensagemAtualBot, finalText);
+      renderMarkdownContent(mensagemAtualBot, finalText, false);
     }
 
     if (cancelled) {
       const status = document.createElement("div");
+
       status.className = "message-status";
       status.textContent = "Resposta interrompida.";
+
       mensagemAtualBot.appendChild(status);
     }
   } else if (cancelled) {
@@ -796,6 +800,7 @@ function finishCurrentBotMessage(cancelled = false) {
 
   mensagemAtualBot = null;
   bufferResposta = "";
+
   setGenerationState(false);
 }
 
@@ -847,58 +852,6 @@ searchBtn?.addEventListener("click", () => {
 
 // ── Message bus ───────────────────────────────────────────────────────────────
 
-function processQueue() {
-  if (isTyping) return;
-
-  if (renderQueue.length === 0) {
-    if (finishPending) {
-      if (mensagemAtualBot) {
-        updateMessagePresentation(mensagemAtualBot, bufferResposta, true);
-        renderMarkdownContent(mensagemAtualBot, bufferResposta);
-      }
-      mensagemAtualBot = null;
-      bufferResposta = "";
-      finishPending = false;
-      setGenerationState(false);
-    }
-    return;
-  }
-
-  isTyping = true;
-
-  let charsToType = 1;
-  if (renderQueue.length > 20) charsToType = 2;
-  if (renderQueue.length > 50) charsToType = 4;
-  if (renderQueue.length > 100) charsToType = 8;
-
-  const chunk = renderQueue.slice(0, charsToType);
-  renderQueue = renderQueue.slice(charsToType);
-
-  bufferResposta += chunk;
-
-  if (mensagemAtualBot) {
-    try {
-      if (typeof marked !== "undefined") {
-        updateMessagePresentation(mensagemAtualBot, bufferResposta, true);
-        renderMarkdownContent(mensagemAtualBot, bufferResposta, true);
-      } else {
-        mensagemAtualBot.innerText = bufferResposta + " █";
-      }
-    } catch (e) {
-      mensagemAtualBot.innerText = bufferResposta + " █";
-    }
-  }
-
-  const chatContainer = getChatContainer();
-  if (chatContainer) {
-    chatContainer.scrollTop = chatContainer.scrollHeight;
-  }
-
-  setTimeout(() => {
-    isTyping = false;
-    processQueue();
-  }, 15);
-}
 // --- ÚNICO OUVINTE DE MENSAGENS DO VS CODE ---
 window.addEventListener("message", (event) => {
   const message = event.data;
@@ -928,20 +881,61 @@ window.addEventListener("message", (event) => {
 
     case "respostaParcial": {
       removeLoading();
+
       if (!mensagemAtualBot) {
         bufferResposta = "";
-        renderQueue = "";
+
         mensagemAtualBot = addMessage("", "bot", false);
+
+        mensagemAtualBot.classList.add("streaming-message");
       }
 
-      renderQueue += message.value;
-      processQueue();
+      bufferResposta += message.value;
+
+      if (!fadeFramePending) {
+        fadeFramePending = true;
+
+        requestAnimationFrame(() => {
+          try {
+            if (mensagemAtualBot) {
+              updateMessagePresentation(mensagemAtualBot, bufferResposta, true);
+
+              renderMarkdownContent(mensagemAtualBot, bufferResposta, true);
+            }
+          } catch {
+            if (mensagemAtualBot) {
+              mensagemAtualBot.innerText = bufferResposta;
+            }
+          }
+
+          const chatContainer = getChatContainer();
+
+          if (chatContainer) {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+          }
+
+          fadeFramePending = false;
+        });
+      }
+
       break;
     }
 
     case "fimResposta": {
-      finishPending = true;
-      processQueue();
+      if (mensagemAtualBot) {
+        mensagemAtualBot.classList.remove("streaming-message");
+
+        updateMessagePresentation(mensagemAtualBot, bufferResposta, true);
+
+        renderMarkdownContent(mensagemAtualBot, bufferResposta, false);
+      }
+
+      mensagemAtualBot = null;
+      bufferResposta = "";
+      fadeFramePending = false;
+
+      setGenerationState(false);
+
       shortcutLoadingState.architectureAnalysis = false;
       setShortcutLoading("architecture-analysis", false);
 
@@ -961,17 +955,14 @@ window.addEventListener("message", (event) => {
       removeLoading();
       mensagemAtualBot = null;
       bufferResposta = "";
-      renderQueue = "";
-      finishPending = false;
-      isTyping = false;
       isLoadingCloudModels = false;
       setGenerationState(false);
-
+      fadeFramePending = false;
       shortcutLoadingState.quickAnalysis = false;
       shortcutLoadingState.architectureAnalysis = false;
       setShortcutLoading("quick-analysis", false);
       setShortcutLoading("architecture-analysis", false);
-      addMessage(message.value || "Ocorreu um erro.", "bot");
+      //addMessage(message.value || "Ocorreu um erro.", "bot");
       break;
     }
     case "analiseRapidaStatus": {

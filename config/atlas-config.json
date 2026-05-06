@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-05-06T14:31:36.281Z",
+  "updatedAt": "2026-05-06T15:52:55.921Z",
   "general": {
     "theme": "system",
     "language": "pt-BR",
@@ -48,7 +48,7 @@
       "temperature": 0.3,
       "maxTokens": 4096,
       "topP": 0.95,
-      "stream": false
+      "stream": true
     },
     "localModels": {
       "google/gemma-3-1b": {
