@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-05-06T12:33:57.862Z",
+  "updatedAt": "2026-05-04T14:37:00.106Z",
   "general": {
     "theme": "system",
     "language": "pt-BR",
@@ -41,7 +41,7 @@
       },
       "cloud": {
         "providerId": "Groq",
-        "activeModelId": "groq/compound"
+        "activeModelId": "openai/gpt-oss-120b"
       }
     },
     "defaults": {
@@ -130,12 +130,6 @@
       "baseUrl": "https://api.x.ai/v1",
       "apiKeyPlaceholder": "xai-...",
       "kind": "openai-compatible"
-    },
-    {
-      "id": "Local",
-      "label": "Local",
-      "baseUrl": "http://127.0.0.1:1234/v1",
-      "apiKeyPlaceholder": "Chave de API"
     }
   ],
   "runtime": {
