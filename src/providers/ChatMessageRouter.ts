@@ -1,9 +1,11 @@
 import * as vscode from "vscode";
 import { ApiKeyManager } from "../managers/ApiKeyManager";
 import { AtlasConfigManager } from "../managers/AtlasConfigManager";
-import { CloudApiService } from "../services/CloudApiService";
-import { AtlasPromptCustomizationService } from "../prompt/AtlasPromptCustomizationService";
 import { AtlasPromptAssemblyService } from "../prompt/AtlasPromptAssemblyService";
+import { AtlasPromptCustomizationService } from "../prompt/AtlasPromptCustomizationService";
+import { AtlasSession } from "../interfaces/AtlasHistoryTypes";
+import { CloudApiService } from "../services/CloudApiService";
+import { AtlasSessionService } from "../services/AtlasSessionService";
 
 type EditorContext = {
   document: vscode.TextDocument;
@@ -22,9 +24,9 @@ type RouterDependencies = {
   apiKeyManager: ApiKeyManager;
   configManager: AtlasConfigManager;
   cloudApiService: CloudApiService;
-
   promptCustomizationService: AtlasPromptCustomizationService;
   promptAssemblyService: AtlasPromptAssemblyService;
+  sessionService: AtlasSessionService;
   openPanel: (selectedView?: string) => void;
   sendModelsToWebview: (webview: vscode.Webview) => void;
   executeQuickAnalysis: (webview?: vscode.Webview) => Promise<void>;
@@ -47,73 +49,64 @@ export class ChatMessageRouter {
       return;
     }
 
-    if (data.type === "carregarLLMs") {
-      await this.handleLoadLlms(webview);
-      return;
-    }
-
-    if (data.type === "enviarPergunta") {
-      await this.handleSendQuestion(data, webview);
-      return;
-    }
-
-    if (data.type === "cancelarGeracao") {
-      await this.handleCancelGeneration(webview);
-      return;
-    }
-
-    if (data.type === "abrirPainelConfig") {
-      this.deps.openPanel(data.selectedView);
-      return;
-    }
-
-    if (data.type === "selecionarModo") {
-      await this.handleSelectMode(data, webview);
-      return;
-    }
-
-    if (data.type === "salvarConfiguracoesSeguranca") {
-      await this.handleSaveSecuritySettings(data, webview);
-      return;
-    }
-
-    if (data.type === "carregarConfiguracoesSeguranca") {
-      await this.handleLoadSecuritySettings(webview);
-      return;
-    }
-
-    if (data.type === "selecionarModelo") {
-      await this.handleSelectModel(data, webview);
-      return;
-    }
-
-    if (data.type === "carregarComportamentoModelo") {
-      await this.handleLoadModelBehavior(webview);
-      return;
-    }
-
-    if (data.type === "salvarComportamentoModelo") {
-      await this.handleSaveModelBehavior(data, webview);
-      return;
-    }
-
-    if (data.type === "selecionarProviderCloud") {
-      await this.handleSelectCloudProvider(data, webview);
-      return;
-    }
-
-    if (data.type === "requestModels") {
-      this.deps.sendModelsToWebview(webview);
-      return;
-    }
-
-    if (data.type === "executarAnaliseRapida") {
-      await this.deps.executeQuickAnalysis(webview);
-    }
-
-    if (data.type === "alterarModoEstudo") {
-      await this.handleToggleStudyMode(data, webview);
-      return;
+    switch (data.type) {
+      case "carregarLLMs":
+        await this.handleLoadLlms(webview);
+        return;
+      case "enviarPergunta":
+        await this.handleSendQuestion(data, webview);
+        return;
+      case "cancelarGeracao":
+        await this.handleCancelGeneration(webview);
+        return;
+      case "abrirPainelConfig":
+        this.deps.openPanel(data.selectedView);
+        return;
+      case "selecionarModo":
+        await this.handleSelectMode(data, webview);
+        return;
+      case "salvarConfiguracoesSeguranca":
+        await this.handleSaveSecuritySettings(data, webview);
+        return;
+      case "carregarConfiguracoesSeguranca":
+        await this.handleLoadSecuritySettings(webview);
+        return;
+      case "selecionarModelo":
+        await this.handleSelectModel(data, webview);
+        return;
+      case "carregarComportamentoModelo":
+        await this.handleLoadModelBehavior(webview);
+        return;
+      case "salvarComportamentoModelo":
+        await this.handleSaveModelBehavior(data, webview);
+        return;
+      case "selecionarProviderCloud":
+        await this.handleSelectCloudProvider(data, webview);
+        return;
+      case "requestModels":
+        this.deps.sendModelsToWebview(webview);
+        return;
+      case "executarAnaliseRapida":
+        await this.deps.executeQuickAnalysis(webview);
+        return;
+      case "alterarModoEstudo":
+        await this.handleToggleStudyMode(data, webview);
+        return;
+      case "criarSessao":
+        await this.handleCreateSession(data, webview);
+        return;
+      case "trocarSessao":
+        await this.handleSwitchSession(data, webview);
+        return;
+      case "excluirSessao":
+        await this.handleDeleteSession(data, webview);
+        return;
+      case "renomearSessao":
+        await this.handleRenameSession(data, webview);
+        return;
+      case "listarSessoes":
+        await this.handleListSessions(webview);
+        return;
     }
   }
 
@@ -159,11 +152,14 @@ export class ChatMessageRouter {
     this.activeResponseController = responseController;
 
     try {
+      const session = this.deps.sessionService.ensureActiveSession();
       const editorContext = this.deps.getChatEditorContext();
+      const windowMessages =
+        this.deps.sessionService.getWindowMessages(session);
 
       const promptResult = this.deps.promptAssemblyService.buildMessages({
         userQuestion: data.value,
-        history: [],
+        history: windowMessages,
         analysisContext: editorContext
           ? [this.deps.buildEditorAnalysisContext(editorContext)]
           : [],
@@ -174,6 +170,7 @@ export class ChatMessageRouter {
           (editorContext?.source === "selection"
             ? "developer-assistant"
             : undefined),
+        architecturalSummary: session.architecturalSummary || undefined,
       });
 
       const shouldStream =
@@ -196,34 +193,42 @@ export class ChatMessageRouter {
             { signal: responseController.signal },
           );
 
+      await this.deps.sessionService.appendMessage(session.id, {
+        role: "user",
+        content: data.value,
+      });
+
+      await this.deps.sessionService.appendMessage(session.id, {
+        role: "assistant",
+        content: response.content,
+      });
+
+      this.deps.sessionService.summarizeIfNeeded(session.id).catch((error) => {
+        console.warn("[ATLAS] Background summarization error:", error);
+      });
+
       if (!shouldStream) {
         await webview.postMessage({
           type: "novaResposta",
           value: response.content,
           metadata: {
-            mode: promptResult.mode,
-            providerId: response.providerId,
-            providerKind: response.providerKind,
-            modelId: response.modelId,
-            finishReason: response.finishReason,
-            usage: response.usage,
-            createdAt: response.createdAt,
+            ...this.buildResponseMetadata(promptResult.mode, response),
+            sessionId: session.id,
           },
         });
-        return;
+      } else {
+        await webview.postMessage({
+          type: "fimResposta",
+          metadata: {
+            ...this.buildResponseMetadata(promptResult.mode, response),
+            sessionId: session.id,
+          },
+        });
       }
 
       await webview.postMessage({
-        type: "fimResposta",
-        metadata: {
-          mode: promptResult.mode,
-          providerId: response.providerId,
-          providerKind: response.providerKind,
-          modelId: response.modelId,
-          finishReason: response.finishReason,
-          usage: response.usage,
-          createdAt: response.createdAt,
-        },
+        type: "sessoesAtualizadas",
+        value: this.deps.sessionService.listSessions(),
       });
     } catch (error) {
       if (CloudApiService.isAbortError(error)) {
@@ -250,6 +255,115 @@ export class ChatMessageRouter {
     }
 
     this.activeResponseController.abort();
+  }
+
+  private async handleCreateSession(
+    data: any,
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      const session = this.deps.sessionService.createSession(
+        data.title ?? "Nova Sessao",
+      );
+
+      await webview.postMessage({
+        type: "sessaoCriada",
+        value: {
+          session: this.serializeSessionForWebview(session),
+          sessions: this.deps.sessionService.listSessions(),
+        },
+      });
+    } catch (error) {
+      await this.postError(webview, error, "Erro ao criar sessao.");
+    }
+  }
+
+  private async handleSwitchSession(
+    data: any,
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      const session = this.deps.sessionService.switchSession(data.sessionId);
+
+      await webview.postMessage({
+        type: "sessaoTrocada",
+        value: {
+          session: this.serializeSessionForWebview(session),
+          sessions: this.deps.sessionService.listSessions(),
+        },
+      });
+    } catch (error) {
+      await this.postError(webview, error, "Erro ao trocar sessao.");
+    }
+  }
+
+  private async handleDeleteSession(
+    data: any,
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      this.deps.sessionService.deleteSession(data.sessionId);
+
+      const remaining = this.deps.sessionService.listSessions();
+      const activeSession =
+        remaining.length > 0
+          ? this.deps.sessionService.switchSession(remaining[0].id)
+          : null;
+
+      await webview.postMessage({
+        type: "sessaoExcluida",
+        value: {
+          deletedSessionId: data.sessionId,
+          sessions: remaining,
+          activeSession: activeSession
+            ? this.serializeSessionForWebview(activeSession)
+            : null,
+        },
+      });
+    } catch (error) {
+      await this.postError(webview, error, "Erro ao excluir sessao.");
+    }
+  }
+
+  private async handleRenameSession(
+    data: any,
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      const session = this.deps.sessionService.renameSession(
+        data.sessionId,
+        data.newTitle,
+      );
+
+      await webview.postMessage({
+        type: "sessaoRenomeada",
+        value: {
+          session: this.serializeSessionForWebview(session),
+          sessions: this.deps.sessionService.listSessions(),
+        },
+      });
+    } catch (error) {
+      await this.postError(webview, error, "Erro ao renomear sessao.");
+    }
+  }
+
+  private async handleListSessions(webview: vscode.Webview): Promise<void> {
+    try {
+      const activeSession = this.deps.sessionService.getActiveSession();
+
+      await webview.postMessage({
+        type: "sessoesListadas",
+        value: {
+          sessions: this.deps.sessionService.listSessions(),
+          activeSessionId: this.deps.sessionService.getActiveSessionId(),
+          activeSession: activeSession
+            ? this.serializeSessionForWebview(activeSession)
+            : null,
+        },
+      });
+    } catch (error) {
+      await this.postError(webview, error, "Erro ao listar sessoes.");
+    }
   }
 
   private async handleSelectMode(
@@ -462,21 +576,6 @@ export class ChatMessageRouter {
     }
   }
 
-  private async postError(
-    webview: vscode.Webview,
-    error: unknown,
-    fallback: string,
-  ): Promise<void> {
-    const message = this.getErrorMessage(error, fallback);
-
-    vscode.window.showErrorMessage(`ATLAS: ${message}`);
-
-    await webview.postMessage({
-      type: "erro",
-      value: message,
-    });
-  }
-
   private async handleToggleStudyMode(
     data: any,
     webview: vscode.Webview,
@@ -495,6 +594,52 @@ export class ChatMessageRouter {
     } catch (error) {
       await this.postError(webview, error, "Erro ao alterar modo estudo.");
     }
+  }
+
+  private serializeSessionForWebview(session: AtlasSession) {
+    return {
+      id: session.id,
+      title: session.title,
+      messages: session.messages
+        .filter((message) => message.role !== "system")
+        .map((message) => ({
+          role: message.role,
+          content: message.content,
+        })),
+      hasArchitecturalSummary: session.architecturalSummary.length > 0,
+      createdAt: session.createdAt,
+      updatedAt: session.updatedAt,
+    };
+  }
+
+  private buildResponseMetadata(
+    mode: string,
+    response: Awaited<ReturnType<CloudApiService["sendChat"]>>,
+  ) {
+    return {
+      mode,
+      providerId: response.providerId,
+      providerKind: response.providerKind,
+      modelId: response.modelId,
+      finishReason: response.finishReason,
+      usage: response.usage,
+      createdAt: response.createdAt,
+    };
+  }
+
+  private async postError(
+    webview: vscode.Webview,
+    error: unknown,
+    fallback: string,
+  ): Promise<void> {
+    const message = this.getErrorMessage(error, fallback);
+
+    vscode.window.showErrorMessage(`ATLAS: ${message}`);
+
+    await webview.postMessage({
+      type: "erro",
+      value: message,
+    });
   }
 
   private getErrorMessage(error: unknown, fallback: string): string {

@@ -7,6 +7,8 @@ export type AtlasPromptAssemblyInput = {
   ragContext?: string[];
   hasCodeContext?: boolean;
   forcedMode?: AtlasPromptMode;
+  /** Long-term architectural memory injected from the active session */
+  architecturalSummary?: string;
 };
 
 export type AtlasPromptAssemblyResult = {

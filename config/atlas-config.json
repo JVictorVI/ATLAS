@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-05-06T13:51:32.520Z",
+  "updatedAt": "2026-05-06T15:52:55.921Z",
   "general": {
     "theme": "system",
     "language": "pt-BR",
@@ -23,11 +23,7 @@
     "offlineOnly": true,
     "chunkSize": 1000,
     "chunkOverlap": 200,
-    "ignoredPaths": [
-      "node_modules",
-      "dist",
-      ".git"
-    ]
+    "ignoredPaths": ["node_modules", "dist", ".git"]
   },
   "ui": {
     "defaultView": "chat",
@@ -64,9 +60,7 @@
           "contextWindow": 4096
         },
         "metadata": {
-          "tags": [
-            "1B"
-          ],
+          "tags": ["1B"],
           "quantization": "Q4_K_M",
           "size": "720.5 MB",
           "installedAt": "2026-02-16T10:00:00Z"
