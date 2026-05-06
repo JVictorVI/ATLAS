@@ -724,6 +724,7 @@ libraryBtn?.addEventListener("click", () => {
 
 searchBtn?.addEventListener("click", () => {
   updateActiveTab("search-btn");
+  renderSearchView();
 });
 
 
@@ -932,7 +933,80 @@ function renderConfigView() {
     vscode.postMessage({ type: "abrirPainelConfig", selectedView: "config" });
   });
 }
+function renderSearchView() {
+  currentView = "search";
+  
+  // Criamos um layout com a sidebar na esquerda e uma área vazia na direita
+  contentContainer.innerHTML = `
+    <div class="search-layout">
+      <!-- PARTE DA ESQUERDA: Lista de Agentes -->
+      <div class="search-sidebar">
+        <div class="search-input-wrapper">
+          <input type="text" id="model-search" placeholder="Pesquisar modelos..." />
+        </div>
+        <div class="search-results-info">
+          <i class="codicon codicon-chevron-down"></i> 3 RESULTADOS ENCONTRADOS
+        </div>
+        
+        <div class="model-list">
+          <!-- Card 1 (Ativo por padrão) -->
+          <div class="model-card active" data-id="qwen3-coder-30b">
+            <div class="model-badge">30B</div>
+            <div class="model-card-info">
+              <span class="model-card-name">qwen3-coder-30b</span>
+              <span class="model-card-author"><i class="codicon codicon-organization"></i> Qwen</span>
+              <div class="model-card-footer">
+                <span>Atualizado em 23/01/2025</span>
+                <span><i class="codicon codicon-download"></i> 23.245</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Card 2 -->
+          <div class="model-card" data-id="phi-4-gguf">
+            <div class="model-badge">15B</div>
+            <div class="model-card-info">
+              <span class="model-card-name">phi-4-gguf</span>
+              <span class="model-card-author"><i class="codicon codicon-organization"></i> Microsoft</span>
+              <div class="model-card-footer">
+                <span>Atualizado em 18/06/2024</span>
+                <span><i class="codicon codicon-download"></i> 710.171</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Card 3 -->
+          <div class="model-card" data-id="gemma-3-27b-it">
+            <div class="model-badge">27B</div>
+            <div class="model-card-info">
+              <span class="model-card-name">gemma-3-27b-it</span>
+              <span class="model-card-author"><i class="codicon codicon-organization"></i> Google</span>
+              <div class="model-card-footer">
+                <span>Atualizado em 28/11/2024</span>
+                <span><i class="codicon codicon-download"></i> 140.294</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
+      <!-- PARTE DA DIREITA: Vazia para fazer depois -->
+      <div class="search-content" id="agent-details-container">
+         <!-- O resto do protótipo será renderizado aqui futuramente -->
+      </div>
+    </div>
+  `;
+
+
+  document.querySelectorAll('.model-card').forEach(card => {
+    card.addEventListener('click', () => {
+      // Remove a classe 'active' de todos os cards
+      document.querySelectorAll('.model-card').forEach(c => c.classList.remove('active'));
+      // Adiciona a classe 'active' apenas no card clicado
+      card.classList.add('active');
+    });
+  });
+}
 function renderLibraryView() {
   currentView = "library";
   contentContainer.innerHTML = ``;

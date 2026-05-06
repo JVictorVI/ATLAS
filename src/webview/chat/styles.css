@@ -726,3 +726,129 @@ input {
   border-color: #fff2a8;
   box-shadow: 0 0 0 1px rgba(220, 220, 170, 0.25);
 }
+/* --- TELA DE PESQUISA --- */
+.search-layout {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  flex: 1;
+}
+
+.search-sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  flex: 1; /* O segredo está aqui: faz a lista esticar e devorar o espaço vazio */
+  width: 100%;
+  background-color: var(--vscode-sideBar-background);
+}
+
+.search-content {
+  display: none; /* Mantemos a tela da direita escondida por enquanto */
+}
+
+/* Garante que o input, o cabeçalho e os cards se estiquem junto com a sidebar */
+.search-input-wrapper,
+.search-results-info,
+.model-card {
+  width: 100%;
+  box-sizing: border-box; 
+}
+
+.search-input-wrapper {
+  padding: 12px;
+  border-bottom: 1px solid var(--vscode-widget-border);
+}
+
+#model-search {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border, var(--vscode-widget-border));
+  border-radius: 4px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.search-results-info {
+  padding: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--vscode-descriptionForeground);
+  border-bottom: 1px solid var(--vscode-widget-border);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.model-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.model-card {
+  display: flex;
+  align-items: center;
+  padding: 16px 12px;
+  border-bottom: 1px solid var(--vscode-widget-border);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.model-card:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.model-card.active {
+  background: var(--vscode-list-activeSelectionBackground);
+  border-left: 3px solid var(--vscode-activityBarBadge-background);
+}
+
+.model-badge {
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  border: 1px solid var(--vscode-widget-border);
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-right: 12px;
+  min-width: 32px;
+  text-align: center;
+}
+
+.model-card.active .model-badge {
+  border-color: transparent;
+}
+
+.model-card-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.model-card-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--vscode-foreground);
+  margin-bottom: 4px;
+}
+
+.model-card-author {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.model-card-footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  width: 100%;
+}
