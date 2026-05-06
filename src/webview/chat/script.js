@@ -34,15 +34,6 @@ if (typeof marked !== "undefined") {
 
 let isStudyModeEnabled = false;
 
-if (typeof marked !== "undefined") {
-  marked.setOptions({
-    gfm: true,
-    breaks: true,
-  });
-}
-
-let isStudyModeEnabled = false;
-
 let modelsData = { local: { name: "Local", type: "local", models: [] } };
 let selectedMode = "local";
 let selectedProvider = null;
@@ -53,9 +44,9 @@ function requestLatestLlmState() {
 }
 
 // Session state
-let activeSessions = [];       // AtlasSessionSummary[]
-let activeSessionId = null;    // string | null
-let editingSessionId = null;   // string | null (for inline rename)
+let activeSessions = []; // AtlasSessionSummary[]
+let activeSessionId = null; // string | null
+let editingSessionId = null; // string | null (for inline rename)
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 
@@ -127,8 +118,13 @@ function renderSessionList() {
     li.className = `session-item${session.id === activeSessionId ? " active" : ""}`;
     li.dataset.id = session.id;
 
-    const icon = session.hasArchitecturalSummary ? "codicon-history" : "codicon-comment-discussion";
-    const msgCount = session.messageCount > 0 ? `<span class="session-count">${session.messageCount}</span>` : "";
+    const icon = session.hasArchitecturalSummary
+      ? "codicon-history"
+      : "codicon-comment-discussion";
+    const msgCount =
+      session.messageCount > 0
+        ? `<span class="session-count">${session.messageCount}</span>`
+        : "";
 
     li.innerHTML = `
       <i class="codicon ${icon} session-icon"></i>
@@ -187,15 +183,23 @@ function startInlineRename(li, session) {
   function commit() {
     const newTitle = input.value.trim();
     if (newTitle && newTitle !== originalTitle) {
-      vscode.postMessage({ type: "renomearSessao", sessionId: session.id, newTitle });
+      vscode.postMessage({
+        type: "renomearSessao",
+        sessionId: session.id,
+        newTitle,
+      });
     } else {
       input.replaceWith(labelEl);
     }
   }
 
   input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") { commit(); }
-    if (e.key === "Escape") { input.replaceWith(labelEl); }
+    if (e.key === "Enter") {
+      commit();
+    }
+    if (e.key === "Escape") {
+      input.replaceWith(labelEl);
+    }
   });
 
   input.addEventListener("blur", () => {
@@ -238,7 +242,9 @@ function loadChatMessages(session) {
 document.addEventListener("click", (e) => {
   const popover = document.getElementById("agent-popover");
   const btn = document.getElementById("open-popover");
-  document.querySelectorAll(".dropdown-list").forEach((list) => list.classList.add("hidden"));
+  document
+    .querySelectorAll(".dropdown-list")
+    .forEach((list) => list.classList.add("hidden"));
   if (popover && btn && !popover.classList.contains("hidden")) {
     if (!popover.contains(e.target) && !btn.contains(e.target)) {
       popover.classList.add("hidden");
@@ -247,7 +253,9 @@ document.addEventListener("click", (e) => {
 });
 
 function updateActiveTab(activeId) {
-  document.querySelectorAll(".navbar button").forEach((btn) => btn.classList.remove("active"));
+  document
+    .querySelectorAll(".navbar button")
+    .forEach((btn) => btn.classList.remove("active"));
   document.getElementById(activeId)?.classList.add("active");
 }
 
@@ -310,10 +318,16 @@ function renderChatView() {
 // ── Model popover ─────────────────────────────────────────────────────────────
 
 function hydratemodelsDataFromBackend(payload) {
-  modelsData = { local: { name: "Local", type: "local", models: payload.localModels || [] } };
+  modelsData = {
+    local: { name: "Local", type: "local", models: payload.localModels || [] },
+  };
 
   for (const provider of payload.providers || []) {
-    modelsData[provider.id] = { name: provider.name, type: "cloud", models: provider.models || [] };
+    modelsData[provider.id] = {
+      name: provider.name,
+      type: "cloud",
+      models: provider.models || [],
+    };
   }
 
   selectedMode = payload.selectedMode || "local";
@@ -321,7 +335,10 @@ function hydratemodelsDataFromBackend(payload) {
 
   if (selectedMode === "local") {
     const localModels = modelsData.local?.models || [];
-    selectedModel = localModels.find((m) => m.id === payload.selectedLocalModelId) || localModels[0] || null;
+    selectedModel =
+      localModels.find((m) => m.id === payload.selectedLocalModelId) ||
+      localModels[0] ||
+      null;
   } else {
     selectedModel = payload.selectedCloudModelId
       ? { id: payload.selectedCloudModelId, name: payload.selectedCloudModelId }
@@ -335,7 +352,10 @@ function hydratemodelsDataFromBackend(payload) {
 
   if (selectedMode === "cloud" && selectedProvider) {
     isLoadingCloudModels = true;
-    vscode.postMessage({ type: "selecionarProviderCloud", providerId: selectedProvider });
+    vscode.postMessage({
+      type: "selecionarProviderCloud",
+      providerId: selectedProvider,
+    });
   }
 
   applyStudyModeState(payload.studyModeEnabled === true);
@@ -356,36 +376,56 @@ function renderPopoverContent() {
   const popover = document.getElementById("agent-popover");
   if (!popover) return;
 
-  const cloudProviders = Object.entries(modelsData).filter(([, val]) => val.type === "cloud");
+  const cloudProviders = Object.entries(modelsData).filter(
+    ([, val]) => val.type === "cloud",
+  );
   const localModels = modelsData.local?.models || [];
-  const cloudModels = selectedProvider && modelsData[selectedProvider] ? modelsData[selectedProvider].models || [] : [];
-  const providerText = selectedProvider && modelsData[selectedProvider] ? modelsData[selectedProvider].name : "Selecione um provedor";
+  const cloudModels =
+    selectedProvider && modelsData[selectedProvider]
+      ? modelsData[selectedProvider].models || []
+      : [];
+  const providerText =
+    selectedProvider && modelsData[selectedProvider]
+      ? modelsData[selectedProvider].name
+      : "Selecione um provedor";
   const modelText = selectedModel ? selectedModel.name : "Selecione um modelo";
 
   const localModelListHtml = localModels.length
-    ? localModels.map((m) => `
+    ? localModels
+        .map(
+          (m) => `
         <div class="dropdown-item model-item ${selectedModel?.id === m.id && selectedMode === "local" ? "selected" : ""}"
           data-mode="local" data-value="${m.id}" data-name="${m.name}" title="${m.name}">
           <span class="dropdown-item-label">${m.name}</span>
-        </div>`).join("")
+        </div>`,
+        )
+        .join("")
     : `<div class="dropdown-empty">Nenhum modelo local encontrado</div>`;
 
   const providerListHtml = cloudProviders.length
-    ? cloudProviders.map(([key, val]) => `
+    ? cloudProviders
+        .map(
+          ([key, val]) => `
         <div class="dropdown-item provider-item ${selectedProvider === key ? "selected" : ""}"
           data-value="${key}" title="${val.name}">
           <span class="dropdown-item-label">${val.name}</span>
-        </div>`).join("")
+        </div>`,
+        )
+        .join("")
     : `<div class="dropdown-empty">Nenhum provedor encontrado</div>`;
 
   const cloudModelListHtml = isLoadingCloudModels
     ? `<div class="dropdown-loading"><div class="spinner small"></div><span>Buscando modelos...</span></div>`
     : cloudModels.length
-      ? cloudModels.map((m) => `
+      ? cloudModels
+          .map(
+            (m) => `
           <div class="dropdown-item model-item ${selectedModel?.id === m.id && selectedMode === "cloud" ? "selected" : ""}"
             data-mode="cloud" data-value="${m.id}" data-name="${m.name}" title="${m.name}">
             <span class="dropdown-item-label">${m.name}</span>
-          </div>`).join("")
+          </div>`,
+          )
+          .join("")
       : `<div class="dropdown-empty">Nenhum modelo carregado</div>`;
 
   popover.innerHTML = `
@@ -398,15 +438,16 @@ function renderPopoverContent() {
         <i class="codicon codicon-cloud"></i>
       </button>
     </div>
-    ${selectedMode === "local"
-      ? `<div class="custom-dropdown">
+    ${
+      selectedMode === "local"
+        ? `<div class="custom-dropdown">
           <button class="popover-dropdown-btn" id="btn-model">
             <span class="truncate">${modelText}</span>
             <i class="codicon codicon-chevron-down"></i>
           </button>
           <div class="dropdown-list dropdown-scroll hidden" id="list-model">${localModelListHtml}</div>
         </div>`
-      : `<div class="custom-dropdown">
+        : `<div class="custom-dropdown">
           <button class="popover-dropdown-btn" id="btn-provider">
             <span class="truncate">${providerText}</span>
             <i class="codicon codicon-chevron-down"></i>
@@ -446,7 +487,10 @@ function renderPopoverContent() {
       if (selectedProvider) {
         isLoadingCloudModels = true;
         renderPopoverContent();
-        vscode.postMessage({ type: "selecionarProviderCloud", providerId: selectedProvider });
+        vscode.postMessage({
+          type: "selecionarProviderCloud",
+          providerId: selectedProvider,
+        });
       }
     }
   });
@@ -466,7 +510,10 @@ function renderPopoverContent() {
       isLoadingCloudModels = true;
       renderPopoverContent();
       updateMainButton();
-      vscode.postMessage({ type: "selecionarProviderCloud", providerId: selectedProvider });
+      vscode.postMessage({
+        type: "selecionarProviderCloud",
+        providerId: selectedProvider,
+      });
     });
   });
 
@@ -480,11 +527,18 @@ function renderPopoverContent() {
   document.querySelectorAll(".model-item").forEach((item) => {
     item.addEventListener("click", (e) => {
       e.stopPropagation();
-      selectedModel = { id: item.getAttribute("data-value"), name: item.getAttribute("data-name") };
+      selectedModel = {
+        id: item.getAttribute("data-value"),
+        name: item.getAttribute("data-name"),
+      };
       document.getElementById("list-model")?.classList.add("hidden");
       renderPopoverContent();
       updateMainButton();
-      vscode.postMessage({ type: "selecionarModelo", mode: item.getAttribute("data-mode"), modelId: selectedModel.id });
+      vscode.postMessage({
+        type: "selecionarModelo",
+        mode: item.getAttribute("data-mode"),
+        modelId: selectedModel.id,
+      });
     });
   });
 }
@@ -493,10 +547,15 @@ function updateMainButton() {
   const mainBtnText = document.getElementById("main-btn-text");
   if (!mainBtnText) return;
   if (selectedMode === "local") {
-    mainBtnText.textContent = selectedModel ? selectedModel.name : "Selecionar modelo local";
+    mainBtnText.textContent = selectedModel
+      ? selectedModel.name
+      : "Selecionar modelo local";
     return;
   }
-  const providerName = selectedProvider && modelsData[selectedProvider] ? modelsData[selectedProvider].name : "Nuvem";
+  const providerName =
+    selectedProvider && modelsData[selectedProvider]
+      ? modelsData[selectedProvider].name
+      : "Nuvem";
   mainBtnText.textContent = `${providerName} · ${selectedModel ? selectedModel.name : "Selecionar modelo"}`;
 }
 
@@ -512,19 +571,9 @@ function setupChatEvents() {
     "architeture-analysis-btn",
   );
   const studyModeBtn = document.getElementById("study-mode-btn");
-  const architetureAnalysisBtn = document.getElementById("architeture-analysis-btn");
 
   if (!input || !btn) return;
 
-  popoverBtn?.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (agentPopover.classList.contains("hidden")) {
-      agentPopover.classList.remove("hidden");
-      renderPopoverContent();
-    } else {
-      agentPopover.classList.add("hidden");
-    }
-  });
   if (popoverBtn && agentPopover) {
     popoverBtn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -544,18 +593,6 @@ function setupChatEvents() {
     shortcutLoadingState.quickAnalysis = true;
     setShortcutLoading("quick-analysis", true);
     vscode.postMessage({ type: "executarAnaliseRapida" });
-  });
-
-  architetureAnalysisBtn?.addEventListener("click", () => {
-    if (shortcutLoadingState.architectureAnalysis) return;
-    shortcutLoadingState.architectureAnalysis = true;
-    setShortcutLoading("architecture-analysis", true);
-    vscode.postMessage({
-      type: "enviarPergunta",
-      value: "Realize uma análise arquitetural deste código.",
-      selectedView: currentView,
-      agentId: selectedModel ? selectedModel.id : null,
-    });
   });
   if (architetureAnalysisBtn) {
     architetureAnalysisBtn.addEventListener("click", () => {
@@ -614,14 +651,8 @@ function setupChatEvents() {
   }
 
   btn.addEventListener("click", enviarPergunta);
-  input.addEventListener("keydown", (e) => { if (e.key === "Enter") enviarPergunta(); });
-}
-
-function cancelarGeracao() {
-  if (!isGeneratingResponse) return;
-
-  vscode.postMessage({
-    type: "cancelarGeracao",
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") enviarPergunta();
   });
 }
 
@@ -632,10 +663,6 @@ function cancelarGeracao() {
     type: "cancelarGeracao",
   });
 }
-
-renderChatView();
-updateActiveTab("chat-btn");
-updateMainButton();
 
 function shouldUseWideMessage(content) {
   const text = String(content || "");
@@ -710,7 +737,11 @@ function showLoading() {
 
 function removeLoading() {
   const chatContainer = getChatContainer();
-  if (loadingElement && chatContainer && loadingElement.parentNode === chatContainer) {
+  if (
+    loadingElement &&
+    chatContainer &&
+    loadingElement.parentNode === chatContainer
+  ) {
     chatContainer.removeChild(loadingElement);
   }
   loadingElement = null;
@@ -786,20 +817,29 @@ function renderLibraryView() {
 
 // ── Navbar wiring ─────────────────────────────────────────────────────────────
 
-configBtn?.addEventListener("click", () => { renderConfigView(); updateActiveTab("config-panel-btn"); });
-chatgBtn?.addEventListener("click", () => { renderChatView(); updateActiveTab("chat-btn"); });
-libraryBtn?.addEventListener("click", () => { renderLibraryView(); updateActiveTab("library-btn"); });
-searchBtn?.addEventListener("click", () => { updateActiveTab("search-btn"); });
+configBtn?.addEventListener("click", () => {
+  renderConfigView();
+  updateActiveTab("config-panel-btn");
+});
+chatgBtn?.addEventListener("click", () => {
+  renderChatView();
+  updateActiveTab("chat-btn");
+});
+libraryBtn?.addEventListener("click", () => {
+  renderLibraryView();
+  updateActiveTab("library-btn");
+});
+searchBtn?.addEventListener("click", () => {
+  updateActiveTab("search-btn");
+});
 
 // ── Message bus ───────────────────────────────────────────────────────────────
-
 
 function processQueue() {
   if (isTyping) return;
 
   if (renderQueue.length === 0) {
     if (finishPending) {
-
       if (mensagemAtualBot) {
         updateMessagePresentation(mensagemAtualBot, bufferResposta, true);
         renderMarkdownContent(mensagemAtualBot, bufferResposta);
@@ -826,7 +866,6 @@ function processQueue() {
 
   if (mensagemAtualBot) {
     try {
-
       if (typeof marked !== "undefined") {
         updateMessagePresentation(mensagemAtualBot, bufferResposta, true);
         renderMarkdownContent(mensagemAtualBot, bufferResposta, true);
@@ -882,18 +921,18 @@ window.addEventListener("message", (event) => {
         renderQueue = "";
         mensagemAtualBot = addMessage("", "bot", false);
       }
-      
+
       renderQueue += message.value;
       processQueue();
       break;
     }
 
-case "fimResposta": {
+    case "fimResposta": {
       finishPending = true;
-      processQueue(); 
+      processQueue();
       shortcutLoadingState.architectureAnalysis = false;
       setShortcutLoading("architecture-analysis", false);
-      
+
       break;
     }
 
@@ -910,7 +949,7 @@ case "fimResposta": {
       removeLoading();
       mensagemAtualBot = null;
       bufferResposta = "";
-      renderQueue = ""; 
+      renderQueue = "";
       finishPending = false;
       isTyping = false;
       isLoadingCloudModels = false;
@@ -927,7 +966,7 @@ case "fimResposta": {
       const isLoading = !!message.value?.loading;
       shortcutLoadingState.quickAnalysis = isLoading;
       setShortcutLoading("quick-analysis", isLoading);
-      
+
       const quickAnalysisBtn = document.getElementById("quick-analysis-btn");
       if (quickAnalysisBtn) {
         quickAnalysisBtn.disabled = isLoading;
@@ -950,10 +989,12 @@ case "fimResposta": {
       isLoadingCloudModels = false;
       if (selectedMode === "cloud" && selectedProvider === providerId) {
         const prevId = selectedModel?.id;
-        selectedModel = models.find((m) => m.id === prevId) || models[0] || null;
+        selectedModel =
+          models.find((m) => m.id === prevId) || models[0] || null;
         updateMainButton();
         const popover = document.getElementById("agent-popover");
-        if (popover && !popover.classList.contains("hidden")) renderPopoverContent();
+        if (popover && !popover.classList.contains("hidden"))
+          renderPopoverContent();
       }
       break;
     }
@@ -994,34 +1035,6 @@ case "fimResposta": {
       break;
     }
 
-    case "modoEstudoAtualizado": {
-      applyStudyModeState(message.value?.enabled === true);
-      break;
-    }
-  }
-});
-
-function renderConfigView() {
-  currentView = "config";
-
-  contentContainer.innerHTML = `
-        <div id="settings-view">
-            <button id="keys-btn" class="settings-option">Chaves de API</button>
-        </div>
-    `;
-
-  document.getElementById("keys-btn")?.addEventListener("click", () => {
-    vscode.postMessage({ type: "abrirPainelConfig", selectedView: "config" });
-  });
-}
-
-function renderLibraryView() {
-  currentView = "library";
-  contentContainer.innerHTML = ``;
-  vscode.postMessage({ type: "abrirPainelConfig", selectedView: "library" });
-}
-
-requestLatestLlmState();
     case "sessaoExcluida": {
       activeSessions = message.value.sessions || [];
       activeSessionId = message.value.activeSession?.id || null;
@@ -1029,8 +1042,7 @@ requestLatestLlmState();
       if (message.value.activeSession) {
         loadChatMessages(message.value.activeSession);
       } else {
-        // All sessions deleted — create a fresh one automatically
-        vscode.postMessage({ type: "criarSessao", title: "Nova Sessão" });
+        vscode.postMessage({ type: "criarSessao", title: "Nova Sessao" });
       }
       break;
     }
@@ -1046,22 +1058,29 @@ requestLatestLlmState();
       renderSessionList();
       break;
     }
+
+    case "modoEstudoAtualizado": {
+      applyStudyModeState(message.value?.enabled === true);
+      break;
+    }
   }
 });
 
-// ── Shortcuts helpers ─────────────────────────────────────────────────────────
-
 function getShortcutButton(action) {
-  if (action === "quick-analysis") return document.getElementById("quick-analysis-btn");
-  if (action === "architecture-analysis") return document.getElementById("architeture-analysis-btn");
+  if (action === "quick-analysis")
+    return document.getElementById("quick-analysis-btn");
+  if (action === "architecture-analysis")
+    return document.getElementById("architeture-analysis-btn");
   return null;
 }
 
 function setShortcutLoading(action, isLoading) {
   const button = getShortcutButton(action);
   if (!button) return;
-  const originalLabel = button.dataset.originalLabel?.trim() || button.textContent.trim();
-  if (!button.dataset.originalLabel) button.dataset.originalLabel = originalLabel;
+  const originalLabel =
+    button.dataset.originalLabel?.trim() || button.textContent.trim();
+  if (!button.dataset.originalLabel)
+    button.dataset.originalLabel = originalLabel;
   button.disabled = isLoading;
   button.classList.toggle("loading", isLoading);
   if (isLoading) {
@@ -1099,44 +1118,6 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 }
-
-// ── Init ──────────────────────────────────────────────────────────────────────
-
-renderChatView();
-updateActiveTab("chat-btn");
-updateMainButton();
-vscode.postMessage({ type: "carregarLLMs" });
-
-function applyStudyModeState(enabled) {
-  isStudyModeEnabled = enabled === true;
-
-  const studyModeBtn = document.getElementById("study-mode-btn");
-  const input = document.getElementById("pergunta");
-
-  if (studyModeBtn) {
-    studyModeBtn.classList.toggle("active", isStudyModeEnabled);
-    studyModeBtn.title = isStudyModeEnabled
-      ? "Modo Estudo ativado"
-      : "Modo Estudo desativado";
-  }
-
-  if (input) {
-    input.placeholder = isStudyModeEnabled
-      ? "Perguntar ao ATLAS em modo estudo"
-      : "Perguntar ao ATLAS";
-  }
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-// ── Init ──────────────────────────────────────────────────────────────────────
 
 renderChatView();
 updateActiveTab("chat-btn");
