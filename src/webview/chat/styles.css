@@ -726,7 +726,6 @@ input {
   border-color: #fff2a8;
   box-shadow: 0 0 0 1px rgba(220, 220, 170, 0.25);
 }
-
 /* --- TELA DE PESQUISA (LUPA) --- */
 .search-layout {
   display: flex;
@@ -738,8 +737,7 @@ input {
   display: flex;
   flex-direction: column;
   height: 100%;
-  width: 100%; /* Pode diminuir depois se for usar uma visão dividida */
-  border-right: 1px solid var(--vscode-widget-border);
+  width: 100%; /* Garante que ocupe todo o painel lateral */
 }
 
 .search-input-wrapper {
@@ -747,7 +745,6 @@ input {
   padding: 10px 14px;
   display: flex;
   align-items: center;
-  border-bottom: 1px solid var(--vscode-widget-border);
 }
 
 #model-search {
@@ -755,8 +752,8 @@ input {
   background: var(--vscode-input-background);
   color: var(--vscode-input-foreground);
   border: 1px solid var(--vscode-input-border, transparent);
-  padding: 6px 28px 6px 8px; /* Espaço na direita para o ícone */
-  border-radius: 2px;
+  padding: 6px 28px 6px 8px;
+  border-radius: 4px;
   outline: none;
   font-family: inherit;
 }
@@ -774,14 +771,17 @@ input {
 }
 
 .search-results-info {
-  padding: 10px 14px;
+  padding: 8px 14px;
   font-size: 10px;
   color: var(--vscode-descriptionForeground);
   text-transform: uppercase;
   display: flex;
   align-items: center;
   gap: 6px;
+  background-color: rgba(0, 0, 0, 0.15); /* Fundo ligeiramente mais escuro */
+  border-top: 1px solid var(--vscode-widget-border);
   border-bottom: 1px solid var(--vscode-widget-border);
+  font-weight: 600;
 }
 
 .model-list {
@@ -794,7 +794,7 @@ input {
 .model-card {
   display: flex;
   gap: 12px;
-  padding: 14px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--vscode-widget-border);
   cursor: pointer;
   transition: background-color 0.1s ease;
@@ -805,34 +805,37 @@ input {
 }
 
 .model-card.active {
-  /* Usando a cor de seleção padrão do VS Code para o card ativo */
-  background-color: var(--vscode-list-inactiveSelectionBackground, rgba(9, 71, 113, 0.4));
+  background-color: var(--vscode-list-activeSelectionBackground, #094771);
+  color: var(--vscode-list-activeSelectionForeground, #ffffff);
 }
 
 .model-badge {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 36px;
-  height: 36px;
+  min-width: 38px;
+  height: 38px;
   border: 1px solid var(--vscode-widget-border);
   border-radius: 4px;
   font-weight: 600;
   font-size: 13px;
-  color: var(--vscode-foreground);
+  color: inherit; /* Herda a cor para ficar branco quando o card estiver ativo */
+}
+
+.model-card.active .model-badge {
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 .model-card-info {
   display: flex;
   flex-direction: column;
   flex: 1;
-  gap: 6px;
+  gap: 4px;
 }
 
 .model-card-name {
   font-size: 14px;
   font-weight: 500;
-  color: var(--vscode-foreground);
 }
 
 .model-card-author {
@@ -847,11 +850,18 @@ input {
   width: fit-content;
 }
 
+/* Transições suaves nas cores quando o item está selecionado */
+.model-card.active .model-card-author,
+.model-card.active .model-card-footer span {
+  color: rgba(255, 255, 255, 0.8);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
 .model-card-footer {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .model-card-footer span {
