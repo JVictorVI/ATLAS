@@ -726,129 +726,145 @@ input {
   border-color: #fff2a8;
   box-shadow: 0 0 0 1px rgba(220, 220, 170, 0.25);
 }
-/* --- TELA DE PESQUISA --- */
+
+/* --- TELA DE PESQUISA (LUPA) --- */
 .search-layout {
   display: flex;
   height: 100%;
   width: 100%;
-  flex: 1;
 }
 
 .search-sidebar {
   display: flex;
   flex-direction: column;
   height: 100%;
-  flex: 1; /* O segredo está aqui: faz a lista esticar e devorar o espaço vazio */
-  width: 100%;
-  background-color: var(--vscode-sideBar-background);
-}
-
-.search-content {
-  display: none; /* Mantemos a tela da direita escondida por enquanto */
-}
-
-/* Garante que o input, o cabeçalho e os cards se estiquem junto com a sidebar */
-.search-input-wrapper,
-.search-results-info,
-.model-card {
-  width: 100%;
-  box-sizing: border-box; 
+  width: 100%; /* Pode diminuir depois se for usar uma visão dividida */
+  border-right: 1px solid var(--vscode-widget-border);
 }
 
 .search-input-wrapper {
-  padding: 12px;
+  position: relative;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
   border-bottom: 1px solid var(--vscode-widget-border);
 }
 
 #model-search {
   width: 100%;
-  padding: 8px 12px;
   background: var(--vscode-input-background);
   color: var(--vscode-input-foreground);
-  border: 1px solid var(--vscode-input-border, var(--vscode-widget-border));
-  border-radius: 4px;
+  border: 1px solid var(--vscode-input-border, transparent);
+  padding: 6px 28px 6px 8px; /* Espaço na direita para o ícone */
+  border-radius: 2px;
   outline: none;
-  box-sizing: border-box;
+  font-family: inherit;
+}
+
+#model-search:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+.search-icon {
+  position: absolute;
+  right: 22px;
+  color: var(--vscode-input-foreground);
+  opacity: 0.6;
+  pointer-events: none;
 }
 
 .search-results-info {
-  padding: 12px;
-  font-size: 11px;
-  font-weight: 600;
+  padding: 10px 14px;
+  font-size: 10px;
   color: var(--vscode-descriptionForeground);
-  border-bottom: 1px solid var(--vscode-widget-border);
+  text-transform: uppercase;
   display: flex;
   align-items: center;
   gap: 6px;
+  border-bottom: 1px solid var(--vscode-widget-border);
 }
 
 .model-list {
   flex: 1;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .model-card {
   display: flex;
-  align-items: center;
-  padding: 16px 12px;
+  gap: 12px;
+  padding: 14px;
   border-bottom: 1px solid var(--vscode-widget-border);
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background-color 0.1s ease;
 }
 
 .model-card:hover {
-  background: var(--vscode-list-hoverBackground);
+  background-color: var(--vscode-list-hoverBackground);
 }
 
 .model-card.active {
-  background: var(--vscode-list-activeSelectionBackground);
-  border-left: 3px solid var(--vscode-activityBarBadge-background);
+  /* Usando a cor de seleção padrão do VS Code para o card ativo */
+  background-color: var(--vscode-list-inactiveSelectionBackground, rgba(9, 71, 113, 0.4));
 }
 
 .model-badge {
-  background: var(--vscode-badge-background);
-  color: var(--vscode-badge-foreground);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
   border: 1px solid var(--vscode-widget-border);
   border-radius: 4px;
-  padding: 4px 6px;
-  font-size: 11px;
   font-weight: 600;
-  margin-right: 12px;
-  min-width: 32px;
-  text-align: center;
-}
-
-.model-card.active .model-badge {
-  border-color: transparent;
+  font-size: 13px;
+  color: var(--vscode-foreground);
 }
 
 .model-card-info {
   display: flex;
   flex-direction: column;
   flex: 1;
-  overflow: hidden;
+  gap: 6px;
 }
 
 .model-card-name {
-  font-weight: 600;
   font-size: 14px;
+  font-weight: 500;
   color: var(--vscode-foreground);
-  margin-bottom: 4px;
 }
 
 .model-card-author {
-  font-size: 12px;
-  color: var(--vscode-descriptionForeground);
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 8px;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--vscode-descriptionForeground);
+  border: 1px solid var(--vscode-widget-border);
+  padding: 2px 6px;
+  border-radius: 4px;
+  width: fit-content;
 }
 
 .model-card-footer {
   display: flex;
-  justify-content: space-between;
-  font-size: 11px;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.model-card-footer span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9px;
   color: var(--vscode-descriptionForeground);
-  width: 100%;
+  border: 1px solid var(--vscode-widget-border);
+  padding: 3px 6px;
+  border-radius: 4px;
+}
+
+.model-card-footer i {
+  font-size: 12px;
 }

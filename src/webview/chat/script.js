@@ -935,17 +935,16 @@ function renderConfigView() {
 }
 function renderSearchView() {
   currentView = "search";
-  
-  // Criamos um layout com a sidebar na esquerda e uma área vazia na direita
   contentContainer.innerHTML = `
     <div class="search-layout">
       <!-- PARTE DA ESQUERDA: Lista de Agentes -->
       <div class="search-sidebar">
         <div class="search-input-wrapper">
           <input type="text" id="model-search" placeholder="Pesquisar modelos..." />
+          <i class="codicon codicon-search search-icon"></i>
         </div>
         <div class="search-results-info">
-          <i class="codicon codicon-chevron-down"></i> 3 RESULTADOS ENCONTRADOS
+          <i class="codicon codicon-chevron-right"></i> 
         </div>
         
         <div class="model-list">
@@ -954,10 +953,10 @@ function renderSearchView() {
             <div class="model-badge">30B</div>
             <div class="model-card-info">
               <span class="model-card-name">qwen3-coder-30b</span>
-              <span class="model-card-author"><i class="codicon codicon-organization"></i> Qwen</span>
+              <span class="model-card-author"><i class="codicon codicon-code"></i> Qwen</span>
               <div class="model-card-footer">
                 <span>Atualizado em 23/01/2025</span>
-                <span><i class="codicon codicon-download"></i> 23.245</span>
+                <span><i class="codicon codicon-cloud-download"></i> 23.245</span>
               </div>
             </div>
           </div>
@@ -967,10 +966,10 @@ function renderSearchView() {
             <div class="model-badge">15B</div>
             <div class="model-card-info">
               <span class="model-card-name">phi-4-gguf</span>
-              <span class="model-card-author"><i class="codicon codicon-organization"></i> Microsoft</span>
+              <span class="model-card-author"><i class="codicon codicon-code"></i> Microsoft</span>
               <div class="model-card-footer">
                 <span>Atualizado em 18/06/2024</span>
-                <span><i class="codicon codicon-download"></i> 710.171</span>
+                <span><i class="codicon codicon-cloud-download"></i> 710.171</span>
               </div>
             </div>
           </div>
@@ -980,33 +979,34 @@ function renderSearchView() {
             <div class="model-badge">27B</div>
             <div class="model-card-info">
               <span class="model-card-name">gemma-3-27b-it</span>
-              <span class="model-card-author"><i class="codicon codicon-organization"></i> Google</span>
+              <span class="model-card-author"><i class="codicon codicon-code"></i> Google</span>
               <div class="model-card-footer">
                 <span>Atualizado em 28/11/2024</span>
-                <span><i class="codicon codicon-download"></i> 140.294</span>
+                <span><i class="codicon codicon-cloud-download"></i> 140.294</span>
               </div>
             </div>
           </div>
         </div>
       </div>
-
-      <!-- PARTE DA DIREITA: Vazia para fazer depois -->
+      <!-- PARTE DA DIREITA -->
       <div class="search-content" id="agent-details-container">
-         <!-- O resto do protótipo será renderizado aqui futuramente -->
+         <!-- Detalhes renderizados aqui -->
       </div>
     </div>
   `;
 
-
   document.querySelectorAll('.model-card').forEach(card => {
     card.addEventListener('click', () => {
-      // Remove a classe 'active' de todos os cards
       document.querySelectorAll('.model-card').forEach(c => c.classList.remove('active'));
-      // Adiciona a classe 'active' apenas no card clicado
       card.classList.add('active');
+      vscode.postMessage({
+          type: 'abrirDetalhesModelo',
+          modelId: card.getAttribute('data-id')
+      });
     });
   });
 }
+
 function renderLibraryView() {
   currentView = "library";
   contentContainer.innerHTML = ``;
