@@ -18,6 +18,7 @@
     <link rel="stylesheet" href="{{styleUri}}" />
   </head>
   <body>
+    <!-- Top Navbar -->
     <header class="navbar">
       <div class="nav-left">
         <button id="chat-btn" title="Chat"><i class="codicon codicon-comment-discussion"></i></button>
@@ -27,7 +28,32 @@
       </div>
     </header>
 
-    <div id="content-container"></div>
+    <!-- Main layout: sidebar + content -->
+    <div class="app-layout">
+      <!-- Session Sidebar -->
+      <aside class="chat-sidebar" id="chat-sidebar">
+        <div class="sidebar-header">
+          <span class="sidebar-title">Sessões</span>
+          <button class="sidebar-icon-btn" id="new-chat-btn" title="Nova Sessão">
+            <i class="codicon codicon-add"></i>
+          </button>
+          <button class="sidebar-icon-btn" id="toggle-sidebar-btn" title="Recolher sidebar">
+            <i class="codicon codicon-layout-sidebar-left-off"></i>
+          </button>
+        </div>
+        <ul class="session-list" id="session-list">
+          <!-- Sessions injected by JS -->
+        </ul>
+      </aside>
+
+      <!-- Sidebar toggle (shown when sidebar is collapsed) -->
+      <button class="sidebar-expand-btn hidden" id="expand-sidebar-btn" title="Expandir sidebar">
+        <i class="codicon codicon-layout-sidebar-left"></i>
+      </button>
+
+      <!-- Chat content area -->
+      <div id="content-container"></div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="{{scriptUri}}"></script>

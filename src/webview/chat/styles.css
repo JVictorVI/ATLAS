@@ -2,6 +2,9 @@
   --spacing: 12px;
   --chat-horizontal-padding: 10px;
   --message-max-width: min(92%, 920px);
+  --sidebar-width: 200px;
+  --sidebar-collapsed-width: 0px;
+  --transition-speed: 0.22s;
 }
 
 body {
@@ -17,15 +20,26 @@ body {
   overflow: hidden;
 }
 
+/* ── App layout ────────────────────────────────────────────────────────────── */
+
+.app-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
 #content-container {
   display: flex;
   flex-direction: column;
   flex: 1;
   height: 100%;
   overflow: hidden;
+  min-width: 0;
 }
 
-/* --- BARRA DE NAVEGAÇÃO --- */
+/* ── Navbar ────────────────────────────────────────────────────────────────── */
+
 .navbar {
   display: flex;
   justify-content: center;
@@ -33,6 +47,7 @@ body {
   padding: var(--spacing);
   background-color: var(--vscode-sideBar-background);
   border-bottom: 1px solid var(--vscode-widget-border);
+  flex-shrink: 0;
 }
 
 .nav-left {
@@ -73,13 +88,219 @@ body {
   border-radius: 6px;
 }
 
-/* Ícones da Navbar Maiores */
 .navbar button i {
-  font-size: 24px; /* Aumentado para 24px */
+  font-size: 24px;
   filter: none !important;
 }
 
-/* --- ÁREA DE CHAT --- */
+/* ── Sidebar ───────────────────────────────────────────────────────────────── */
+
+.chat-sidebar {
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+  max-width: var(--sidebar-width);
+  display: flex;
+  flex-direction: column;
+  background-color: var(--vscode-sideBar-background);
+  border-right: 1px solid var(--vscode-widget-border);
+  overflow: hidden;
+  transition:
+    width var(--transition-speed) ease,
+    min-width var(--transition-speed) ease,
+    max-width var(--transition-speed) ease,
+    opacity var(--transition-speed) ease;
+  flex-shrink: 0;
+}
+
+.chat-sidebar.collapsed {
+  width: 0;
+  min-width: 0;
+  max-width: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 8px 6px 10px;
+  border-bottom: 1px solid var(--vscode-widget-border);
+  flex-shrink: 0;
+}
+
+.sidebar-title {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--vscode-descriptionForeground);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.sidebar-icon-btn {
+  background: none;
+  border: none;
+  color: var(--vscode-icon-foreground);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.sidebar-icon-btn:hover {
+  background: var(--vscode-list-hoverBackground);
+  color: var(--vscode-foreground);
+}
+
+.sidebar-icon-btn i {
+  font-size: 15px;
+}
+
+/* Expand button shown when sidebar is collapsed */
+.sidebar-expand-btn {
+  position: absolute;
+  top: 8px;
+  left: 4px;
+  z-index: 10;
+  background: var(--vscode-sideBar-background);
+  border: 1px solid var(--vscode-widget-border);
+  color: var(--vscode-icon-foreground);
+  cursor: pointer;
+  padding: 4px 5px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.15s,
+    opacity 0.2s;
+}
+
+.sidebar-expand-btn:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.sidebar-expand-btn i {
+  font-size: 14px;
+}
+
+/* ── Session list ──────────────────────────────────────────────────────────── */
+
+.session-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.session-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px 6px 10px;
+  cursor: pointer;
+  border-radius: 4px;
+  margin: 1px 4px;
+  position: relative;
+  transition: background 0.12s;
+  min-width: 0;
+}
+
+.session-item:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.session-item:hover .session-actions {
+  opacity: 1;
+}
+
+.session-item.active {
+  background: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+}
+
+.session-icon {
+  font-size: 13px;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.session-label {
+  flex: 1;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.session-count {
+  font-size: 10px;
+  color: var(--vscode-descriptionForeground);
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 1px 5px;
+  flex-shrink: 0;
+}
+
+.session-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+
+.session-action-btn {
+  background: none;
+  border: none;
+  color: var(--vscode-icon-foreground);
+  cursor: pointer;
+  padding: 2px 3px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+
+.session-action-btn:hover {
+  background: var(--vscode-list-hoverBackground);
+  color: var(--vscode-foreground);
+}
+
+.session-action-btn.delete-btn:hover {
+  color: #f14c4c;
+}
+
+.session-action-btn i {
+  font-size: 12px;
+}
+
+.session-inline-input {
+  flex: 1;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-focusBorder);
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 12px;
+  font-family: var(--vscode-font-family);
+  outline: none;
+  min-width: 0;
+}
+
+/* ── Chat container ────────────────────────────────────────────────────────── */
+
 #chat-container {
   flex: 1;
   overflow-y: auto;
@@ -94,6 +315,7 @@ body {
   box-sizing: border-box;
   width: fit-content;
   max-width: var(--message-max-width);
+  max-width: 90%;
   padding: 10px 14px;
   border-radius: 12px;
   font-size: 13px;
@@ -125,15 +347,16 @@ body {
   border-bottom-left-radius: 4px;
 }
 
-/* --- ÁREA DE INPUT E CONTROLES (AGORA RESPONSIVOS) --- */
+/* ── Input area ────────────────────────────────────────────────────────────── */
+
 .input-area {
   padding: 12px;
   background-color: var(--vscode-sideBar-background);
   border-top: 1px solid var(--vscode-widget-border);
-  position: relative; /* Mantém o balão ancorado corretamente */
+  position: relative;
+  flex-shrink: 0;
 }
 
-/* Flex-wrap permite que os itens desçam se faltar espaço */
 .top-controls {
   display: flex;
   justify-content: space-between;
@@ -154,7 +377,7 @@ body {
   cursor: pointer;
   color: #ccc;
   font-size: 12px;
-  flex-shrink: 0; /* Impede o botão principal de ser esmagado */
+  flex-shrink: 0;
 }
 
 .model-selector:hover {
@@ -165,7 +388,7 @@ body {
 .action-buttons {
   display: flex;
   gap: 4px;
-  flex-wrap: wrap; /* Se os botões não couberem, eles empilham */
+  flex-wrap: wrap;
   justify-content: flex-end;
   flex: 1;
   min-width: 125px; /* Garante um tamanho mínimo antes de quebrar a linha */
@@ -181,17 +404,14 @@ body {
   cursor: pointer;
   flex: 1 1 auto;
   text-align: center;
-
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
-
   position: relative;
 }
 
@@ -274,7 +494,31 @@ input {
   cursor: not-allowed;
 }
 
-/* Ícone de enviar um pouco maior */
+#send-btn.stop {
+  background-color: #c93c37;
+}
+
+#send-btn.stop:hover {
+  background-color: #e0524d;
+}
+
+#send-btn.stop i {
+  font-size: 15px;
+}
+
+#send-btn.stop i {
+  font-size: 15px;
+}
+
+#send-btn.stop i {
+  font-size: 15px;
+}
+
+#pergunta:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 #send-btn i {
   font-size: 18px;
 }
@@ -283,10 +527,15 @@ input {
   font-size: 15px;
 }
 
-/* --- O POPOVER (BALÃO FLUTUANTE) --- */
+#send-btn.stop i {
+  font-size: 15px;
+}
+
+/* ── Agent popover ─────────────────────────────────────────────────────────── */
+
 .agent-popover {
   position: absolute;
-  bottom: 100%; /* Ajustado para 100% para nascer colado ao input */
+  bottom: 100%;
   left: 12px;
   margin-bottom: 10px;
   width: 260px;
@@ -325,7 +574,6 @@ input {
   transition: all 0.2s;
 }
 
-/* Ícones de Nuvem e PC maiores */
 .popover-icon-btn i {
   font-size: 24px;
 }
@@ -365,7 +613,8 @@ input {
   border-color: #007acc;
 }
 
-/* --- TELAS DE CONFIGURAÇÃO E LOADING --- */
+/* ── Config view ───────────────────────────────────────────────────────────── */
+
 #settings-view {
   display: flex;
   flex-direction: column;
@@ -384,9 +633,7 @@ input {
   background-color: var(--vscode-list-hoverBackground);
 }
 
-.settings-option:active {
-  background-color: var(--vscode-list-activeSelectionBackground);
-}
+/* ── Loading / Spinners ────────────────────────────────────────────────────── */
 
 .loading {
   display: flex;

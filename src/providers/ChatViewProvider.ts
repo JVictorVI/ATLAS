@@ -13,8 +13,10 @@ import { AtlasPromptModeResolver } from "../prompt/AtlasPromptModeResolver";
 
 import { AtlasConfigRepository } from "../repository/AtlasConfigRepository";
 import { AtlasConfigDefaults } from "../repository/AtlasConfigDefaults";
+import { AtlasHistoryRepository } from "../repository/AtlasHistoryRepository";
 
 import { AtlasQuickAnalysisService } from "../services/AtlasQuickAnalysisService";
+import { AtlasSessionService } from "../services/AtlasSessionService";
 import { AtlasEditorContextService } from "./AtlasEditorContextService";
 import { AtlasQuickAnalysisController } from "./AtlasQuickAnalysisController";
 import { ChatPanelManager } from "./ChatPanelManager";
@@ -40,6 +42,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private readonly configRepository: AtlasConfigRepository;
   private readonly configDefaults: AtlasConfigDefaults;
 
+  // History / Sessions
+  private readonly historyRepository: AtlasHistoryRepository;
+  private readonly sessionService: AtlasSessionService;
+
   // Editor & analysis
   private readonly editorContextService: AtlasEditorContextService;
   private readonly quickAnalysisService: AtlasQuickAnalysisService;
@@ -55,10 +61,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this.configManager = new AtlasConfigManager(context);
     this.configDefaults = new AtlasConfigDefaults();
 
-    this.configRepository = new AtlasConfigRepository(
-      context,
-      this.configDefaults,
-    );
+    this.configRepository = new AtlasConfigRepository(context, this.configDefaults);
+
+    // History & sessions
+    this.historyRepository = new AtlasHistoryRepository(context);
 
     // Prompt
     this.promptPolicyService = new AtlasSystemPromptPolicyService();
@@ -80,6 +86,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this.cloudApiService = new CloudApiService(
       this.configManager,
       this.apiKeyManager,
+    );
+
+    // Session service (depends on cloudApiService for summarization)
+    this.sessionService = new AtlasSessionService(
+      this.historyRepository,
+      this.cloudApiService,
     );
 
     // Editor context
@@ -106,6 +118,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       cloudApiService: this.cloudApiService,
       promptCustomizationService: this.promptCustomizationService,
       promptAssemblyService: this.promptAssemblyService,
+      sessionService: this.sessionService,
 
       openPanel: (selectedView?: string) => {
         this.panelManager.openPanel(selectedView);
@@ -119,14 +132,13 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         await this.quickAnalysisController.execute(webview);
       },
 
-      getChatEditorContext: () =>
-        this.editorContextService.getChatEditorContext(),
+      getChatEditorContext: () => this.editorContextService.getChatEditorContext(),
 
       buildEditorAnalysisContext: (context) =>
         this.editorContextService.buildEditorAnalysisContext(context),
     });
 
-    // conectar router → panel manager
+    // Connect router → panel manager
     this.panelManager.setMessageHandler(async (data, webview) => {
       await this.messageRouter.handle(data, webview);
     });
@@ -184,10 +196,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       systemPrompt: model.custom?.systemPrompt || "",
     }));
 
-    webview.postMessage({
-      type: "updateModelsList",
-      models: modelsList,
-    });
+    webview.postMessage({ type: "updateModelsList", models: modelsList });
   }
 
   private async sendAvailableLlmsToWebview(
