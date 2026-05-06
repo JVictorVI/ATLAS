@@ -1,6 +1,9 @@
 import { v4 as uuidv4 } from "uuid";
 import { ChatMessage } from "../interfaces/ApiTypes";
-import { AtlasSession, AtlasSessionSummary } from "../interfaces/AtlasHistoryTypes";
+import {
+  AtlasSession,
+  AtlasSessionSummary,
+} from "../interfaces/AtlasHistoryTypes";
 import { AtlasHistoryRepository } from "../repository/AtlasHistoryRepository";
 import { CloudApiService } from "./CloudApiService";
 
@@ -101,11 +104,22 @@ export class AtlasSessionService {
 
   public appendMessage(sessionId: string, message: ChatMessage): AtlasSession {
     const session = this.historyRepository.getSession(sessionId);
-    if (!session) throw new Error(`Sessão "${sessionId}" não encontrada.`);
+
+    if (!session) {
+      throw new Error(`Sessão "${sessionId}" não encontrada.`);
+    }
 
     session.messages.push(message);
+
+    // Gera título automático na primeira mensagem do usuário
+    if (session.title === "Nova Sessão" && message.role === "user") {
+      session.title = this.generateTitleFromMessage(message.content);
+    }
+
     session.updatedAt = new Date().toISOString();
+
     this.historyRepository.saveSession(session);
+
     return session;
   }
 
@@ -146,7 +160,9 @@ export class AtlasSessionService {
 
     try {
       const conversationText = toSummarize
-        .map((m) => `[${m.role === "user" ? "Usuário" : "ATLAS"}]: ${m.content}`)
+        .map(
+          (m) => `[${m.role === "user" ? "Usuário" : "ATLAS"}]: ${m.content}`,
+        )
         .join("\n\n");
 
       const previousContext = session.architecturalSummary
@@ -193,5 +209,21 @@ export class AtlasSessionService {
       messageCount: s.messages.filter((m) => m.role !== "system").length,
       hasArchitecturalSummary: s.architecturalSummary.length > 0,
     }));
+  }
+
+  private generateTitleFromMessage(content: string): string {
+    const cleaned = content
+      .replace(/```[\s\S]*?```/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (!cleaned) {
+      return "Nova Sessão";
+    }
+
+    const title =
+      cleaned.length > 42 ? `${cleaned.slice(0, 42).trim()}...` : cleaned;
+
+    return title.charAt(0).toUpperCase() + title.slice(1);
   }
 }

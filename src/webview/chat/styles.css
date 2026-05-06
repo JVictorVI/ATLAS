@@ -104,6 +104,8 @@ body {
   background-color: var(--vscode-sideBar-background);
   border-right: 1px solid var(--vscode-widget-border);
   overflow: hidden;
+  resize: horizontal;
+
   transition:
     width var(--transition-speed) ease,
     min-width var(--transition-speed) ease,
@@ -163,32 +165,32 @@ body {
   font-size: 15px;
 }
 
-/* Expand button shown when sidebar is collapsed */
-.sidebar-expand-btn {
-  position: absolute;
-  top: 8px;
-  left: 4px;
-  z-index: 10;
-  background: var(--vscode-sideBar-background);
-  border: 1px solid var(--vscode-widget-border);
-  color: var(--vscode-icon-foreground);
-  cursor: pointer;
-  padding: 4px 5px;
-  border-radius: 4px;
+.sessions-toggle-btn {
+  width: 100%;
+  height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition:
-    background 0.15s,
-    opacity 0.2s;
+  gap: 8px;
+
+  background: var(--vscode-sideBar-background);
+  color: var(--vscode-icon-foreground);
+  border: none;
+  border-bottom: 1px solid var(--vscode-widget-border);
+
+  cursor: pointer;
+  font-size: 12px;
+  font-family: var(--vscode-font-family);
+  flex-shrink: 0;
 }
 
-.sidebar-expand-btn:hover {
+.sessions-toggle-btn:hover {
   background: var(--vscode-list-hoverBackground);
+  color: var(--vscode-foreground);
 }
 
-.sidebar-expand-btn i {
-  font-size: 14px;
+.sessions-toggle-btn i {
+  font-size: 16px;
 }
 
 /* ── Session list ──────────────────────────────────────────────────────────── */

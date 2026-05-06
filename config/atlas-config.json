@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-05-06T13:14:06.383Z",
+  "updatedAt": "2026-05-06T14:31:36.281Z",
   "general": {
     "theme": "system",
     "language": "pt-BR",
@@ -41,14 +41,14 @@
       },
       "cloud": {
         "providerId": "Groq",
-        "activeModelId": "openai/gpt-oss-safeguard-20b"
+        "activeModelId": "openai/gpt-oss-120b"
       }
     },
     "defaults": {
       "temperature": 0.3,
-      "maxTokens": 1024,
+      "maxTokens": 4096,
       "topP": 0.95,
-      "stream": true
+      "stream": false
     },
     "localModels": {
       "google/gemma-3-1b": {

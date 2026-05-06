@@ -66,7 +66,11 @@ expandSidebarBtn?.addEventListener("click", () => {
 });
 
 newChatBtn?.addEventListener("click", () => {
-  promptCreateSession();
+  vscode.postMessage({
+    type: "criarSessao",
+    title: "Nova Sessão",
+    autoTitle: true,
+  });
 });
 
 function promptCreateSession() {
@@ -819,17 +823,25 @@ function renderLibraryView() {
 
 configBtn?.addEventListener("click", () => {
   renderConfigView();
+  hideSessionsButton();
+  closeSessionsSidebar();
   updateActiveTab("config-panel-btn");
 });
 chatgBtn?.addEventListener("click", () => {
   renderChatView();
+  showSessionsButton();
+  closeSessionsSidebar();
   updateActiveTab("chat-btn");
 });
 libraryBtn?.addEventListener("click", () => {
   renderLibraryView();
+  hideSessionsButton();
+  closeSessionsSidebar();
   updateActiveTab("library-btn");
 });
 searchBtn?.addEventListener("click", () => {
+  hideSessionsButton();
+  closeSessionsSidebar();
   updateActiveTab("search-btn");
 });
 
@@ -1007,7 +1019,11 @@ window.addEventListener("message", (event) => {
 
       // If no active session exists yet, auto-create one
       if (!activeSessionId && activeSessions.length === 0) {
-        vscode.postMessage({ type: "criarSessao", title: "Sessão Inicial" });
+        vscode.postMessage({
+          type: "criarSessao",
+          title: "Nova Sessão",
+          autoTitle: true,
+        });
         return;
       }
 
@@ -1042,7 +1058,11 @@ window.addEventListener("message", (event) => {
       if (message.value.activeSession) {
         loadChatMessages(message.value.activeSession);
       } else {
-        vscode.postMessage({ type: "criarSessao", title: "Nova Sessao" });
+        vscode.postMessage({
+          type: "criarSessao",
+          title: "Nova Sessão",
+          autoTitle: true,
+        });
       }
       break;
     }
@@ -1120,6 +1140,20 @@ function escapeHtml(value) {
 }
 
 renderChatView();
+showSessionsButton();
+closeSessionsSidebar();
 updateActiveTab("chat-btn");
 updateMainButton();
 vscode.postMessage({ type: "carregarLLMs" });
+
+function showSessionsButton() {
+  expandSidebarBtn?.classList.remove("hidden");
+}
+
+function hideSessionsButton() {
+  expandSidebarBtn?.classList.add("hidden");
+}
+
+function closeSessionsSidebar() {
+  sidebar?.classList.add("collapsed");
+}

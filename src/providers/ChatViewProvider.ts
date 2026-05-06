@@ -61,7 +61,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this.configManager = new AtlasConfigManager(context);
     this.configDefaults = new AtlasConfigDefaults();
 
-    this.configRepository = new AtlasConfigRepository(context, this.configDefaults);
+    this.configRepository = new AtlasConfigRepository(
+      context,
+      this.configDefaults,
+    );
 
     // History & sessions
     this.historyRepository = new AtlasHistoryRepository(context);
@@ -132,7 +135,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         await this.quickAnalysisController.execute(webview);
       },
 
-      getChatEditorContext: () => this.editorContextService.getChatEditorContext(),
+      getChatEditorContext: () =>
+        this.editorContextService.getChatEditorContext(),
 
       buildEditorAnalysisContext: (context) =>
         this.editorContextService.buildEditorAnalysisContext(context),
@@ -208,6 +212,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     await webview.postMessage({
       type: "informarLLMsCarregados",
       value: {
+        studyModeEnabled: this.configManager.isStudyModeEnabled(),
         selectedMode: this.configManager.getCurrentMode(),
         selectedProviderId: this.configManager.getSelectedCloudProviderId(),
         selectedCloudModelId: this.configManager.getSelectedCloudModelId(),
