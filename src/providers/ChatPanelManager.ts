@@ -3,7 +3,7 @@ import * as path from "path";
 import * as vscode from "vscode";
 import { ApiKeyManager } from "../managers/ApiKeyManager";
 
-type AtlasPanelGroup = "chat" | "config" | "library";
+type AtlasPanelGroup = "chat" | "config" | "library" | "search";
 
 type MessageHandler = (
   data: unknown,
@@ -14,6 +14,7 @@ export class ChatPanelManager {
   private chatPanel?: vscode.WebviewPanel;
   private configPanel?: vscode.WebviewPanel;
   private libraryPanel?: vscode.WebviewPanel;
+  private searchPanel?: vscode.WebviewPanel;
   private onMessage?: MessageHandler;
 
   constructor(
@@ -35,6 +36,12 @@ export class ChatPanelManager {
         "api-keys",
       ),
       vscode.Uri.joinPath(this.context.extensionUri, "src", "webview", "rag"),
+      vscode.Uri.joinPath(
+        this.context.extensionUri,
+        "src",
+        "webview",
+        "search",
+      ),
       vscode.Uri.joinPath(
         this.context.extensionUri,
         "src",
@@ -107,6 +114,10 @@ export class ChatPanelManager {
       return "rag";
     }
 
+    if (selectedView === "search") {
+      return "search";
+    }
+
     if (selectedView === "library") {
       return "library";
     }
@@ -125,6 +136,10 @@ export class ChatPanelManager {
       return "library";
     }
 
+    if (normalizedView === "search") {
+      return "search";
+    }
+
     return "chat";
   }
 
@@ -137,6 +152,10 @@ export class ChatPanelManager {
 
     if (normalizedView === "library") {
       return "Biblioteca";
+    }
+
+    if (normalizedView === "search") {
+      return "Pesquisa de Modelos";
     }
 
     return "Chat";
@@ -179,6 +198,10 @@ export class ChatPanelManager {
   private resolveHtmlPath(webviewPath: string, selectedView: string): string {
     if (selectedView === "api-keys") {
       return path.join(webviewPath, "api-keys.html");
+    }
+
+    if (selectedView === "search") {
+      return path.join(webviewPath, "search.html");
     }
 
     if (selectedView === "rag") {
@@ -224,6 +247,10 @@ export class ChatPanelManager {
       return this.configPanel;
     }
 
+    if (group === "search") {
+      return this.searchPanel;
+    }
+
     return this.libraryPanel;
   }
 
@@ -241,6 +268,11 @@ export class ChatPanelManager {
       return;
     }
 
+    if (group === "search") {
+      this.searchPanel = panel;
+      return;
+    }
+
     this.libraryPanel = panel;
   }
 
@@ -252,6 +284,11 @@ export class ChatPanelManager {
 
     if (group === "config") {
       this.configPanel = undefined;
+      return;
+    }
+
+    if (group === "search") {
+      this.searchPanel = undefined;
       return;
     }
 

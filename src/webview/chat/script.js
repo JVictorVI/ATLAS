@@ -824,6 +824,7 @@ function renderLibraryView() {
   vscode.postMessage({ type: "abrirPainelConfig", selectedView: "library" });
 }
 
+
 // ── Navbar wiring ─────────────────────────────────────────────────────────────
 
 configBtn?.addEventListener("click", () => {
@@ -845,9 +846,9 @@ libraryBtn?.addEventListener("click", () => {
   updateActiveTab("library-btn");
 });
 searchBtn?.addEventListener("click", () => {
+  renderSearchView();
   hideSessionsButton();
   closeSessionsSidebar();
-  renderSearchView();
   updateActiveTab("search-btn");
 });
 
@@ -974,6 +975,8 @@ function renderSearchView() {
       });
     });
   });
+
+  vscode.postMessage({ type: "abrirPainelConfig", selectedView: "search" });
 }
 
 // ── Message bus ───────────────────────────────────────────────────────────────
