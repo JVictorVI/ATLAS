@@ -127,6 +127,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         this.panelManager.openPanel(selectedView);
       },
 
+      openSearchModelDetails: (modelId: string) => {
+        this.panelManager.openSearchModelDetails(modelId);
+      },
+
       sendModelsToWebview: (webview: vscode.Webview) => {
         this._sendModelsToWebview(webview);
       },

@@ -101,6 +101,17 @@ export class ChatPanelManager {
     void this.apiKeyManager.sendCredentialsToWebview(panel.webview);
   }
 
+  public openSearchModelDetails(modelId: string): void {
+    this.openPanel("search");
+
+    setTimeout(() => {
+      void this.searchPanel?.webview.postMessage({
+        type: "mostrarDetalhesModelo",
+        modelId,
+      });
+    }, 50);
+  }
+
   public normalizeSelectedView(selectedView?: string): string {
     if (!selectedView || selectedView === "chat") {
       return "chat";

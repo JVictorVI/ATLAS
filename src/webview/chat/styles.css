@@ -986,7 +986,8 @@ input {
   display: flex;
   flex-direction: column;
   height: 100%;
-  width: 100%; /* Garante que ocupe todo o painel lateral */
+  width: 100%;
+  background: var(--vscode-sideBar-background);
 }
 
 .search-input-wrapper {
@@ -1042,11 +1043,16 @@ input {
 
 .model-card {
   display: flex;
-  gap: 12px;
-  padding: 12px 14px;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 84px;
+  box-sizing: border-box;
+  padding: 12px 10px 10px;
   border-bottom: 1px solid var(--vscode-widget-border);
   cursor: pointer;
-  transition: background-color 0.1s ease;
+  transition:
+    background-color 0.12s ease,
+    color 0.12s ease;
 }
 
 .model-card:hover {
@@ -1062,13 +1068,15 @@ input {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 38px;
-  height: 38px;
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
   border: 1px solid var(--vscode-widget-border);
   border-radius: 4px;
   font-weight: 600;
   font-size: 13px;
-  color: inherit; /* Herda a cor para ficar branco quando o card estiver ativo */
+  color: inherit;
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .model-card.active .model-badge {
@@ -1079,12 +1087,17 @@ input {
   display: flex;
   flex-direction: column;
   flex: 1;
-  gap: 4px;
+  gap: 6px;
+  min-width: 0;
 }
 
 .model-card-name {
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .model-card-author {
@@ -1109,8 +1122,9 @@ input {
 .model-card-footer {
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 8px;
-  margin-top: 2px;
+  margin-top: auto;
 }
 
 .model-card-footer span {
@@ -1125,6 +1139,12 @@ input {
 }
 
 .model-card-footer i {
+  font-size: 12px;
+}
+
+.model-list-empty {
+  padding: 18px 14px;
+  color: var(--vscode-descriptionForeground);
   font-size: 12px;
 }
 
