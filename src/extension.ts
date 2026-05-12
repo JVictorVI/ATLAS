@@ -11,12 +11,6 @@ export function activate(context: vscode.ExtensionContext) {
     ),
   );
 
-  context.subscriptions.push(
-    vscode.commands.registerCommand("atlas.quickAnalysis", async () => {
-      await provider.runQuickAnalysisFromCommand();
-    }),
-  );
-
   context.subscriptions.push({
     dispose: () => provider.dispose(),
   });

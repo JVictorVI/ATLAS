@@ -27,7 +27,30 @@ window.addEventListener("message", (event) => {
       selectModel(selectedModelId);
     }
   }
+
+  if (message.type === "modeloParametrosSalvos") {
+    showButtonFeedback("btn-save-params", "Salvo!");
+  }
+
+  if (message.type === "modeloLocalCarregado") {
+    showButtonFeedback("btn-load-model", "Selecionado!");
+  }
 });
+
+function showButtonFeedback(buttonId, temporaryText) {
+  const button = document.getElementById(buttonId);
+
+  if (!button) {
+    return;
+  }
+
+  const originalText = button.textContent;
+  button.textContent = temporaryText;
+
+  setTimeout(() => {
+    button.textContent = originalText;
+  }, 1500);
+}
 
 function renderModelDropdown() {
   const select = document.getElementById("model-select");
@@ -59,7 +82,9 @@ function setupDropdown() {
 function selectModel(id) {
   selectedModelId = id;
   const model = loadedModels.find(m => m.id === id);
-  if (!model) return;
+  if (!model) {
+    return;
+  }
 
   document.getElementById("empty-state").classList.add("hidden");
   document.getElementById("model-details").classList.remove("hidden");
@@ -130,7 +155,9 @@ function setupButtons() {
   const btnSave = document.getElementById("btn-save-params");
   if (btnSave) {
     btnSave.addEventListener("click", () => {
-      if (!selectedModelId) return;
+      if (!selectedModelId) {
+        return;
+      }
 
       vscode.postMessage({
         type: "saveModelParams",
@@ -140,10 +167,10 @@ function setupButtons() {
           tokensRes: parseInt(document.getElementById("param-tokens-res").value) || 0,
           temperature: parseFloat(document.getElementById("param-temp").value) || 0,
           contextWindow: parseInt(document.getElementById("param-context").value) || 0,
-          maxTokens: parseInt(document.getElementById("param-max-tokens").value) || 0
+          maxTokens: parseInt(document.getElementById("param-max-tokens").value) || 0,
         },
         customPrompt: document.getElementById("toggle-custom").checked,
-        systemPrompt: document.getElementById("system-prompt").value
+        systemPrompt: document.getElementById("system-prompt").value,
       });
     });
   }
@@ -151,8 +178,14 @@ function setupButtons() {
   const btnLoad = document.getElementById("btn-load-model");
   if (btnLoad) {
     btnLoad.addEventListener("click", () => {
-      if (!selectedModelId) return;
-      vscode.postMessage({ type: 'loadModelRequest', modelId: selectedModelId });
+      if (!selectedModelId) {
+        return;
+      }
+
+      vscode.postMessage({
+        type: "loadModelRequest",
+        modelId: selectedModelId,
+      });
     });
   }
 }

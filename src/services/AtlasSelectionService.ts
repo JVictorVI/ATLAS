@@ -72,9 +72,12 @@ export class AtlasSelectionService {
       }
     }
 
+    const previousProviderId = config.llms.selection.cloud.providerId;
+
     config.llms.selection.mode = "cloud";
     config.llms.selection.cloud.providerId = providerId;
-    if (config.llms.selection.cloud.providerId !== providerId) {
+
+    if (previousProviderId !== providerId) {
       config.llms.selection.cloud.activeModelId = null;
     }
     config.updatedAt = new Date().toISOString();

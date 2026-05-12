@@ -6,19 +6,7 @@ import { AtlasPromptCustomizationService } from "../prompt/AtlasPromptCustomizat
 import { AtlasSession } from "../interfaces/AtlasHistoryTypes";
 import { CloudApiService } from "../services/CloudApiService";
 import { AtlasSessionService } from "../services/AtlasSessionService";
-
-type EditorContext = {
-  document: vscode.TextDocument;
-  code: string;
-  fileName: string;
-  languageId: string;
-  lineCount: number;
-  source: "selection" | "document";
-  selection?: {
-    startLine: number;
-    endLine: number;
-  };
-};
+import { AtlasEditorContext } from "../interfaces/AtlasEditorTypes";
 
 type RouterDependencies = {
   apiKeyManager: ApiKeyManager;
@@ -30,8 +18,8 @@ type RouterDependencies = {
   openPanel: (selectedView?: string) => void;
   sendModelsToWebview: (webview: vscode.Webview) => void;
   executeQuickAnalysis: (webview?: vscode.Webview) => Promise<void>;
-  getChatEditorContext: () => EditorContext | null;
-  buildEditorAnalysisContext: (context: EditorContext) => string;
+  getChatEditorContext: () => AtlasEditorContext | null;
+  buildEditorAnalysisContext: (context: AtlasEditorContext) => string;
 };
 
 export class ChatMessageRouter {
@@ -85,6 +73,12 @@ export class ChatMessageRouter {
         return;
       case "requestModels":
         this.deps.sendModelsToWebview(webview);
+        return;
+      case "saveModelParams":
+        await this.handleSaveModelParams(data, webview);
+        return;
+      case "loadModelRequest":
+        await this.handleLoadModelRequest(data, webview);
         return;
       case "executarAnaliseRapida":
         await this.deps.executeQuickAnalysis(webview);
@@ -497,6 +491,71 @@ export class ChatMessageRouter {
       });
     } catch (error) {
       await this.postError(webview, error, "Erro ao selecionar modelo.");
+    }
+  }
+
+  private async handleSaveModelParams(
+    data: any,
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      const modelId = typeof data.modelId === "string" ? data.modelId : "";
+
+      if (!modelId) {
+        throw new Error("Modelo local inválido.");
+      }
+
+      const params =
+        data.params && typeof data.params === "object"
+          ? (data.params as Record<string, unknown>)
+          : {};
+      const { tokensRes, ...modelParameters } = params;
+      const customPromptEnabled = data.customPrompt === true;
+      const systemPrompt =
+        typeof data.systemPrompt === "string" ? data.systemPrompt.trim() : "";
+
+      this.deps.configManager.updateModel(modelId, {
+        parameters: modelParameters,
+        custom: {
+          tokensRes: typeof tokensRes === "number" ? tokensRes : undefined,
+          systemPrompt:
+            customPromptEnabled && systemPrompt ? systemPrompt : undefined,
+        },
+      });
+
+      await webview.postMessage({
+        type: "modeloParametrosSalvos",
+        value: { modelId },
+      });
+
+      this.deps.sendModelsToWebview(webview);
+      vscode.window.showInformationMessage("Parâmetros do modelo salvos.");
+    } catch (error) {
+      await this.postError(webview, error, "Erro ao salvar modelo local.");
+    }
+  }
+
+  private async handleLoadModelRequest(
+    data: any,
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      const modelId = typeof data.modelId === "string" ? data.modelId : "";
+
+      if (!modelId) {
+        throw new Error("Modelo local inválido.");
+      }
+
+      this.deps.configManager.setActiveLocalModel(modelId);
+
+      await webview.postMessage({
+        type: "modeloLocalCarregado",
+        value: { modelId },
+      });
+
+      vscode.window.showInformationMessage("Modelo local selecionado.");
+    } catch (error) {
+      await this.postError(webview, error, "Erro ao carregar modelo local.");
     }
   }
 

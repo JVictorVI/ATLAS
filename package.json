@@ -29,28 +29,6 @@
           "name": "Assistente Inteligente"
         }
       ]
-    },
-    "contributes": {
-      "commands": [
-        {
-          "command": "atlas.quickAnalysis",
-          "title": "ATLAS: Análise Rápida do Arquivo Atual",
-          "category": "ATLAS"
-        }
-      ],
-      "menus": {
-        "editor/title": [
-          {
-            "command": "atlas.quickAnalysis",
-            "group": "navigation"
-          }
-        ],
-        "commandPalette": [
-          {
-            "command": "atlas.quickAnalysis"
-          }
-        ]
-      }
     }
   },
   "scripts": {

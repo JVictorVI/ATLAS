@@ -367,17 +367,6 @@ function hydratemodelsDataFromBackend(payload) {
   applyStudyModeState(payload.studyModeEnabled === true);
 }
 
-// Função auxiliar para enviar a escolha ao VS Code
-function salvarAgenteBackend() {
-  vscode.postMessage({
-    type: "salvarAgente",
-    payload: {
-      provider: selectedProvider,
-      model: selectedModel,
-    },
-  });
-}
-
 function renderPopoverContent() {
   const popover = document.getElementById("agent-popover");
   if (!popover) return;
@@ -810,7 +799,9 @@ function renderConfigView() {
   currentView = "config";
   contentContainer.innerHTML = `
     <div id="settings-view">
-      <button id="keys-btn" class="settings-option">Chaves de API</button>
+      <button id="keys-btn" class="settings-option">Provedores em Nuvem</button>
+      <button id="rag-btn" class="settings-option">RAG</button>
+      <button id="atlas-btn" class="settings-option">Configurações Gerais</button>
     </div>
   `;
   document.getElementById("keys-btn")?.addEventListener("click", () => {
@@ -823,7 +814,6 @@ function renderLibraryView() {
   contentContainer.innerHTML = "";
   vscode.postMessage({ type: "abrirPainelConfig", selectedView: "library" });
 }
-
 
 // ── Navbar wiring ─────────────────────────────────────────────────────────────
 
@@ -852,58 +842,6 @@ searchBtn?.addEventListener("click", () => {
   updateActiveTab("search-btn");
 });
 
-function processQueue() {
-  if (isTyping) return;
-
-  if (renderQueue.length === 0) {
-    if (finishPending) {
-      if (mensagemAtualBot) {
-        updateMessagePresentation(mensagemAtualBot, bufferResposta, true);
-        renderMarkdownContent(mensagemAtualBot, bufferResposta);
-      }
-      mensagemAtualBot = null;
-      bufferResposta = "";
-      finishPending = false;
-      setGenerationState(false);
-    }
-    return;
-  }
-
-  isTyping = true;
-
-  let charsToType = 1;
-  if (renderQueue.length > 20) charsToType = 2;
-  if (renderQueue.length > 50) charsToType = 4;
-  if (renderQueue.length > 100) charsToType = 8;
-
-  const chunk = renderQueue.slice(0, charsToType);
-  renderQueue = renderQueue.slice(charsToType);
-
-  bufferResposta += chunk;
-
-  if (mensagemAtualBot) {
-    try {
-      if (typeof marked !== "undefined") {
-        updateMessagePresentation(mensagemAtualBot, bufferResposta, true);
-        renderMarkdownContent(mensagemAtualBot, bufferResposta, true);
-      } else {
-        mensagemAtualBot.innerText = bufferResposta + " █";
-      }
-    } catch (e) {
-      mensagemAtualBot.innerText = bufferResposta + " █";
-    }
-  }
-
-  const chatContainer = getChatContainer();
-  if (chatContainer) {
-    chatContainer.scrollTop = chatContainer.scrollHeight;
-  }
-
-  setTimeout(() => {
-    isTyping = false;
-    processQueue();
-  }, 15);
-}
 function renderSearchView() {
   currentView = "search";
   contentContainer.innerHTML = `
@@ -969,10 +907,6 @@ function renderSearchView() {
         .querySelectorAll(".model-card")
         .forEach((c) => c.classList.remove("active"));
       card.classList.add("active");
-      vscode.postMessage({
-        type: "abrirDetalhesModelo",
-        modelId: card.getAttribute("data-id"),
-      });
     });
   });
 

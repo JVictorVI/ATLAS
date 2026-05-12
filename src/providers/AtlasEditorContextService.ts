@@ -1,18 +1,6 @@
 import * as path from "path";
 import * as vscode from "vscode";
-
-export type AtlasEditorContext = {
-  document: vscode.TextDocument;
-  code: string;
-  fileName: string;
-  languageId: string;
-  lineCount: number;
-  source: "selection" | "document";
-  selection?: {
-    startLine: number;
-    endLine: number;
-  };
-};
+import { AtlasEditorContext } from "../interfaces/AtlasEditorTypes";
 
 export class AtlasEditorContextService {
   public getFullDocumentContext(): AtlasEditorContext | null {

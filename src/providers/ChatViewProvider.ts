@@ -232,10 +232,6 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     });
   }
 
-  public async runQuickAnalysisFromCommand(): Promise<void> {
-    await this.quickAnalysisController.execute(this._view?.webview);
-  }
-
   public dispose(): void {
     this.quickAnalysisController.dispose();
   }
