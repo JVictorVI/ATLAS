@@ -6,6 +6,9 @@ body {
   font-family: var(--vscode-font-family);
   font-size: var(--vscode-font-size);
   overflow: hidden;
+  --atlas-panel-background: var(--vscode-editorWidget-background, var(--vscode-sideBar-background, var(--vscode-editor-background)));
+  --atlas-subtle-background: var(--vscode-input-background, var(--vscode-editorWidget-background, var(--vscode-editor-background)));
+  --atlas-accent-foreground: var(--vscode-textLink-foreground, var(--vscode-button-background));
 }
 
 .model-detail-view {
@@ -59,14 +62,14 @@ body {
   align-items: center;
   gap: 8px;
   padding: 0 12px;
-  border: 1px solid #16825d;
-  background: #0e8f6d;
-  color: #ffffff;
+  border: 1px solid var(--vscode-button-background);
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
   font-weight: 600;
 }
 
 .download-button:hover {
-  background: #10a37c;
+  background: var(--vscode-button-hoverBackground);
 }
 
 .quant-button,
@@ -107,7 +110,7 @@ body {
 }
 
 .detail-section h2 i {
-  color: #4fc1ff;
+  color: var(--atlas-accent-foreground);
   font-size: 14px;
 }
 
@@ -119,8 +122,8 @@ body {
   box-sizing: border-box;
   padding: 18px;
   border-radius: 8px;
-  background: var(--vscode-sideBar-background);
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: var(--atlas-panel-background);
+  border: 1px solid var(--vscode-widget-border);
 }
 
 .info-item {
@@ -141,7 +144,7 @@ body {
   box-sizing: border-box;
   padding: 6px 10px;
   border-radius: 5px;
-  background: rgba(255, 255, 255, 0.09);
+  background: var(--atlas-subtle-background);
   color: var(--vscode-descriptionForeground);
   font-size: 11px;
   font-weight: 500;
@@ -155,8 +158,8 @@ body {
   box-sizing: border-box;
   padding: 22px;
   border-radius: 8px;
-  background: var(--vscode-sideBar-background);
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: var(--atlas-panel-background);
+  border: 1px solid var(--vscode-widget-border);
 }
 
 .description-panel h3 {
@@ -201,7 +204,7 @@ body {
   border-radius: 4px;
   padding: 5px 8px;
   color: var(--vscode-descriptionForeground);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--atlas-subtle-background);
   font-size: 12px;
 }
 

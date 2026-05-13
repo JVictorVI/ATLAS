@@ -5,6 +5,19 @@
   --sidebar-width: 200px;
   --sidebar-collapsed-width: 0px;
   --transition-speed: 0.22s;
+  --atlas-app-bg: var(--vscode-editor-background, #1e1e1e);
+  --atlas-panel-bg: var(--vscode-sideBar-background, var(--atlas-app-bg));
+  --atlas-surface-bg: var(--vscode-editorWidget-background, var(--vscode-input-background, #252526));
+  --atlas-surface-hover-bg: var(--vscode-list-hoverBackground, var(--vscode-toolbar-hoverBackground, #2a2d2e));
+  --atlas-border: var(--vscode-widget-border, var(--vscode-input-border, #454545));
+  --atlas-muted-fg: var(--vscode-descriptionForeground, #9d9d9d);
+  --atlas-accent-bg: var(--vscode-button-background, #0e639c);
+  --atlas-accent-fg: var(--vscode-button-foreground, #ffffff);
+  --atlas-accent-hover-bg: var(--vscode-button-hoverBackground, #1177bb);
+  --atlas-danger-fg: var(--vscode-errorForeground, #f14c4c);
+  --atlas-danger-bg: var(--vscode-inputValidation-errorBackground, #5a1d1d);
+  --atlas-warning-fg: var(--vscode-editorWarning-foreground, #dcdcaa);
+  --atlas-code-bg: var(--vscode-textCodeBlock-background, var(--vscode-editorWidget-background, #1e1e1e));
 }
 
 body {
@@ -16,7 +29,7 @@ body {
   font-family: var(--vscode-font-family);
   font-size: var(--vscode-font-size);
   color: var(--vscode-foreground);
-  background-color: var(--vscode-sideBar-background);
+  background-color: var(--atlas-app-bg);
   overflow: hidden;
 }
 
@@ -45,8 +58,8 @@ body {
   justify-content: center;
   align-items: center;
   padding: var(--spacing);
-  background-color: var(--vscode-sideBar-background);
-  border-bottom: 1px solid var(--vscode-widget-border);
+  background-color: var(--atlas-panel-bg);
+  border-bottom: 1px solid var(--atlas-border);
   flex-shrink: 0;
 }
 
@@ -78,12 +91,12 @@ body {
 
 .navbar button:hover {
   color: var(--vscode-foreground);
-  background-color: var(--vscode-list-hoverBackground);
+  background-color: var(--atlas-surface-hover-bg);
 }
 
 .navbar button.active {
-  background-color: #242424;
-  color: #ffffff !important;
+  background-color: var(--vscode-list-activeSelectionBackground, var(--atlas-surface-bg));
+  color: var(--vscode-list-activeSelectionForeground, var(--vscode-foreground)) !important;
   pointer-events: none;
   border-radius: 6px;
 }
@@ -101,8 +114,8 @@ body {
   max-width: var(--sidebar-width);
   display: flex;
   flex-direction: column;
-  background-color: var(--vscode-sideBar-background);
-  border-right: 1px solid var(--vscode-widget-border);
+  background-color: var(--atlas-panel-bg);
+  border-right: 1px solid var(--atlas-border);
   overflow: hidden;
   resize: horizontal;
 
@@ -127,7 +140,7 @@ body {
   align-items: center;
   gap: 4px;
   padding: 8px 8px 6px 10px;
-  border-bottom: 1px solid var(--vscode-widget-border);
+  border-bottom: 1px solid var(--atlas-border);
   flex-shrink: 0;
 }
 
@@ -157,7 +170,7 @@ body {
 }
 
 .sidebar-icon-btn:hover {
-  background: var(--vscode-list-hoverBackground);
+  background: var(--atlas-surface-hover-bg);
   color: var(--vscode-foreground);
 }
 
@@ -176,7 +189,7 @@ body {
   background: var(--vscode-sideBar-background);
   color: var(--vscode-icon-foreground);
   border: none;
-  border-bottom: 1px solid var(--vscode-widget-border);
+  border-bottom: 1px solid var(--atlas-border);
 
   cursor: pointer;
   font-size: 12px;
@@ -185,7 +198,7 @@ body {
 }
 
 .sessions-toggle-btn:hover {
-  background: var(--vscode-list-hoverBackground);
+  background: var(--atlas-surface-hover-bg);
   color: var(--vscode-foreground);
 }
 
@@ -217,7 +230,7 @@ body {
 }
 
 .session-item:hover {
-  background: var(--vscode-list-hoverBackground);
+  background: var(--atlas-surface-hover-bg);
 }
 
 .session-item:hover .session-actions {
@@ -246,8 +259,8 @@ body {
 
 .session-count {
   font-size: 10px;
-  color: var(--vscode-descriptionForeground);
-  background: rgba(255, 255, 255, 0.06);
+  color: var(--atlas-muted-fg);
+  background: var(--vscode-badge-background, var(--atlas-surface-bg));
   border-radius: 8px;
   padding: 1px 5px;
   flex-shrink: 0;
@@ -276,12 +289,12 @@ body {
 }
 
 .session-action-btn:hover {
-  background: var(--vscode-list-hoverBackground);
+  background: var(--atlas-surface-hover-bg);
   color: var(--vscode-foreground);
 }
 
 .session-action-btn.delete-btn:hover {
-  color: #f14c4c;
+  color: var(--atlas-danger-fg);
 }
 
 .session-action-btn i {
@@ -337,15 +350,15 @@ body {
 
 .user {
   align-self: flex-end;
-  background-color: #007acc;
-  color: #ffffff;
+  background-color: var(--atlas-accent-bg);
+  color: var(--atlas-accent-fg);
   border-bottom-right-radius: 4px;
 }
 
 .bot {
   align-self: flex-start;
-  background-color: #3a3a3a;
-  color: #cccccc;
+  background-color: var(--atlas-surface-bg);
+  color: var(--vscode-foreground);
   border-bottom-left-radius: 4px;
 }
 
@@ -353,8 +366,8 @@ body {
 
 .input-area {
   padding: 12px;
-  background-color: var(--vscode-sideBar-background);
-  border-top: 1px solid var(--vscode-widget-border);
+  background-color: var(--atlas-panel-bg);
+  border-top: 1px solid var(--atlas-border);
   position: relative;
   flex-shrink: 0;
 }
@@ -372,19 +385,34 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #1e1e1e;
-  border: 1px solid #444;
+  box-sizing: border-box;
+  max-width: min(100%, 260px);
+  min-width: 0;
+  background: var(--vscode-dropdown-background, var(--atlas-surface-bg));
+  border: 1px solid var(--vscode-dropdown-border, var(--atlas-border));
   padding: 4px 10px;
   border-radius: 4px;
   cursor: pointer;
-  color: #ccc;
+  color: var(--vscode-dropdown-foreground, var(--vscode-foreground));
   font-size: 12px;
   flex-shrink: 0;
 }
 
+.model-selector i {
+  color: var(--vscode-icon-foreground);
+  flex-shrink: 0;
+}
+
+#main-btn-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .model-selector:hover {
-  background: #2d2d2d;
-  border-color: #007acc;
+  background: var(--atlas-surface-hover-bg);
+  border-color: var(--vscode-focusBorder, var(--atlas-accent-bg));
 }
 
 .action-buttons {
@@ -398,8 +426,8 @@ body {
 
 .action-btn {
   background: transparent;
-  border: 1px solid #004b7a;
-  color: #007acc;
+  border: 1px solid var(--atlas-accent-bg);
+  color: var(--atlas-accent-bg);
   font-size: 10px;
   padding: 4px 10px;
   border-radius: 4px;
@@ -418,7 +446,7 @@ body {
 }
 
 .action-btn:hover {
-  background: rgba(0, 122, 204, 0.1);
+  background: var(--vscode-toolbar-hoverBackground, var(--atlas-surface-hover-bg));
 }
 
 .main-input-container {
@@ -430,8 +458,8 @@ body {
 .input-container {
   display: flex;
   gap: 8px;
-  background-color: #252526;
-  border: 1px solid #444;
+  background-color: var(--atlas-surface-bg);
+  border: 1px solid var(--atlas-border);
   border-radius: 4px;
   padding: 4px 6px 4px 10px;
   flex: 1;
@@ -457,8 +485,8 @@ input {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #007acc;
-  color: white;
+  background-color: var(--atlas-accent-bg);
+  color: var(--atlas-accent-fg);
   border: none;
   border-radius: 4px;
   width: 28px;
@@ -468,15 +496,15 @@ input {
 }
 
 #send-btn:hover {
-  background-color: #1c97ea;
+  background-color: var(--atlas-accent-hover-bg);
 }
 
 #send-btn.stop {
-  background-color: #c93c37;
+  background-color: var(--atlas-danger-bg);
 }
 
 #send-btn.stop:hover {
-  background-color: #e0524d;
+  background-color: var(--vscode-inputValidation-errorBorder, var(--atlas-danger-fg));
 }
 
 #send-btn.stop i {
@@ -497,11 +525,11 @@ input {
 }
 
 #send-btn.stop {
-  background-color: #c93c37;
+  background-color: var(--atlas-danger-bg);
 }
 
 #send-btn.stop:hover {
-  background-color: #e0524d;
+  background-color: var(--vscode-inputValidation-errorBorder, var(--atlas-danger-fg));
 }
 
 #send-btn.stop i {
@@ -541,11 +569,11 @@ input {
   left: 12px;
   margin-bottom: 10px;
   width: 260px;
-  background: #252526;
-  border: 1px solid #444;
+  background: var(--atlas-surface-bg);
+  border: 1px solid var(--atlas-border);
   border-radius: 8px;
   padding: 16px;
-  box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 -4px 15px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.35));
   z-index: 100;
   display: flex;
   flex-direction: column;
@@ -566,7 +594,7 @@ input {
 .popover-icon-btn {
   background: transparent;
   border: none;
-  color: #888;
+  color: var(--vscode-icon-foreground);
   cursor: pointer;
   padding: 8px 16px;
   border-radius: 6px;
@@ -581,26 +609,26 @@ input {
 }
 
 .popover-icon-btn:hover {
-  color: #ccc;
-  background: #333;
+  color: var(--vscode-foreground);
+  background: var(--atlas-surface-hover-bg);
 }
 
 .popover-icon-btn.active {
-  color: #fff;
-  background: #3a3a3a;
+  color: var(--vscode-list-activeSelectionForeground, var(--vscode-foreground));
+  background: var(--vscode-list-activeSelectionBackground, var(--atlas-surface-bg));
 }
 
 .popover-separator {
   width: 1px;
   height: 24px;
-  background: #444;
+  background: var(--atlas-border);
 }
 
 .popover-dropdown-btn {
   width: 100%;
-  background: #1e1e1e;
-  border: 1px solid #444;
-  color: #ccc;
+  background: var(--vscode-dropdown-background, var(--atlas-surface-bg));
+  border: 1px solid var(--atlas-border);
+  color: var(--vscode-foreground);
   padding: 10px 12px;
   border-radius: 6px;
   display: flex;
@@ -612,7 +640,7 @@ input {
 }
 
 .popover-dropdown-btn:hover {
-  border-color: #007acc;
+  border-color: var(--atlas-accent-bg);
 }
 
 /* ── Config view ───────────────────────────────────────────────────────────── */
@@ -624,7 +652,7 @@ input {
 
 .settings-option {
   padding: 20px;
-  border: 1px solid var(--vscode-widget-border);
+  border: 1px solid var(--atlas-border);
   background-color: var(--vscode-button-secondaryBackground);
   color: var(--vscode-button-secondaryForeground);
   cursor: pointer;
@@ -632,7 +660,7 @@ input {
 }
 
 .settings-option:hover {
-  background-color: var(--vscode-list-hoverBackground);
+  background-color: var(--atlas-surface-hover-bg);
 }
 
 /* ── Loading / Spinners ────────────────────────────────────────────────────── */
@@ -647,8 +675,8 @@ input {
 .spinner {
   width: 14px;
   height: 14px;
-  border: 2px solid var(--vscode-widget-border);
-  border-top: 2px solid var(--vscode-button-background);
+  border: 2px solid var(--atlas-border);
+  border-top: 2px solid var(--atlas-accent-bg);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -667,8 +695,8 @@ input {
 
 .dropdown-list {
   width: 100%;
-  background: #1e1e1e;
-  border: 1px solid #444;
+  background: var(--vscode-dropdown-background, var(--atlas-surface-bg));
+  border: 1px solid var(--atlas-border);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -681,9 +709,9 @@ input {
 .dropdown-item {
   padding: 10px 12px;
   cursor: pointer;
-  color: #ccc;
+  color: var(--vscode-foreground);
   font-size: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--atlas-border);
 }
 
 .dropdown-item:last-child {
@@ -691,12 +719,12 @@ input {
 }
 
 .dropdown-item:hover {
-  background: #2d2d2d;
+  background: var(--atlas-surface-hover-bg);
 }
 
 .dropdown-item.selected {
-  background: rgba(0, 122, 204, 0.18);
-  color: #fff;
+  background: var(--vscode-list-activeSelectionBackground, var(--atlas-surface-bg));
+  color: var(--vscode-list-activeSelectionForeground, var(--vscode-foreground));
 }
 
 .dropdown-item-label {
@@ -710,7 +738,7 @@ input {
 .dropdown-loading {
   padding: 12px;
   font-size: 12px;
-  color: #999;
+  color: var(--atlas-muted-fg);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -743,7 +771,7 @@ input {
 .btn-spinner {
   width: 10px;
   height: 10px;
-  border: 2px solid #007acc;
+  border: 2px solid var(--atlas-accent-bg);
   border-top-color: transparent;
   border-radius: 50%;
   animation: atlas-spin 0.6s linear infinite;
@@ -778,7 +806,7 @@ input {
 .message h1 {
   font-size: 18px;
   padding-bottom: 6px;
-  border-bottom: 1px solid var(--vscode-widget-border);
+  border-bottom: 1px solid var(--atlas-border);
 }
 
 .message h2 {
@@ -849,22 +877,22 @@ input {
   height: 1px;
   margin: 14px 0;
   border: 0;
-  background: var(--vscode-widget-border);
+  background: var(--atlas-border);
 }
 
 .message code {
   font-family: var(--vscode-editor-font-family), monospace;
-  background-color: rgba(0, 0, 0, 0.3);
+  background-color: var(--vscode-textCodeBlock-background, var(--atlas-surface-bg));
   padding: 1px 5px;
   border-radius: 4px;
   font-size: 0.92em;
-  color: #d4d4d4;
+  color: var(--vscode-editor-foreground, var(--vscode-foreground));
   overflow-wrap: anywhere;
 }
 
 .message pre {
-  background-color: #1e1e1e;
-  border: 1px solid var(--vscode-widget-border);
+  background-color: var(--atlas-code-bg);
+  border: 1px solid var(--atlas-border);
   padding: 12px;
   border-radius: 6px;
   overflow-x: auto;
@@ -877,7 +905,7 @@ input {
   display: block;
   background-color: transparent;
   padding: 0;
-  color: #9cdcfe;
+  color: var(--vscode-editor-foreground, var(--vscode-foreground));
   overflow-wrap: normal;
   white-space: pre;
   word-break: normal;
@@ -895,14 +923,14 @@ input {
 .message th,
 .message td {
   padding: 6px 8px;
-  border: 1px solid var(--vscode-widget-border);
+  border: 1px solid var(--atlas-border);
   text-align: left;
   vertical-align: top;
 }
 
 .message th {
   color: var(--vscode-editor-foreground);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--atlas-surface-bg);
   font-weight: 600;
 }
 
@@ -916,7 +944,7 @@ input {
   display: inline-block;
   width: 8px;
   height: 14px;
-  background-color: #ccc;
+  background-color: var(--vscode-editorCursor-foreground, var(--vscode-foreground));
   vertical-align: middle;
   margin-left: 2px;
   animation: blink 1s step-end infinite;
@@ -924,7 +952,7 @@ input {
 
 .message-status {
   margin-top: 8px;
-  color: #a6a6a6;
+  color: var(--atlas-muted-fg);
   font-size: 12px;
   font-style: italic;
 }
@@ -945,8 +973,8 @@ input {
   align-items: center;
   justify-content: center;
   background-color: transparent;
-  color: #dcdcaa;
-  border: 1px solid #5a5a2a;
+  color: var(--atlas-warning-fg);
+  border: 1px solid var(--atlas-warning-fg);
   border-radius: 4px;
   width: 37px;
   height: 37px;
@@ -955,14 +983,14 @@ input {
 }
 
 #study-mode-btn:hover {
-  background-color: rgba(220, 220, 170, 0.12);
-  border-color: #dcdcaa;
+  background-color: var(--atlas-surface-hover-bg);
+  border-color: var(--atlas-warning-fg);
 }
 
 #study-mode-btn.active {
-  background-color: rgba(220, 220, 170, 0.18);
-  color: #fff2a8;
-  border-color: #fff2a8;
+  background-color: var(--vscode-list-activeSelectionBackground, var(--atlas-surface-bg));
+  color: var(--vscode-list-activeSelectionForeground, var(--atlas-warning-fg));
+  border-color: var(--atlas-warning-fg);
 }
 
 #study-mode-btn i {
@@ -970,10 +998,10 @@ input {
 }
 
 #study-mode-btn.active {
-  background-color: rgba(220, 220, 170, 0.18);
-  color: #fff2a8;
-  border-color: #fff2a8;
-  box-shadow: 0 0 0 1px rgba(220, 220, 170, 0.25);
+  background-color: var(--vscode-list-activeSelectionBackground, var(--atlas-surface-bg));
+  color: var(--vscode-list-activeSelectionForeground, var(--atlas-warning-fg));
+  border-color: var(--atlas-warning-fg);
+  box-shadow: 0 0 0 1px var(--atlas-warning-fg);
 }
 /* --- TELA DE PESQUISA (LUPA) --- */
 .search-layout {
@@ -987,7 +1015,7 @@ input {
   flex-direction: column;
   height: 100%;
   width: 100%;
-  background: var(--vscode-sideBar-background);
+  background: var(--atlas-panel-bg);
 }
 
 .search-input-wrapper {
@@ -1028,9 +1056,9 @@ input {
   display: flex;
   align-items: center;
   gap: 6px;
-  background-color: rgba(0, 0, 0, 0.15); /* Fundo ligeiramente mais escuro */
-  border-top: 1px solid var(--vscode-widget-border);
-  border-bottom: 1px solid var(--vscode-widget-border);
+  background-color: var(--atlas-surface-bg);
+  border-top: 1px solid var(--atlas-border);
+  border-bottom: 1px solid var(--atlas-border);
   font-weight: 600;
 }
 
@@ -1045,10 +1073,10 @@ input {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  min-height: 84px;
+  min-height: 104px;
   box-sizing: border-box;
-  padding: 12px 10px 10px;
-  border-bottom: 1px solid var(--vscode-widget-border);
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--atlas-border);
   cursor: pointer;
   transition:
     background-color 0.12s ease,
@@ -1056,12 +1084,12 @@ input {
 }
 
 .model-card:hover {
-  background-color: var(--vscode-list-hoverBackground);
+  background-color: var(--atlas-surface-hover-bg);
 }
 
 .model-card.active {
-  background-color: var(--vscode-list-activeSelectionBackground, #094771);
-  color: var(--vscode-list-activeSelectionForeground, #ffffff);
+  background-color: var(--vscode-list-activeSelectionBackground, var(--atlas-surface-bg));
+  color: var(--vscode-list-activeSelectionForeground, var(--vscode-foreground));
 }
 
 .model-badge {
@@ -1071,23 +1099,23 @@ input {
   width: 42px;
   min-width: 42px;
   height: 42px;
-  border: 1px solid var(--vscode-widget-border);
+  border: 1px solid var(--atlas-border);
   border-radius: 4px;
   font-weight: 600;
   font-size: 13px;
   color: inherit;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--atlas-surface-bg);
 }
 
 .model-card.active .model-badge {
-  border-color: rgba(255, 255, 255, 0.4);
+  border-color: currentColor;
 }
 
 .model-card-info {
   display: flex;
   flex-direction: column;
   flex: 1;
-  gap: 6px;
+  gap: 7px;
   min-width: 0;
 }
 
@@ -1106,7 +1134,7 @@ input {
   gap: 4px;
   font-size: 10px;
   color: var(--vscode-descriptionForeground);
-  border: 1px solid var(--vscode-widget-border);
+  border: 1px solid var(--atlas-border);
   padding: 2px 6px;
   border-radius: 4px;
   width: fit-content;
@@ -1115,16 +1143,16 @@ input {
 /* Transições suaves nas cores quando o item está selecionado */
 .model-card.active .model-card-author,
 .model-card.active .model-card-footer span {
-  color: rgba(255, 255, 255, 0.8);
-  border-color: rgba(255, 255, 255, 0.3);
+  color: var(--vscode-list-activeSelectionForeground, var(--vscode-foreground));
+  border-color: currentColor;
 }
 
 .model-card-footer {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: auto;
+  gap: 6px;
+  margin-top: 2px;
 }
 
 .model-card-footer span {
@@ -1133,9 +1161,10 @@ input {
   gap: 4px;
   font-size: 9px;
   color: var(--vscode-descriptionForeground);
-  border: 1px solid var(--vscode-widget-border);
-  padding: 3px 6px;
+  border: 1px solid var(--atlas-border);
+  padding: 3px 7px;
   border-radius: 4px;
+  line-height: 1.35;
 }
 
 .model-card-footer i {

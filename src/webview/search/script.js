@@ -173,6 +173,7 @@ function renderInfoItem(label, value) {
 function renderModelDetails(modelId) {
   const detailView = document.getElementById("model-detail-view");
   const model = modelDetails[modelId] || modelDetails["qwen3-coder-30b"];
+  if (!detailView || !model) return;
 
   detailView.innerHTML = `
     <section class="detail-header">

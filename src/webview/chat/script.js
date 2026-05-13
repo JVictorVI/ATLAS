@@ -923,7 +923,7 @@ const searchableModelCatalog = [
   downloads,
 }));
 
-function bindModelCardEvents() {
+function bindSearchModelEvents() {
   renderModelCards(searchableModelCatalog);
 
   const modelSearch = document.getElementById("model-search");
@@ -946,6 +946,21 @@ function bindModelCardEvents() {
     }
 
     renderModelCards(filteredModels, activeModelId);
+  });
+}
+
+function bindModelCardEvents() {
+  document.querySelectorAll(".model-card").forEach((card) => {
+    card.addEventListener("click", () => {
+      document
+        .querySelectorAll(".model-card")
+        .forEach((c) => c.classList.remove("active"));
+      card.classList.add("active");
+      vscode.postMessage({
+        type: "abrirDetalhesModelo",
+        modelId: card.getAttribute("data-id"),
+      });
+    });
   });
 }
 
@@ -1034,18 +1049,7 @@ function renderSearchView() {
     </div>
   `;
 
-  document.querySelectorAll(".model-card").forEach((card) => {
-    card.addEventListener("click", () => {
-      document
-        .querySelectorAll(".model-card")
-        .forEach((c) => c.classList.remove("active"));
-      card.classList.add("active");
-      vscode.postMessage({
-        type: "abrirDetalhesModelo",
-        modelId: card.getAttribute("data-id"),
-      });
-    });
-  });
+  bindSearchModelEvents();
 
   vscode.postMessage({ type: "abrirPainelConfig", selectedView: "search" });
 }
