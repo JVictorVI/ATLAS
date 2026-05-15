@@ -183,6 +183,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         this.localRuntimeService.stopRuntime();
       },
 
+      getLocalModelsDir: () => this.localModelDiscoveryService.getModelsDir(),
+
       getChatEditorContext: () =>
         this.editorContextService.getChatEditorContext(),
 
@@ -230,6 +232,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     const modelsList = localModels.map((model) => ({
       id: model.id,
       name: model.name || model.id,
+      provider: model.provider || "Local",
       tag: model.metadata?.tags?.[0] || "LLM",
       quant: model.metadata?.quantization || "-",
       date: model.metadata?.installedAt
@@ -275,6 +278,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         localModels: localModels.map((model) => ({
           id: model.id,
           name: model.name || model.id,
+          provider: model.provider || "Local",
         })),
       },
     });

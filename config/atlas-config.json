@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-05-15T22:21:18.055Z",
+  "updatedAt": "2026-05-15T22:55:15.912Z",
   "general": {
     "theme": "system",
     "language": "pt-BR",
@@ -37,7 +37,7 @@
     "selection": {
       "mode": "local",
       "local": {
-        "activeModelId": "local/Llama-3.2-1B-Instruct-UD-Q8_K_XL"
+        "activeModelId": "local/gemma-4-E4B-it-Q4_1"
       },
       "cloud": {
         "providerId": "Groq",
@@ -78,8 +78,8 @@
       },
       "local/gemma-4-E4B-it-Q4_1": {
         "id": "local/gemma-4-E4B-it-Q4_1",
-        "name": "gemma-4-E4B-it-Q4_1",
-        "provider": "Local",
+        "name": "Gemma 4",
+        "provider": "Google",
         "enabled": true,
         "source": "local",
         "path": "c:\\Users\\jvict\\OneDrive\\Documentos\\Projetos\\ATLAS\\models\\gemma-4-E4B-it-Q4_1.gguf",
@@ -98,43 +98,14 @@
           ],
           "size": "4.73 GB",
           "installedAt": "2026-05-13T21:15:53.383Z",
-          "updatedAt": "2026-05-15T22:21:18.034Z"
+          "updatedAt": "2026-05-15T22:55:15.912Z",
+          "quantization": "Q4_1"
         },
         "custom": {
           "baseUrl": "http://127.0.0.1:8080/v1",
           "runtime": "llama.cpp",
           "tokensRes": 512,
           "systemPrompt": "sempre me chame de neném."
-        }
-      },
-      "local/Llama-3.2-1B-Instruct-UD-Q8_K_XL": {
-        "id": "local/Llama-3.2-1B-Instruct-UD-Q8_K_XL",
-        "name": "Llama-3.2-1B-Instruct-UD-Q8_K_XL",
-        "provider": "Local",
-        "enabled": true,
-        "source": "local",
-        "path": "c:\\Users\\jvict\\OneDrive\\Documentos\\Projetos\\ATLAS\\models\\Llama-3.2-1B-Instruct-UD-Q8_K_XL.gguf",
-        "apiModelName": "Llama-3.2-1B-Instruct-UD-Q8_K_XL",
-        "parameters": {
-          "temperature": 0.7,
-          "maxTokens": 1024,
-          "topP": 0.95,
-          "gpuLayers": 25,
-          "contextWindow": 4096
-        },
-        "metadata": {
-          "source": "models-folder",
-          "tags": [
-            "1B"
-          ],
-          "size": "1.72 GB",
-          "installedAt": "2026-05-15T20:42:04.855Z",
-          "updatedAt": "2026-05-15T22:21:18.055Z"
-        },
-        "custom": {
-          "baseUrl": "http://127.0.0.1:8080/v1",
-          "runtime": "llama.cpp",
-          "tokensRes": 512
         }
       }
     }

@@ -1,4 +1,6 @@
 import * as vscode from "vscode";
+import * as fs from "fs";
+import * as path from "path";
 import { ApiKeyManager } from "../managers/ApiKeyManager";
 import { AtlasConfigManager } from "../managers/AtlasConfigManager";
 import { AtlasPromptAssemblyService } from "../prompt/AtlasPromptAssemblyService";
@@ -23,6 +25,7 @@ type RouterDependencies = {
   refreshLocalModels: () => ReturnType<AtlasConfigManager["getLocalModels"]>;
   promptStopLocalRuntime: () => Promise<void>;
   stopLocalRuntime: () => void;
+  getLocalModelsDir: () => string;
   getChatEditorContext: () => AtlasEditorContext | null;
   buildEditorAnalysisContext: (context: AtlasEditorContext) => string;
 };
@@ -90,6 +93,12 @@ export class ChatMessageRouter {
         return;
       case "saveModelBehavior":
         await this.handleSaveModelBehaviorForLocalModel(data, webview);
+        return;
+      case "editModelMetadata":
+        await this.handleEditModelMetadata(data, webview);
+        return;
+      case "deleteModelRequest":
+        await this.handleDeleteModelRequest(data, webview);
         return;
       case "loadModelRequest":
         await this.handleLoadModelRequest(data, webview);
@@ -662,6 +671,117 @@ export class ChatMessageRouter {
     }
   }
 
+  private async handleEditModelMetadata(
+    data: any,
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      const modelId = typeof data.modelId === "string" ? data.modelId : "";
+
+      if (!modelId) {
+        throw new Error("Modelo local invÃ¡lido.");
+      }
+
+      const model = this.deps.configManager.getLocalModel(modelId);
+
+      if (!model) {
+        throw new Error(`Modelo "${modelId}" nÃ£o encontrado.`);
+      }
+
+      const nextName = await vscode.window.showInputBox({
+        title: "Editar nome do modelo",
+        prompt: "Nome exibido no seletor e na biblioteca",
+        value: model.name || model.id,
+        ignoreFocusOut: true,
+      });
+
+      if (nextName === undefined) {
+        return;
+      }
+
+      const nextProvider = await vscode.window.showInputBox({
+        title: "Editar provedor do modelo",
+        prompt: "Exemplo: Google, Meta, Mistral AI, Local",
+        value: model.provider || "Local",
+        ignoreFocusOut: true,
+      });
+
+      if (nextProvider === undefined) {
+        return;
+      }
+
+      this.deps.configManager.updateModel(modelId, {
+        name: nextName.trim() || model.name || model.id,
+        provider: nextProvider.trim() || "Local",
+      });
+
+      await webview.postMessage({
+        type: "modeloMetadadosSalvos",
+        value: { modelId },
+      });
+
+      this.deps.sendModelsToWebview(webview);
+      vscode.window.showInformationMessage("Metadados do modelo salvos.");
+    } catch (error) {
+      await this.postError(
+        webview,
+        error,
+        "Erro ao editar metadados do modelo local.",
+      );
+    }
+  }
+
+  private async handleDeleteModelRequest(
+    data: any,
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      const modelId = typeof data.modelId === "string" ? data.modelId : "";
+
+      if (!modelId) {
+        throw new Error("Modelo local inválido.");
+      }
+
+      const model = this.deps.configManager.getLocalModel(modelId);
+
+      if (!model) {
+        throw new Error(`Modelo "${modelId}" nÃ£o encontrado.`);
+      }
+
+      const answer = await vscode.window.showWarningMessage(
+        `Deseja excluir o modelo local "${model.name}"? Essa ação não poderá ser desfeita.`,
+        { modal: true },
+        "Excluir",
+      );
+
+      if (answer !== "Excluir") {
+        return;
+      }
+
+      const modelPath = typeof model.path === "string" ? model.path : "";
+
+      if (modelPath) {
+        this.deleteModelFileFromModelsFolder(modelPath);
+      }
+
+      if (this.deps.configManager.getActiveLocalModel()?.id === modelId) {
+        this.deps.stopLocalRuntime();
+      }
+
+      this.deps.configManager.removeModel(modelId);
+
+      await webview.postMessage({
+        type: "modeloLocalExcluido",
+        value: { modelId },
+      });
+
+      this.deps.sendModelsToWebview(webview);
+      vscode.window.showInformationMessage("Modelo local excluido.");
+    } catch (error) {
+      await this.postError(webview, error, "Erro ao excluir modelo local.");
+    }
+  }
+
   private async handleLoadModelRequest(
     data: any,
     webview: vscode.Webview,
@@ -861,5 +981,25 @@ export class ChatMessageRouter {
     }
 
     return "cpu";
+  }
+
+  private deleteModelFileFromModelsFolder(modelPath: string): void {
+    const modelsDir = path.resolve(this.deps.getLocalModelsDir());
+    const resolvedModelPath = path.resolve(modelPath);
+    const relative = path.relative(modelsDir, resolvedModelPath);
+
+    if (
+      relative.startsWith("..") ||
+      path.isAbsolute(relative) ||
+      path.extname(resolvedModelPath).toLowerCase() !== ".gguf"
+    ) {
+      throw new Error(
+        "Por seguranca, apenas arquivos .gguf dentro da pasta models podem ser excluidos.",
+      );
+    }
+
+    if (fs.existsSync(resolvedModelPath)) {
+      fs.unlinkSync(resolvedModelPath);
+    }
   }
 }

@@ -175,7 +175,7 @@ export class ApiKeyManager {
     }
 
     const confirm = await vscode.window.showWarningMessage(
-      `Deseja excluir a chave do provedor ${providerConfig.label}?`,
+      `Deseja excluir a chave do provedor ${providerConfig.label}? Essa ação não poderá ser desfeita.`,
       { modal: true },
       "Excluir",
     );

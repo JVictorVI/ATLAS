@@ -67,8 +67,8 @@ body {
 
 .subtitle {
   color: var(--vscode-descriptionForeground);
-  font-size: 14px;
-  margin-left: 8px; 
+  font-size: 12px;
+  margin-left: 2px;
 }
 
 
@@ -206,6 +206,16 @@ button {
 
 .btn-primary:hover {
   background: var(--vscode-button-hoverBackground);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--vscode-textLink-foreground);
+  border: 1px solid var(--vscode-textLink-foreground);
+}
+
+.btn-secondary:hover {
+  background: rgba(0, 122, 204, 0.1);
 }
 
 .btn-danger {

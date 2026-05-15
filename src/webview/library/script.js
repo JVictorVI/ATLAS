@@ -40,9 +40,14 @@ window.addEventListener("message", (event) => {
     showButtonFeedback("btn-save-behavior", "Salvo!");
   }
 
-  if (message.type === "modeloLocalCarregado") {
-    showButtonFeedback("btn-load-model", "Selecionado!");
+  if (message.type === "modeloMetadadosSalvos") {
+    showButtonFeedback("btn-edit-model", "Salvo!");
   }
+
+  if (message.type === "modeloLocalExcluido") {
+    selectedModelId = null;
+  }
+
 });
 
 function showButtonFeedback(buttonId, temporaryText) {
@@ -105,7 +110,8 @@ function selectModel(id) {
 
   // Atualiza as labels e tags
   document.getElementById("info-tag").textContent = `${model.quant} · ${model.size}`;
-  document.getElementById("info-model").textContent = model.id;
+  document.getElementById("info-model").textContent = model.name;
+  document.getElementById("info-provider").textContent = model.provider || "Local";
   document.getElementById("info-quant").textContent = model.quant;
   document.getElementById("info-date").textContent = model.date;
   document.getElementById("info-file").textContent = model.file;
@@ -197,15 +203,29 @@ function setupButtons() {
     });
   }
 
-  const btnLoad = document.getElementById("btn-load-model");
-  if (btnLoad) {
-    btnLoad.addEventListener("click", () => {
+  const btnEditModel = document.getElementById("btn-edit-model");
+  if (btnEditModel) {
+    btnEditModel.addEventListener("click", () => {
       if (!selectedModelId) {
         return;
       }
 
       vscode.postMessage({
-        type: "loadModelRequest",
+        type: "editModelMetadata",
+        modelId: selectedModelId,
+      });
+    });
+  }
+
+  const btnDeleteModel = document.getElementById("btn-delete-model");
+  if (btnDeleteModel) {
+    btnDeleteModel.addEventListener("click", () => {
+      if (!selectedModelId) {
+        return;
+      }
+
+      vscode.postMessage({
+        type: "deleteModelRequest",
         modelId: selectedModelId,
       });
     });

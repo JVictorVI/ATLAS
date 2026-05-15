@@ -62,8 +62,8 @@ export class AtlasLocalModelDiscoveryService {
 
     return {
       id: modelId,
-      name: modelName,
-      provider: "Local",
+      name: existing?.name ?? modelName,
+      provider: existing?.provider ?? this.inferProvider(modelName),
       enabled: existing?.enabled ?? true,
       source: "local",
       path: filePath,
@@ -80,6 +80,8 @@ export class AtlasLocalModelDiscoveryService {
         ...(existing?.metadata ?? {}),
         source: existing?.metadata?.source ?? "models-folder",
         tags: existing?.metadata?.tags ?? [this.inferTag(modelName)],
+        quantization:
+          existing?.metadata?.quantization ?? this.inferQuantization(modelName),
         size: this.formatBytes(stat.size),
         installedAt:
           existing?.metadata?.installedAt ?? stat.birthtime.toISOString(),
@@ -96,6 +98,40 @@ export class AtlasLocalModelDiscoveryService {
   private inferTag(modelName: string): string {
     const match = modelName.match(/(?:^|[-_])(\d+(?:\.\d+)?b)(?:[-_]|$)/i);
     return match?.[1]?.toUpperCase() ?? "GGUF";
+  }
+
+  private inferQuantization(modelName: string): string {
+    const match = modelName.match(
+      /(?:^|[-_.])((?:IQ|Q)\d(?:_\d)?(?:_[A-Z]+){0,3})(?:[-_.]|$)/i,
+    );
+
+    return match?.[1]?.toUpperCase() ?? "-";
+  }
+
+  private inferProvider(modelName: string): string {
+    const normalized = modelName.toLowerCase();
+
+    if (normalized.includes("gemma") || normalized.includes("google")) {
+      return "Google";
+    }
+
+    if (normalized.includes("llama") || normalized.includes("meta")) {
+      return "Meta";
+    }
+
+    if (normalized.includes("qwen")) {
+      return "Qwen";
+    }
+
+    if (normalized.includes("mistral") || normalized.includes("mixtral")) {
+      return "Mistral AI";
+    }
+
+    if (normalized.includes("phi")) {
+      return "Microsoft";
+    }
+
+    return "Local";
   }
 
   private formatBytes(bytes: number): string {

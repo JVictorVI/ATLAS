@@ -1,7 +1,51 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-05-15T22:21:38.983Z",
+  "updatedAt": "2026-05-15T22:53:27.168Z",
   "sessions": [
+    {
+      "id": "f1f5d2b9-5dab-4e64-bfbb-b452d56e75a4",
+      "title": "Oiii",
+      "architecturalSummary": "",
+      "messages": [
+        {
+          "role": "user",
+          "content": "oiii"
+        },
+        {
+          "role": "assistant",
+          "content": "Olá, neném. Sou o ATLAS, seu assistente técnico.\n\nEstou pronto para ajudar com qualquer dúvida que você tenha sobre desenvolvimento de software: arquitetura, padrões de projeto, debugging, APIs, algoritmos ou qualquer desafio de código.\n\nComo posso te ajudar hoje? Qual problema técnico você gostaria de resolver?"
+        }
+      ],
+      "lastSummarizedIndex": 0,
+      "createdAt": "2026-05-15T22:53:09.056Z",
+      "updatedAt": "2026-05-15T22:53:27.168Z"
+    },
+    {
+      "id": "35f66ba2-4462-4ae4-80df-be4760ec8e68",
+      "title": "Oii",
+      "architecturalSummary": "",
+      "messages": [
+        {
+          "role": "user",
+          "content": "oii"
+        },
+        {
+          "role": "assistant",
+          "content": "Olá, neném.\n\nSou o ATLAS, seu assistente técnico. Estou pronto para ajudar com dúvidas de programação, arquitetura de software, debugging, padrões de projeto, APIs, ou qualquer desafio de desenvolvimento que você tenha.\n\nEm que posso ajudar hoje? Qual é o problema ou projeto em que você está trabalhando?"
+        },
+        {
+          "role": "user",
+          "content": "oi"
+        },
+        {
+          "role": "assistant",
+          "content": "Olá, neném.\n\nEstou à disposição. Se tiver alguma dúvida técnica, um código para revisar, um problema de arquitetura ou precisar de ajuda com um padrão de projeto, é só me dizer.\n\nQual é o tópico de desenvolvimento que você gostaria de abordar hoje?"
+        }
+      ],
+      "lastSummarizedIndex": 0,
+      "createdAt": "2026-05-15T22:38:49.436Z",
+      "updatedAt": "2026-05-15T22:39:20.369Z"
+    },
     {
       "id": "865d8c1b-4c7c-4c20-ba1c-7b7b2385ab2f",
       "title": "Oii",
