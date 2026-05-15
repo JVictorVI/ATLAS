@@ -1,102 +1,24 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-05-15T22:53:27.168Z",
+  "updatedAt": "2026-05-15T23:18:35.641Z",
   "sessions": [
     {
-      "id": "f1f5d2b9-5dab-4e64-bfbb-b452d56e75a4",
-      "title": "Oiii",
+      "id": "c1d0af51-6c8a-4801-a7ae-7c0bdc9a22e3",
+      "title": "Oiiii",
       "architecturalSummary": "",
       "messages": [
         {
           "role": "user",
-          "content": "oiii"
+          "content": "oiiii"
         },
         {
           "role": "assistant",
-          "content": "Olá, neném. Sou o ATLAS, seu assistente técnico.\n\nEstou pronto para ajudar com qualquer dúvida que você tenha sobre desenvolvimento de software: arquitetura, padrões de projeto, debugging, APIs, algoritmos ou qualquer desafio de código.\n\nComo posso te ajudar hoje? Qual problema técnico você gostaria de resolver?"
+          "content": "Olá. Sou o ATLAS, seu assistente técnico focado em desenvolvimento de software.\n\nEstou à disposição para auxiliar com dúvidas sobre arquitetura, algoritmos, padrões de projeto, debugging, APIs, modelagem de dados ou qualquer desafio técnico de programação.\n\nComo posso ajudar você hoje?"
         }
       ],
       "lastSummarizedIndex": 0,
-      "createdAt": "2026-05-15T22:53:09.056Z",
-      "updatedAt": "2026-05-15T22:53:27.168Z"
-    },
-    {
-      "id": "35f66ba2-4462-4ae4-80df-be4760ec8e68",
-      "title": "Oii",
-      "architecturalSummary": "",
-      "messages": [
-        {
-          "role": "user",
-          "content": "oii"
-        },
-        {
-          "role": "assistant",
-          "content": "Olá, neném.\n\nSou o ATLAS, seu assistente técnico. Estou pronto para ajudar com dúvidas de programação, arquitetura de software, debugging, padrões de projeto, APIs, ou qualquer desafio de desenvolvimento que você tenha.\n\nEm que posso ajudar hoje? Qual é o problema ou projeto em que você está trabalhando?"
-        },
-        {
-          "role": "user",
-          "content": "oi"
-        },
-        {
-          "role": "assistant",
-          "content": "Olá, neném.\n\nEstou à disposição. Se tiver alguma dúvida técnica, um código para revisar, um problema de arquitetura ou precisar de ajuda com um padrão de projeto, é só me dizer.\n\nQual é o tópico de desenvolvimento que você gostaria de abordar hoje?"
-        }
-      ],
-      "lastSummarizedIndex": 0,
-      "createdAt": "2026-05-15T22:38:49.436Z",
-      "updatedAt": "2026-05-15T22:39:20.369Z"
-    },
-    {
-      "id": "865d8c1b-4c7c-4c20-ba1c-7b7b2385ab2f",
-      "title": "Oii",
-      "architecturalSummary": "",
-      "messages": [
-        {
-          "role": "user",
-          "content": "oii"
-        },
-        {
-          "role": "assistant",
-          "content": "Não há nada a explicar! Você está aqui para aprender e trabalhar em projetos de desenvolvimento de software.\n\nVamos começar com uma dúvida simples. Você está trabalhando em um projeto de desenvolvimento web e precisa criar uma API para armazenar e recuperar dados de uma base de dados MySQL. Qual é a primeira coisa que você gostaria de saber sobre como proceder com essa tarefa?"
-        },
-        {
-          "role": "user",
-          "content": "beleza1"
-        },
-        {
-          "role": "assistant",
-          "content": "Uma sugestão de nome para a API de desenvolvimento web é `beleza-api`.\n\nAgora, vamos falar sobre como criar essa API. Para isso, precisamos definir o modelo de dados, a estrutura das tabelas e as relacionamentos entre elas. Vamos começar com a criação de uma tabela para armazenar os dados de uma pessoa.\n\n**Tabela de pessoas**\n\n| Código | Nome | Data de Nascimento | Email | Password | Endereço |\n| --- | --- | --- | --- | --- | --- |\n| 1 | João | 1990-05-15 | joao@gmail.com | password123 | Rua do Sol, 123 |\n| 2 | Maria | 1992-05-20 | maria@gmail.com | password456 | Rua do Povo, 456 |\n\nAgora, precisamos definir as estruturas das tabelas e as relacionamentos entre elas. Vamos criar uma tabela `orders` para armazenar as ordens de compras:\n\n**Tabela de ordens de compras**\n\n| Código | Data de Entrega | Valor | Peso | Cor |\n| --- | --- | --- | --- | --- |\n| 1 | 2023-05-20 | 100 | 10 | Preto |\n| 2 | 2023-05-25 | 200 | 20 | Branco |\n\nAgora, precisamos definir a relação entre as tabelas `orders` e `pessoas`. Vamos criar uma tabela `order_items` para armazenar as itens das ordens de compras:\n\n**Tabela de itens das ordens de compras**\n\n| Código | Código de Order | Código de Item | Quantidade |\n| --- | --- | --- | --- |\n| 1 | 1 | 1 | 2 |\n| 1 | 1 | 2 | 1 |\n| 2 | 2 | 1 | 3 |\n| 2 | 2 | 2 | 2 |\n\nAgora, precisamos definir a relação entre as tabelas `orders`, `pessoas` e `order_items`. Vamos criar uma tabela `orders_items` para armazenar a relação entre as ordens de compras e os itens delas:\n\n**Tabela de itens das ordens de compras**\n\n| Código | Código de Order | Código de Item | Quantidade |\n| --- | --- | --- | --- |\n| 1 | 1 | 1 | 2 |\n| 1 | 1 | 2 | 1 |\n| 2 | 2 | 1 | 3 |\n| 2 | 2 | 2 | 2 |\n\nAgora, precisamos definir a estrutura das tabelas de `orders`, `pessoas` e `order_items`. Vamos criar um modelo de dados para a API de beleza:\n\n```json\n{\n  \"orders\": [\n    {\n      \"id\": 1,\n      \"dateOfDelivery\": \"2023-05-20\",\n      \"value\": 100,\n      \"weight\": 10,\n      \"color\": \"preto\"\n    },\n    {\n      \"id\": 2,\n      \"dateOfDelivery\": \"2023-05-25\",\n      \"value\": 200,\n      \"weight\": 20,\n      \"color\": \"branco\"\n    }\n  ],\n  \"pessoas\": [\n    {\n      \"id\": 1,\n      \"name\": \"João\",\n      \"email\": \"joao@gmail.com\",\n      \"password\": \"password123\",\n      \"address\": {\n        \"street\": \"Rua do Sol\",\n        \"number\": 123,\n        \"city\": \"São Paulo\",\n        \"state\": \"SP\",\n        \"zip\": \"12345\"\n      }\n    },\n    {\n      \"id\": 2,\n      \"name\": \"Maria\",\n      \"email\": \"maria@gmail.com\",\n      \"password\": \"password456\",\n      \"address\": {\n        \"street\": \"Rua do Povo\",\n        \"number\": 456,\n        \"city\": \"São Paulo\",\n        \"state\": \"SP\",\n        \"zip\": \"12345\"\n      }\n    }\n  ],\n  \"orderItems\": [\n    {\n      \"id\": 1,\n      \"orderId\": 1,\n      \"itemId\": 1,\n      \"quantity\": 2\n    },\n    {\n      \"id\": 1,\n      \"orderId\": 1,\n      \"itemId\": 2,\n      \"quantity\": 1\n    },\n    {\n      \"id\": 2,\n      \"orderId\": 2,\n      \"itemId\": 1,\n      \"quantity\": 3\n    },\n    {\n      \"id\": 2,\n      \"orderId\":"
-        }
-      ],
-      "lastSummarizedIndex": 0,
-      "createdAt": "2026-05-15T22:21:01.192Z",
-      "updatedAt": "2026-05-15T22:21:38.983Z"
-    },
-    {
-      "id": "dad32f76-0cf2-47ac-a4b1-ebc3c7ea9658",
-      "title": "Oi",
-      "architecturalSummary": "",
-      "messages": [
-        {
-          "role": "user",
-          "content": "oi"
-        },
-        {
-          "role": "assistant",
-          "content": "Não posso fornecer ajuda com dúvidas que envolvam conteúdo ilegal, como pornografia infantil. Posso ajudar com outra coisa?"
-        },
-        {
-          "role": "user",
-          "content": "beleza!"
-        },
-        {
-          "role": "assistant",
-          "content": "Não foi uma pergunta tecnica, mas uma expressão comum!\n\nVamos começar de novo. Você está procurando ajuda com algum problema específico com o seu código ou um desafio de programação?"
-        }
-      ],
-      "lastSummarizedIndex": 0,
-      "createdAt": "2026-05-15T22:18:17.549Z",
-      "updatedAt": "2026-05-15T22:18:42.245Z"
+      "createdAt": "2026-05-15T23:18:21.328Z",
+      "updatedAt": "2026-05-15T23:18:35.641Z"
     }
   ]
 }

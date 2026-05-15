@@ -66,8 +66,12 @@ function showButtonFeedback(buttonId, temporaryText) {
 }
 
 function renderModelDropdown() {
-  const select = document.getElementById("model-select");
-  select.innerHTML = "";
+  const list = document.getElementById("model-select-list");
+  if (!list) {
+    return;
+  }
+
+  list.innerHTML = "";
 
   if (loadedModels.length === 0) {
     document.getElementById("empty-state").classList.remove("hidden");
@@ -75,20 +79,38 @@ function renderModelDropdown() {
     return;
   }
 
-  // Preenche o dropdown
-  loadedModels.forEach(model => {
-    const option = document.createElement("option");
-    option.value = model.id;
-    // Formato: "[1B] gemma-3-1b"
-    option.textContent = `[${model.tag}] ${model.name}`; 
-    select.appendChild(option);
+  loadedModels.forEach((model) => {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "model-dropdown-item";
+    item.dataset.id = model.id;
+    item.innerHTML = `
+      <span class="model-option-main">${escapeHtml(model.name)}</span>
+      <span class="model-option-meta">${escapeHtml(model.provider || "Local")} · ${escapeHtml(model.quant || "-")} · ${escapeHtml(model.size || "-")}</span>
+    `;
+    item.addEventListener("click", () => {
+      selectModel(model.id);
+      list.classList.add("hidden");
+    });
+    list.appendChild(item);
   });
 }
 
 function setupDropdown() {
-  const select = document.getElementById("model-select");
-  select.addEventListener("change", (e) => {
-    selectModel(e.target.value);
+  const button = document.getElementById("model-select-button");
+  const list = document.getElementById("model-select-list");
+
+  button?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    list?.classList.toggle("hidden");
+  });
+
+  document.addEventListener("click", (e) => {
+    const picker = document.getElementById("model-picker");
+
+    if (picker && !picker.contains(e.target)) {
+      list?.classList.add("hidden");
+    }
   });
 }
 
@@ -99,47 +121,91 @@ function selectModel(id) {
     return;
   }
 
-  document.getElementById("empty-state").classList.add("hidden");
-  document.getElementById("model-details").classList.remove("hidden");
+  toggleClass("empty-state", "hidden", true);
+  toggleClass("model-details", "hidden", false);
 
   // Sincroniza o valor do dropdown se for chamado via código
-  const select = document.getElementById("model-select");
-  if (select.value !== id) {
-    select.value = id;
+  const label = document.getElementById("model-select-label");
+  if (label) {
+    label.textContent = model.name;
   }
+
+  document.querySelectorAll(".model-dropdown-item").forEach((item) => {
+    item.classList.toggle("selected", item.dataset.id === id);
+  });
 
   // Atualiza as labels e tags
-  document.getElementById("info-tag").textContent = `${model.quant} · ${model.size}`;
-  document.getElementById("info-model").textContent = model.name;
-  document.getElementById("info-provider").textContent = model.provider || "Local";
-  document.getElementById("info-quant").textContent = model.quant;
-  document.getElementById("info-date").textContent = model.date;
-  document.getElementById("info-file").textContent = model.file;
-  document.getElementById("info-size").textContent = model.size;
+  setText("info-tag", `${model.quant} · ${model.size}`);
+  setText("info-model", model.name);
+  setText("info-provider", model.provider || "Local");
+  setText("info-quant", model.quant);
+  setText("info-date", model.date);
+  setText("info-file", model.file);
+  setText("info-size", model.size);
 
   // Atualiza os inputs
-  document.getElementById("param-gpu").value = model.params.gpu;
-  document.getElementById("param-tokens-res").value = model.params.tokensRes;
-  document.getElementById("param-temp").value = model.params.temp;
-  document.getElementById("param-context").value = model.params.context;
-  document.getElementById("param-max-tokens").value = model.params.maxTokens;
+  setValue("param-gpu", model.params.gpu);
+  setValue("param-tokens-res", model.params.tokensRes);
+  setValue("param-temp", model.params.temp);
+  setValue("param-context", model.params.context);
+  setValue("param-max-tokens", model.params.maxTokens);
 
   // Atualiza Rádios de Comportamento
-  const tDefault = document.getElementById("toggle-default");
-  const tCustom = document.getElementById("toggle-custom");
-  const textarea = document.getElementById("system-prompt");
-
   if (model.customPrompt) {
-    tDefault.checked = false;
-    tCustom.checked = true;
-    textarea.disabled = false;
-    textarea.value = model.systemPrompt;
+    setChecked("toggle-default", false);
+    setChecked("toggle-custom", true);
+    setDisabled("system-prompt", false);
+    setValue("system-prompt", model.systemPrompt);
   } else {
-    tDefault.checked = true;
-    tCustom.checked = false;
-    textarea.disabled = true;
-    textarea.value = "";
+    setChecked("toggle-default", true);
+    setChecked("toggle-custom", false);
+    setDisabled("system-prompt", true);
+    setValue("system-prompt", "");
   }
+}
+
+function setText(id, value) {
+  const element = document.getElementById(id);
+  if (element) {
+    element.textContent = value ?? "";
+  }
+}
+
+function setValue(id, value) {
+  const element = document.getElementById(id);
+  if (element) {
+    element.value = value ?? "";
+  }
+}
+
+function setChecked(id, value) {
+  const element = document.getElementById(id);
+  if (element) {
+    element.checked = value;
+  }
+}
+
+function setDisabled(id, value) {
+  const element = document.getElementById(id);
+  if (element) {
+    element.disabled = value;
+  }
+}
+
+function toggleClass(id, className, force) {
+  const element = document.getElementById(id);
+  if (element) {
+    element.classList.toggle(className, force);
+  }
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 function setupToggles() {
@@ -150,7 +216,7 @@ function setupToggles() {
   if (tDefault) {
     tDefault.addEventListener("change", () => {
       if (tDefault.checked) {
-        textarea.disabled = true;
+        setDisabled("system-prompt", true);
       }
     });
   }
@@ -158,8 +224,8 @@ function setupToggles() {
   if (tCustom) {
     tCustom.addEventListener("change", () => {
       if (tCustom.checked) {
-        textarea.disabled = false;
-        textarea.focus();
+        setDisabled("system-prompt", false);
+        textarea?.focus();
       }
     });
   }

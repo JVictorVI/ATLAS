@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-05-15T22:55:15.912Z",
+  "updatedAt": "2026-05-15T23:18:24.320Z",
   "general": {
     "theme": "system",
     "language": "pt-BR",
@@ -98,14 +98,74 @@
           ],
           "size": "4.73 GB",
           "installedAt": "2026-05-13T21:15:53.383Z",
-          "updatedAt": "2026-05-15T22:55:15.912Z",
+          "updatedAt": "2026-05-15T23:18:24.297Z",
           "quantization": "Q4_1"
         },
         "custom": {
           "baseUrl": "http://127.0.0.1:8080/v1",
           "runtime": "llama.cpp",
-          "tokensRes": 512,
-          "systemPrompt": "sempre me chame de neném."
+          "tokensRes": 512
+        }
+      },
+      "local/gemma-4-E4B-it-Q4_K_S": {
+        "id": "local/gemma-4-E4B-it-Q4_K_S",
+        "name": "gemma-4-E4B-it-Q4_K_S",
+        "provider": "Google",
+        "enabled": true,
+        "source": "local",
+        "path": "c:\\Users\\jvict\\OneDrive\\Documentos\\Projetos\\ATLAS\\models\\gemma-4-E4B-it-Q4_K_S.gguf",
+        "apiModelName": "gemma-4-E4B-it-Q4_K_S",
+        "parameters": {
+          "temperature": 0.7,
+          "maxTokens": 1024,
+          "topP": 0.95,
+          "gpuLayers": 0,
+          "contextWindow": 4096
+        },
+        "metadata": {
+          "source": "models-folder",
+          "tags": [
+            "GGUF"
+          ],
+          "quantization": "Q4_K_S",
+          "size": "4.51 GB",
+          "installedAt": "2026-05-15T23:15:55.940Z",
+          "updatedAt": "2026-05-15T23:18:24.310Z"
+        },
+        "custom": {
+          "baseUrl": "http://127.0.0.1:8080/v1",
+          "runtime": "llama.cpp"
+        }
+      },
+      "local/Llama-3.2-1B-Instruct-UD-Q8_K_XL": {
+        "id": "local/Llama-3.2-1B-Instruct-UD-Q8_K_XL",
+        "name": "Llama-3.2-1B-Instruct-UD-Q8_K_XL",
+        "provider": "Meta",
+        "enabled": true,
+        "source": "local",
+        "path": "c:\\Users\\jvict\\OneDrive\\Documentos\\Projetos\\ATLAS\\models\\Llama-3.2-1B-Instruct-UD-Q8_K_XL.gguf",
+        "apiModelName": "Llama-3.2-1B-Instruct-UD-Q8_K_XL",
+        "parameters": {
+          "temperature": 0.7,
+          "maxTokens": 1024,
+          "topP": 0.95,
+          "gpuLayers": 20,
+          "contextWindow": 4096
+        },
+        "metadata": {
+          "source": "models-folder",
+          "tags": [
+            "1B"
+          ],
+          "quantization": "Q8_K_XL",
+          "size": "1.72 GB",
+          "installedAt": "2026-05-15T23:16:42.419Z",
+          "updatedAt": "2026-05-15T23:18:24.320Z"
+        },
+        "custom": {
+          "baseUrl": "http://127.0.0.1:8080/v1",
+          "runtime": "llama.cpp",
+          "tokensRes": 512
         }
       }
     }
@@ -120,7 +180,7 @@
       "enabled": false
     },
     "localRuntime": {
-      "runtimeType": "vulkan"
+      "runtimeType": "cuda"
     }
   },
   "providers": [

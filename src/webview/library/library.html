@@ -16,8 +16,16 @@
       <div id="model-details" class="hidden">
         <div class="header-actions">
           <div class="header-titles">
-            <select id="model-select" class="model-dropdown"></select>
-            <div class="subtitle" id="info-tag">Q4_K_M · 24.68 GB</div>
+            <div class="model-picker" id="model-picker">
+              <button class="model-dropdown" id="model-select-button">
+                <span id="model-select-label">Selecionar modelo</span>
+                <span class="model-chevron" aria-hidden="true"></span>
+              </button>
+              <div
+                class="model-dropdown-list hidden"
+                id="model-select-list"
+              ></div>
+            </div>
           </div>
           <div class="actions">
             <button class="btn-secondary" id="btn-edit-model">
