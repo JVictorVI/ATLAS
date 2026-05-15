@@ -19,7 +19,11 @@ window.addEventListener("message", (event) => {
     renderModelDropdown();
     
     // Se não houver seleção mas tivermos modelos, seleciona o primeiro
-    if (!selectedModelId && loadedModels.length > 0) {
+    const selectedModelStillExists = loadedModels.some(
+      (model) => model.id === selectedModelId,
+    );
+
+    if ((!selectedModelId || !selectedModelStillExists) && loadedModels.length > 0) {
       selectedModelId = loadedModels[0].id;
     }
 
@@ -30,6 +34,10 @@ window.addEventListener("message", (event) => {
 
   if (message.type === "modeloParametrosSalvos") {
     showButtonFeedback("btn-save-params", "Salvo!");
+  }
+
+  if (message.type === "modeloComportamentoSalvo") {
+    showButtonFeedback("btn-save-behavior", "Salvo!");
   }
 
   if (message.type === "modeloLocalCarregado") {
@@ -169,6 +177,20 @@ function setupButtons() {
           contextWindow: parseInt(document.getElementById("param-context").value) || 0,
           maxTokens: parseInt(document.getElementById("param-max-tokens").value) || 0,
         },
+      });
+    });
+  }
+
+  const btnSaveBehavior = document.getElementById("btn-save-behavior");
+  if (btnSaveBehavior) {
+    btnSaveBehavior.addEventListener("click", () => {
+      if (!selectedModelId) {
+        return;
+      }
+
+      vscode.postMessage({
+        type: "saveModelBehavior",
+        modelId: selectedModelId,
         customPrompt: document.getElementById("toggle-custom").checked,
         systemPrompt: document.getElementById("system-prompt").value,
       });

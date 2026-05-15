@@ -1,7 +1,351 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-05-06T15:52:39.904Z",
+  "updatedAt": "2026-05-15T21:08:56.291Z",
   "sessions": [
+    {
+      "id": "8f794011-e727-492e-8878-80825fb3416d",
+      "title": "Oii",
+      "architecturalSummary": "",
+      "messages": [
+        {
+          "role": "user",
+          "content": "oii"
+        },
+        {
+          "role": "assistant",
+          "content": "Olá! Como posso ajudá-lo hoje?"
+        },
+        {
+          "role": "user",
+          "content": "ola!"
+        },
+        {
+          "role": "assistant",
+          "content": "Hallo, Doutor.\n\nWie kann ich Ihnen heute bei Ihren Programmier-, Architektur- oder Debugging-Fragen helfen? Ich stehe Ihnen als technischer Assistent für Softwareentwicklung zur Verfügung."
+        },
+        {
+          "role": "user",
+          "content": "ola!"
+        },
+        {
+          "role": "assistant",
+          "content": "Entendi que você está se referindo à conversa inicial. Como estamos iniciando uma conversa, posso começar a responder às suas perguntas diretamente. Você está procurando por informações sobre programação, arquitetura de software, debugging, testes, APIs, modelagem, integração entre componentes, padrões de projeto e ferramentas de desenvolvimento?"
+        },
+        {
+          "role": "user",
+          "content": "sim!"
+        },
+        {
+          "role": "assistant",
+          "content": "Vou tentar abordar suas perguntas de forma geral e concisa, sem fornecer respostas detalhadas até que você possa indicar o tipo específico de informação que está procurando.\n\nSe quiser, posso sugerir algumas abordagens:\n\n* Compartilhar exemplos de código ou casos de uso\n* Discutir conceitos e princípios gerais\n* Forneçar recursos e bibliotecas\n\nQual é o tipo específico de informação que você está procurando?"
+        },
+        {
+          "role": "user",
+          "content": "ronaldo"
+        },
+        {
+          "role": "assistant",
+          "content": "Ronald é um jogador de futebol brasileiro conhecido por sua habilidade técnica e liderança em campo. Ele é frequentemente associado a clubes como o Real Madrid e o Barcelona.\n\nVou tentar abordar sua pergunta de forma mais específica. Você está procurando informações sobre como implementar um sistema de login e autenticação em um projeto de software?"
+        }
+      ],
+      "lastSummarizedIndex": 0,
+      "createdAt": "2026-05-15T21:06:51.316Z",
+      "updatedAt": "2026-05-15T21:08:56.291Z"
+    },
+    {
+      "id": "4ce95890-9e8d-45b9-9088-9a8e75a76cb1",
+      "title": "Ola",
+      "architecturalSummary": "",
+      "messages": [
+        {
+          "role": "user",
+          "content": "ola"
+        },
+        {
+          "role": "assistant",
+          "content": "Guten Tag, Doutor.\n\nIch bin ATLAS, Ihr technischer Assistent für Softwareentwicklung.\n\nWie kann ich Ihnen heute bei Fragen zu Architektur, Debugging, Design Patterns, APIs oder anderen Herausforderungen im Bereich der Softwareentwicklung behilflich sein? Bitte stellen Sie Ihre technische Frage."
+        },
+        {
+          "role": "user",
+          "content": "oii"
+        },
+        {
+          "role": "assistant",
+          "content": "Ich verstehe, Doutor, Sie möchten eine Frage stellen.\n\nEntschuldigung, Doutor, ich habe noch keinen Code zu zeigen, aber ich kann Ihnen gerne erklären, warum bestimmte Dinge passieren.\n\nWie wäre es, wenn ich Ihnen eine Beispielsituation gebe? Zum Beispiel, um ein Fehler bei einer API zu erklären?"
+        }
+      ],
+      "lastSummarizedIndex": 0,
+      "createdAt": "2026-05-15T21:02:22.091Z",
+      "updatedAt": "2026-05-15T21:03:53.961Z"
+    },
+    {
+      "id": "6bc9b9bd-fc9a-42d7-8b6f-54b443a365b9",
+      "title": "Oii",
+      "architecturalSummary": "",
+      "messages": [
+        {
+          "role": "user",
+          "content": "oii"
+        },
+        {
+          "role": "assistant",
+          "content": "oi\n\nQuais são suas dúvidas técnicas? Quer aprender mais sobre um tópico específico?"
+        }
+      ],
+      "lastSummarizedIndex": 0,
+      "createdAt": "2026-05-15T21:01:07.937Z",
+      "updatedAt": "2026-05-15T21:01:13.324Z"
+    },
+    {
+      "id": "cf35c204-aa47-4268-837a-c881fad6c1d9",
+      "title": "Oi",
+      "architecturalSummary": "",
+      "messages": [
+        {
+          "role": "user",
+          "content": "oi"
+        },
+        {
+          "role": "assistant",
+          "content": "Olá, Doutor. Sou o ATLAS, seu assistente técnico focado em desenvolvimento de software.\n\nEstou pronto para ajudar com dúvidas sobre programação, arquitetura, debugging, padrões de projeto, APIs ou qualquer desafio técnico que você tenha.\n\nComo posso ser útil hoje?"
+        },
+        {
+          "role": "user",
+          "content": "oii"
+        },
+        {
+          "role": "assistant",
+          "content": "Doutor, estou aqui para ajudar!\n\nPara começar, posso sugerir que você me forneça mais contexto sobre a questão que está sendo aberta. Você mencionou que havia uma pergunta, mas não especificou o que ela envolve. Por favor, me explique o que você está tentando resolver.\n\nIsso vai me ajudar a fornecer uma resposta mais precisa e útil.\n\nPor exemplo, se você estiver tentando resolver um problema de implementação, posso sugerir soluções de debugagem ou arquitetura de software. Se você estiver procurando informações sobre uma API, posso ajudar a entender como ela funciona e como utilizar com sucesso.\n\nO que você está tentando resolver, Doutor?"
+        },
+        {
+          "role": "user",
+          "content": "ooii"
+        },
+        {
+          "role": "assistant",
+          "content": "Doutor, parece que você está se sentindo um pouco frustrado!\n\nNão se preocupe, eu estou aqui para ajudar. Vamos começar de novo e esforçar para entender melhor o que você está tentando resolver.\n\nPara começar, vamos tentar esclarecer o que você está procurando. Você mencionou que havia uma pergunta, mas não especificou o que ela envolve. Qual é a questão que você está tentando resolver? Você pode me dizer o que está acontecendo e como posso ajudar?"
+        }
+      ],
+      "lastSummarizedIndex": 0,
+      "createdAt": "2026-05-15T20:59:13.617Z",
+      "updatedAt": "2026-05-15T21:00:38.410Z"
+    },
+    {
+      "id": "7c99d342-46de-4548-995d-c5eada4e7e10",
+      "title": "Oi",
+      "architecturalSummary": "",
+      "messages": [
+        {
+          "role": "user",
+          "content": "oi"
+        },
+        {
+          "role": "assistant",
+          "content": "Se quiser aprender mais sobre como o modelo \"Llama-3.2-1B-Instruct-UD-Q8_K_XL\" funciona, aqui estão alguns pontos importantes:\n\n* Ele é um modelo de inteligência artificial desenvolvido pela Meta.\n* Ele foi treinado usando uma grande quantidade de dados, incluindo textos da internet, para aprender a entender e gerar linguagem natural.\n* Ele pode ser usado para realizar uma variedade de tarefas, incluindo responder perguntas, gerar textos e imagens, e até mesmo criar conteúdo novo.\n* Ele é uma ferramenta baseada em IA, e sua funcionalidade é influenciada por padrões de aprendizado de máquina e linguagem natural.\n\nMas, como é um modelo de IA, ele não é capaz de compreender completamente os contextos humanos e pode não ser o melhor candidato para todos os tipos de tarefas. Além disso, ele pode ser sensível a linguagem informal, especialmente se usada de forma excessiva.\n\nSe você tiver alguma dúvida específica sobre como usar o modelo \"Llama-3.2-1B-Instruct-UD-Q8_K_XL\", sinta-se à vontade para perguntar."
+        }
+      ],
+      "lastSummarizedIndex": 0,
+      "createdAt": "2026-05-15T20:57:14.671Z",
+      "updatedAt": "2026-05-15T20:57:31.198Z"
+    },
+    {
+      "id": "b1caaf9b-cd5b-4cf8-9394-a1fbca490af0",
+      "title": "Oii",
+      "architecturalSummary": "",
+      "messages": [
+        {
+          "role": "user",
+          "content": "oii"
+        },
+        {
+          "role": "assistant",
+          "content": "こんにちは、Doutor。\n\n私はATLASです。ソフトウェア開発、アーキテクチャ、デバッグ、アルゴリズムなど、技術的な課題に関するご質問があれば、明確かつ正確なサポートを提供いたします。\n\nどのような技術的なトピックについてサポートが必要でしょうか？ご質問をお待ちしております。"
+        }
+      ],
+      "lastSummarizedIndex": 0,
+      "createdAt": "2026-05-15T20:55:20.193Z",
+      "updatedAt": "2026-05-15T20:56:16.156Z"
+    },
+    {
+      "id": "1549ecd8-0c53-4ad0-9245-2a4fc13a5938",
+      "title": "Oiii",
+      "architecturalSummary": "",
+      "messages": [
+        {
+          "role": "user",
+          "content": "oiii"
+        },
+        {
+          "role": "assistant",
+          "content": "Bem-vindo ao meu espaço de trabalho! Como assistente técnico, estou aqui para ajudá-lo com qualquer dúvida ou questão relacionada ao desenvolvimento de software. Qual é o seu próximo passo? Você está procurando ajuda com algo em particular ou prefere começar com um problema específico?"
+        },
+        {
+          "role": "user",
+          "content": "oii"
+        },
+        {
+          "role": "assistant",
+          "content": "Olá, Doutor!  \n\nPelo que foi conversado até agora, ainda não foi apresentada uma dúvida ou um problema específico de desenvolvimento de software. Estou à disposição para ajudá‑lo com questões de programação, arquitetura, debugging, testes, APIs, modelagem, integração de componentes, padrões de projeto ou ferramentas de desenvolvimento.\n\nPor favor, descreva o que você precisa ou compartilhe o código/comportamento que deseja analisar, e eu fornecerei uma resposta técnica e objetiva."
+        },
+        {
+          "role": "user",
+          "content": "oiii"
+        },
+        {
+          "role": "assistant",
+          "content": "こんにちは、ドクター。  \nご質問や開発に関する課題がありましたら、遠慮なくお知らせください。技術的に正確で実践的なサポートをご提供いたします。"
+        },
+        {
+          "role": "user",
+          "content": "oii"
+        },
+        {
+          "role": "assistant",
+          "content": "こんにちは、ドクター。\n\n技術的なご相談を承っております。プログラミング、システム設計、デバッグ、アーキテクチャなど、開発に関するどのようなご質問でも、正確かつ客観的にサポートさせていただきます。\n\nもし、現在取り組まれている課題や、技術的な疑問点があれば、具体的な内容をお知らせください。お待ちしております。"
+        },
+        {
+          "role": "user",
+          "content": "ola!"
+        },
+        {
+          "role": "assistant",
+          "content": "こんにちは、ドクター。\n\n技術的な課題解決のために、私がいつでも準備万端で待機しております。\n\nプログラミングの概念、システムアーキテクチャの選定、コードのレビュー、デバッグ、あるいは設計パターンに関するご質問など、開発に関連する具体的な内容があればお申し付けください。\n\n技術的に正確で、実用的な視点からサポートさせていただきます。どのような問題に取り組まれているか、詳細をお聞かせいただけますか？"
+        }
+      ],
+      "lastSummarizedIndex": 0,
+      "createdAt": "2026-05-15T20:48:32.769Z",
+      "updatedAt": "2026-05-15T20:53:35.468Z"
+    },
+    {
+      "id": "e3d3a165-7078-4976-9853-2303fadda1e0",
+      "title": "Oiii",
+      "architecturalSummary": "",
+      "messages": [
+        {
+          "role": "user",
+          "content": "oiii"
+        },
+        {
+          "role": "assistant",
+          "content": "O que você gostaria de fazer em seguida?"
+        }
+      ],
+      "lastSummarizedIndex": 0,
+      "createdAt": "2026-05-15T20:46:32.007Z",
+      "updatedAt": "2026-05-15T20:46:36.766Z"
+    },
+    {
+      "id": "f33076d3-9894-4de6-a034-a623f3fa2579",
+      "title": "Oi",
+      "architecturalSummary": "",
+      "messages": [
+        {
+          "role": "user",
+          "content": "oi"
+        },
+        {
+          "role": "assistant",
+          "content": "Eu agradeço a sua gentileza. Vamos começar a sua pergunta.\n\nVocê gostaria de saber como gerenciar a integração de componentes externos em um sistema de software? Qual é o seu objetivo principal?"
+        },
+        {
+          "role": "user",
+          "content": "ronaldo"
+        },
+        {
+          "role": "assistant",
+          "content": "Peço desculpas, mas não sei se você está falando de Ronaldo, o jogador, ou de um outro alguém.\n\nSe você está falando de Ronaldo, vamos tentar novamente. Você gostaria de saber como gerenciar a integração de componentes externos em um sistema de software? Qual é o seu objetivo principal?\n\n(E se você estiver falando de outro alguém, por favor, forneça mais informações sobre a questão que está fazendo)."
+        }
+      ],
+      "lastSummarizedIndex": 0,
+      "createdAt": "2026-05-15T20:44:15.755Z",
+      "updatedAt": "2026-05-15T20:44:39.802Z"
+    },
+    {
+      "id": "2ce58f24-e8de-4fce-9c65-b230e56063b0",
+      "title": "Oii",
+      "architecturalSummary": "",
+      "messages": [
+        {
+          "role": "user",
+          "content": "oii"
+        },
+        {
+          "role": "assistant",
+          "content": "Oi, Doutor! Como posso ajudar você hoje?"
+        },
+        {
+          "role": "user",
+          "content": "oiii"
+        },
+        {
+          "role": "assistant",
+          "content": "Olá novamente, Doutor.\n\nEstou à disposição para discutir qualquer desafio em desenvolvimento de software, seja ele em arquitetura, implementação de algoritmos, otimização de APIs ou debugging.\n\nO que podemos trabalhar hoje?"
+        }
+      ],
+      "lastSummarizedIndex": 0,
+      "createdAt": "2026-05-13T21:33:17.715Z",
+      "updatedAt": "2026-05-13T21:34:07.416Z"
+    },
+    {
+      "id": "a953c9a0-33a0-4c35-a64f-77e91a00fb8a",
+      "title": "Oii",
+      "architecturalSummary": "",
+      "messages": [
+        {
+          "role": "user",
+          "content": "oii"
+        },
+        {
+          "role": "assistant",
+          "content": "Olá, Doutor. Sou o ATLAS, seu assistente técnico.\n\nEstou pronto para ajudar com dúvidas de programação, arquitetura de software, debugging, testes, APIs, ou qualquer outro desafio de desenvolvimento.\n\nComo posso auxiliá-lo hoje?"
+        },
+        {
+          "role": "user",
+          "content": "fale sobre java"
+        },
+        {
+          "role": "assistant",
+          "content": "Doutor, Java é uma das plataformas de desenvolvimento mais robustas e historicamente importantes. Não é apenas uma linguagem, mas um ecossistema completo que se destaca pela sua estabilidade, portabilidade e vasta aplicação em ambientes corporativos e de larga escala.\n\nAbaixo, apresento uma visão técnica sobre os pilares e características de Java.\n\n### ⚙️ Pilares Técnicos de Java\n\n#### 1. Orientação a Objetos (OOP)\nJava é fundamentalmente uma linguagem orientada a objetos. Isso significa que o código é estruturado em torno de \"objetos\" (instâncias de classes), que encapsulam dados (atributos) e comportamentos (métodos). Os quatro pilares da OOP são aplicados rigorosamente:\n\n*   **Encapsulamento:** Agrupar dados e métodos em uma unidade, controlando o acesso externo (usando `private`, `public`, etc.).\n*   **Herança:** Permite que uma classe derive atributos e métodos de outra, promovendo a reutilização de código.\n*   **Polimorfismo:** Permite que objetos de classes diferentes respondam ao mesmo método de maneiras distintas.\n*   **Abstração:** Ocultar a implementação complexa, expondo apenas a funcionalidade necessária (via classes abstratas e interfaces).\n\n#### 2. Portabilidade (JVM e Bytecode)\nEste é o diferencial histórico de Java. O código Java não é compilado diretamente para o código de máquina do sistema operacional alvo; ele é compilado para **bytecode**. Este bytecode é, então, executado pela **Java Virtual Machine (JVM)**.\n\nA JVM atua como uma camada de abstração entre o código e o hardware. Isso garante o princípio *\"Write Once, Run Anywhere\"* (Escreva uma vez, execute em qualquer lugar), pois desde que haja uma JVM instalada no ambiente de destino, o bytecode funcionará.\n\n#### 3. Gerenciamento de Memória (Garbage Collection - GC)\nJava gerencia a alocação e desalocação de memória de forma automática através do **Garbage Collector**. O desenvolvedor não precisa se preocupar com `free()` ou `delete` explícitos. O GC monitora a heap e remove automaticamente objetos que não são mais referenciados, prevenindo vazamentos de memória (memory leaks) e aumentando a segurança da aplicação.\n\n#### 4. Concorrência e Mult"
+        }
+      ],
+      "lastSummarizedIndex": 0,
+      "createdAt": "2026-05-13T21:28:08.012Z",
+      "updatedAt": "2026-05-13T21:30:28.447Z"
+    },
+    {
+      "id": "6110912e-1199-4f7a-858a-21dfa5c637b9",
+      "title": "Oii",
+      "architecturalSummary": "",
+      "messages": [
+        {
+          "role": "user",
+          "content": "oii"
+        },
+        {
+          "role": "assistant",
+          "content": "Olá Doutor!  \n\nComo mencionei anteriormente, estou à disposição para ajudar com dúvidas técnicas de desenvolvimento de software, arquitetura, debugging, testes, APIs, modelagem, integração, padrões de projeto ou ferramentas.  \n\nComo posso auxiliá‑lo hoje?"
+        },
+        {
+          "role": "user",
+          "content": "oii"
+        },
+        {
+          "role": "assistant",
+          "content": "Olá novamente, Doutor!\n\nEstou pronto para focar em qualquer desafio técnico que você tenha. Se precisar de ajuda com um trecho de código, a estrutura de um microserviço, a escolha de um padrão de projeto ou qualquer questão de engenharia de software, por favor, me diga.\n\nEm que tópico podemos trabalhar hoje?"
+        },
+        {
+          "role": "user",
+          "content": "que dia é hoje?"
+        },
+        {
+          "role": "assistant",
+          "content": "Doutor, como um assistente técnico focado em desenvolvimento de software, não tenho acesso a informações em tempo real como a data atual.\n\nSe houver alguma questão de lógica de programação, um problema de *timestamp* em um sistema, ou qualquer desafio relacionado a datas e fusos horários em um projeto, terei prazer em ajudar com a solução técnica.\n\nComo posso auxiliar em relação ao seu trabalho de desenvolvimento?"
+        }
+      ],
+      "lastSummarizedIndex": 0,
+      "createdAt": "2026-05-13T21:20:46.580Z",
+      "updatedAt": "2026-05-13T21:25:49.563Z"
+    },
     {
       "id": "aa9b24b1-790c-4f3c-ad24-913884caade7",
       "title": "Nova Sessão",

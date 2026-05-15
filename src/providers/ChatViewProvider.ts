@@ -4,6 +4,10 @@ import * as path from "path";
 import { ApiKeyManager } from "../managers/ApiKeyManager";
 import { SecretStorageService } from "../services/SecretStorageService";
 import { CloudApiService } from "../services/CloudApiService";
+import { LocalApiService } from "../services/LocalApiService";
+import { AtlasInferenceService } from "../services/AtlasInferenceService";
+import { AtlasLocalModelDiscoveryService } from "../services/AtlasLocalModelDiscoveryService";
+import { AtlasLocalRuntimeService } from "../services/AtlasLocalRuntimeService";
 import { AtlasConfigManager } from "../managers/AtlasConfigManager";
 
 import { AtlasPromptAssemblyService } from "../prompt/AtlasPromptAssemblyService";
@@ -31,6 +35,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private readonly apiKeyManager: ApiKeyManager;
   private readonly configManager: AtlasConfigManager;
   private readonly cloudApiService: CloudApiService;
+  private readonly localApiService: LocalApiService;
+  private readonly inferenceService: AtlasInferenceService;
+  private readonly localModelDiscoveryService: AtlasLocalModelDiscoveryService;
+  private readonly localRuntimeService: AtlasLocalRuntimeService;
 
   // Prompt
   private readonly promptPolicyService: AtlasSystemPromptPolicyService;
@@ -91,10 +99,37 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       this.apiKeyManager,
     );
 
-    // Session service (depends on cloudApiService for summarization)
+    this.localModelDiscoveryService = new AtlasLocalModelDiscoveryService(
+      this.context,
+      this.configManager,
+    );
+
+    this.localRuntimeService = new AtlasLocalRuntimeService(
+      this.context,
+      this.configManager,
+    );
+    this.localRuntimeService.onStatus(async (message) => {
+      await this._view?.webview.postMessage({
+        type: "runtimeLocalStatus",
+        value: { message },
+      });
+    });
+
+    this.localApiService = new LocalApiService(
+      this.configManager,
+      this.localRuntimeService,
+    );
+
+    this.inferenceService = new AtlasInferenceService(
+      this.configManager,
+      this.cloudApiService,
+      this.localApiService,
+    );
+
+    // Session service (depends on inference service for summarization)
     this.sessionService = new AtlasSessionService(
       this.historyRepository,
-      this.cloudApiService,
+      this.inferenceService,
     );
 
     // Editor context
@@ -103,7 +138,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     // Analysis
     this.quickAnalysisService = new AtlasQuickAnalysisService(
       this.promptAssemblyService,
-      this.cloudApiService,
+      this.inferenceService,
     );
 
     this.quickAnalysisController = new AtlasQuickAnalysisController(
@@ -119,6 +154,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       apiKeyManager: this.apiKeyManager,
       configManager: this.configManager,
       cloudApiService: this.cloudApiService,
+      inferenceService: this.inferenceService,
       promptCustomizationService: this.promptCustomizationService,
       promptAssemblyService: this.promptAssemblyService,
       sessionService: this.sessionService,
@@ -133,6 +169,18 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
       executeQuickAnalysis: async (webview?: vscode.Webview) => {
         await this.quickAnalysisController.execute(webview);
+      },
+
+      refreshLocalModels: () => {
+        return this.localModelDiscoveryService.refreshLocalModels();
+      },
+
+      promptStopLocalRuntime: async () => {
+        await this.promptStopLocalRuntime();
+      },
+
+      stopLocalRuntime: () => {
+        this.localRuntimeService.stopRuntime();
       },
 
       getChatEditorContext: () =>
@@ -177,9 +225,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   }
 
   private _sendModelsToWebview(webview: vscode.Webview) {
-    const rawModels = this.configManager.getAllModels();
+    const localModels = this.localModelDiscoveryService.refreshLocalModels();
 
-    const modelsList = Object.values(rawModels).map((model) => ({
+    const modelsList = localModels.map((model) => ({
       id: model.id,
       name: model.name || model.id,
       tag: model.metadata?.tags?.[0] || "LLM",
@@ -207,7 +255,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     webview: vscode.Webview,
   ): Promise<void> {
     const providers = this.configManager.getAllProviders();
-    const localModels = this.configManager.getLocalModels();
+    const localModels = this.localModelDiscoveryService.refreshLocalModels();
 
     await webview.postMessage({
       type: "informarLLMsCarregados",
@@ -233,6 +281,24 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   }
 
   public dispose(): void {
+    this.localRuntimeService.stopRuntime();
     this.quickAnalysisController.dispose();
+  }
+
+  private async promptStopLocalRuntime(): Promise<void> {
+    if (!this.localRuntimeService.isRunning()) {
+      return;
+    }
+
+    const answer = await vscode.window.showInformationMessage(
+      "O runtime local do ATLAS continua em execução ao fundo. Deseja pará-lo para economizar recursos?",
+      "Parar runtime local",
+      "Manter executando",
+    );
+
+    if (answer === "Parar runtime local") {
+      this.localRuntimeService.stopRuntime();
+      vscode.window.showInformationMessage("Runtime local do ATLAS encerrado.");
+    }
   }
 }

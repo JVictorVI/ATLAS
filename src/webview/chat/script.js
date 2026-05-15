@@ -730,6 +730,17 @@ function showLoading() {
   setGenerationState(true);
 }
 
+function updateLoadingMessage(message) {
+  if (!loadingElement) {
+    return;
+  }
+
+  const text = loadingElement.querySelector("span");
+  if (text) {
+    text.textContent = message;
+  }
+}
+
 function removeLoading() {
   const chatContainer = getChatContainer();
   if (
@@ -981,6 +992,11 @@ window.addEventListener("message", (event) => {
         });
       }
 
+      break;
+    }
+
+    case "runtimeLocalStatus": {
+      updateLoadingMessage(message.value?.message || "Iniciando runtime local...");
       break;
     }
 

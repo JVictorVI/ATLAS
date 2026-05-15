@@ -5,6 +5,7 @@ import { AtlasPromptAssemblyService } from "../prompt/AtlasPromptAssemblyService
 import { AtlasPromptCustomizationService } from "../prompt/AtlasPromptCustomizationService";
 import { AtlasSession } from "../interfaces/AtlasHistoryTypes";
 import { CloudApiService } from "../services/CloudApiService";
+import { AtlasInferenceService } from "../services/AtlasInferenceService";
 import { AtlasSessionService } from "../services/AtlasSessionService";
 import { AtlasEditorContext } from "../interfaces/AtlasEditorTypes";
 
@@ -12,12 +13,16 @@ type RouterDependencies = {
   apiKeyManager: ApiKeyManager;
   configManager: AtlasConfigManager;
   cloudApiService: CloudApiService;
+  inferenceService: AtlasInferenceService;
   promptCustomizationService: AtlasPromptCustomizationService;
   promptAssemblyService: AtlasPromptAssemblyService;
   sessionService: AtlasSessionService;
   openPanel: (selectedView?: string) => void;
   sendModelsToWebview: (webview: vscode.Webview) => void;
   executeQuickAnalysis: (webview?: vscode.Webview) => Promise<void>;
+  refreshLocalModels: () => ReturnType<AtlasConfigManager["getLocalModels"]>;
+  promptStopLocalRuntime: () => Promise<void>;
+  stopLocalRuntime: () => void;
   getChatEditorContext: () => AtlasEditorContext | null;
   buildEditorAnalysisContext: (context: AtlasEditorContext) => string;
 };
@@ -77,6 +82,9 @@ export class ChatMessageRouter {
       case "saveModelParams":
         await this.handleSaveModelParams(data, webview);
         return;
+      case "saveModelBehavior":
+        await this.handleSaveModelBehaviorForLocalModel(data, webview);
+        return;
       case "loadModelRequest":
         await this.handleLoadModelRequest(data, webview);
         return;
@@ -107,7 +115,7 @@ export class ChatMessageRouter {
   private async handleLoadLlms(webview: vscode.Webview): Promise<void> {
     try {
       const providers = this.deps.configManager.getAllProviders();
-      const localModels = this.deps.configManager.getLocalModels();
+      const localModels = this.deps.refreshLocalModels();
 
       await webview.postMessage({
         type: "informarLLMsCarregados",
@@ -171,7 +179,7 @@ export class ChatMessageRouter {
         this.deps.configManager.getConfig().llms.defaults.stream;
 
       const response = shouldStream
-        ? await this.deps.cloudApiService.sendChat(
+        ? await this.deps.inferenceService.sendChat(
             promptResult.messages,
             async (chunk: string) => {
               await webview.postMessage({
@@ -181,7 +189,7 @@ export class ChatMessageRouter {
             },
             { signal: responseController.signal },
           )
-        : await this.deps.cloudApiService.sendChat(
+        : await this.deps.inferenceService.sendChat(
             promptResult.messages,
             undefined,
             { signal: responseController.signal },
@@ -225,7 +233,7 @@ export class ChatMessageRouter {
         value: this.deps.sessionService.listSessions(),
       });
     } catch (error) {
-      if (CloudApiService.isAbortError(error)) {
+      if (AtlasInferenceService.isAbortError(error)) {
         await webview.postMessage({
           type: "geracaoCancelada",
         });
@@ -367,6 +375,22 @@ export class ChatMessageRouter {
     try {
       this.deps.configManager.setMode(data.mode);
 
+      if (data.mode === "cloud") {
+        await this.deps.promptStopLocalRuntime();
+      }
+
+      if (
+        data.mode === "local" &&
+        !this.deps.configManager.getActiveLocalModel()
+      ) {
+        this.deps.refreshLocalModels();
+        const firstLocalModel = this.deps.configManager.getLocalModels()[0];
+
+        if (firstLocalModel) {
+          this.deps.configManager.setActiveLocalModel(firstLocalModel.id);
+        }
+      }
+
       await webview.postMessage({
         type: "modoSelecionado",
         value: {
@@ -477,6 +501,12 @@ export class ChatMessageRouter {
   ): Promise<void> {
     try {
       if (data.mode === "local") {
+        const currentModel = this.deps.configManager.getActiveLocalModel();
+
+        if (currentModel?.id !== data.modelId) {
+          this.deps.stopLocalRuntime();
+        }
+
         this.deps.configManager.setActiveLocalModel(data.modelId);
       } else if (data.mode === "cloud") {
         this.deps.configManager.setActiveCloudModel(data.modelId);
@@ -510,18 +540,17 @@ export class ChatMessageRouter {
           ? (data.params as Record<string, unknown>)
           : {};
       const { tokensRes, ...modelParameters } = params;
-      const customPromptEnabled = data.customPrompt === true;
-      const systemPrompt =
-        typeof data.systemPrompt === "string" ? data.systemPrompt.trim() : "";
 
       this.deps.configManager.updateModel(modelId, {
         parameters: modelParameters,
         custom: {
           tokensRes: typeof tokensRes === "number" ? tokensRes : undefined,
-          systemPrompt:
-            customPromptEnabled && systemPrompt ? systemPrompt : undefined,
         },
       });
+
+      if (this.deps.configManager.getActiveLocalModel()?.id === modelId) {
+        this.deps.stopLocalRuntime();
+      }
 
       await webview.postMessage({
         type: "modeloParametrosSalvos",
@@ -535,6 +564,46 @@ export class ChatMessageRouter {
     }
   }
 
+  private async handleSaveModelBehaviorForLocalModel(
+    data: any,
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      const modelId = typeof data.modelId === "string" ? data.modelId : "";
+
+      if (!modelId) {
+        throw new Error("Modelo local invÃ¡lido.");
+      }
+
+      const customPromptEnabled = data.customPrompt === true;
+      const systemPrompt =
+        typeof data.systemPrompt === "string" ? data.systemPrompt.trim() : "";
+
+      this.deps.configManager.updateModel(modelId, {
+        custom: {
+          systemPrompt:
+            customPromptEnabled && systemPrompt ? systemPrompt : undefined,
+        },
+      });
+
+      await webview.postMessage({
+        type: "modeloComportamentoSalvo",
+        value: { modelId },
+      });
+
+      this.deps.sendModelsToWebview(webview);
+      vscode.window.showInformationMessage(
+        "Comportamento do modelo local salvo.",
+      );
+    } catch (error) {
+      await this.postError(
+        webview,
+        error,
+        "Erro ao salvar comportamento do modelo local.",
+      );
+    }
+  }
+
   private async handleLoadModelRequest(
     data: any,
     webview: vscode.Webview,
@@ -544,6 +613,12 @@ export class ChatMessageRouter {
 
       if (!modelId) {
         throw new Error("Modelo local inválido.");
+      }
+
+      const currentModel = this.deps.configManager.getActiveLocalModel();
+
+      if (currentModel?.id !== modelId) {
+        this.deps.stopLocalRuntime();
       }
 
       this.deps.configManager.setActiveLocalModel(modelId);
@@ -673,7 +748,7 @@ export class ChatMessageRouter {
 
   private buildResponseMetadata(
     mode: string,
-    response: Awaited<ReturnType<CloudApiService["sendChat"]>>,
+    response: Awaited<ReturnType<AtlasInferenceService["sendChat"]>>,
   ) {
     return {
       mode,

@@ -80,6 +80,7 @@ export interface GeminiModelsApiResponse {
 }
 
 export type AtlasCloudProviderKind = "openai-compatible" | "claude" | "gemini";
+export type AtlasProviderKind = AtlasCloudProviderKind | "local";
 
 export interface AtlasTokenUsage {
   inputTokens?: number;
@@ -95,7 +96,7 @@ export interface AtlasChatMessage {
 export interface AtlasCloudChatResponse {
   providerId: string;
   providerLabel: string;
-  providerKind: AtlasCloudProviderKind;
+  providerKind: AtlasProviderKind;
   modelId: string;
 
   content: string;

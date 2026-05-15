@@ -1,11 +1,11 @@
 import { AtlasPromptAssemblyService } from "../prompt/AtlasPromptAssemblyService";
-import { CloudApiService } from "./CloudApiService";
+import { AtlasInferenceService } from "./AtlasInferenceService";
 import { AtlasQuickIssue } from "../interfaces/AtlasQuickAnalysisTypes";
 
 export class AtlasQuickAnalysisService {
   constructor(
     private readonly promptAssemblyService: AtlasPromptAssemblyService,
-    private readonly cloudApiService: CloudApiService,
+    private readonly inferenceService: AtlasInferenceService,
   ) {}
 
   public async analyzeCode(
@@ -22,7 +22,7 @@ export class AtlasQuickAnalysisService {
       hasCodeContext: true,
     });
 
-    const response = await this.cloudApiService.sendChat(promptResult.messages);
+    const response = await this.inferenceService.sendChat(promptResult.messages);
     return this.parseIssues(response.content);
   }
 

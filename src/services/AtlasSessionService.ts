@@ -5,7 +5,7 @@ import {
   AtlasSessionSummary,
 } from "../interfaces/AtlasHistoryTypes";
 import { AtlasHistoryRepository } from "../repository/AtlasHistoryRepository";
-import { CloudApiService } from "./CloudApiService";
+import { AtlasInferenceService } from "./AtlasInferenceService";
 
 const WINDOW_SIZE = 10;
 
@@ -29,7 +29,7 @@ export class AtlasSessionService {
 
   constructor(
     private readonly historyRepository: AtlasHistoryRepository,
-    private readonly cloudApiService: CloudApiService,
+    private readonly inferenceService: AtlasInferenceService,
   ) {}
 
   // ── Session lifecycle ──────────────────────────────────────────────────────
@@ -177,7 +177,7 @@ export class AtlasSessionService {
         },
       ];
 
-      const response = await this.cloudApiService.sendChat(summaryMessages);
+      const response = await this.inferenceService.sendChat(summaryMessages);
 
       const nonSystem = session.messages.filter((m) => m.role !== "system");
       const archiveCutoff = Math.max(0, nonSystem.length - WINDOW_SIZE);
