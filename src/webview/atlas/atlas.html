@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="
+      default-src 'none';
+      style-src {{cspSource}};
+      script-src {{cspSource}};
+    "
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="{{styleUri}}" />
+    <title>Configurações Gerais</title>
+  </head>
+  <body>
+    <h1>Configurações Gerais</h1>
+    <div class="subtitle">Ajuste preferências gerais do ATLAS</div>
+
+    <div class="card">
+      <div class="section-title">Runtime Local</div>
+      <div class="subtitle">
+        Escolha qual build do llama.cpp o ATLAS deve usar ao iniciar modelos
+        locais
+      </div>
+
+      <div class="runtime-options">
+        <label class="runtime-option">
+          <input
+            type="radio"
+            name="runtime-type"
+            id="runtime-cpu"
+            value="cpu"
+          />
+          <span>
+            <strong>CPU</strong>
+            <small>Usa a build em runtime/llama.cpp.</small>
+          </span>
+        </label>
+
+        <label class="runtime-option">
+          <input
+            type="radio"
+            name="runtime-type"
+            id="runtime-cuda"
+            value="cuda"
+          />
+          <span>
+            <strong>GPU NVIDIA CUDA</strong>
+            <small>Usa a build em runtime/llama.cpp-cuda.</small>
+          </span>
+        </label>
+
+        <label class="runtime-option">
+          <input
+            type="radio"
+            name="runtime-type"
+            id="runtime-vulkan"
+            value="vulkan"
+          />
+          <span>
+            <strong>GPU Vulkan</strong>
+            <small>Usa a build em runtime/llama.cpp-vulkan.</small>
+          </span>
+        </label>
+      </div>
+
+      <div class="note">
+        Temporário: Baixe a build correspondente do llama.cpp e extraia o
+        conteudo completo na pasta indicada. O ATLAS seleciona o runtime pela
+        opção escolhida.
+      </div>
+
+      <div class="row-end">
+        <button id="save-atlas-settings" class="btn-primary">Salvar</button>
+      </div>
+    </div>
+
+    <script src="{{scriptUri}}"></script>
+  </body>
+</html>

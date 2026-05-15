@@ -810,13 +810,16 @@ function renderConfigView() {
   currentView = "config";
   contentContainer.innerHTML = `
     <div id="settings-view">
+      <button id="atlas-btn" class="settings-option">Configurações Gerais</button>
       <button id="keys-btn" class="settings-option">Provedores em Nuvem</button>
       <button id="rag-btn" class="settings-option">RAG</button>
-      <button id="atlas-btn" class="settings-option">Configurações Gerais</button>
     </div>
   `;
   document.getElementById("keys-btn")?.addEventListener("click", () => {
     vscode.postMessage({ type: "abrirPainelConfig", selectedView: "config" });
+  });
+  document.getElementById("atlas-btn")?.addEventListener("click", () => {
+    vscode.postMessage({ type: "abrirPainelConfig", selectedView: "atlas" });
   });
 }
 
@@ -996,7 +999,9 @@ window.addEventListener("message", (event) => {
     }
 
     case "runtimeLocalStatus": {
-      updateLoadingMessage(message.value?.message || "Iniciando runtime local...");
+      updateLoadingMessage(
+        message.value?.message || "Iniciando runtime local...",
+      );
       break;
     }
 

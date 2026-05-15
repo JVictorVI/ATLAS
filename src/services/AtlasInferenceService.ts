@@ -35,7 +35,7 @@ export class AtlasInferenceService {
       (message) =>
         !(
           message.role === "system" &&
-          message.content.startsWith("Diretivas complementares do usuario:")
+          message.content.startsWith("Diretivas complementares do usuário:")
         ),
     );
   }

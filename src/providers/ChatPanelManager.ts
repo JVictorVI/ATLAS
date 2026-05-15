@@ -48,6 +48,7 @@ export class ChatPanelManager {
         "webview",
         "library",
       ),
+      vscode.Uri.joinPath(this.context.extensionUri, "src", "webview", "atlas"),
     ];
   }
 
@@ -114,6 +115,10 @@ export class ChatPanelManager {
       return "rag";
     }
 
+    if (selectedView === "atlas") {
+      return "atlas";
+    }
+
     if (selectedView === "search") {
       return "search";
     }
@@ -128,7 +133,11 @@ export class ChatPanelManager {
   public getPanelGroup(selectedView?: string): AtlasPanelGroup {
     const normalizedView = this.normalizeSelectedView(selectedView);
 
-    if (normalizedView === "api-keys" || normalizedView === "rag") {
+    if (
+      normalizedView === "api-keys" ||
+      normalizedView === "rag" ||
+      normalizedView === "atlas"
+    ) {
       return "config";
     }
 
@@ -146,7 +155,11 @@ export class ChatPanelManager {
   public getPanelTitle(selectedView?: string): string {
     const normalizedView = this.normalizeSelectedView(selectedView);
 
-    if (normalizedView === "api-keys" || normalizedView === "rag") {
+    if (
+      normalizedView === "api-keys" ||
+      normalizedView === "rag" ||
+      normalizedView === "atlas"
+    ) {
       return "Configurações";
     }
 
@@ -210,6 +223,10 @@ export class ChatPanelManager {
 
     if (selectedView === "library") {
       return path.join(webviewPath, "library.html");
+    }
+
+    if (selectedView === "atlas") {
+      return path.join(webviewPath, "atlas.html");
     }
 
     return path.join(webviewPath, "chat.html");

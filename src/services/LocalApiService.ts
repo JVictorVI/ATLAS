@@ -59,7 +59,9 @@ export class LocalApiService {
       return this.readStreamingResponse(response, model, onChunk);
     }
 
-    const data = (await this.safeReadJson(response)) as OpenAiCompatibleResponse;
+    const data = (await this.safeReadJson(
+      response,
+    )) as OpenAiCompatibleResponse;
     return this.normalizeLocalResponse(model, data);
   }
 
@@ -67,7 +69,8 @@ export class LocalApiService {
     const candidate =
       typeof model.baseUrl === "string" && model.baseUrl.trim()
         ? model.baseUrl.trim()
-        : typeof model.custom?.baseUrl === "string" && model.custom.baseUrl.trim()
+        : typeof model.custom?.baseUrl === "string" &&
+            model.custom.baseUrl.trim()
           ? model.custom.baseUrl.trim()
           : "http://127.0.0.1:8080/v1";
 
@@ -145,12 +148,12 @@ export class LocalApiService {
         }
 
         throw new Error(
-          `Timeout da execucao local: o runtime nao respondeu em ${timeout / 1000} segundos.`,
+          `Timeout da execução local: o runtime não respondeu em ${timeout / 1000} segundos.`,
         );
       }
 
       throw new Error(
-        `Falha ao conectar ao runtime local. Verifique se ele esta ativo e expondo uma API OpenAI-compatible. Detalhes: ${
+        `Falha ao conectar ao runtime local. Verifique se ele está ativo e expondo uma API OpenAI-compatible. Detalhes: ${
           error instanceof Error ? error.message : "erro desconhecido"
         }`,
       );
@@ -166,7 +169,7 @@ export class LocalApiService {
     } catch {
       return {
         error: {
-          message: "Resposta JSON invalida retornada pelo runtime local.",
+          message: "Resposta JSON inválida retornada pelo runtime local.",
         },
       };
     }
@@ -179,7 +182,7 @@ export class LocalApiService {
       "Erro desconhecido retornado pelo runtime local.";
 
     throw new Error(
-      `Falha na execucao local (HTTP ${response.status}): ${providerMessage}`,
+      `Falha na execução local (HTTP ${response.status}): ${providerMessage}`,
     );
   }
 
@@ -190,7 +193,7 @@ export class LocalApiService {
   ): Promise<AtlasCloudChatResponse> {
     if (!response.body) {
       throw new Error(
-        "O runtime local nao retornou um corpo de resposta para streaming.",
+        "O runtime local não retornou um corpo de resposta para streaming.",
       );
     }
 

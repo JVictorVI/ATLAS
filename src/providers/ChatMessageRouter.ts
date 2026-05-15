@@ -64,6 +64,12 @@ export class ChatMessageRouter {
       case "carregarConfiguracoesSeguranca":
         await this.handleLoadSecuritySettings(webview);
         return;
+      case "carregarConfiguracoesAtlas":
+        await this.handleLoadAtlasSettings(webview);
+        return;
+      case "salvarConfiguracoesAtlas":
+        await this.handleSaveAtlasSettings(data, webview);
+        return;
       case "selecionarModelo":
         await this.handleSelectModel(data, webview);
         return;
@@ -564,6 +570,58 @@ export class ChatMessageRouter {
     }
   }
 
+  private async handleLoadAtlasSettings(
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      await webview.postMessage({
+        type: "configuracoesAtlasCarregadas",
+        value: this.getAtlasSettingsPayload(),
+      });
+    } catch (error) {
+      await this.postError(
+        webview,
+        error,
+        "Erro ao carregar configurações do ATLAS.",
+      );
+    }
+  }
+
+  private async handleSaveAtlasSettings(
+    data: any,
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      const payload = data.payload ?? {};
+      const currentCustom = this.deps.configManager.getConfig().custom ?? {};
+      const runtimeType = this.normalizeLocalRuntimeType(payload.runtimeType);
+
+      this.deps.configManager.updateCustomRoot({
+        ...currentCustom,
+        localRuntime: {
+          runtimeType,
+        },
+      });
+
+      this.deps.stopLocalRuntime();
+
+      const saved = this.getAtlasSettingsPayload();
+
+      await webview.postMessage({
+        type: "configuracoesAtlasSalvas",
+        value: saved,
+      });
+
+      vscode.window.showInformationMessage("Configurações do ATLAS salvas.");
+    } catch (error) {
+      await this.postError(
+        webview,
+        error,
+        "Erro ao salvar configurações do ATLAS.",
+      );
+    }
+  }
+
   private async handleSaveModelBehaviorForLocalModel(
     data: any,
     webview: vscode.Webview,
@@ -572,7 +630,7 @@ export class ChatMessageRouter {
       const modelId = typeof data.modelId === "string" ? data.modelId : "";
 
       if (!modelId) {
-        throw new Error("Modelo local invÃ¡lido.");
+        throw new Error("Modelo local inválido.");
       }
 
       const customPromptEnabled = data.customPrompt === true;
@@ -778,5 +836,30 @@ export class ChatMessageRouter {
 
   private getErrorMessage(error: unknown, fallback: string): string {
     return error instanceof Error ? error.message : fallback;
+  }
+
+  private getAtlasSettingsPayload() {
+    const localRuntime =
+      this.deps.configManager.getConfig().custom?.localRuntime;
+
+    if (typeof localRuntime !== "object" || localRuntime === null) {
+      return {
+        runtimeType: "cpu",
+      };
+    }
+
+    const value = localRuntime as Record<string, unknown>;
+
+    return {
+      runtimeType: this.normalizeLocalRuntimeType(value.runtimeType),
+    };
+  }
+
+  private normalizeLocalRuntimeType(value: unknown): "cpu" | "cuda" | "vulkan" {
+    if (value === "cuda" || value === "vulkan") {
+      return value;
+    }
+
+    return "cpu";
   }
 }

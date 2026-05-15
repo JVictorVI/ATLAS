@@ -1,0 +1,120 @@
+body {
+  font-family: var(--vscode-font-family);
+  color: var(--vscode-foreground);
+  background: var(--vscode-editor-background);
+  padding: 16px;
+}
+
+h1 {
+  font-size: 35px;
+  margin-bottom: 6px;
+}
+
+.subtitle {
+  color: var(--vscode-descriptionForeground);
+  margin-bottom: 20px;
+  font-size: 15px;
+}
+
+.card {
+  background: #1e1e1e;
+  border: 1px solid var(--vscode-widget-border);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 18px;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.runtime-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.runtime-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid var(--vscode-widget-border);
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+}
+
+.runtime-option:hover {
+  border-color: var(--vscode-focusBorder);
+}
+
+.runtime-option span {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.runtime-option small,
+.note {
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+input[type="radio"] {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--vscode-checkbox-border, var(--vscode-widget-border));
+  border-radius: 50%;
+  background-color: var(--vscode-checkbox-background);
+  position: relative;
+  cursor: pointer;
+  margin: 2px 0 0;
+  flex-shrink: 0;
+}
+
+input[type="radio"]:checked {
+  border-color: var(--vscode-button-background);
+}
+
+input[type="radio"]:checked::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--vscode-button-background);
+}
+
+.note {
+  margin-top: 14px;
+}
+
+.row-end {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+button {
+  border: none;
+  border-radius: 5px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.btn-primary {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.btn-primary:hover {
+  background: var(--vscode-button-hoverBackground);
+}
