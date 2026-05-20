@@ -20,6 +20,7 @@ type RouterDependencies = {
   promptAssemblyService: AtlasPromptAssemblyService;
   sessionService: AtlasSessionService;
   openPanel: (selectedView?: string) => void;
+  openSearchModelDetails: (modelId: string) => void;
   sendModelsToWebview: (webview: vscode.Webview) => void;
   executeQuickAnalysis: (webview?: vscode.Webview) => Promise<void>;
   refreshLocalModels: () => ReturnType<AtlasConfigManager["getLocalModels"]>;
@@ -57,6 +58,9 @@ export class ChatMessageRouter {
         return;
       case "abrirPainelConfig":
         this.deps.openPanel(data.selectedView);
+        return;
+      case "abrirDetalhesModelo":
+        this.deps.openSearchModelDetails(data.modelId);
         return;
       case "selecionarModo":
         await this.handleSelectMode(data, webview);
