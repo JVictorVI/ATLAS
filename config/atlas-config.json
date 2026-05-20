@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-05-15T23:18:24.320Z",
+  "updatedAt": "2026-05-20T23:20:09.417Z",
   "general": {
     "theme": "system",
     "language": "pt-BR",
@@ -23,7 +23,11 @@
     "offlineOnly": true,
     "chunkSize": 1000,
     "chunkOverlap": 200,
-    "ignoredPaths": ["node_modules", "dist", ".git"]
+    "ignoredPaths": [
+      "node_modules",
+      "dist",
+      ".git"
+    ]
   },
   "ui": {
     "defaultView": "chat",
@@ -33,7 +37,7 @@
     "selection": {
       "mode": "local",
       "local": {
-        "activeModelId": "local/gemma-4-E4B-it-Q4_1"
+        "activeModelId": "local/gemma-3-1b-it-Q8_0"
       },
       "cloud": {
         "providerId": "Groq",
@@ -60,7 +64,9 @@
           "contextWindow": 4096
         },
         "metadata": {
-          "tags": ["1B"],
+          "tags": [
+            "1B"
+          ],
           "quantization": "Q4_K_M",
           "size": "720.5 MB",
           "installedAt": "2026-02-16T10:00:00Z"
@@ -87,7 +93,9 @@
         },
         "metadata": {
           "source": "models-folder",
-          "tags": ["GGUF"],
+          "tags": [
+            "GGUF"
+          ],
           "size": "4.73 GB",
           "installedAt": "2026-05-13T21:15:53.383Z",
           "updatedAt": "2026-05-15T23:18:24.297Z",
@@ -116,7 +124,9 @@
         },
         "metadata": {
           "source": "models-folder",
-          "tags": ["GGUF"],
+          "tags": [
+            "GGUF"
+          ],
           "quantization": "Q4_K_S",
           "size": "4.51 GB",
           "installedAt": "2026-05-15T23:15:55.940Z",
@@ -144,7 +154,9 @@
         },
         "metadata": {
           "source": "models-folder",
-          "tags": ["1B"],
+          "tags": [
+            "1B"
+          ],
           "quantization": "Q8_K_XL",
           "size": "1.72 GB",
           "installedAt": "2026-05-15T23:16:42.419Z",
@@ -154,6 +166,36 @@
           "baseUrl": "http://127.0.0.1:8080/v1",
           "runtime": "llama.cpp",
           "tokensRes": 512
+        }
+      },
+      "local/gemma-3-1b-it-Q8_0": {
+        "id": "local/gemma-3-1b-it-Q8_0",
+        "name": "gemma-3-1b-it-Q8_0",
+        "provider": "Google",
+        "enabled": true,
+        "source": "local",
+        "path": "c:\\Users\\jvict\\OneDrive\\Documentos\\Projetos\\ATLAS\\models\\gemma-3-1b-it-Q8_0.gguf",
+        "apiModelName": "gemma-3-1b-it-Q8_0",
+        "parameters": {
+          "temperature": 0.7,
+          "maxTokens": 1024,
+          "topP": 0.95,
+          "gpuLayers": 0,
+          "contextWindow": 4096
+        },
+        "metadata": {
+          "source": "models-folder",
+          "tags": [
+            "1B"
+          ],
+          "quantization": "Q8_0",
+          "size": "1019.8 MB",
+          "installedAt": "2026-05-18T01:56:31.684Z",
+          "updatedAt": "2026-05-20T23:20:09.417Z"
+        },
+        "custom": {
+          "baseUrl": "http://127.0.0.1:8080/v1",
+          "runtime": "llama.cpp"
         }
       }
     }
@@ -168,7 +210,8 @@
       "enabled": false
     },
     "localRuntime": {
-      "runtimeType": "cuda"
+      "runtimeType": "vulkan",
+      "startOnAtlasOpen": false
     }
   },
   "providers": [

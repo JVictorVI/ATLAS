@@ -3,6 +3,7 @@ const vscode = acquireVsCodeApi();
 const runtimeCpu = document.getElementById("runtime-cpu");
 const runtimeCuda = document.getElementById("runtime-cuda");
 const runtimeVulkan = document.getElementById("runtime-vulkan");
+const runtimeStartOnOpen = document.getElementById("runtime-start-on-open");
 const saveButton = document.getElementById("save-atlas-settings");
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -39,6 +40,10 @@ function applyAtlasSettings(value) {
   if (runtimeVulkan) {
     runtimeVulkan.checked = runtimeType === "vulkan";
   }
+
+  if (runtimeStartOnOpen) {
+    runtimeStartOnOpen.checked = value?.startOnAtlasOpen === true;
+  }
 }
 
 function saveAtlasSettings() {
@@ -46,6 +51,7 @@ function saveAtlasSettings() {
     type: "salvarConfiguracoesAtlas",
     payload: {
       runtimeType: getSelectedRuntimeType(),
+      startOnAtlasOpen: runtimeStartOnOpen?.checked === true,
     },
   });
 }

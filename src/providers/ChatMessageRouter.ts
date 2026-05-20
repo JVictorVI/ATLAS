@@ -610,12 +610,20 @@ export class ChatMessageRouter {
     try {
       const payload = data.payload ?? {};
       const currentCustom = this.deps.configManager.getConfig().custom ?? {};
+      const currentLocalRuntime =
+        typeof currentCustom.localRuntime === "object" &&
+        currentCustom.localRuntime !== null
+          ? (currentCustom.localRuntime as Record<string, unknown>)
+          : {};
       const runtimeType = this.normalizeLocalRuntimeType(payload.runtimeType);
+      const startOnAtlasOpen = payload.startOnAtlasOpen === true;
 
       this.deps.configManager.updateCustomRoot({
         ...currentCustom,
         localRuntime: {
+          ...currentLocalRuntime,
           runtimeType,
+          startOnAtlasOpen,
         },
       });
 
@@ -972,6 +980,7 @@ export class ChatMessageRouter {
     if (typeof localRuntime !== "object" || localRuntime === null) {
       return {
         runtimeType: "cpu",
+        startOnAtlasOpen: false,
       };
     }
 
@@ -979,6 +988,7 @@ export class ChatMessageRouter {
 
     return {
       runtimeType: this.normalizeLocalRuntimeType(value.runtimeType),
+      startOnAtlasOpen: value.startOnAtlasOpen === true,
     };
   }
 

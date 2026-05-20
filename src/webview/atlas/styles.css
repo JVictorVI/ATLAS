@@ -48,17 +48,34 @@ h1 {
   cursor: pointer;
 }
 
+.startup-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 16px;
+  border: 1px solid var(--vscode-widget-border);
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+}
+
 .runtime-option:hover {
   border-color: var(--vscode-focusBorder);
 }
 
-.runtime-option span {
+.startup-option:hover {
+  border-color: var(--vscode-focusBorder);
+}
+
+.runtime-option span,
+.startup-option span {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
 .runtime-option small,
+.startup-option small,
 .note {
   color: var(--vscode-descriptionForeground);
   font-size: 12px;
@@ -95,6 +112,36 @@ input[type="radio"]:checked::after {
 
 .note {
   margin-top: 14px;
+}
+
+input[type="checkbox"] {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--vscode-checkbox-border, var(--vscode-widget-border));
+  border-radius: 3px;
+  background-color: var(--vscode-checkbox-background);
+  position: relative;
+  cursor: pointer;
+  margin: 2px 0 0;
+  flex-shrink: 0;
+}
+
+input[type="checkbox"]:checked {
+  background-color: var(--vscode-button-background);
+  border-color: var(--vscode-button-background);
+}
+
+input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border: solid var(--vscode-button-foreground);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
 }
 
 .note a {

@@ -62,6 +62,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   // UI orchestration
   private readonly panelManager: ChatPanelManager;
   private readonly messageRouter: ChatMessageRouter;
+  private startupRuntimePromise: Promise<void> | null = null;
+  private notifyRuntimeStartup = false;
 
   constructor(private readonly context: vscode.ExtensionContext) {
     // Secrets & config
@@ -113,6 +115,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         type: "runtimeLocalStatus",
         value: { message },
       });
+
+      if (this.notifyRuntimeStartup) {
+        vscode.window.showInformationMessage(`ATLAS: ${message}`);
+      }
     });
 
     this.localApiService = new LocalApiService(
@@ -216,6 +222,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     );
 
     void this.sendAvailableLlmsToWebview(webviewView.webview);
+    void this.startRuntimeOnAtlasOpenIfEnabled();
 
     webviewView.webview.onDidReceiveMessage(async (data) => {
       await this.messageRouter.handle(data, webviewView.webview);
@@ -286,6 +293,60 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         })),
       },
     });
+  }
+
+  private async startRuntimeOnAtlasOpenIfEnabled(): Promise<void> {
+    const localRuntime = this.configManager.getConfig().custom?.localRuntime;
+
+    if (
+      typeof localRuntime !== "object" ||
+      localRuntime === null ||
+      (localRuntime as Record<string, unknown>).startOnAtlasOpen !== true
+    ) {
+      return;
+    }
+
+    if (this.startupRuntimePromise) {
+      return this.startupRuntimePromise;
+    }
+
+    this.startupRuntimePromise = this.startRuntimeOnAtlasOpen();
+
+    try {
+      await this.startupRuntimePromise;
+    } finally {
+      this.startupRuntimePromise = null;
+    }
+  }
+
+  private async startRuntimeOnAtlasOpen(): Promise<void> {
+    this.localModelDiscoveryService.refreshLocalModels();
+    const model = this.configManager.getActiveLocalModel();
+
+    if (!model) {
+      vscode.window.showWarningMessage(
+        "ATLAS: runtime local não iniciado automaticamente porque nenhum modelo local está selecionado.",
+      );
+      return;
+    }
+
+    this.notifyRuntimeStartup = true;
+
+    try {
+      vscode.window.showInformationMessage(
+        `ATLAS: iniciando runtime local para ${model.name}.`,
+      );
+      await this.localRuntimeService.ensureRuntime(model);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Erro desconhecido ao iniciar runtime local.";
+
+      vscode.window.showErrorMessage(`ATLAS: ${message}`);
+    } finally {
+      this.notifyRuntimeStartup = false;
+    }
   }
 
   public dispose(): void {
