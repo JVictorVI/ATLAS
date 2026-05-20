@@ -179,7 +179,7 @@ export class ChatPanelManager {
     }
 
     if (normalizedView === "search") {
-      return "Pesquisa de Modelos";
+      return "Repositório de Modelos";
     }
 
     return "Chat";

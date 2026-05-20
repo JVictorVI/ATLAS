@@ -5,19 +5,20 @@
   --sidebar-width: 200px;
   --sidebar-collapsed-width: 0px;
   --transition-speed: 0.22s;
-  --atlas-app-bg: var(--vscode-editor-background, #1e1e1e);
+  --atlas-app-bg: var(--vscode-editor-background);
   --atlas-panel-bg: var(--vscode-sideBar-background, var(--atlas-app-bg));
-  --atlas-surface-bg: var(--vscode-editorWidget-background, var(--vscode-input-background, #252526));
-  --atlas-surface-hover-bg: var(--vscode-list-hoverBackground, var(--vscode-toolbar-hoverBackground, #2a2d2e));
-  --atlas-border: var(--vscode-widget-border, var(--vscode-input-border, #454545));
-  --atlas-muted-fg: var(--vscode-descriptionForeground, #9d9d9d);
-  --atlas-accent-bg: var(--vscode-button-background, #0e639c);
-  --atlas-accent-fg: var(--vscode-button-foreground, #ffffff);
-  --atlas-accent-hover-bg: var(--vscode-button-hoverBackground, #1177bb);
-  --atlas-danger-fg: var(--vscode-errorForeground, #f14c4c);
-  --atlas-danger-bg: var(--vscode-inputValidation-errorBackground, #5a1d1d);
-  --atlas-warning-fg: var(--vscode-editorWarning-foreground, #dcdcaa);
-  --atlas-code-bg: var(--vscode-textCodeBlock-background, var(--vscode-editorWidget-background, #1e1e1e));
+  --atlas-surface-bg: var(--vscode-editorWidget-background, var(--vscode-input-background, var(--atlas-app-bg)));
+  --atlas-surface-hover-bg: var(--vscode-list-hoverBackground, var(--vscode-toolbar-hoverBackground, var(--atlas-surface-bg)));
+  --atlas-border: var(--vscode-widget-border, var(--vscode-input-border));
+  --atlas-muted-fg: var(--vscode-descriptionForeground);
+  --atlas-accent-bg: var(--vscode-button-background);
+  --atlas-accent-fg: var(--vscode-button-foreground);
+  --atlas-accent-hover-bg: var(--vscode-button-hoverBackground, var(--vscode-button-background));
+  --atlas-danger-fg: var(--vscode-errorForeground, var(--vscode-inputValidation-errorBorder));
+  --atlas-danger-bg: var(--vscode-inputValidation-errorBackground, var(--vscode-input-background));
+  --atlas-warning-fg: var(--vscode-editorWarning-foreground, var(--vscode-editorWarning-border, var(--vscode-foreground)));
+  --atlas-code-bg: var(--vscode-textCodeBlock-background, var(--vscode-editorWidget-background, var(--atlas-app-bg)));
+  --atlas-shadow-color: var(--vscode-widget-shadow, var(--vscode-scrollbar-shadow, transparent));
 }
 
 body {
@@ -225,16 +226,21 @@ body {
   border-radius: 4px;
   margin: 1px 4px;
   position: relative;
-  transition: background 0.12s;
+  transition:
+    background 0.12s,
+    padding-right 0.15s ease;
   min-width: 0;
 }
 
 .session-item:hover {
   background: var(--atlas-surface-hover-bg);
+  padding-right: 60px;
 }
 
 .session-item:hover .session-actions {
   opacity: 1;
+  pointer-events: auto;
+  transform: translateY(-50%);
 }
 
 .session-item.active {
@@ -259,23 +265,38 @@ body {
 
 .session-count {
   font-size: 10px;
-  color: var(--atlas-muted-fg);
-  background: var(--vscode-badge-background, var(--atlas-surface-bg));
+  color: var(--vscode-badge-foreground, var(--vscode-foreground));
+  background: var(--vscode-badge-background, var(--vscode-list-inactiveSelectionBackground, var(--atlas-surface-bg)));
   border-radius: 8px;
-  padding: 1px 5px;
+  margin-left: auto;
+  padding: 1px 6px;
   flex-shrink: 0;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.session-item.active .session-count {
+  color: var(--vscode-badge-foreground, var(--vscode-list-activeSelectionForeground, var(--vscode-foreground)));
+  background: var(--vscode-badge-background, var(--vscode-list-activeSelectionBackground, var(--atlas-surface-bg)));
 }
 
 .session-actions {
   display: flex;
-  gap: 2px;
+  gap: 4px;
+  position: absolute;
+  top: 50%;
+  right: 6px;
   opacity: 0;
-  transition: opacity 0.15s;
+  pointer-events: none;
+  transform: translateY(-50%) translateX(4px);
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
   flex-shrink: 0;
 }
 
 .session-action-btn {
-  background: none;
+  background: transparent;
   border: none;
   color: var(--vscode-icon-foreground);
   cursor: pointer;
@@ -573,7 +594,7 @@ input {
   border: 1px solid var(--atlas-border);
   border-radius: 8px;
   padding: 16px;
-  box-shadow: 0 -4px 15px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.35));
+  box-shadow: 0 -4px 15px var(--atlas-shadow-color);
   z-index: 100;
   display: flex;
   flex-direction: column;

@@ -252,7 +252,10 @@ export class ChatMessageRouter {
         value: this.deps.sessionService.listSessions(),
       });
     } catch (error) {
-      if (AtlasInferenceService.isAbortError(error)) {
+      if (
+        AtlasInferenceService.isAbortError(error) ||
+        responseController.signal.aborted
+      ) {
         await webview.postMessage({
           type: "geracaoCancelada",
         });

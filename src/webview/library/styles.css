@@ -6,10 +6,51 @@ body {
   padding: 24px 32px;
   overflow-y: auto;
   box-sizing: border-box;
-  --atlas-card-background: var(--vscode-editorWidget-background, var(--vscode-sideBar-background, var(--vscode-editor-background)));
-  --atlas-hover-background: var(--vscode-list-hoverBackground, var(--vscode-toolbar-hoverBackground, var(--vscode-dropdown-background)));
-  --atlas-danger-foreground: var(--vscode-errorForeground, #f14c4c);
-  --atlas-danger-background: var(--vscode-inputValidation-errorBackground, transparent);
+  --atlas-card-background: var(
+    --vscode-editorWidget-background,
+    var(--vscode-sideBar-background, var(--vscode-editor-background))
+  );
+  --atlas-hover-background: var(
+    --vscode-list-hoverBackground,
+    var(--vscode-toolbar-hoverBackground, var(--vscode-dropdown-background))
+  );
+  --atlas-danger-foreground: var(
+    --vscode-errorForeground,
+    var(--vscode-inputValidation-errorBorder)
+  );
+  --atlas-danger-background: var(
+    --vscode-inputValidation-errorBackground,
+    transparent
+  );
+  --atlas-border: var(--vscode-widget-border, var(--vscode-input-border));
+  --atlas-heading-background: var(
+    --vscode-badge-background,
+    var(--vscode-input-background, var(--atlas-card-background))
+  );
+  --atlas-heading-foreground: var(
+    --vscode-badge-foreground,
+    var(--vscode-foreground)
+  );
+  --atlas-dropdown-background: var(
+    --vscode-dropdown-background,
+    var(--atlas-card-background)
+  );
+  --atlas-dropdown-border: var(
+    --vscode-dropdown-border,
+    var(--vscode-widget-border)
+  );
+  --atlas-dropdown-shadow: var(
+    --vscode-widget-shadow,
+    var(--vscode-scrollbar-shadow, transparent)
+  );
+  --atlas-selected-background: var(
+    --vscode-list-activeSelectionBackground,
+    var(--vscode-list-inactiveSelectionBackground)
+  );
+  --atlas-selected-foreground: var(
+    --vscode-list-activeSelectionForeground,
+    var(--vscode-list-inactiveSelectionForeground, var(--vscode-foreground))
+  );
 }
 
 .content {
@@ -17,17 +58,77 @@ body {
   margin: 0 auto;
 }
 
-.header-actions {
+.library-page-heading {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
+  gap: 12px;
+  width: min(100%, 860px);
   margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--atlas-border);
 }
 
-.header-titles {
+.library-page-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--atlas-border);
+  border-radius: 6px;
+  color: var(--atlas-heading-foreground);
+  background: var(--atlas-heading-background);
+  font-size: 17px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.library-page-copy {
+  min-width: 0;
+}
+
+.library-page-copy h1 {
+  margin: 0;
+  color: var(--vscode-foreground);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.library-page-copy p {
+  margin: 3px 0 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.header-actions {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 7px;
+  width: min(100%, 860px);
+  margin-bottom: 20px;
+}
+
+.model-action-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 0;
+  width: 100%;
+}
+
+.detail-kicker {
+  display: inline-flex;
+  width: fit-content;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .model-picker {
@@ -38,15 +139,14 @@ body {
 .model-dropdown {
   background-color: var(--vscode-dropdown-background);
   color: var(--vscode-dropdown-foreground);
-  border: 1px solid var(--vscode-dropdown-border, var(--vscode-widget-border));
-  font-size: 24px;
+  border: 1px solid var(--vscode-dropdown-border, var(--atlas-border));
+  font-size: 16px;
   font-weight: 600;
-  padding: 8px 18px 8px 12px;
-  border-radius: 8px;
+  padding: 9px 18px 9px 12px;
+  border-radius: 6px;
   outline: none;
   font-family: var(--vscode-font-family);
   cursor: pointer;
-  min-width: 320px;
   width: 100%;
   transition: all 0.2s ease;
   display: flex;
@@ -58,7 +158,10 @@ body {
 
 .model-dropdown:hover {
   background-color: var(--atlas-hover-background);
-  border-color: var(--vscode-focusBorder, var(--vscode-dropdown-border, var(--vscode-widget-border)));
+  border-color: var(
+    --vscode-focusBorder,
+    var(--vscode-dropdown-border, var(--vscode-widget-border))
+  );
 }
 
 .model-dropdown:focus {
@@ -77,6 +180,7 @@ body {
 .model-chevron {
   width: 8px;
   height: 8px;
+
   border-right: 2px solid var(--vscode-descriptionForeground);
   border-bottom: 2px solid var(--vscode-descriptionForeground);
   transform: rotate(45deg) translateY(-2px);
@@ -91,17 +195,17 @@ body {
   right: 0;
   max-height: 260px;
   overflow-y: auto;
-  background: #1e1e1e;
-  border: 1px solid #444;
+  background: var(--atlas-dropdown-background);
+  border: 1px solid var(--atlas-dropdown-border);
   border-radius: 8px;
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.36);
+  box-shadow: 0 8px 18px var(--atlas-dropdown-shadow);
   padding: 4px;
 }
 
 .model-dropdown-item {
   width: 100%;
   background: transparent;
-  color: #cccccc;
+  color: var(--vscode-dropdown-foreground, var(--vscode-foreground));
   border: none;
   border-radius: 5px;
   padding: 9px 10px;
@@ -113,12 +217,12 @@ body {
 }
 
 .model-dropdown-item:hover {
-  background: #2d2d2d;
+  background: var(--atlas-hover-background);
 }
 
 .model-dropdown-item.selected {
-  background: rgba(0, 122, 204, 0.18);
-  color: #ffffff;
+  background: var(--atlas-selected-background);
+  color: var(--atlas-selected-foreground);
 }
 
 .model-option-main {
@@ -131,7 +235,8 @@ body {
 }
 
 .model-option-meta {
-  color: var(--vscode-descriptionForeground);
+  display: block;
+  color: var(--vscode-descriptionForeground, var(--vscode-foreground));
   font-size: 11px;
   max-width: 100%;
   overflow: hidden;
@@ -148,18 +253,19 @@ body {
 .actions {
   display: flex;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .card {
   background: var(--atlas-card-background);
-  border: 1px solid var(--vscode-widget-border);
-  border-radius: 14px;
+  border: 1px solid var(--atlas-border);
+  border-radius: 8px;
   padding: 24px;
   margin-bottom: 18px;
 }
 
 .section-title {
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 600;
   margin-bottom: 10px;
 }
@@ -288,7 +394,7 @@ button {
 }
 
 .btn-secondary:hover {
-  background: rgba(0, 122, 204, 0.1);
+  background: var(--atlas-hover-background);
 }
 
 .btn-danger {
@@ -315,7 +421,38 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: min(100%, 860px);
+  box-sizing: border-box;
   height: 200px;
+  border: 1px solid var(--atlas-border);
+  border-radius: 8px;
+  background: var(--atlas-card-background);
   color: var(--vscode-descriptionForeground);
   font-size: 15px;
+  padding: 24px;
+  text-align: center;
+}
+
+@media (max-width: 720px) {
+  body {
+    padding: 20px;
+  }
+
+  .header-actions {
+    width: 100%;
+  }
+
+  .model-action-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .actions,
+  .model-picker {
+    width: 100%;
+  }
+
+  .actions button {
+    flex: 1;
+  }
 }

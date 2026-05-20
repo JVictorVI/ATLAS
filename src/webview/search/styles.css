@@ -9,6 +9,9 @@ body {
   --atlas-panel-background: var(--vscode-editorWidget-background, var(--vscode-sideBar-background, var(--vscode-editor-background)));
   --atlas-subtle-background: var(--vscode-input-background, var(--vscode-editorWidget-background, var(--vscode-editor-background)));
   --atlas-accent-foreground: var(--vscode-textLink-foreground, var(--vscode-button-background));
+  --atlas-border: var(--vscode-widget-border, var(--vscode-input-border));
+  --atlas-kicker-background: var(--vscode-badge-background, var(--atlas-subtle-background));
+  --atlas-kicker-foreground: var(--vscode-badge-foreground, var(--vscode-foreground));
 }
 
 .model-detail-view {
@@ -19,16 +22,73 @@ body {
 }
 
 .detail-header {
+  width: min(100%, 860px);
+  margin-bottom: 26px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--atlas-border);
+}
+
+.detail-page-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   margin-bottom: 24px;
 }
 
-.detail-kicker {
-  margin: 0 0 26px;
-  color: var(--vscode-descriptionForeground);
-  font-size: 12px;
+.detail-page-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--atlas-border);
+  border-radius: 6px;
+  color: var(--atlas-kicker-foreground);
+  background: var(--atlas-kicker-background);
+  flex-shrink: 0;
 }
 
-.detail-header h1 {
+.detail-page-icon i {
+  font-size: 17px;
+}
+
+.detail-page-copy {
+  min-width: 0;
+}
+
+.detail-page-copy h1 {
+  margin: 0;
+  color: var(--vscode-foreground);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.detail-page-copy p {
+  margin: 3px 0 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.model-heading {
+  margin-bottom: 4px;
+}
+
+.detail-kicker {
+  display: inline-flex;
+  width: fit-content;
+  margin: 0 0 7px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.model-heading h2 {
   margin: 0;
   font-size: 26px;
   line-height: 1.2;
@@ -79,8 +139,8 @@ body {
   justify-content: center;
   gap: 8px;
   padding: 0 10px;
-  border: 1px solid var(--vscode-widget-border);
-  background: var(--vscode-sideBar-background);
+  border: 1px solid var(--atlas-border);
+  background: var(--atlas-subtle-background);
   color: var(--vscode-foreground);
 }
 
@@ -123,7 +183,7 @@ body {
   padding: 18px;
   border-radius: 8px;
   background: var(--atlas-panel-background);
-  border: 1px solid var(--vscode-widget-border);
+  border: 1px solid var(--atlas-border);
 }
 
 .info-item {
@@ -159,7 +219,7 @@ body {
   padding: 22px;
   border-radius: 8px;
   background: var(--atlas-panel-background);
-  border: 1px solid var(--vscode-widget-border);
+  border: 1px solid var(--atlas-border);
 }
 
 .description-panel h3 {
@@ -200,7 +260,7 @@ body {
 }
 
 .tag-row span {
-  border: 1px solid var(--vscode-widget-border);
+  border: 1px solid var(--atlas-border);
   border-radius: 4px;
   padding: 5px 8px;
   color: var(--vscode-descriptionForeground);

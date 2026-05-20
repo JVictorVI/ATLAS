@@ -4,7 +4,7 @@ body {
   background: var(--vscode-editor-background);
   padding: 16px;
   --atlas-card-background: var(--vscode-editorWidget-background, var(--vscode-sideBar-background, var(--vscode-editor-background)));
-  --atlas-danger-foreground: var(--vscode-errorForeground, #f14c4c);
+  --atlas-danger-foreground: var(--vscode-errorForeground, var(--vscode-inputValidation-errorBorder));
 }
 
 h1 {

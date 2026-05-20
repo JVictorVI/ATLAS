@@ -41,7 +41,9 @@ export class LocalApiService {
       },
       body: JSON.stringify({
         model: model.apiModelName || model.id,
-        messages: this.applyModelBehavior(messages, model),
+        messages: this.prepareMessagesForLlamaCpp(
+          this.applyModelBehavior(messages, model),
+        ),
         temperature: model.parameters.temperature ?? defaults.temperature,
         max_tokens: model.parameters.maxTokens ?? defaults.maxTokens,
         top_p: model.parameters.topP ?? defaults.topP,
@@ -56,7 +58,7 @@ export class LocalApiService {
     }
 
     if (isStreaming) {
-      return this.readStreamingResponse(response, model, onChunk);
+      return this.readStreamingResponse(response, model, onChunk, options?.signal);
     }
 
     const data = (await this.safeReadJson(
@@ -106,6 +108,73 @@ export class LocalApiService {
     }
 
     return [behaviorMessage, ...messages];
+  }
+
+  private prepareMessagesForLlamaCpp(messages: ChatMessage[]): ChatMessage[] {
+    const systemContent = messages
+      .filter((message) => message.role === "system")
+      .map((message) => message.content.trim())
+      .filter(Boolean)
+      .join("\n\n");
+
+    const alternatingMessages = this.normalizeAlternatingMessages(
+      messages.filter((message) => message.role !== "system"),
+    );
+
+    if (!systemContent) {
+      return alternatingMessages;
+    }
+
+    return [
+      {
+        role: "system",
+        content: systemContent,
+      },
+      ...alternatingMessages,
+    ];
+  }
+
+  private normalizeAlternatingMessages(messages: ChatMessage[]): ChatMessage[] {
+    const normalized: ChatMessage[] = [];
+
+    for (const message of messages) {
+      const content = message.content.trim();
+
+      if (!content) {
+        continue;
+      }
+
+      if (message.role === "system") {
+        continue;
+      }
+
+      if (normalized.length === 0 && message.role === "assistant") {
+        normalized.push({
+          role: "user",
+          content: [
+            "Contexto anterior da conversa:",
+            content,
+            "",
+            "Continue a partir deste contexto.",
+          ].join("\n"),
+        });
+        continue;
+      }
+
+      const previous = normalized.at(-1);
+
+      if (previous?.role === message.role) {
+        previous.content = `${previous.content}\n\n${content}`;
+        continue;
+      }
+
+      normalized.push({
+        role: message.role,
+        content,
+      });
+    }
+
+    return normalized;
   }
 
   private isQuickAnalysisRequest(messages: ChatMessage[]): boolean {
@@ -190,6 +259,7 @@ export class LocalApiService {
     response: Response,
     model: AtlasModelConfig,
     onChunk?: (chunk: string) => void,
+    signal?: AbortSignal,
   ): Promise<AtlasCloudChatResponse> {
     if (!response.body) {
       throw new Error(
@@ -202,12 +272,33 @@ export class LocalApiService {
     let fullContent = "";
     let buffer = "";
     let finishReason: string | undefined;
+    let abortRequested = signal?.aborted === true;
+
+    const abortStream = () => {
+      abortRequested = true;
+      void reader.cancel().catch(() => undefined);
+    };
+
+    if (abortRequested) {
+      throw this.createAbortError();
+    }
+
+    signal?.addEventListener("abort", abortStream, { once: true });
 
     try {
       let isStreamFinished = false;
 
       while (!isStreamFinished) {
+        if (abortRequested) {
+          throw this.createAbortError();
+        }
+
         const { done, value } = await reader.read();
+
+        if (abortRequested) {
+          throw this.createAbortError();
+        }
+
         if (done) {
           break;
         }
@@ -251,6 +342,7 @@ export class LocalApiService {
         }
       }
     } finally {
+      signal?.removeEventListener("abort", abortStream);
       reader.releaseLock();
     }
 
@@ -269,6 +361,12 @@ export class LocalApiService {
       createdAt: new Date().toISOString(),
       raw: { stream: true },
     };
+  }
+
+  private createAbortError(): Error {
+    const error = new Error("Geração local cancelada pelo usuário.");
+    error.name = "AbortError";
+    return error;
   }
 
   private normalizeLocalResponse(

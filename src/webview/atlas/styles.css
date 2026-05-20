@@ -3,6 +3,7 @@ body {
   color: var(--vscode-foreground);
   background: var(--vscode-editor-background);
   padding: 16px;
+  --atlas-card-background: var(--vscode-editorWidget-background, var(--vscode-sideBar-background, var(--vscode-editor-background)));
 }
 
 h1 {
@@ -17,7 +18,7 @@ h1 {
 }
 
 .card {
-  background: #1e1e1e;
+  background: var(--atlas-card-background);
   border: 1px solid var(--vscode-widget-border);
   border-radius: 14px;
   padding: 16px;
@@ -94,6 +95,16 @@ input[type="radio"]:checked::after {
 
 .note {
   margin-top: 14px;
+}
+
+.note a {
+  color: var(--vscode-textLink-foreground);
+  text-decoration: none;
+}
+
+.note a:hover {
+  color: var(--vscode-textLink-activeForeground);
+  text-decoration: underline;
 }
 
 .row-end {

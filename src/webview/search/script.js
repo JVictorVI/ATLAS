@@ -9,7 +9,7 @@ const modelDetails = {
     quant: "Q4_K_M",
     updatedAt: "23/01/2025",
     downloads: "23.245",
-    modelSize: "30B parametros",
+    modelSize: "30B parâmetros",
     tags: ["Text Generation", "GGUF", "Conversational"],
     summary:
       "The Qwen3 Coder 30B is a coding-focused large language model designed for programming, software engineering and agentic reasoning workflows.",
@@ -29,7 +29,7 @@ const modelDetails = {
     quant: "Q4_K_M",
     updatedAt: "18/06/2024",
     downloads: "710.171",
-    modelSize: "15B parametros",
+    modelSize: "15B parâmetros",
     tags: ["Reasoning", "GGUF", "Local"],
     summary:
       "Phi 4 GGUF is a compact model aimed at local execution, useful when you want fast responses with a solid quality-to-resource ratio.",
@@ -49,7 +49,7 @@ const modelDetails = {
     quant: "Q4_K_M",
     updatedAt: "28/11/2024",
     downloads: "140.294",
-    modelSize: "27B parametros",
+    modelSize: "27B parâmetros",
     tags: ["Instruction", "Analysis", "Chat"],
     summary:
       "Gemma 3 27B IT is an instruction-tuned model for general chat, text analysis and technical assistance with clear prompting.",
@@ -69,7 +69,7 @@ const modelDetails = {
     quant: "Q4_K_M",
     updatedAt: "28/11/2025",
     downloads: "1.147.142",
-    modelSize: "20B parametros",
+    modelSize: "20B parâmetros",
     tags: ["General", "Tool Use", "Chat"],
     summary:
       "GPT OSS 20B is positioned as a strong general-purpose open model for assistants, coding support and structured reasoning tasks.",
@@ -89,7 +89,7 @@ const modelDetails = {
     quant: "Q4_K_M",
     updatedAt: "31/05/2025",
     downloads: "694.240",
-    modelSize: "14B parametros",
+    modelSize: "14B parâmetros",
     tags: ["Reasoning", "Planning", "Agent"],
     summary:
       "Ministral 3 14B Reasoning is tuned for planning, multi-step reasoning and assistant flows where compact deployment is still important.",
@@ -109,7 +109,7 @@ const modelDetails = {
     quant: "Q4_K_M",
     updatedAt: "19/10/2023",
     downloads: "5.583.787",
-    modelSize: "8B parametros",
+    modelSize: "8B parâmetros",
     tags: ["Reasoning", "Compact", "GGUF"],
     summary:
       "DeepSeek R1 0528 Qwen3 8B is a compact reasoning-oriented model suited to experiments, local assistants and quick iteration.",
@@ -129,7 +129,7 @@ const modelDetails = {
     quant: "Q4_K_M",
     updatedAt: "25/12/2024",
     downloads: "4.390.982",
-    modelSize: "4B parametros",
+    modelSize: "4B parâmetros",
     tags: ["Small", "Instruction", "Local"],
     summary:
       "Gemma 3 4B IT is a small instruction model for fast local chat, simple summarization and lightweight assistant tasks.",
@@ -149,7 +149,7 @@ const modelDetails = {
     quant: "Q4_K_M",
     updatedAt: "05/07/2025",
     downloads: "15.662",
-    modelSize: "7B parametros",
+    modelSize: "7B parâmetros",
     tags: ["Enterprise", "Small", "Assistant"],
     summary:
       "Granite 4 H Tiny is a compact assistant model aimed at efficient enterprise-style workflows and controlled local usage.",
@@ -173,13 +173,27 @@ function renderInfoItem(label, value) {
 function renderModelDetails(modelId) {
   const detailView = document.getElementById("model-detail-view");
   const model = modelDetails[modelId] || modelDetails["qwen3-coder-30b"];
-  if (!detailView || !model) return;
+  if (!detailView || !model) {
+    return;
+  }
 
   detailView.innerHTML = `
     <section class="detail-header">
-      <p class="detail-kicker">Pesquisa de Modelos</p>
-      <h1>${model.title}</h1>
-      <p class="detail-author">By ${model.author}</p>
+      <div class="detail-page-heading">
+        <span class="detail-page-icon">
+          <i class="codicon codicon-search"></i>
+        </span>
+        <div class="detail-page-copy">
+          <h1>Repositório de Modelos</h1>
+          <p>Consulte, explore e baixe modelos disponíveis no Hugging Face</p>
+        </div>
+      </div>
+
+      <div class="model-heading">
+        <span class="detail-kicker">Modelo selecionado</span>
+        <h2>${model.title}</h2>
+      </div>
+      <p class="detail-author">Por ${model.author}</p>
 
       <div class="detail-actions">
         <button class="download-button" type="button">
@@ -190,7 +204,7 @@ function renderModelDetails(modelId) {
           <span>${model.quant} - ${model.size}</span>
           <i class="codicon codicon-chevron-down"></i>
         </button>
-        <button class="icon-button" type="button" title="Informacoes">
+        <button class="icon-button" type="button" title="Informações">
           <i class="codicon codicon-question"></i>
         </button>
       </div>
@@ -202,8 +216,8 @@ function renderModelDetails(modelId) {
         ${renderInfoItem("Modelo", model.id)}
         ${renderInfoItem("Arquitetura", model.architecture)}
         ${renderInfoItem("Tags", model.tags[0])}
-        ${renderInfoItem("Atualização Recente", model.updatedAt)}
-        ${renderInfoItem("Tamanho do Modelo", model.modelSize)}
+        ${renderInfoItem("Atualização recente", model.updatedAt)}
+        ${renderInfoItem("Tamanho do modelo", model.modelSize)}
         ${renderInfoItem("Formato", model.quant)}
       </div>
     </section>
@@ -213,7 +227,7 @@ function renderModelDetails(modelId) {
       <article class="description-panel">
         <h3>${model.title}</h3>
         <p>${model.summary}</p>
-        <h4>Key Features</h4>
+        <h4>Principais recursos</h4>
         <ul>
           ${model.features.map((feature) => `<li>${feature}</li>`).join("")}
         </ul>

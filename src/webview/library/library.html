@@ -8,14 +8,28 @@
   </head>
   <body>
     <main class="content">
+      <section class="library-page-heading">
+        <span class="library-page-icon">
+          <span aria-hidden="true">▦</span>
+        </span>
+        <div class="library-page-copy">
+          <h1>Biblioteca</h1>
+          <p>
+            Gerencie modelos locais, parâmetros de execução e diretivas de
+            comportamento
+          </p>
+        </div>
+      </section>
+
       <div id="empty-state" class="empty-state">
         Nenhum modelo encontrado. Adicione "models" na pasta models ou baixe
-        pela seção de pesquisa do ATLAS
+        pela seção de pesquisa do ATLAS.
       </div>
 
       <div id="model-details" class="hidden">
         <div class="header-actions">
-          <div class="header-titles">
+          <span class="detail-kicker">Modelo selecionado</span>
+          <div class="model-action-row">
             <div class="model-picker" id="model-picker">
               <button class="model-dropdown" id="model-select-button">
                 <span id="model-select-label">Selecionar modelo</span>
@@ -26,19 +40,19 @@
                 id="model-select-list"
               ></div>
             </div>
-          </div>
-          <div class="actions">
-            <button class="btn-secondary" id="btn-edit-model">
-              Editar Modelo
-            </button>
-            <button class="btn-danger" id="btn-delete-model">
-              Excluir Modelo
-            </button>
+            <div class="actions">
+              <button class="btn-secondary" id="btn-edit-model">
+                Editar modelo
+              </button>
+              <button class="btn-danger" id="btn-delete-model">
+                Excluir modelo
+              </button>
+            </div>
           </div>
         </div>
 
         <div class="card">
-          <div class="section-title">Informações do Modelo</div>
+          <div class="section-title">Informações do modelo</div>
           <div class="inline-fields">
             <div class="field">
               <label>Modelo</label>
@@ -61,14 +75,14 @@
               <span class="readonly-value" id="info-file">-</span>
             </div>
             <div class="field">
-              <label>Tamanho em Disco</label>
+              <label>Tamanho em disco</label>
               <span class="readonly-value" id="info-size">-</span>
             </div>
           </div>
         </div>
 
         <div class="card">
-          <div class="section-title">Parâmetros de Execução do Modelo</div>
+          <div class="section-title">Parâmetros de execução do modelo</div>
           <div class="subtitle">
             Ajuste como o modelo será executado na sua máquina
           </div>
@@ -80,7 +94,7 @@
             </div>
             <div class="field">
               <label for="param-tokens-res"
-                >Tokens Processados Por Resposta</label
+                >Tokens processados por resposta</label
               >
               <input type="number" id="param-tokens-res" value="512" />
             </div>
@@ -89,11 +103,11 @@
               <input type="number" id="param-temp" value="0.7" step="0.1" />
             </div>
             <div class="field">
-              <label for="param-context">Tamanho do Contexto</label>
+              <label for="param-context">Tamanho do contexto</label>
               <input type="number" id="param-context" value="4096" />
             </div>
             <div class="field">
-              <label for="param-max-tokens">N.º Máximo de Tokens Gerados</label>
+              <label for="param-max-tokens">N.º máximo de tokens gerados</label>
               <input type="number" id="param-max-tokens" value="300" />
             </div>
           </div>
@@ -103,7 +117,7 @@
         </div>
 
         <div class="card">
-          <div class="section-title">Comportamento do Modelo</div>
+          <div class="section-title">Comportamento do modelo</div>
           <div class="subtitle">
             Personalize parcialmente o comportamento base do modelo
           </div>
@@ -111,16 +125,16 @@
           <div class="checkbox-group row-checkbox">
             <label class="checkBoxSection">
               <input type="radio" name="behavior" id="toggle-default" checked />
-              Comportamento Padrão
+              Comportamento padrão
             </label>
             <label class="checkBoxSection">
               <input type="radio" name="behavior" id="toggle-custom" />
-              Comportamento Personalizado
+              Comportamento personalizado
             </label>
           </div>
 
           <div class="field" style="margin-top: 14px; width: 100%">
-            <label for="system-prompt">Prompt de Sistema Personalizado</label>
+            <label for="system-prompt">Prompt de sistema personalizado</label>
             <textarea
               id="system-prompt"
               rows="3"
