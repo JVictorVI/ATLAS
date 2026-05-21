@@ -1,6 +1,6 @@
 # Atualizacao da Modelagem e Arquitetura do ATLAS
 
-Este documento registra a atualizacao das referencias de classes, componentes e casos de uso ja implementados no ATLAS. As partes relacionadas a RAG completo, ChromaDB, backend Python, runtime com llama.cpp e download automatizado de modelos locais permanecem como evolucao futura da arquitetura e nao devem ser removidas do documento principal.
+Este documento registra a atualizacao das referencias de classes, componentes e casos de uso ja implementados no ATLAS. As partes relacionadas a RAG completo, ChromaDB, backend Python, engine com llama.cpp e download automatizado de modelos locais permanecem como evolucao futura da arquitetura e nao devem ser removidas do documento principal.
 
 ## 1. Escopo Implementado Atualmente
 
@@ -164,7 +164,7 @@ Permanecem planejados para fases futuras:
 4. `AtlasSelectionService` atualiza `llms.selection.mode` no arquivo de configuracao.
 5. A Webview recebe `modoSelecionado`.
 
-**Observacao arquitetural:** o modo local ja existe como selecao e registro de modelos, mas a inferencia local ainda depende da implementacao futura do runtime local.
+**Observacao arquitetural:** o modo local ja existe como selecao e registro de modelos, mas a inferencia local ainda depende da implementacao futura da engine local.
 
 ### UC006 - Configurar parametros de execucao e seguranca
 
@@ -556,7 +556,7 @@ Responsabilidades:
 - Resolucao do modo de resposta do ATLAS
 - Suporte a modo assistente tecnico, analise arquitetural, analise rapida e modo estudo
 - Listagem de modelos disponiveis por provedor cloud
-- Suporte futuro a runtime local de modelos
+- Suporte futuro a engine local de modelos
 
 Principais componentes:
 
@@ -567,7 +567,7 @@ Principais componentes:
 - `AtlasPromptCustomizationService`
 - `AtlasPromptTypes`
 - `ApiTypes`
-- `Local Model Runtime (llama.cpp)` (futuro)
+- `Local Model Engine (llama.cpp)` (futuro)
 - `Local Model Adapter` (futuro)
 
 Essa camada permite que o sistema utilize provedores em nuvem no estado atual e preserve a arquitetura para a futura execucao local de modelos, mantendo a montagem de prompts e o comportamento do assistente separados do mecanismo de inferencia.

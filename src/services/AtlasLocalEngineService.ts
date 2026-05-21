@@ -5,10 +5,10 @@ import { ChildProcessWithoutNullStreams, spawn } from "child_process";
 import { AtlasConfigManager } from "../managers/AtlasConfigManager";
 import { AtlasModelConfig } from "../interfaces/AtlasConfigTypes";
 
-export class AtlasLocalRuntimeService {
+export class AtlasLocalEngineService {
   private process: ChildProcessWithoutNullStreams | null = null;
   private runningModelId: string | null = null;
-  private runningRuntimeType: "cpu" | "cuda" | "vulkan" | null = null;
+  private runningEngineType: "cpu" | "cuda" | "vulkan" | null = null;
   private runningExecutablePath: string | null = null;
   private startupError: Error | null = null;
   private statusListener?: (message: string) => void | Promise<void>;
@@ -28,23 +28,23 @@ export class AtlasLocalRuntimeService {
     return this.process !== null;
   }
 
-  public async ensureRuntime(model: AtlasModelConfig): Promise<void> {
+  public async ensureEngine(model: AtlasModelConfig): Promise<void> {
     if (!model.path || !fs.existsSync(model.path)) {
       throw new Error(
         `Arquivo GGUF não encontrado para o modelo local "${model.name}".`,
       );
     }
 
-    const runtimeSettings = this.getRuntimeSettings();
+    const engineSettings = this.getEngineSettings();
     const executable = this.resolveLlamaServerExecutable(
       model,
-      runtimeSettings,
+      engineSettings,
     );
 
     if (
       this.process &&
       this.runningModelId === model.id &&
-      this.runningRuntimeType === runtimeSettings.runtimeType &&
+      this.runningEngineType === engineSettings.engineType &&
       this.runningExecutablePath === executable
     ) {
       return;
@@ -52,20 +52,20 @@ export class AtlasLocalRuntimeService {
 
     if (this.process) {
       await this.emitStatus(
-        `Trocando runtime local para ${model.name}. O runtime anterior sera descarregado.`,
+        `Trocando a engine local para ${model.name}. A engine anterior sera descarregada.`,
       );
-      this.stopRuntime();
+      this.stopEngine();
       await this.waitAfterStop();
     }
 
     await this.emitStatus(
-      `Iniciando runtime local para ${model.name}. Isso pode levar alguns segundos.`,
+      `Iniciando a engine local para ${model.name}. Isso pode levar alguns segundos.`,
     );
 
     const args = this.buildLlamaServerArgs(model);
 
     await this.emitStatus(
-      `Usando runtime ${runtimeSettings.runtimeType.toUpperCase()}: ${executable}`,
+      `Usando a engine ${engineSettings.engineType.toUpperCase()}: ${executable}`,
     );
 
     this.process = spawn(executable, args, {
@@ -73,38 +73,38 @@ export class AtlasLocalRuntimeService {
       windowsHide: true,
     });
     this.runningModelId = model.id;
-    this.runningRuntimeType = runtimeSettings.runtimeType;
+    this.runningEngineType = engineSettings.engineType;
     this.runningExecutablePath = executable;
     this.startupError = null;
 
     this.process.stdout.on("data", (chunk) => {
-      console.log(`[ATLAS local runtime] ${chunk.toString().trim()}`);
+      console.log(`[ATLAS local engine] ${chunk.toString().trim()}`);
     });
 
     this.process.stderr.on("data", (chunk) => {
-      console.warn(`[ATLAS local runtime] ${chunk.toString().trim()}`);
+      console.warn(`[ATLAS local engine] ${chunk.toString().trim()}`);
     });
 
     this.process.on("error", (error) => {
       this.startupError = error;
       this.process = null;
       this.runningModelId = null;
-      this.runningRuntimeType = null;
+      this.runningEngineType = null;
       this.runningExecutablePath = null;
     });
 
     this.process.on("exit", () => {
       this.process = null;
       this.runningModelId = null;
-      this.runningRuntimeType = null;
+      this.runningEngineType = null;
       this.runningExecutablePath = null;
     });
 
     await this.waitUntilReady();
-    await this.emitStatus(`Runtime local pronto: ${model.name}.`);
+    await this.emitStatus(`Engine local pronta: ${model.name}.`);
   }
 
-  public stopRuntime(): void {
+  public stopEngine(): void {
     if (!this.process) {
       return;
     }
@@ -112,40 +112,40 @@ export class AtlasLocalRuntimeService {
     this.process.kill();
     this.process = null;
     this.runningModelId = null;
-    this.runningRuntimeType = null;
+    this.runningEngineType = null;
     this.runningExecutablePath = null;
   }
 
-  public async restartRuntime(model: AtlasModelConfig): Promise<void> {
-    this.stopRuntime();
+  public async restartEngine(model: AtlasModelConfig): Promise<void> {
+    this.stopEngine();
     await this.waitAfterStop();
-    await this.ensureRuntime(model);
+    await this.ensureEngine(model);
   }
 
   private resolveLlamaServerExecutable(
     model: AtlasModelConfig,
-    runtimeSettings: {
-      runtimeType: "cpu" | "cuda" | "vulkan";
+    engineSettings: {
+      engineType: "cpu" | "cuda" | "vulkan";
     },
   ): string {
     const configured = this.getConfiguredLlamaServerPath(
       model,
-      runtimeSettings,
+      engineSettings,
     );
-    const runtimeFolder = this.getRuntimeFolder(runtimeSettings.runtimeType);
+    const engineFolder = this.getEngineFolder(engineSettings.engineType);
 
     const candidates = [
       configured,
       path.join(
         this.context.extensionPath,
-        "runtime",
-        runtimeFolder,
+        "engine",
+        engineFolder,
         "llama-server.exe",
       ),
       path.join(
         this.context.extensionPath,
-        "runtime",
-        runtimeFolder,
+        "engine",
+        engineFolder,
         "llama-server",
       ),
     ].filter(Boolean);
@@ -156,9 +156,9 @@ export class AtlasLocalRuntimeService {
       }
     }
 
-    if (runtimeSettings.runtimeType !== "cpu") {
+    if (engineSettings.engineType !== "cpu") {
       throw new Error(
-        `Runtime ${runtimeSettings.runtimeType.toUpperCase()} selecionado, mas o llama-server não foi encontrado em runtime/${runtimeFolder}.`,
+        `Engine ${engineSettings.engineType.toUpperCase()} selecionada, mas o llama-server não foi encontrado em engine/${engineFolder}.`,
       );
     }
 
@@ -178,8 +178,8 @@ export class AtlasLocalRuntimeService {
 
   private getConfiguredLlamaServerPath(
     model: AtlasModelConfig,
-    runtimeSettings: {
-      runtimeType: "cpu" | "cuda" | "vulkan";
+    engineSettings: {
+      engineType: "cpu" | "cuda" | "vulkan";
     },
   ): string {
     if (typeof model.custom?.llamaServerPath === "string") {
@@ -189,25 +189,25 @@ export class AtlasLocalRuntimeService {
     return "";
   }
 
-  private getRuntimeSettings(): {
-    runtimeType: "cpu" | "cuda" | "vulkan";
+  private getEngineSettings(): {
+    engineType: "cpu" | "cuda" | "vulkan";
   } {
-    const localRuntime = this.configManager.getConfig().custom?.localRuntime;
+    const localEngine = this.configManager.getConfig().custom?.localEngine;
 
-    if (typeof localRuntime !== "object" || localRuntime === null) {
+    if (typeof localEngine !== "object" || localEngine === null) {
       return {
-        runtimeType: "cpu",
+        engineType: "cpu",
       };
     }
 
-    const value = localRuntime as Record<string, unknown>;
+    const value = localEngine as Record<string, unknown>;
 
     return {
-      runtimeType: this.normalizeRuntimeType(value.runtimeType),
+      engineType: this.normalizeEngineType(value.engineType),
     };
   }
 
-  private normalizeRuntimeType(value: unknown): "cpu" | "cuda" | "vulkan" {
+  private normalizeEngineType(value: unknown): "cpu" | "cuda" | "vulkan" {
     if (value === "cuda" || value === "vulkan") {
       return value;
     }
@@ -215,12 +215,12 @@ export class AtlasLocalRuntimeService {
     return "cpu";
   }
 
-  private getRuntimeFolder(runtimeType: "cpu" | "cuda" | "vulkan"): string {
-    if (runtimeType === "cuda") {
+  private getEngineFolder(engineType: "cpu" | "cuda" | "vulkan"): string {
+    if (engineType === "cuda") {
       return "llama.cpp-cuda";
     }
 
-    if (runtimeType === "vulkan") {
+    if (engineType === "vulkan") {
       return "llama.cpp-vulkan";
     }
 
@@ -255,12 +255,12 @@ export class AtlasLocalRuntimeService {
     while (Date.now() < deadline) {
       if (this.startupError) {
         throw new Error(
-          `Não foi possível iniciar o llama-server. Configure o binário em custom.localRuntime.llamaServerPath ou coloque-o em runtime/llama.cpp. Detalhes: ${this.startupError.message}`,
+          `Não foi possível iniciar o llama-server. Configure o binário em custom.localEngine.llamaServerPath ou coloque-o em engine/llama.cpp. Detalhes: ${this.startupError.message}`,
         );
       }
 
       if (!this.process) {
-        throw new Error("O runtime local encerrou antes de ficar pronto.");
+        throw new Error("A engine local encerrou antes de ficar pronta.");
       }
 
       if (
@@ -274,7 +274,7 @@ export class AtlasLocalRuntimeService {
     }
 
     throw new Error(
-      "O runtime local não ficou pronto a tempo. Verifique o llama-server e o modelo GGUF selecionado.",
+      "A engine local não ficou pronta a tempo. Verifique o llama-server e o modelo GGUF selecionado.",
     );
   }
 

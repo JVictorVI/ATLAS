@@ -5,12 +5,12 @@ import {
 } from "../interfaces/ApiTypes";
 import { AtlasModelConfig } from "../interfaces/AtlasConfigTypes";
 import { AtlasConfigManager } from "../managers/AtlasConfigManager";
-import { AtlasLocalRuntimeService } from "./AtlasLocalRuntimeService";
+import { AtlasLocalEngineService } from "./AtlasLocalEngineService";
 
 export class LocalApiService {
   constructor(
     private readonly configManager: AtlasConfigManager,
-    private readonly localRuntimeService: AtlasLocalRuntimeService,
+    private readonly localEngineService: AtlasLocalEngineService,
   ) {}
 
   public async sendChat(
@@ -27,7 +27,7 @@ export class LocalApiService {
     }
 
     const model = resolved.model;
-    await this.localRuntimeService.ensureRuntime(model);
+    await this.localEngineService.ensureEngine(model);
 
     const baseUrl = this.resolveBaseUrl(model);
     const endpoint = `${baseUrl}/chat/completions`;
@@ -217,12 +217,12 @@ export class LocalApiService {
         }
 
         throw new Error(
-          `Timeout da execução local: o runtime não respondeu em ${timeout / 1000} segundos.`,
+          `Timeout da execução local: a engine não respondeu em ${timeout / 1000} segundos.`,
         );
       }
 
       throw new Error(
-        `Falha ao conectar ao runtime local. Verifique se ele está ativo e expondo uma API OpenAI-compatible. Detalhes: ${
+        `Falha ao conectar à engine local. Verifique se ela está ativa e expondo uma API OpenAI-compatible. Detalhes: ${
           error instanceof Error ? error.message : "erro desconhecido"
         }`,
       );
@@ -238,7 +238,7 @@ export class LocalApiService {
     } catch {
       return {
         error: {
-          message: "Resposta JSON inválida retornada pelo runtime local.",
+          message: "Resposta JSON inválida retornada pela engine local.",
         },
       };
     }
@@ -248,7 +248,7 @@ export class LocalApiService {
     const providerMessage =
       data?.error?.message ||
       data?.error?.details ||
-      "Erro desconhecido retornado pelo runtime local.";
+      "Erro desconhecido retornado pela engine local.";
 
     throw new Error(
       `Falha na execução local (HTTP ${response.status}): ${providerMessage}`,
@@ -263,7 +263,7 @@ export class LocalApiService {
   ): Promise<AtlasCloudChatResponse> {
     if (!response.body) {
       throw new Error(
-        "O runtime local não retornou um corpo de resposta para streaming.",
+        "A engine local não retornou um corpo de resposta para streaming.",
       );
     }
 
@@ -347,7 +347,7 @@ export class LocalApiService {
     }
 
     if (!fullContent.trim()) {
-      throw new Error("O runtime local retornou uma resposta vazia.");
+      throw new Error("A engine local retornou uma resposta vazia.");
     }
 
     return {
@@ -377,7 +377,7 @@ export class LocalApiService {
     const content = choice?.message?.content?.trim();
 
     if (!content) {
-      throw new Error("O runtime local retornou uma resposta vazia.");
+      throw new Error("A engine local retornou uma resposta vazia.");
     }
 
     const usageRaw = (data as any).usage;

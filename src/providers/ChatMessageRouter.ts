@@ -24,8 +24,8 @@ type RouterDependencies = {
   sendModelsToWebview: (webview: vscode.Webview) => void;
   executeQuickAnalysis: (webview?: vscode.Webview) => Promise<void>;
   refreshLocalModels: () => ReturnType<AtlasConfigManager["getLocalModels"]>;
-  promptStopLocalRuntime: () => Promise<void>;
-  stopLocalRuntime: () => void;
+  promptStopLocalEngine: () => Promise<void>;
+  stopLocalEngine: () => void;
   getLocalModelsDir: () => string;
   getChatEditorContext: () => AtlasEditorContext | null;
   buildEditorAnalysisContext: (context: AtlasEditorContext) => string;
@@ -398,7 +398,7 @@ export class ChatMessageRouter {
       this.deps.configManager.setMode(data.mode);
 
       if (data.mode === "cloud") {
-        await this.deps.promptStopLocalRuntime();
+        await this.deps.promptStopLocalEngine();
       }
 
       if (
@@ -526,7 +526,7 @@ export class ChatMessageRouter {
         const currentModel = this.deps.configManager.getActiveLocalModel();
 
         if (currentModel?.id !== data.modelId) {
-          this.deps.stopLocalRuntime();
+          this.deps.stopLocalEngine();
         }
 
         this.deps.configManager.setActiveLocalModel(data.modelId);
@@ -571,7 +571,7 @@ export class ChatMessageRouter {
       });
 
       if (this.deps.configManager.getActiveLocalModel()?.id === modelId) {
-        this.deps.stopLocalRuntime();
+        this.deps.stopLocalEngine();
       }
 
       await webview.postMessage({
@@ -610,24 +610,24 @@ export class ChatMessageRouter {
     try {
       const payload = data.payload ?? {};
       const currentCustom = this.deps.configManager.getConfig().custom ?? {};
-      const currentLocalRuntime =
-        typeof currentCustom.localRuntime === "object" &&
-        currentCustom.localRuntime !== null
-          ? (currentCustom.localRuntime as Record<string, unknown>)
+      const currentLocalEngine =
+        typeof currentCustom.localEngine === "object" &&
+        currentCustom.localEngine !== null
+          ? (currentCustom.localEngine as Record<string, unknown>)
           : {};
-      const runtimeType = this.normalizeLocalRuntimeType(payload.runtimeType);
+      const engineType = this.normalizeLocalEngineType(payload.engineType);
       const startOnAtlasOpen = payload.startOnAtlasOpen === true;
 
       this.deps.configManager.updateCustomRoot({
         ...currentCustom,
-        localRuntime: {
-          ...currentLocalRuntime,
-          runtimeType,
+        localEngine: {
+          ...currentLocalEngine,
+          engineType,
           startOnAtlasOpen,
         },
       });
 
-      this.deps.stopLocalRuntime();
+      this.deps.stopLocalEngine();
 
       const saved = this.getAtlasSettingsPayload();
 
@@ -780,7 +780,7 @@ export class ChatMessageRouter {
       }
 
       if (this.deps.configManager.getActiveLocalModel()?.id === modelId) {
-        this.deps.stopLocalRuntime();
+        this.deps.stopLocalEngine();
       }
 
       this.deps.configManager.removeModel(modelId);
@@ -811,7 +811,7 @@ export class ChatMessageRouter {
       const currentModel = this.deps.configManager.getActiveLocalModel();
 
       if (currentModel?.id !== modelId) {
-        this.deps.stopLocalRuntime();
+        this.deps.stopLocalEngine();
       }
 
       this.deps.configManager.setActiveLocalModel(modelId);
@@ -919,7 +919,7 @@ export class ChatMessageRouter {
         },
       });
     } catch (error) {
-      await this.postError(webview, error, "Erro ao alterar modo estudo.");
+      await this.postError(webview, error, "Erro ao alterar modo estudante.");
     }
   }
 
@@ -974,25 +974,25 @@ export class ChatMessageRouter {
   }
 
   private getAtlasSettingsPayload() {
-    const localRuntime =
-      this.deps.configManager.getConfig().custom?.localRuntime;
+    const localEngine =
+      this.deps.configManager.getConfig().custom?.localEngine;
 
-    if (typeof localRuntime !== "object" || localRuntime === null) {
+    if (typeof localEngine !== "object" || localEngine === null) {
       return {
-        runtimeType: "cpu",
+        engineType: "cpu",
         startOnAtlasOpen: false,
       };
     }
 
-    const value = localRuntime as Record<string, unknown>;
+    const value = localEngine as Record<string, unknown>;
 
     return {
-      runtimeType: this.normalizeLocalRuntimeType(value.runtimeType),
+      engineType: this.normalizeLocalEngineType(value.engineType),
       startOnAtlasOpen: value.startOnAtlasOpen === true,
     };
   }
 
-  private normalizeLocalRuntimeType(value: unknown): "cpu" | "cuda" | "vulkan" {
+  private normalizeLocalEngineType(value: unknown): "cpu" | "cuda" | "vulkan" {
     if (value === "cuda" || value === "vulkan") {
       return value;
     }

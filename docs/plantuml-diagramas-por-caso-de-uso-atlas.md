@@ -789,7 +789,7 @@ class LocalModelStorageService <<future>> {
 }
 class AtlasConfigManager
 class AtlasModelRegistryService
-class LocalModelRuntime <<future>>
+class LocalModelEngine <<future>>
 actor "Repositorio de Modelos\n(API)" as RepoAPI
 database "Diretorio local de modelos\n(futuro)" as ModelDir
 
@@ -799,7 +799,7 @@ ModelDownloadService --> LocalModelStorageService
 LocalModelStorageService --> ModelDir
 ModelDownloadService --> AtlasConfigManager
 AtlasConfigManager --> AtlasModelRegistryService
-LocalModelRuntime --> ModelDir
+LocalModelEngine --> ModelDir
 @enduml
 ```
 

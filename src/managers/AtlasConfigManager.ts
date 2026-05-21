@@ -11,7 +11,7 @@ export {
   AtlasGeneralSettings,
   AtlasSecuritySettings,
   AtlasRagSettings,
-  AtlasRuntimeSettings,
+  AtlasEngineSettings,
   AtlasUiSettings,
   AtlasLlmDefaults,
   AtlasModelParameters,

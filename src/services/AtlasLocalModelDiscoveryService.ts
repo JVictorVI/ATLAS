@@ -89,7 +89,7 @@ export class AtlasLocalModelDiscoveryService {
       },
       custom: {
         baseUrl: "http://127.0.0.1:8080/v1",
-        runtime: "llama.cpp",
+        engine: "llama.cpp",
         ...(existing?.custom ?? {}),
       },
     };

@@ -31,14 +31,14 @@ h1 {
   margin-bottom: 10px;
 }
 
-.runtime-options {
+.engine-options {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 12px;
   margin-top: 14px;
 }
 
-.runtime-option {
+.engine-option {
   display: flex;
   align-items: flex-start;
   gap: 10px;
@@ -59,7 +59,7 @@ h1 {
   cursor: pointer;
 }
 
-.runtime-option:hover {
+.engine-option:hover {
   border-color: var(--vscode-focusBorder);
 }
 
@@ -67,14 +67,14 @@ h1 {
   border-color: var(--vscode-focusBorder);
 }
 
-.runtime-option span,
+.engine-option span,
 .startup-option span {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.runtime-option small,
+.engine-option small,
 .startup-option small,
 .note {
   color: var(--vscode-descriptionForeground);

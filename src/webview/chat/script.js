@@ -306,7 +306,7 @@ function renderChatView() {
               </div>
               
 
-              <button id="study-mode-btn" title="Modo Estudo">
+              <button id="study-mode-btn" title="Modo Estudante">
                 <i class="codicon codicon-mortar-board"></i>
               </button>
             
@@ -1143,9 +1143,9 @@ window.addEventListener("message", (event) => {
       break;
     }
 
-    case "runtimeLocalStatus": {
+    case "engineLocalStatus": {
       updateLoadingMessage(
-        message.value?.message || "Iniciando runtime local...",
+        message.value?.message || "Iniciando a engine local...",
       );
       break;
     }
@@ -1339,13 +1339,13 @@ function applyStudyModeState(enabled) {
   if (studyModeBtn) {
     studyModeBtn.classList.toggle("active", isStudyModeEnabled);
     studyModeBtn.title = isStudyModeEnabled
-      ? "Modo Estudo ativado"
-      : "Modo Estudo desativado";
+      ? "Modo Estudante ativado"
+      : "Modo Estudante desativado";
   }
 
   if (input) {
     input.placeholder = isStudyModeEnabled
-      ? "Perguntar ao ATLAS em modo estudo"
+      ? "Perguntar ao ATLAS em modo estudante"
       : "Perguntar ao ATLAS";
   }
 }

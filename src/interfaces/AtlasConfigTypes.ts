@@ -25,7 +25,7 @@ export interface AtlasRagSettings {
   ignoredPaths: string[];
 }
 
-export interface AtlasRuntimeSettings {
+export interface AtlasEngineSettings {
   mode: "local" | "cloud";
   preferGpu: boolean;
   fallbackToCpu: boolean;

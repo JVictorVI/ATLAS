@@ -7,4 +7,4 @@ config/atlas-config.json
 config/atlas-history.json
 models/*.gguf
 models/**/*.gguf
-runtime/
+engine/

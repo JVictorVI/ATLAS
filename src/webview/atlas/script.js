@@ -1,9 +1,9 @@
 const vscode = acquireVsCodeApi();
 
-const runtimeCpu = document.getElementById("runtime-cpu");
-const runtimeCuda = document.getElementById("runtime-cuda");
-const runtimeVulkan = document.getElementById("runtime-vulkan");
-const runtimeStartOnOpen = document.getElementById("runtime-start-on-open");
+const engineCpu = document.getElementById("engine-cpu");
+const engineCuda = document.getElementById("engine-cuda");
+const engineVulkan = document.getElementById("engine-vulkan");
+const engineStartOnOpen = document.getElementById("engine-start-on-open");
 const saveButton = document.getElementById("save-atlas-settings");
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -25,24 +25,24 @@ window.addEventListener("message", (event) => {
 });
 
 function applyAtlasSettings(value) {
-  const runtimeType = ["cuda", "vulkan"].includes(value?.runtimeType)
-    ? value.runtimeType
+  const engineType = ["cuda", "vulkan"].includes(value?.engineType)
+    ? value.engineType
     : "cpu";
 
-  if (runtimeCpu) {
-    runtimeCpu.checked = runtimeType === "cpu";
+  if (engineCpu) {
+    engineCpu.checked = engineType === "cpu";
   }
 
-  if (runtimeCuda) {
-    runtimeCuda.checked = runtimeType === "cuda";
+  if (engineCuda) {
+    engineCuda.checked = engineType === "cuda";
   }
 
-  if (runtimeVulkan) {
-    runtimeVulkan.checked = runtimeType === "vulkan";
+  if (engineVulkan) {
+    engineVulkan.checked = engineType === "vulkan";
   }
 
-  if (runtimeStartOnOpen) {
-    runtimeStartOnOpen.checked = value?.startOnAtlasOpen === true;
+  if (engineStartOnOpen) {
+    engineStartOnOpen.checked = value?.startOnAtlasOpen === true;
   }
 }
 
@@ -50,18 +50,18 @@ function saveAtlasSettings() {
   vscode.postMessage({
     type: "salvarConfiguracoesAtlas",
     payload: {
-      runtimeType: getSelectedRuntimeType(),
-      startOnAtlasOpen: runtimeStartOnOpen?.checked === true,
+      engineType: getSelectedEngineType(),
+      startOnAtlasOpen: engineStartOnOpen?.checked === true,
     },
   });
 }
 
-function getSelectedRuntimeType() {
-  if (runtimeCuda?.checked) {
+function getSelectedEngineType() {
+  if (engineCuda?.checked) {
     return "cuda";
   }
 
-  if (runtimeVulkan?.checked) {
+  if (engineVulkan?.checked) {
     return "vulkan";
   }
 

@@ -112,7 +112,7 @@ Este arquivo contem os casos de uso atualizados com base na arquitetura atual do
 - `AtlasModelRegistryService`
 - `AtlasProviderService`
 
-**Observacao:** a selecao de modo local ja existe na configuracao. A inferencia local ainda depende da implementacao futura do runtime local.
+**Observacao:** a selecao de modo local ja existe na configuracao. A inferencia local ainda depende da implementacao futura da engine local.
 
 ### UC008 - Configurar parametros de execucao e seguranca
 
@@ -208,7 +208,7 @@ Este arquivo contem os casos de uso atualizados com base na arquitetura atual do
 - `LocalModelStorageService` (futuro)
 - `AtlasModelRegistryService`
 - `AtlasConfigManager`
-- `Local Model Runtime (llama.cpp)` (futuro)
+- `Local Model Engine (llama.cpp)` (futuro)
 
 ### UC015 - Adicionar documentos externos ao RAG
 
@@ -229,7 +229,7 @@ skinparam shadowing false
 actor "Usuario" as Usuario
 actor "Modelo de IA" as ModeloIA
 actor "Repositorio de Modelos\n(API)" as RepoAPI
-actor "Runtime Local\n(futuro)" as RuntimeLocal
+actor "Engine Local\n(futuro)" as EngineLocal
 actor "Base Vetorial\n(futuro)" as BaseVetorial
 
 rectangle "ATLAS" {
@@ -312,7 +312,7 @@ UC_BaixarModelo ..> UC_RegistrarModelo : <<include>>
 UC_ExecutarLocal ..> UC_BaixarModelo : <<include>>
 
 RepoAPI --> UC_ConsultarRepo
-RuntimeLocal --> UC_ExecutarLocal
+EngineLocal --> UC_ExecutarLocal
 
 UC_IndexarRAG ..> UC_GerarEmbeddings : <<include>>
 UC_IndexarRAG ..> UC_ArmazenarVetores : <<include>>

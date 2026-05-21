@@ -24,7 +24,7 @@ Texto sugerido:
 
 Texto sugerido para adicionar ao final da proposta:
 
-> No MVP atual, a integracao com modelos em nuvem ja esta operacional, permitindo que o usuario configure provedores externos, selecione modelos e envie perguntas ou solicitacoes de analise a partir da extensao. A execucao local de modelos permanece prevista na arquitetura, mas depende da implementacao futura do runtime local e dos mecanismos de gerenciamento/download de modelos.
+> No MVP atual, a integracao com modelos em nuvem ja esta operacional, permitindo que o usuario configure provedores externos, selecione modelos e envie perguntas ou solicitacoes de analise a partir da extensao. A execucao local de modelos permanece prevista na arquitetura, mas depende da implementacao futura da engine local e dos mecanismos de gerenciamento/download de modelos.
 
 ### 2.2 Escopo Principal
 
@@ -68,7 +68,7 @@ Matriz sugerida:
 | RF08 - Diagnostico de Compatibilidade | Planejado | Ainda nao ha deteccao de RAM, GPU, VRAM ou CPU. |
 | RF09 - Biblioteca Local de Modelos | Parcial | Existe tela/registro de modelos, mas download, instalacao e remocao fisica ainda sao futuros. |
 | RF10 - Configuracao de Modelo Ativo | Parcial | Temperatura, tokens, top_p, streaming e selecao de modelo/provedor existem. GPU/CPU local ainda e futuro. |
-| RF11 - Configuracao Automatica do Ambiente Local | Planejado | Depende do backend/runtime local. |
+| RF11 - Configuracao Automatica do Ambiente Local | Planejado | Depende do backend/engine local. |
 | RF12 - Implementacao de RAG | Planejado | Ainda nao ha indexacao, embeddings ou base vetorial. |
 | RF13 - Indexacao do Projeto | Planejado | Ainda nao ha indexador de projeto. |
 | RF14 - Inclusao de Documentos Externos no RAG | Planejado | Depende do mecanismo de RAG. |
@@ -135,7 +135,7 @@ O sistema deve permitir que o usuario ative um modo de resposta didatico, no qua
 
 ### RNF02 e RNF03 - Modo Local e Hardware
 
-**Ajuste recomendado:** marcar como planejado para a fase de runtime local. Hoje o sistema possui configuracao e selecao de modo local, mas nao executa inferencia local.
+**Ajuste recomendado:** marcar como planejado para a fase de engine local. Hoje o sistema possui configuracao e selecao de modo local, mas nao executa inferencia local.
 
 ### RNF05 - Seguranca e Privacidade
 
@@ -199,7 +199,7 @@ O cronograma atual ainda faz sentido como planejamento geral, mas precisa reflet
 - Setup automatico do ambiente local.
 - Integracao com Hugging Face.
 - Download de modelos.
-- Execucao local com runtime dedicado.
+- Execucao local com engine dedicado.
 - Diagnostico de compatibilidade de hardware.
 - Indexacao do projeto.
 - Base vetorial local.
