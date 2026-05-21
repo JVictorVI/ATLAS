@@ -18,6 +18,25 @@ const modelDetails = {
       "Good fit for autonomous coding agents, tool use and repository-level analysis.",
       "Balanced performance for debugging, implementation planning and code review.",
     ],
+    compatibility: {
+      level: "Não recomendado",
+      tone: "danger",
+      message:
+        "Modelo grande para uma máquina comum. Baixe apenas se tiver bastante RAM e GPU dedicada para uso local confortável.",
+      machine: {
+        ram: "16 GB",
+        cpu: "Intel Core i5, 8 núcleos lógicos",
+        gpu: "GPU integrada ou VRAM não informada",
+        storage: "SSD com 42 GB livres",
+      },
+      recommended: {
+        ram: "48 GB ou mais",
+        cpu: "12+ núcleos lógicos",
+        gpu: "16 GB de VRAM para offload confortável",
+        storage: "50 GB livres em SSD",
+        context: "4096 tokens para começar",
+      },
+    },
   },
   "phi-4-gguf": {
     title: "Phi 4 GGUF",
@@ -38,6 +57,25 @@ const modelDetails = {
       "Useful for concise technical explanations and lightweight coding tasks.",
       "Good default when latency and memory usage matter more than maximum scale.",
     ],
+    compatibility: {
+      level: "Pesado, mas viável",
+      tone: "warning",
+      message:
+        "Deve rodar localmente, mas pode pesar em respostas longas. Comece com contexto moderado e ajuste depois.",
+      machine: {
+        ram: "16 GB",
+        cpu: "Ryzen 5, 12 núcleos lógicos",
+        gpu: "Vulkan disponível, 6 GB VRAM",
+        storage: "SSD com 30 GB livres",
+      },
+      recommended: {
+        ram: "24 GB recomendados",
+        cpu: "8+ núcleos lógicos",
+        gpu: "8 GB VRAM para acelerar camadas",
+        storage: "20 GB livres em SSD",
+        context: "4096 a 8192 tokens",
+      },
+    },
   },
   "gemma-3-27b-it": {
     title: "Gemma 3 27B IT",
@@ -58,6 +96,25 @@ const modelDetails = {
       "Good at summarization, analysis and structured responses.",
       "A useful middle ground for quality without jumping to very large models.",
     ],
+    compatibility: {
+      level: "Não recomendado",
+      tone: "danger",
+      message:
+        "Modelo de alta qualidade, mas pesado demais para máquinas intermediárias. A experiência tende a ser lenta sem GPU forte.",
+      machine: {
+        ram: "16 GB",
+        cpu: "Intel Core i7, 8 núcleos lógicos",
+        gpu: "4 GB VRAM",
+        storage: "SSD com 25 GB livres",
+      },
+      recommended: {
+        ram: "40 GB recomendados",
+        cpu: "12+ núcleos lógicos",
+        gpu: "12 GB VRAM ou mais",
+        storage: "36 GB livres em SSD",
+        context: "4096 tokens inicialmente",
+      },
+    },
   },
   "gpt-oss-20b": {
     title: "GPT OSS 20B",
@@ -78,6 +135,25 @@ const modelDetails = {
       "Works well for product assistants, automation and technical workflows.",
       "Useful for teams that want a capable baseline model across many tasks.",
     ],
+    compatibility: {
+      level: "Pesado, mas viável",
+      tone: "warning",
+      message:
+        "Compatível para uso local em máquinas fortes. Em notebooks comuns, pode responder devagar ou exigir contexto menor.",
+      machine: {
+        ram: "32 GB",
+        cpu: "Apple M-series ou Ryzen 7, 10+ núcleos",
+        gpu: "GPU compartilhada ou 8 GB VRAM",
+        storage: "SSD com 35 GB livres",
+      },
+      recommended: {
+        ram: "32 GB recomendados",
+        cpu: "10+ núcleos lógicos",
+        gpu: "10 GB VRAM para boa aceleração",
+        storage: "28 GB livres em SSD",
+        context: "4096 a 8192 tokens",
+      },
+    },
   },
   "ministral-3-14b-reasoning": {
     title: "Ministral 3 14B Reasoning",
@@ -98,6 +174,25 @@ const modelDetails = {
       "Smaller footprint than large reasoning models.",
       "Useful for agents that need careful but responsive decisions.",
     ],
+    compatibility: {
+      level: "Pesado, mas viável",
+      tone: "warning",
+      message:
+        "Boa escolha intermediária para raciocínio local, desde que a máquina tenha RAM sobrando.",
+      machine: {
+        ram: "16 GB",
+        cpu: "Ryzen 7, 16 núcleos lógicos",
+        gpu: "8 GB VRAM",
+        storage: "SSD com 24 GB livres",
+      },
+      recommended: {
+        ram: "24 GB recomendados",
+        cpu: "8+ núcleos lógicos",
+        gpu: "8 GB VRAM para offload parcial",
+        storage: "22 GB livres em SSD",
+        context: "4096 tokens",
+      },
+    },
   },
   "deepseek-r1-0528-qwen3-8b": {
     title: "DeepSeek R1 0528 Qwen3 8B",
@@ -118,6 +213,25 @@ const modelDetails = {
       "Reasoning-style behavior for analysis and problem solving.",
       "A practical option for testing agent flows before moving to larger models.",
     ],
+    compatibility: {
+      level: "Roda bem",
+      tone: "good",
+      message:
+        "Boa compatibilidade para máquinas intermediárias. Deve ser uma opção segura para testar raciocínio local.",
+      machine: {
+        ram: "16 GB",
+        cpu: "Intel Core i5/Ryzen 5, 8 núcleos lógicos",
+        gpu: "GPU integrada ou 4 GB VRAM",
+        storage: "SSD com 18 GB livres",
+      },
+      recommended: {
+        ram: "12 GB recomendados",
+        cpu: "6+ núcleos lógicos",
+        gpu: "4 GB VRAM opcional",
+        storage: "14 GB livres em SSD",
+        context: "4096 tokens",
+      },
+    },
   },
   "gemma-3-4b-it": {
     title: "Gemma 3 4B IT",
@@ -138,6 +252,25 @@ const modelDetails = {
       "Good for simple prompts, drafts and quick text transformation.",
       "Best used when speed and low resource usage are the priority.",
     ],
+    compatibility: {
+      level: "Roda bem",
+      tone: "good",
+      message:
+        "Modelo leve para baixar e testar. Deve rodar bem mesmo em máquinas modestas.",
+      machine: {
+        ram: "8 GB",
+        cpu: "Intel Core i3/Ryzen 3, 4 núcleos lógicos",
+        gpu: "Não necessária",
+        storage: "SSD com 8 GB livres",
+      },
+      recommended: {
+        ram: "8 GB recomendados",
+        cpu: "4+ núcleos lógicos",
+        gpu: "Opcional",
+        storage: "8 GB livres em SSD",
+        context: "4096 tokens",
+      },
+    },
   },
   "granite-4-h-tiny": {
     title: "Granite 4 H Tiny",
@@ -158,6 +291,25 @@ const modelDetails = {
       "Suited to structured business and productivity tasks.",
       "Useful as a lightweight model for side panels and always-on tooling.",
     ],
+    compatibility: {
+      level: "Roda bem",
+      tone: "good",
+      message:
+        "Compatibilidade confortável para uso diário. Bom candidato para baixar quando a prioridade é estabilidade local.",
+      machine: {
+        ram: "12 GB",
+        cpu: "Intel Core i5/Ryzen 5, 6 núcleos lógicos",
+        gpu: "4 GB VRAM opcional",
+        storage: "SSD com 12 GB livres",
+      },
+      recommended: {
+        ram: "10 GB recomendados",
+        cpu: "6+ núcleos lógicos",
+        gpu: "4 GB VRAM opcional",
+        storage: "10 GB livres em SSD",
+        context: "4096 tokens",
+      },
+    },
   },
 };
 
@@ -167,6 +319,53 @@ function renderInfoItem(label, value) {
       <span>${label}</span>
       <strong>${value}</strong>
     </div>
+  `;
+}
+
+function renderCompatibilityItem(label, value) {
+  return `
+    <div class="compatibility-item">
+      <span>${label}</span>
+      <strong>${value}</strong>
+    </div>
+  `;
+}
+
+function renderCompatibilityCard(model) {
+  const compatibility = model.compatibility;
+
+  return `
+    <section class="compatibility-card compatibility-${compatibility.tone}">
+      <div class="compatibility-header">
+        <div>
+          <h2>
+            <i class="codicon codicon-dashboard"></i>
+            Diagnóstico rápido de compatibilidade
+          </h2>
+          <p>${compatibility.message}</p>
+        </div>
+        <span class="compatibility-badge">${compatibility.level}</span>
+      </div>
+
+      <div class="compatibility-grid">
+        <div class="compatibility-block">
+          <h3>Sua máquina</h3>
+          ${renderCompatibilityItem("Memória RAM", compatibility.machine.ram)}
+          ${renderCompatibilityItem("Processador", compatibility.machine.cpu)}
+          ${renderCompatibilityItem("GPU", compatibility.machine.gpu)}
+          ${renderCompatibilityItem("Armazenamento", compatibility.machine.storage)}
+        </div>
+
+        <div class="compatibility-block">
+          <h3>Recomendado para este modelo</h3>
+          ${renderCompatibilityItem("Memória RAM", compatibility.recommended.ram)}
+          ${renderCompatibilityItem("Processador", compatibility.recommended.cpu)}
+          ${renderCompatibilityItem("VRAM", compatibility.recommended.gpu)}
+          ${renderCompatibilityItem("Armazenamento", compatibility.recommended.storage)}
+          ${renderCompatibilityItem("Contexto sugerido", compatibility.recommended.context)}
+        </div>
+      </div>
+    </section>
   `;
 }
 
@@ -209,6 +408,8 @@ function renderModelDetails(modelId) {
         </button>
       </div>
     </section>
+
+    ${renderCompatibilityCard(model)}
 
     <section class="detail-section">
       <h2><i class="codicon codicon-info"></i> Informações do modelo</h2>
