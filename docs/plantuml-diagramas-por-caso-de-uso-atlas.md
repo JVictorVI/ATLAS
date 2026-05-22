@@ -2,6 +2,8 @@
 
 Este arquivo contem diagramas de classe e de sequencia em PlantUML para cada caso de uso atualizado do ATLAS. Os blocos podem ser copiados diretamente para o PlantText.
 
+> **Nota de atualização:** os diagramas devem considerar que a arquitetura atual usa `AtlasInferenceService` para decidir entre cloud e local, com `CloudApiService` para provedores externos e `LocalApiService`/`AtlasLocalEngineService` para `llama-server` local. Também já existem sessões e histórico persistido por `AtlasSessionService` e `AtlasHistoryRepository`. A análise rápida está implementada pela Webview; o comando direto `atlas.quickAnalysis` ainda não está registrado no código atual. RAG, ChromaDB, diagnóstico de hardware, integração com Hugging Face e download automatizado de modelos continuam como evolução futura.
+
 ## UC001 - Perguntar sobre o codigo pelo chat
 
 ### Diagrama de Classes

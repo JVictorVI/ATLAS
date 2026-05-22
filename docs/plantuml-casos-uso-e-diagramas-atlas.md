@@ -2,6 +2,8 @@
 
 Este arquivo contem os casos de uso atualizados com base na arquitetura atual do ATLAS e o codigo PlantUML correspondente para gerar os diagramas no PlantText.
 
+> **Nota de atualização:** a arquitetura atual inclui `AtlasInferenceService` como ponto central entre inferência cloud e local, `LocalApiService`, `AtlasLocalEngineService`, `AtlasLocalModelDiscoveryService`, sessões persistidas por `AtlasSessionService`/`AtlasHistoryRepository` e histórico em `config/atlas-history.json`. A análise rápida está implementada pela Webview; o comando direto `atlas.quickAnalysis` ainda não está registrado em `extension.ts` nem contribuído em `package.json`. RAG, ChromaDB, diagnóstico de hardware, integração com Hugging Face e download automatizado de modelos permanecem planejados.
+
 ## 1. Casos de Uso Atualizados
 
 ### UC001 - Perguntar sobre o codigo pelo chat
