@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-05-23T18:31:51.950Z",
+  "updatedAt": "2026-05-23T21:37:22.276Z",
   "general": {
     "theme": "system",
     "language": "pt-BR",
@@ -41,7 +41,7 @@
       },
       "cloud": {
         "providerId": "Groq",
-        "activeModelId": "openai/gpt-oss-safeguard-20b"
+        "activeModelId": "openai/gpt-oss-120b"
       }
     },
     "defaults": {
@@ -109,7 +109,7 @@
       },
       "local/gemma-4-E4B-it-Q4_K_S": {
         "id": "local/gemma-4-E4B-it-Q4_K_S",
-        "name": "gemma-4-E4B-it-Q4_K_S",
+        "name": "Gemma-4 4B",
         "provider": "Google",
         "enabled": true,
         "source": "local",
@@ -119,7 +119,7 @@
           "temperature": 0.7,
           "maxTokens": 4096,
           "topP": 0.95,
-          "gpuLayers": 100,
+          "gpuLayers": 42,
           "contextWindow": 8192
         },
         "metadata": {
@@ -130,7 +130,7 @@
           "quantization": "Q4_K_S",
           "size": "4.51 GB",
           "installedAt": "2026-05-15T23:15:55.940Z",
-          "updatedAt": "2026-05-23T18:31:50.083Z"
+          "updatedAt": "2026-05-23T21:37:22.237Z"
         },
         "custom": {
           "baseUrl": "http://127.0.0.1:8080/v1",
@@ -150,7 +150,7 @@
           "temperature": 0.7,
           "maxTokens": 1024,
           "topP": 0.95,
-          "gpuLayers": 20,
+          "gpuLayers": 16,
           "contextWindow": 4096
         },
         "metadata": {
@@ -161,7 +161,7 @@
           "quantization": "Q8_K_XL",
           "size": "1.72 GB",
           "installedAt": "2026-05-15T23:16:42.419Z",
-          "updatedAt": "2026-05-15T23:18:24.320Z"
+          "updatedAt": "2026-05-23T21:37:22.256Z"
         },
         "custom": {
           "baseUrl": "http://127.0.0.1:8080/v1",
@@ -201,17 +201,17 @@
       },
       "local/qwen2.5-coder-14b-instruct-q4_0": {
         "id": "local/qwen2.5-coder-14b-instruct-q4_0",
-        "name": "qwen2.5-coder-14b-instruct-q4_0",
+        "name": "Qwen 2.5 14B",
         "provider": "Qwen",
         "enabled": true,
         "source": "local",
         "path": "c:\\Users\\jvict\\OneDrive\\Documentos\\Projetos\\ATLAS\\models\\qwen2.5-coder-14b-instruct-q4_0.gguf",
         "apiModelName": "qwen2.5-coder-14b-instruct-q4_0",
         "parameters": {
-          "temperature": 0.7,
+          "temperature": 0.8,
           "maxTokens": 4096,
           "topP": 0.95,
-          "gpuLayers": 50,
+          "gpuLayers": 30,
           "contextWindow": 8192
         },
         "metadata": {
@@ -222,7 +222,7 @@
           "quantization": "Q4_0",
           "size": "7.93 GB",
           "installedAt": "2026-05-23T18:21:35.987Z",
-          "updatedAt": "2026-05-23T18:31:50.109Z"
+          "updatedAt": "2026-05-23T21:37:22.276Z"
         },
         "custom": {
           "baseUrl": "http://127.0.0.1:8080/v1",

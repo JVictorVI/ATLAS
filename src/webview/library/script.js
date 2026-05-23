@@ -2,11 +2,13 @@ const vscode = acquireVsCodeApi();
 
 let loadedModels = [];
 let selectedModelId = null;
+let currentGpuSliderModel = null;
 
 document.addEventListener("DOMContentLoaded", () => {
   setupToggles();
   setupButtons();
   setupDropdown();
+  setupGpuSlider();
   
   vscode.postMessage({ type: "requestModels" });
 });
@@ -102,6 +104,7 @@ function setupDropdown() {
 
   button?.addEventListener("click", (e) => {
     e.stopPropagation();
+    vscode.postMessage({ type: "requestModels" });
     list?.classList.toggle("hidden");
   });
 
@@ -144,7 +147,7 @@ function selectModel(id) {
   setText("info-size", model.size);
 
   // Atualiza os inputs
-  setValue("param-gpu", model.params.gpu);
+  configureGpuSlider(model);
   setValue("param-tokens-res", model.params.tokensRes);
   setValue("param-temp", model.params.temp);
   setValue("param-context", model.params.context);
@@ -162,6 +165,178 @@ function selectModel(id) {
     setDisabled("system-prompt", true);
     setValue("system-prompt", "");
   }
+}
+
+function setupGpuSlider() {
+  const slider = document.getElementById("param-gpu");
+
+  slider?.addEventListener("input", () => {
+    if (currentGpuSliderModel?.params) {
+      currentGpuSliderModel.params.gpu = Number(slider.value) || 0;
+    }
+
+    updateGpuSliderLabels(currentGpuSliderModel);
+  });
+}
+
+function configureGpuSlider(model) {
+  currentGpuSliderModel = model;
+
+  const slider = document.getElementById("param-gpu");
+  if (!slider) {
+    return;
+  }
+
+  const totalLayers = getModelLayerCount(model);
+  const recommendation = calculateGpuLayerRecommendation(model, totalLayers);
+  const savedLayers = Number(model.params?.gpu);
+
+  slider.min = "0";
+  slider.max = String(totalLayers);
+  slider.step = "1";
+  slider.value = String(
+    clamp(
+      Number.isFinite(savedLayers) ? savedLayers : recommendation.performance,
+      0,
+      totalLayers,
+    ),
+  );
+
+  updateGpuSliderLabels(model);
+}
+
+function updateGpuSliderLabels(model) {
+  const slider = document.getElementById("param-gpu");
+  if (!slider || !model) {
+    return;
+  }
+
+  const totalLayers = getModelLayerCount(model);
+  const value = Number(slider.value) || 0;
+  const layerBytes = getEstimatedLayerBytes(model, totalLayers);
+  const hardware = model.hardware?.gpuMemory;
+  const recommendation = calculateGpuLayerRecommendation(model, totalLayers);
+
+  setText(
+    "gpu-layer-value",
+    `${value} de ${totalLayers} camadas na GPU`,
+  );
+  setText(
+    "gpu-layer-recommendation",
+    hardware
+      ? `Seguro: ${recommendation.safe} · Alto desempenho: ${recommendation.performance}`
+      : "VRAM não detectada",
+  );
+  setText(
+    "gpu-layer-size",
+    layerBytes > 0
+      ? `Camada estimada: ${formatBytes(layerBytes)}`
+      : "Camada: -",
+  );
+  setText(
+    "gpu-vram-total",
+    hardware?.label ? `VRAM total: ${hardware.label}` : "VRAM total: -",
+  );
+}
+
+function calculateGpuLayerRecommendation(model, totalLayers) {
+  const hardware = model.hardware?.gpuMemory;
+  const layerBytes = getEstimatedLayerBytes(model, totalLayers);
+
+  if (!hardware?.totalBytes || !layerBytes) {
+    const fallback = Number(model.params?.gpu) || 0;
+
+    return {
+      safe: fallback,
+      performance: fallback,
+    };
+  }
+
+  const safeReserveBytes = Math.max(512 * 1024 ** 2, hardware.totalBytes * 0.14);
+  const safeUsableBytes = Math.max(
+    0,
+    hardware.totalBytes * 0.86 - safeReserveBytes,
+  );
+  const performanceUsableBytes = Math.max(
+    0,
+    hardware.totalBytes * 0.94 - 384 * 1024 ** 2,
+  );
+
+  return {
+    safe: clamp(Math.floor(safeUsableBytes / layerBytes), 0, totalLayers),
+    performance: clamp(
+      Math.floor(performanceUsableBytes / layerBytes),
+      0,
+      totalLayers,
+    ),
+  };
+}
+
+function getEstimatedLayerBytes(model, totalLayers) {
+  const sizeBytes = Number(model.sizeBytes) || parseSizeToBytes(model.size);
+
+  if (!sizeBytes || !totalLayers) {
+    return 0;
+  }
+
+  return sizeBytes / totalLayers;
+}
+
+function getModelLayerCount(model) {
+  const detected = Number(model.layerInfo?.totalLayers);
+
+  if (Number.isFinite(detected) && detected > 0) {
+    return detected;
+  }
+
+  const label = `${model.name || ""} ${model.tag || ""}`.toLowerCase();
+  const match = label.match(/(\d+(?:\.\d+)?)\s*b/);
+  const params = match ? Number(match[1]) : 8;
+
+  if (params >= 65) {
+    return 80;
+  }
+
+  if (params >= 30) {
+    return 64;
+  }
+
+  if (params >= 13) {
+    return 40;
+  }
+
+  return 32;
+}
+
+function parseSizeToBytes(value) {
+  const match = String(value || "")
+    .trim()
+    .replace(",", ".")
+    .match(/^(\d+(?:\.\d+)?)\s*(b|kb|mb|gb|tb)$/i);
+
+  if (!match) {
+    return 0;
+  }
+
+  const units = ["b", "kb", "mb", "gb", "tb"];
+  return Number(match[1]) * 1024 ** units.indexOf(match[2].toLowerCase());
+}
+
+function formatBytes(bytes) {
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let value = bytes;
+  let unitIndex = 0;
+
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+
+  return `${value.toFixed(value >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
 }
 
 function setText(id, value) {

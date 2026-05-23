@@ -1,24 +1,15 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-05-23T18:32:07.422Z",
+  "updatedAt": "2026-05-23T21:37:18.158Z",
   "sessions": [
     {
-      "id": "b70b2fc2-746e-44a5-94f2-4abc98374a37",
-      "title": "Oiii",
+      "id": "ed918c2e-6243-4e8e-9dff-c164fd97e03a",
+      "title": "Nova Sessão",
       "architecturalSummary": "",
-      "messages": [
-        {
-          "role": "user",
-          "content": "oiii"
-        },
-        {
-          "role": "assistant",
-          "content": "Olá. Eu sou o ATLAS, seu assistente técnico para desenvolvimento de software.\n\nEstou pronto para ajudar com dúvidas de programação, arquitetura, debugging, testes, APIs, padrões de projeto e integração de componentes.\n\nQual é o desafio técnico que você gostaria de resolver hoje?"
-        }
-      ],
+      "messages": [],
       "lastSummarizedIndex": 0,
-      "createdAt": "2026-05-23T18:31:47.862Z",
-      "updatedAt": "2026-05-23T18:32:07.422Z"
+      "createdAt": "2026-05-23T21:37:18.157Z",
+      "updatedAt": "2026-05-23T21:37:18.157Z"
     }
   ]
 }

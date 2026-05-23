@@ -7,18 +7,42 @@
   --transition-speed: 0.22s;
   --atlas-app-bg: var(--vscode-editor-background);
   --atlas-panel-bg: var(--vscode-sideBar-background, var(--atlas-app-bg));
-  --atlas-surface-bg: var(--vscode-editorWidget-background, var(--vscode-input-background, var(--atlas-app-bg)));
-  --atlas-surface-hover-bg: var(--vscode-list-hoverBackground, var(--vscode-toolbar-hoverBackground, var(--atlas-surface-bg)));
+  --atlas-surface-bg: var(
+    --vscode-editorWidget-background,
+    var(--vscode-input-background, var(--atlas-app-bg))
+  );
+  --atlas-surface-hover-bg: var(
+    --vscode-list-hoverBackground,
+    var(--vscode-toolbar-hoverBackground, var(--atlas-surface-bg))
+  );
   --atlas-border: var(--vscode-widget-border, var(--vscode-input-border));
   --atlas-muted-fg: var(--vscode-descriptionForeground);
   --atlas-accent-bg: var(--vscode-button-background);
   --atlas-accent-fg: var(--vscode-button-foreground);
-  --atlas-accent-hover-bg: var(--vscode-button-hoverBackground, var(--vscode-button-background));
-  --atlas-danger-fg: var(--vscode-errorForeground, var(--vscode-inputValidation-errorBorder));
-  --atlas-danger-bg: var(--vscode-inputValidation-errorBackground, var(--vscode-input-background));
-  --atlas-warning-fg: var(--vscode-editorWarning-foreground, var(--vscode-editorWarning-border, var(--vscode-foreground)));
-  --atlas-code-bg: var(--vscode-textCodeBlock-background, var(--vscode-editorWidget-background, var(--atlas-app-bg)));
-  --atlas-shadow-color: var(--vscode-widget-shadow, var(--vscode-scrollbar-shadow, transparent));
+  --atlas-accent-hover-bg: var(
+    --vscode-button-hoverBackground,
+    var(--vscode-button-background)
+  );
+  --atlas-danger-fg: var(
+    --vscode-errorForeground,
+    var(--vscode-inputValidation-errorBorder)
+  );
+  --atlas-danger-bg: var(
+    --vscode-inputValidation-errorBackground,
+    var(--vscode-input-background)
+  );
+  --atlas-warning-fg: var(
+    --vscode-editorWarning-foreground,
+    var(--vscode-editorWarning-border, var(--vscode-foreground))
+  );
+  --atlas-code-bg: var(
+    --vscode-textCodeBlock-background,
+    var(--vscode-editorWidget-background, var(--atlas-app-bg))
+  );
+  --atlas-shadow-color: var(
+    --vscode-widget-shadow,
+    var(--vscode-scrollbar-shadow, transparent)
+  );
 }
 
 body {
@@ -96,8 +120,14 @@ body {
 }
 
 .navbar button.active {
-  background-color: var(--vscode-list-activeSelectionBackground, var(--atlas-surface-bg));
-  color: var(--vscode-list-activeSelectionForeground, var(--vscode-foreground)) !important;
+  background-color: var(
+    --vscode-list-activeSelectionBackground,
+    var(--atlas-surface-bg)
+  );
+  color: var(
+    --vscode-list-activeSelectionForeground,
+    var(--vscode-foreground)
+  ) !important;
   pointer-events: none;
   border-radius: 6px;
 }
@@ -271,7 +301,10 @@ body {
 .session-count {
   font-size: 10px;
   color: var(--vscode-badge-foreground, var(--vscode-foreground));
-  background: var(--vscode-badge-background, var(--vscode-list-inactiveSelectionBackground, var(--atlas-surface-bg)));
+  background: var(
+    --vscode-badge-background,
+    var(--vscode-list-inactiveSelectionBackground, var(--atlas-surface-bg))
+  );
   border-radius: 8px;
   margin-left: auto;
   padding: 1px 6px;
@@ -281,8 +314,14 @@ body {
 }
 
 .session-item.active .session-count {
-  color: var(--vscode-badge-foreground, var(--vscode-list-activeSelectionForeground, var(--vscode-foreground)));
-  background: var(--vscode-badge-background, var(--vscode-list-activeSelectionBackground, var(--atlas-surface-bg)));
+  color: var(
+    --vscode-badge-foreground,
+    var(--vscode-list-activeSelectionForeground, var(--vscode-foreground))
+  );
+  background: var(
+    --vscode-badge-background,
+    var(--vscode-list-activeSelectionBackground, var(--atlas-surface-bg))
+  );
 }
 
 .session-loading {
@@ -493,7 +532,10 @@ body {
 }
 
 .action-btn:hover {
-  background: var(--vscode-toolbar-hoverBackground, var(--atlas-surface-hover-bg));
+  background: var(
+    --vscode-toolbar-hoverBackground,
+    var(--atlas-surface-hover-bg)
+  );
 }
 
 .main-input-container {
@@ -504,20 +546,26 @@ body {
 
 .input-container {
   display: flex;
+  align-items: center;
   gap: 8px;
   background-color: var(--atlas-surface-bg);
   border: 1px solid var(--atlas-border);
   border-radius: 4px;
   padding: 4px 6px 4px 10px;
   flex: 1;
-  align-items: center;
+  min-height: 38px;
+}
+
+.input-container.expanded {
+  align-items: flex-end;
 }
 
 .input-container:focus-within {
   border-color: var(--vscode-focusBorder);
 }
 
-input {
+input,
+textarea {
   flex: 1;
   background: transparent;
   border: none;
@@ -527,23 +575,53 @@ input {
   font-size: 13px;
 }
 
-#send-btn {
+#pergunta {
+  min-height: 24px;
+  max-height: 132px;
+  line-height: 18px;
+  resize: none;
+  overflow-y: auto;
+  font-family: var(--vscode-font-family);
+  padding: 3px 0;
+}
+
+#send-btn,
+#study-mode-btn {
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--atlas-accent-bg);
-  color: var(--atlas-accent-fg);
   border: none;
   border-radius: 4px;
   width: 28px;
   height: 28px;
+  flex: 0 0 28px;
   transition: background 0.2s;
-  flex-shrink: 0;
+}
+
+.input-container.expanded #send-btn,
+.input-container.expanded #study-mode-btn {
+  margin-bottom: 1px;
+}
+
+#send-btn {
+  background-color: var(--atlas-accent-bg);
+  color: var(--atlas-accent-fg);
+}
+
+#study-mode-btn {
+  background-color: transparent;
+  color: var(--atlas-warning-fg);
+  border: 1px solid var(--atlas-warning-fg);
 }
 
 #send-btn:hover {
   background-color: var(--atlas-accent-hover-bg);
+}
+
+#study-mode-btn:hover {
+  background-color: var(--atlas-surface-hover-bg);
+  border-color: var(--atlas-warning-fg);
 }
 
 #send-btn.stop {
@@ -551,7 +629,10 @@ input {
 }
 
 #send-btn.stop:hover {
-  background-color: var(--vscode-inputValidation-errorBorder, var(--atlas-danger-fg));
+  background-color: var(
+    --vscode-inputValidation-errorBorder,
+    var(--atlas-danger-fg)
+  );
 }
 
 #send-btn.stop i {
@@ -576,7 +657,10 @@ input {
 }
 
 #send-btn.stop:hover {
-  background-color: var(--vscode-inputValidation-errorBorder, var(--atlas-danger-fg));
+  background-color: var(
+    --vscode-inputValidation-errorBorder,
+    var(--atlas-danger-fg)
+  );
 }
 
 #send-btn.stop i {
@@ -662,7 +746,10 @@ input {
 
 .popover-icon-btn.active {
   color: var(--vscode-list-activeSelectionForeground, var(--vscode-foreground));
-  background: var(--vscode-list-activeSelectionBackground, var(--atlas-surface-bg));
+  background: var(
+    --vscode-list-activeSelectionBackground,
+    var(--atlas-surface-bg)
+  );
 }
 
 .popover-separator {
@@ -715,8 +802,36 @@ input {
 .loading {
   display: flex;
   align-items: center;
-  gap: 8px;
-  opacity: 0.8;
+  opacity: 0.95;
+}
+
+.thinking-word {
+  position: relative;
+  display: inline-block;
+  font-weight: 500;
+  color: var(--atlas-muted-fg);
+}
+
+.thinking-word::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  color: transparent;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    transparent 35%,
+    var(--vscode-editor-foreground) 46%,
+    var(--atlas-accent-bg) 50%,
+    var(--vscode-editor-foreground) 54%,
+    transparent 65%,
+    transparent 100%
+  );
+  background-size: 300% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  animation: atlasThinkingSweep 7s linear infinite;
+  pointer-events: none;
 }
 
 .spinner {
@@ -726,6 +841,24 @@ input {
   border-top: 2px solid var(--atlas-accent-bg);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
+}
+
+@keyframes atlasThinkingSweep {
+  0% {
+    background-position: 150% 0;
+  }
+
+  14% {
+    background-position: 150% 0;
+  }
+
+  86% {
+    background-position: -150% 0;
+  }
+
+  100% {
+    background-position: -150% 0;
+  }
 }
 
 @keyframes spin {
@@ -770,7 +903,10 @@ input {
 }
 
 .dropdown-item.selected {
-  background: var(--vscode-list-activeSelectionBackground, var(--atlas-surface-bg));
+  background: var(
+    --vscode-list-activeSelectionBackground,
+    var(--atlas-surface-bg)
+  );
   color: var(--vscode-list-activeSelectionForeground, var(--vscode-foreground));
 }
 
@@ -929,7 +1065,10 @@ input {
 
 .message code {
   font-family: var(--vscode-editor-font-family), monospace;
-  background-color: var(--vscode-textCodeBlock-background, var(--atlas-surface-bg));
+  background-color: var(
+    --vscode-textCodeBlock-background,
+    var(--atlas-surface-bg)
+  );
   padding: 1px 5px;
   border-radius: 4px;
   font-size: 0.92em;
@@ -991,7 +1130,10 @@ input {
   display: inline-block;
   width: 8px;
   height: 14px;
-  background-color: var(--vscode-editorCursor-foreground, var(--vscode-foreground));
+  background-color: var(
+    --vscode-editorCursor-foreground,
+    var(--vscode-foreground)
+  );
   vertical-align: middle;
   margin-left: 2px;
   animation: blink 1s step-end infinite;
@@ -1014,41 +1156,17 @@ input {
   }
 }
 
-#study-mode-btn {
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: transparent;
-  color: var(--atlas-warning-fg);
-  border: 1px solid var(--atlas-warning-fg);
-  border-radius: 4px;
-  width: 37px;
-  height: 37px;
-  transition: all 0.2s;
-  flex-shrink: 0;
-}
-
-#study-mode-btn:hover {
-  background-color: var(--atlas-surface-hover-bg);
-  border-color: var(--atlas-warning-fg);
-}
-
 #study-mode-btn.active {
-  background-color: var(--vscode-list-activeSelectionBackground, var(--atlas-surface-bg));
+  background-color: var(
+    --vscode-list-activeSelectionBackground,
+    var(--atlas-surface-bg)
+  );
   color: var(--vscode-list-activeSelectionForeground, var(--atlas-warning-fg));
   border-color: var(--atlas-warning-fg);
 }
 
 #study-mode-btn i {
-  font-size: 16px;
-}
-
-#study-mode-btn.active {
-  background-color: var(--vscode-list-activeSelectionBackground, var(--atlas-surface-bg));
-  color: var(--vscode-list-activeSelectionForeground, var(--atlas-warning-fg));
-  border-color: var(--atlas-warning-fg);
-  box-shadow: 0 0 0 1px var(--atlas-warning-fg);
+  font-size: 15px;
 }
 /* --- TELA DE PESQUISA (LUPA) --- */
 .search-layout {
@@ -1135,7 +1253,10 @@ input {
 }
 
 .model-card.active {
-  background-color: var(--vscode-list-activeSelectionBackground, var(--atlas-surface-bg));
+  background-color: var(
+    --vscode-list-activeSelectionBackground,
+    var(--atlas-surface-bg)
+  );
   color: var(--vscode-list-activeSelectionForeground, var(--vscode-foreground));
 }
 

@@ -33,6 +33,7 @@ if (typeof marked !== "undefined") {
 let isStudyModeEnabled = false;
 
 let modelsData = { local: { name: "Local", type: "local", models: [] } };
+let isRefreshingModelCatalog = false;
 let selectedMode = "local";
 let selectedProvider = null;
 let selectedModel = null;
@@ -42,6 +43,7 @@ function notifyCurrentView() {
 }
 
 function requestLatestLlmState() {
+  isRefreshingModelCatalog = true;
   vscode.postMessage({ type: "carregarLLMs" });
 }
 
@@ -321,6 +323,40 @@ function getChatContainer() {
   return document.getElementById("chat-container");
 }
 
+function getSingleLineInputHeight(input) {
+  const probe = input.cloneNode();
+
+  probe.value = "A";
+  probe.rows = 1;
+  probe.style.position = "absolute";
+  probe.style.visibility = "hidden";
+  probe.style.pointerEvents = "none";
+  probe.style.height = "auto";
+  probe.style.width = `${input.clientWidth || input.offsetWidth}px`;
+  probe.style.left = "-9999px";
+  probe.style.top = "0";
+
+  document.body.appendChild(probe);
+  const height = probe.scrollHeight;
+  probe.remove();
+
+  return height;
+}
+
+function resizeChatInput(input) {
+  if (!input) {
+    return;
+  }
+
+  const singleLineHeight = getSingleLineInputHeight(input);
+
+  input.style.height = "auto";
+  input.style.height = `${Math.min(input.scrollHeight, 132)}px`;
+  input
+    .closest(".input-container")
+    ?.classList.toggle("expanded", input.scrollHeight > singleLineHeight + 2);
+}
+
 // ── Chat view ─────────────────────────────────────────────────────────────────
 
 function renderChatView() {
@@ -351,18 +387,16 @@ function renderChatView() {
             <div class="main-input-container"> 
             
               <div class="input-container">
-                  <input type="text" id="pergunta" placeholder="Perguntar ao ATLAS" />
+                  <textarea id="pergunta" rows="1" placeholder="Perguntar ao ATLAS"></textarea>
                   
+                  <button id="study-mode-btn" title="Modo Estudante">
+                    <i class="codicon codicon-mortar-board"></i>
+                  </button>
+
                   <button id="send-btn" title="Enviar">
                       <i class="codicon codicon-arrow-up"></i>
                   </button>
               </div>
-              
-
-              <button id="study-mode-btn" title="Modo Estudante">
-                <i class="codicon codicon-mortar-board"></i>
-              </button>
-            
             </div>
         </div>
     `;
@@ -438,8 +472,10 @@ function renderPopoverContent() {
       : "Selecione um provedor";
   const modelText = selectedModel ? selectedModel.name : "Selecione um modelo";
 
-  const localModelListHtml = localModels.length
-    ? localModels
+  const localModelListHtml = isRefreshingModelCatalog
+    ? `<div class="dropdown-loading"><div class="spinner small"></div><span>Atualizando modelos...</span></div>`
+    : localModels.length
+      ? localModels
         .map(
           (m) => `
         <div class="dropdown-item model-item ${selectedModel?.id === m.id && selectedMode === "local" ? "selected" : ""}"
@@ -448,7 +484,7 @@ function renderPopoverContent() {
         </div>`,
         )
         .join("")
-    : `<div class="dropdown-empty">Nenhum modelo local encontrado</div>`;
+      : `<div class="dropdown-empty">Nenhum modelo local encontrado</div>`;
 
   const providerListHtml = cloudProviders.length
     ? cloudProviders
@@ -697,13 +733,19 @@ function setupChatEvents() {
     });
 
     input.value = "";
+    resizeChatInput(input);
     agentPopover?.classList.add("hidden");
   }
 
   btn.addEventListener("click", enviarPergunta);
+  input.addEventListener("input", () => resizeChatInput(input));
   input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") enviarPergunta();
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      enviarPergunta();
+    }
   });
+  resizeChatInput(input);
 }
 
 function cancelarGeracao() {
@@ -772,12 +814,11 @@ function showLoading() {
   if (!chatContainer) return;
   const div = document.createElement("div");
   div.className = "message bot loading";
-  const spinner = document.createElement("div");
-  spinner.className = "spinner";
   const text = document.createElement("span");
-  text.textContent = "Pensando...";
+  text.className = "thinking-word";
+  text.textContent = "Pensando";
+  text.dataset.text = "Pensando";
 
-  div.appendChild(spinner);
   div.appendChild(text);
   chatContainer.appendChild(div);
   chatContainer.scrollTop = chatContainer.scrollHeight;
@@ -793,6 +834,7 @@ function updateLoadingMessage(message) {
   const text = loadingElement.querySelector("span");
   if (text) {
     text.textContent = message;
+    text.dataset.text = message;
   }
 }
 
@@ -1323,6 +1365,7 @@ window.addEventListener("message", (event) => {
       break;
     }
     case "informarLLMsCarregados": {
+      isRefreshingModelCatalog = false;
       hydratemodelsDataFromBackend(message.value);
       break;
     }
