@@ -29,10 +29,22 @@ type RouterDependencies = {
   getLocalModelsDir: () => string;
   getChatEditorContext: () => AtlasEditorContext | null;
   buildEditorAnalysisContext: (context: AtlasEditorContext) => string;
+  isChatViewVisible: () => boolean;
+  focusChatView: () => Promise<void>;
+};
+
+type ActiveResponseSnapshot = {
+  controller: AbortController;
+  sessionId: string;
+  userContent: string;
+  partialContent: string;
+  isStreaming: boolean;
 };
 
 export class ChatMessageRouter {
   private activeResponseController: AbortController | null = null;
+  private activeResponseSnapshot: ActiveResponseSnapshot | null = null;
+  private activeWebviewRoute = "chat";
 
   constructor(private readonly deps: RouterDependencies) {}
 
@@ -49,6 +61,9 @@ export class ChatMessageRouter {
     switch (data.type) {
       case "carregarLLMs":
         await this.handleLoadLlms(webview);
+        return;
+      case "atualizarViewAtual":
+        this.handleUpdateCurrentView(data);
         return;
       case "enviarPergunta":
         await this.handleSendQuestion(data, webview);
@@ -164,6 +179,11 @@ export class ChatMessageRouter {
     }
   }
 
+  private handleUpdateCurrentView(data: any): void {
+    const view = typeof data.view === "string" ? data.view : "chat";
+    this.activeWebviewRoute = view;
+  }
+
   private async handleSendQuestion(
     data: any,
     webview: vscode.Webview,
@@ -171,12 +191,26 @@ export class ChatMessageRouter {
     this.activeResponseController?.abort();
     const responseController = new AbortController();
     this.activeResponseController = responseController;
+    let responseSessionId: string | undefined;
 
     try {
       const session = this.deps.sessionService.ensureActiveSession();
+      responseSessionId = session.id;
       const editorContext = this.deps.getChatEditorContext();
       const windowMessages =
         this.deps.sessionService.getWindowMessages(session);
+      const shouldStream =
+        this.deps.configManager.getConfig().llms.defaults.stream;
+
+      const responseSnapshot: ActiveResponseSnapshot = {
+        controller: responseController,
+        sessionId: session.id,
+        userContent: data.value,
+        partialContent: "",
+        isStreaming: shouldStream,
+      };
+
+      this.activeResponseSnapshot = responseSnapshot;
 
       const promptResult = this.deps.promptAssemblyService.buildMessages({
         userQuestion: data.value,
@@ -194,15 +228,14 @@ export class ChatMessageRouter {
         architecturalSummary: session.architecturalSummary || undefined,
       });
 
-      const shouldStream =
-        this.deps.configManager.getConfig().llms.defaults.stream;
-
       const response = shouldStream
         ? await this.deps.inferenceService.sendChat(
             promptResult.messages,
             async (chunk: string) => {
+              responseSnapshot.partialContent += chunk;
               await webview.postMessage({
                 type: "respostaParcial",
+                sessionId: session.id,
                 value: chunk,
               });
             },
@@ -231,6 +264,7 @@ export class ChatMessageRouter {
       if (!shouldStream) {
         await webview.postMessage({
           type: "novaResposta",
+          sessionId: session.id,
           value: response.content,
           metadata: {
             ...this.buildResponseMetadata(promptResult.mode, response),
@@ -240,6 +274,7 @@ export class ChatMessageRouter {
       } else {
         await webview.postMessage({
           type: "fimResposta",
+          sessionId: session.id,
           metadata: {
             ...this.buildResponseMetadata(promptResult.mode, response),
             sessionId: session.id,
@@ -251,6 +286,8 @@ export class ChatMessageRouter {
         type: "sessoesAtualizadas",
         value: this.deps.sessionService.listSessions(),
       });
+
+      await this.notifyResponseCompletedIfAway(session);
     } catch (error) {
       if (
         AtlasInferenceService.isAbortError(error) ||
@@ -258,14 +295,26 @@ export class ChatMessageRouter {
       ) {
         await webview.postMessage({
           type: "geracaoCancelada",
+          sessionId: responseSessionId,
         });
         return;
       }
 
-      await this.postError(webview, error, "Erro ao enviar pergunta.");
+      const message = this.getErrorMessage(error, "Erro ao enviar pergunta.");
+      vscode.window.showErrorMessage(`ATLAS: ${message}`);
+
+      await webview.postMessage({
+        type: "erro",
+        sessionId: this.activeResponseSnapshot?.sessionId,
+        value: message,
+      });
     } finally {
       if (this.activeResponseController === responseController) {
         this.activeResponseController = null;
+      }
+
+      if (this.activeResponseSnapshot?.controller === responseController) {
+        this.activeResponseSnapshot = null;
       }
     }
   }
@@ -295,6 +344,7 @@ export class ChatMessageRouter {
         value: {
           session: this.serializeSessionForWebview(session),
           sessions: this.deps.sessionService.listSessions(),
+          activeGeneration: this.serializeActiveGeneration(),
         },
       });
     } catch (error) {
@@ -314,6 +364,7 @@ export class ChatMessageRouter {
         value: {
           session: this.serializeSessionForWebview(session),
           sessions: this.deps.sessionService.listSessions(),
+          activeGeneration: this.serializeActiveGeneration(),
         },
       });
     } catch (error) {
@@ -342,6 +393,7 @@ export class ChatMessageRouter {
           activeSession: activeSession
             ? this.serializeSessionForWebview(activeSession)
             : null,
+          activeGeneration: this.serializeActiveGeneration(),
         },
       });
     } catch (error) {
@@ -383,10 +435,47 @@ export class ChatMessageRouter {
           activeSession: activeSession
             ? this.serializeSessionForWebview(activeSession)
             : null,
+          activeGeneration: this.serializeActiveGeneration(),
         },
       });
     } catch (error) {
       await this.postError(webview, error, "Erro ao listar sessoes.");
+    }
+  }
+
+  private serializeActiveGeneration() {
+    if (!this.activeResponseSnapshot) {
+      return null;
+    }
+
+    return {
+      sessionId: this.activeResponseSnapshot.sessionId,
+      userContent: this.activeResponseSnapshot.userContent,
+      partialContent: this.activeResponseSnapshot.partialContent,
+      isStreaming: this.activeResponseSnapshot.isStreaming,
+    };
+  }
+
+  private async notifyResponseCompletedIfAway(
+    session: AtlasSession,
+  ): Promise<void> {
+    const isViewingGeneratedChat =
+      this.deps.isChatViewVisible() &&
+      this.activeWebviewRoute === "chat" &&
+      this.deps.sessionService.getActiveSessionId() === session.id;
+
+    if (isViewingGeneratedChat) {
+      return;
+    }
+
+    const title = session.title?.trim() || "chat";
+    const action = await vscode.window.showInformationMessage(
+      `ATLAS: resposta concluída em "${title}".`,
+      "Abrir chat",
+    );
+
+    if (action === "Abrir chat") {
+      await this.deps.focusChatView();
     }
   }
 

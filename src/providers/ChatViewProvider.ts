@@ -200,6 +200,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
       buildEditorAnalysisContext: (context) =>
         this.editorContextService.buildEditorAnalysisContext(context),
+
+      isChatViewVisible: () => this._view?.visible === true,
+
+      focusChatView: async () => {
+        await vscode.commands.executeCommand(`${ChatViewProvider.viewType}.focus`);
+      },
     });
 
     // Connect router → panel manager
@@ -234,6 +240,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       }
 
       void this.sendAvailableLlmsToWebview(webviewView.webview);
+      void webviewView.webview.postMessage({ type: "sincronizarChat" });
     });
   }
 

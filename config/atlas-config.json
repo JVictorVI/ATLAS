@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-05-21T17:45:08.930Z",
+  "updatedAt": "2026-05-23T18:31:51.950Z",
   "general": {
     "theme": "system",
     "language": "pt-BR",
@@ -35,13 +35,13 @@
   },
   "llms": {
     "selection": {
-      "mode": "cloud",
+      "mode": "local",
       "local": {
-        "activeModelId": "local/gemma-3-1b-it-Q8_0"
+        "activeModelId": "local/gemma-4-E4B-it-Q4_K_S"
       },
       "cloud": {
         "providerId": "Groq",
-        "activeModelId": "openai/gpt-oss-120b"
+        "activeModelId": "openai/gpt-oss-safeguard-20b"
       }
     },
     "defaults": {
@@ -117,10 +117,10 @@
         "apiModelName": "gemma-4-E4B-it-Q4_K_S",
         "parameters": {
           "temperature": 0.7,
-          "maxTokens": 1024,
+          "maxTokens": 4096,
           "topP": 0.95,
-          "gpuLayers": 0,
-          "contextWindow": 4096
+          "gpuLayers": 100,
+          "contextWindow": 8192
         },
         "metadata": {
           "source": "models-folder",
@@ -130,11 +130,12 @@
           "quantization": "Q4_K_S",
           "size": "4.51 GB",
           "installedAt": "2026-05-15T23:15:55.940Z",
-          "updatedAt": "2026-05-15T23:18:24.310Z"
+          "updatedAt": "2026-05-23T18:31:50.083Z"
         },
         "custom": {
           "baseUrl": "http://127.0.0.1:8080/v1",
-          "engine": "llama.cpp"
+          "engine": "llama.cpp",
+          "tokensRes": 2048
         }
       },
       "local/Llama-3.2-1B-Instruct-UD-Q8_K_XL": {
@@ -197,6 +198,37 @@
           "baseUrl": "http://127.0.0.1:8080/v1",
           "engine": "llama.cpp"
         }
+      },
+      "local/qwen2.5-coder-14b-instruct-q4_0": {
+        "id": "local/qwen2.5-coder-14b-instruct-q4_0",
+        "name": "qwen2.5-coder-14b-instruct-q4_0",
+        "provider": "Qwen",
+        "enabled": true,
+        "source": "local",
+        "path": "c:\\Users\\jvict\\OneDrive\\Documentos\\Projetos\\ATLAS\\models\\qwen2.5-coder-14b-instruct-q4_0.gguf",
+        "apiModelName": "qwen2.5-coder-14b-instruct-q4_0",
+        "parameters": {
+          "temperature": 0.7,
+          "maxTokens": 4096,
+          "topP": 0.95,
+          "gpuLayers": 50,
+          "contextWindow": 8192
+        },
+        "metadata": {
+          "source": "models-folder",
+          "tags": [
+            "14B"
+          ],
+          "quantization": "Q4_0",
+          "size": "7.93 GB",
+          "installedAt": "2026-05-23T18:21:35.987Z",
+          "updatedAt": "2026-05-23T18:31:50.109Z"
+        },
+        "custom": {
+          "baseUrl": "http://127.0.0.1:8080/v1",
+          "engine": "llama.cpp",
+          "tokensRes": 2048
+        }
       }
     }
   },
@@ -210,8 +242,8 @@
       "enabled": false
     },
     "localEngine": {
-      "engineType": "vulkan",
-      "startOnAtlasOpen": false
+      "engineType": "cuda",
+      "startOnAtlasOpen": true
     }
   },
   "providers": [

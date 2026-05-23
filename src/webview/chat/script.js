@@ -37,6 +37,10 @@ let selectedMode = "local";
 let selectedProvider = null;
 let selectedModel = null;
 
+function notifyCurrentView() {
+  vscode.postMessage({ type: "atualizarViewAtual", view: currentView });
+}
+
 function requestLatestLlmState() {
   vscode.postMessage({ type: "carregarLLMs" });
 }
@@ -45,6 +49,7 @@ function requestLatestLlmState() {
 let activeSessions = []; // AtlasSessionSummary[]
 let activeSessionId = null; // string | null
 let editingSessionId = null; // string | null (for inline rename)
+let activeGenerationSessionId = null;
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 
@@ -120,8 +125,9 @@ function renderSessionList() {
   if (pendingInput) sessionList.appendChild(pendingInput);
 
   activeSessions.forEach((session) => {
+    const isGenerating = session.id === activeGenerationSessionId;
     const li = document.createElement("li");
-    li.className = `session-item${session.id === activeSessionId ? " active" : ""}`;
+    li.className = `session-item${session.id === activeSessionId ? " active" : ""}${isGenerating ? " generating" : ""}`;
     li.dataset.id = session.id;
 
     const icon = session.hasArchitecturalSummary
@@ -131,10 +137,14 @@ function renderSessionList() {
       session.messageCount > 0
         ? `<span class="session-count">${session.messageCount}</span>`
         : "";
+    const generationIndicator = isGenerating
+      ? `<span class="session-loading" title="Resposta em geração"><span class="spinner small"></span></span>`
+      : "";
 
     li.innerHTML = `
       <i class="codicon ${icon} session-icon"></i>
       <span class="session-label" title="${escapeHtml(session.title)}">${escapeHtml(session.title)}</span>
+      ${generationIndicator}
       ${msgCount}
       <div class="session-actions">
         <button class="session-action-btn rename-btn" title="Renomear" data-id="${session.id}">
@@ -215,21 +225,34 @@ function startInlineRename(li, session) {
   });
 }
 
-function loadChatMessages(session) {
+function loadChatMessages(session, activeGeneration = null) {
   const chatContainer = getChatContainer();
   if (!chatContainer) return;
 
   chatContainer.innerHTML = "";
+  loadingElement = null;
+  mensagemAtualBot = null;
+  bufferResposta = "";
+  fadeFramePending = false;
 
-  if (!session || !session.messages || session.messages.length === 0) {
+  const pendingGeneration =
+    activeGeneration && activeGeneration.sessionId === session?.id
+      ? activeGeneration
+      : null;
+
+  if (
+    !pendingGeneration &&
+    (!session || !session.messages || session.messages.length === 0)
+  ) {
     const div = document.createElement("div");
     div.className = "message bot";
     div.textContent = "Olá! Como posso ajudar com seu código hoje?";
     chatContainer.appendChild(div);
+    setGenerationState(false);
     return;
   }
 
-  for (const msg of session.messages) {
+  for (const msg of session?.messages || []) {
     const div = document.createElement("div");
     div.className = `message ${msg.role === "user" ? "user" : "bot"}`;
     if (msg.role !== "user" && typeof marked !== "undefined") {
@@ -240,7 +263,36 @@ function loadChatMessages(session) {
     chatContainer.appendChild(div);
   }
 
+  renderPendingGeneration(pendingGeneration);
+
   chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+function renderPendingGeneration(activeGeneration) {
+  if (!activeGeneration) {
+    setGenerationState(false);
+    return;
+  }
+
+  addMessage(activeGeneration.userContent, "user");
+
+  const partialContent = String(activeGeneration.partialContent || "");
+
+  if (!partialContent) {
+    showLoading();
+    return;
+  }
+
+  bufferResposta = partialContent;
+  mensagemAtualBot = addMessage("", "bot", false);
+
+  if (mensagemAtualBot) {
+    mensagemAtualBot.classList.add("streaming-message");
+    updateMessagePresentation(mensagemAtualBot, bufferResposta, true);
+    renderMarkdownContent(mensagemAtualBot, bufferResposta, true);
+  }
+
+  setGenerationState(true);
 }
 
 // ── Navbar & routing ──────────────────────────────────────────────────────────
@@ -273,6 +325,7 @@ function getChatContainer() {
 
 function renderChatView() {
   currentView = "chat";
+  notifyCurrentView();
 
   contentContainer.innerHTML = `
     <div id="chat-container">
@@ -632,6 +685,8 @@ function setupChatEvents() {
     if (!texto) return;
     addMessage(texto, "user");
     showLoading();
+    activeGenerationSessionId = activeSessionId;
+    renderSessionList();
 
     vscode.postMessage({
       type: "enviarPergunta",
@@ -808,6 +863,7 @@ function finishCurrentBotMessage(cancelled = false) {
 
 function renderConfigView() {
   currentView = "config";
+  notifyCurrentView();
   contentContainer.innerHTML = `
     <div id="settings-view">
       <button id="atlas-btn" class="settings-option">Configurações Gerais</button>
@@ -825,6 +881,7 @@ function renderConfigView() {
 
 function renderLibraryView() {
   currentView = "library";
+  notifyCurrentView();
   contentContainer.innerHTML = "";
   vscode.postMessage({ type: "abrirPainelConfig", selectedView: "library" });
 }
@@ -997,6 +1054,7 @@ function renderModelCards(models, activeModelId = "qwen3-coder-30b") {
 
 function renderSearchView() {
   currentView = "search";
+  notifyCurrentView();
   contentContainer.innerHTML = `
     <div class="search-layout">
       <!-- PARTE DA ESQUERDA: Lista de Agentes -->
@@ -1075,6 +1133,21 @@ function renderSearchView() {
 // ── Message bus ───────────────────────────────────────────────────────────────
 
 // --- ÚNICO OUVINTE DE MENSAGENS DO VS CODE ---
+function isMessageForActiveSession(message) {
+  const sessionId = message.sessionId || message.metadata?.sessionId;
+
+  return !sessionId || !activeSessionId || sessionId === activeSessionId;
+}
+
+function clearGenerationForMessage(message) {
+  const sessionId = message.sessionId || message.metadata?.sessionId;
+
+  if (sessionId && sessionId === activeGenerationSessionId) {
+    activeGenerationSessionId = null;
+    renderSessionList();
+  }
+}
+
 window.addEventListener("message", (event) => {
   const message = event.data;
 
@@ -1092,7 +1165,18 @@ window.addEventListener("message", (event) => {
       break;
     }
 
+    case "sincronizarChat": {
+      vscode.postMessage({ type: "listarSessoes" });
+      break;
+    }
+
     case "novaResposta": {
+      clearGenerationForMessage(message);
+
+      if (!isMessageForActiveSession(message)) {
+        break;
+      }
+
       removeLoading();
       setGenerationState(false);
       shortcutLoadingState.architectureAnalysis = false;
@@ -1102,6 +1186,15 @@ window.addEventListener("message", (event) => {
     }
 
     case "respostaParcial": {
+      if (message.sessionId && message.sessionId !== activeGenerationSessionId) {
+        activeGenerationSessionId = message.sessionId;
+        renderSessionList();
+      }
+
+      if (!isMessageForActiveSession(message)) {
+        break;
+      }
+
       removeLoading();
 
       if (!mensagemAtualBot) {
@@ -1151,6 +1244,12 @@ window.addEventListener("message", (event) => {
     }
 
     case "fimResposta": {
+      clearGenerationForMessage(message);
+
+      if (!isMessageForActiveSession(message)) {
+        break;
+      }
+
       if (mensagemAtualBot) {
         mensagemAtualBot.classList.remove("streaming-message");
 
@@ -1172,6 +1271,12 @@ window.addEventListener("message", (event) => {
     }
 
     case "geracaoCancelada": {
+      clearGenerationForMessage(message);
+
+      if (!isMessageForActiveSession(message)) {
+        break;
+      }
+
       removeLoading();
       finishCurrentBotMessage(true);
 
@@ -1181,6 +1286,12 @@ window.addEventListener("message", (event) => {
     }
 
     case "erro": {
+      clearGenerationForMessage(message);
+
+      if (!isMessageForActiveSession(message)) {
+        break;
+      }
+
       removeLoading();
       mensagemAtualBot = null;
       bufferResposta = "";
@@ -1236,6 +1347,7 @@ window.addEventListener("message", (event) => {
     case "sessoesListadas": {
       activeSessions = message.value.sessions || [];
       activeSessionId = message.value.activeSessionId;
+      activeGenerationSessionId = message.value.activeGeneration?.sessionId || null;
 
       // If no active session exists yet, auto-create one
       if (!activeSessionId && activeSessions.length === 0) {
@@ -1250,7 +1362,10 @@ window.addEventListener("message", (event) => {
       renderSessionList();
 
       if (message.value.activeSession) {
-        loadChatMessages(message.value.activeSession);
+        loadChatMessages(
+          message.value.activeSession,
+          message.value.activeGeneration,
+        );
       }
       break;
     }
@@ -1258,25 +1373,31 @@ window.addEventListener("message", (event) => {
     case "sessaoCriada": {
       activeSessions = message.value.sessions || [];
       activeSessionId = message.value.session.id;
+      activeGenerationSessionId = message.value.activeGeneration?.sessionId || null;
       renderSessionList();
-      loadChatMessages(message.value.session);
+      loadChatMessages(message.value.session, message.value.activeGeneration);
       break;
     }
 
     case "sessaoTrocada": {
       activeSessions = message.value.sessions || [];
       activeSessionId = message.value.session.id;
+      activeGenerationSessionId = message.value.activeGeneration?.sessionId || null;
       renderSessionList();
-      loadChatMessages(message.value.session);
+      loadChatMessages(message.value.session, message.value.activeGeneration);
       break;
     }
 
     case "sessaoExcluida": {
       activeSessions = message.value.sessions || [];
       activeSessionId = message.value.activeSession?.id || null;
+      activeGenerationSessionId = message.value.activeGeneration?.sessionId || null;
       renderSessionList();
       if (message.value.activeSession) {
-        loadChatMessages(message.value.activeSession);
+        loadChatMessages(
+          message.value.activeSession,
+          message.value.activeGeneration,
+        );
       } else {
         vscode.postMessage({
           type: "criarSessao",

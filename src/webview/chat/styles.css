@@ -248,6 +248,11 @@ body {
   color: var(--vscode-list-activeSelectionForeground);
 }
 
+.session-item.generating .session-icon {
+  color: var(--atlas-accent-bg);
+  opacity: 1;
+}
+
 .session-icon {
   font-size: 13px;
   flex-shrink: 0;
@@ -278,6 +283,27 @@ body {
 .session-item.active .session-count {
   color: var(--vscode-badge-foreground, var(--vscode-list-activeSelectionForeground, var(--vscode-foreground)));
   background: var(--vscode-badge-background, var(--vscode-list-activeSelectionBackground, var(--atlas-surface-bg)));
+}
+
+.session-loading {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.session-loading + .session-count {
+  margin-left: 0;
+}
+
+.session-loading .spinner.small {
+  width: 10px;
+  height: 10px;
+  border-color: var(--atlas-border);
+  border-top-color: var(--atlas-accent-bg);
 }
 
 .session-actions {

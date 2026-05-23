@@ -251,7 +251,7 @@ export class CloudApiService {
       this.handleApiError(response, errorData);
     }
 
-// --- Lógica de Processamento de Stream (SSE) CORRIGIDA ---
+    // --- Lógica de Processamento de Stream (SSE) CORRIGIDA ---
     if (isStreaming) {
       if (!response.body) {
         throw new Error(
@@ -264,19 +264,40 @@ export class CloudApiService {
       let fullContent = "";
       let buffer = "";
       let finishReason: string | undefined;
+      let abortRequested = signal?.aborted === true;
+
+      const abortStream = () => {
+        abortRequested = true;
+        void reader.cancel().catch(() => undefined);
+      };
+
+      if (abortRequested) {
+        throw this.createAbortError();
+      }
+
+      signal?.addEventListener("abort", abortStream, { once: true });
 
       try {
         let isStreamFinished = false;
-        
+
         while (!isStreamFinished) {
+          if (abortRequested) {
+            throw this.createAbortError();
+          }
+
           const { done, value } = await reader.read();
+
+          if (abortRequested) {
+            throw this.createAbortError();
+          }
+
           if (done) {
             break;
           }
 
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split("\n");
-          
+
           buffer = lines.pop() || "";
 
           for (const line of lines) {
@@ -306,7 +327,7 @@ export class CloudApiService {
 
               if (textChunk) {
                 fullContent += textChunk;
-                onChunk?.(textChunk); 
+                onChunk?.(textChunk);
               }
             } catch {
               // Ignora fragmentos incompletos/parciais do SSE.
@@ -314,6 +335,7 @@ export class CloudApiService {
           }
         }
       } finally {
+        signal?.removeEventListener("abort", abortStream);
         reader.releaseLock();
       }
 
@@ -335,8 +357,16 @@ export class CloudApiService {
     }
 
     // Se não for streaming, continua com o comportamento antigo
-    const data = (await this.safeReadJson(response)) as OpenAiCompatibleResponse;
+    const data = (await this.safeReadJson(
+      response,
+    )) as OpenAiCompatibleResponse;
     return this.normalizeOpenAiCompatibleResponse(provider, modelId, data);
+  }
+
+  private createAbortError(): Error {
+    const error = new Error("Geração em nuvem cancelada pelo usuário.");
+    error.name = "AbortError";
+    return error;
   }
 
   private async sendClaudeChat(
@@ -391,7 +421,7 @@ export class CloudApiService {
       modelId,
       data,
     );
-    
+
     // --- NOVO: Fallback (modo não-streaming enviando tudo de uma vez) ---
     if (onChunk) {
       onChunk(normalizedResponse.content);
@@ -461,7 +491,6 @@ export class CloudApiService {
       data,
     );
 
-    
     if (onChunk) {
       onChunk(normalizedResponse.content);
     }
@@ -686,7 +715,9 @@ export class CloudApiService {
         },
       );
 
-      const json = (await this.safeReadJson(response)) as ClaudeModelsApiResponse;
+      const json = (await this.safeReadJson(
+        response,
+      )) as ClaudeModelsApiResponse;
 
       if (!response.ok) {
         this.handleApiError(response, json);
@@ -697,7 +728,7 @@ export class CloudApiService {
       }
 
       models.push(...json.data);
-      afterId = json.has_more ? json.last_id ?? null : null;
+      afterId = json.has_more ? (json.last_id ?? null) : null;
     } while (afterId);
 
     if (models.length === 0) {
@@ -740,7 +771,9 @@ export class CloudApiService {
         },
       );
 
-      const json = (await this.safeReadJson(response)) as GeminiModelsApiResponse;
+      const json = (await this.safeReadJson(
+        response,
+      )) as GeminiModelsApiResponse;
 
       if (!response.ok) {
         this.handleApiError(response, json);
