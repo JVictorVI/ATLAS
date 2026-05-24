@@ -2,6 +2,14 @@
 .vscode-test/**
 out/**
 node_modules/**
+engine/**
+docs/**
+models/**
+atlas.vsix
+install-atlas.bat
+install-atlas.ps1
+package-vsix.bat
+package-vsix.ps1
 src/**/*.ts
 .gitignore
 .yarnrc
