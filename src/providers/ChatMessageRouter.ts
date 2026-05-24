@@ -1,52 +1,30 @@
 import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
-import { ApiKeyManager } from "../managers/ApiKeyManager";
-import { AtlasConfigManager } from "../managers/AtlasConfigManager";
-import { AtlasPromptAssemblyService } from "../prompt/AtlasPromptAssemblyService";
-import { AtlasPromptCustomizationService } from "../prompt/AtlasPromptCustomizationService";
-import { AtlasSession } from "../interfaces/AtlasHistoryTypes";
-import { CloudApiService } from "../services/CloudApiService";
-import { AtlasInferenceService } from "../services/AtlasInferenceService";
-import { AtlasSessionService } from "../services/AtlasSessionService";
-import { AtlasEditorContext } from "../interfaces/AtlasEditorTypes";
 
-type RouterDependencies = {
-  apiKeyManager: ApiKeyManager;
-  configManager: AtlasConfigManager;
-  cloudApiService: CloudApiService;
-  inferenceService: AtlasInferenceService;
-  promptCustomizationService: AtlasPromptCustomizationService;
-  promptAssemblyService: AtlasPromptAssemblyService;
-  sessionService: AtlasSessionService;
-  openPanel: (selectedView?: string) => void;
-  openSearchModelDetails: (modelId: string) => void;
-  sendModelsToWebview: (webview: vscode.Webview) => void;
-  executeQuickAnalysis: (webview?: vscode.Webview) => Promise<void>;
-  refreshLocalModels: () => ReturnType<AtlasConfigManager["getLocalModels"]>;
-  promptStopLocalEngine: () => Promise<void>;
-  stopLocalEngine: () => void;
-  getLocalModelsDir: () => string;
-  getChatEditorContext: () => AtlasEditorContext | null;
-  buildEditorAnalysisContext: (context: AtlasEditorContext) => string;
-  isChatViewVisible: () => boolean;
-  focusChatView: () => Promise<void>;
-};
-
-type ActiveResponseSnapshot = {
-  controller: AbortController;
-  sessionId: string;
-  userContent: string;
-  partialContent: string;
-  isStreaming: boolean;
-};
+import { ChatResponseController } from "./ChatResponseController";
+import { ChatSessionController } from "./ChatSessionController";
+import { RouterDependencies } from "./ChatMessageRouterTypes";
 
 export class ChatMessageRouter {
-  private activeResponseController: AbortController | null = null;
-  private activeResponseSnapshot: ActiveResponseSnapshot | null = null;
   private activeWebviewRoute = "chat";
+  private readonly responseController: ChatResponseController;
+  private readonly sessionController: ChatSessionController;
 
-  constructor(private readonly deps: RouterDependencies) {}
+  constructor(private readonly deps: RouterDependencies) {
+    this.responseController = new ChatResponseController(
+      this.deps,
+      (sessionId) => this.isViewingGeneratedChat(sessionId),
+    );
+
+    this.sessionController = new ChatSessionController(
+      this.deps,
+      () => this.responseController.serializeActiveGeneration(),
+      async (webview, error, fallback) => {
+        await this.postError(webview, error, fallback);
+      },
+    );
+  }
 
   public async handle(data: any, webview: vscode.Webview): Promise<void> {
     const handledByApiKeyManager = await this.deps.apiKeyManager.handleMessage(
@@ -66,10 +44,10 @@ export class ChatMessageRouter {
         this.handleUpdateCurrentView(data);
         return;
       case "enviarPergunta":
-        await this.handleSendQuestion(data, webview);
+        await this.responseController.handleSendQuestion(data, webview);
         return;
       case "cancelarGeracao":
-        await this.handleCancelGeneration(webview);
+        await this.responseController.handleCancelGeneration(webview);
         return;
       case "abrirPainelConfig":
         this.deps.openPanel(data.selectedView);
@@ -129,19 +107,19 @@ export class ChatMessageRouter {
         await this.handleToggleStudyMode(data, webview);
         return;
       case "criarSessao":
-        await this.handleCreateSession(data, webview);
+        await this.sessionController.handleCreateSession(data, webview);
         return;
       case "trocarSessao":
-        await this.handleSwitchSession(data, webview);
+        await this.sessionController.handleSwitchSession(data, webview);
         return;
       case "excluirSessao":
-        await this.handleDeleteSession(data, webview);
+        await this.sessionController.handleDeleteSession(data, webview);
         return;
       case "renomearSessao":
-        await this.handleRenameSession(data, webview);
+        await this.sessionController.handleRenameSession(data, webview);
         return;
       case "listarSessoes":
-        await this.handleListSessions(webview);
+        await this.sessionController.handleListSessions(webview);
         return;
     }
   }
@@ -182,301 +160,6 @@ export class ChatMessageRouter {
   private handleUpdateCurrentView(data: any): void {
     const view = typeof data.view === "string" ? data.view : "chat";
     this.activeWebviewRoute = view;
-  }
-
-  private async handleSendQuestion(
-    data: any,
-    webview: vscode.Webview,
-  ): Promise<void> {
-    this.activeResponseController?.abort();
-    const responseController = new AbortController();
-    this.activeResponseController = responseController;
-    let responseSessionId: string | undefined;
-
-    try {
-      const session = this.deps.sessionService.ensureActiveSession();
-      responseSessionId = session.id;
-      const editorContext = this.deps.getChatEditorContext();
-      const windowMessages =
-        this.deps.sessionService.getWindowMessages(session);
-      const shouldStream =
-        this.deps.configManager.getConfig().llms.defaults.stream;
-
-      const responseSnapshot: ActiveResponseSnapshot = {
-        controller: responseController,
-        sessionId: session.id,
-        userContent: data.value,
-        partialContent: "",
-        isStreaming: shouldStream,
-      };
-
-      this.activeResponseSnapshot = responseSnapshot;
-
-      const promptResult = this.deps.promptAssemblyService.buildMessages({
-        userQuestion: data.value,
-        history: windowMessages,
-        analysisContext: editorContext
-          ? [this.deps.buildEditorAnalysisContext(editorContext)]
-          : [],
-        ragContext: [],
-        hasCodeContext: Boolean(editorContext),
-        forcedMode:
-          data.forcedMode ??
-          (editorContext?.source === "selection"
-            ? "developer-assistant"
-            : undefined),
-        architecturalSummary: session.architecturalSummary || undefined,
-      });
-
-      const response = shouldStream
-        ? await this.deps.inferenceService.sendChat(
-            promptResult.messages,
-            async (chunk: string) => {
-              responseSnapshot.partialContent += chunk;
-              await webview.postMessage({
-                type: "respostaParcial",
-                sessionId: session.id,
-                value: chunk,
-              });
-            },
-            { signal: responseController.signal },
-          )
-        : await this.deps.inferenceService.sendChat(
-            promptResult.messages,
-            undefined,
-            { signal: responseController.signal },
-          );
-
-      await this.deps.sessionService.appendMessage(session.id, {
-        role: "user",
-        content: data.value,
-      });
-
-      await this.deps.sessionService.appendMessage(session.id, {
-        role: "assistant",
-        content: response.content,
-      });
-
-      this.deps.sessionService.summarizeIfNeeded(session.id).catch((error) => {
-        console.warn("[ATLAS] Background summarization error:", error);
-      });
-
-      if (!shouldStream) {
-        await webview.postMessage({
-          type: "novaResposta",
-          sessionId: session.id,
-          value: response.content,
-          metadata: {
-            ...this.buildResponseMetadata(promptResult.mode, response),
-            sessionId: session.id,
-          },
-        });
-      } else {
-        await webview.postMessage({
-          type: "fimResposta",
-          sessionId: session.id,
-          metadata: {
-            ...this.buildResponseMetadata(promptResult.mode, response),
-            sessionId: session.id,
-          },
-        });
-      }
-
-      await webview.postMessage({
-        type: "sessoesAtualizadas",
-        value: this.deps.sessionService.listSessions(),
-      });
-
-      await this.notifyResponseCompletedIfAway(session);
-    } catch (error) {
-      if (
-        AtlasInferenceService.isAbortError(error) ||
-        responseController.signal.aborted
-      ) {
-        await webview.postMessage({
-          type: "geracaoCancelada",
-          sessionId: responseSessionId,
-        });
-        return;
-      }
-
-      const message = this.getErrorMessage(error, "Erro ao enviar pergunta.");
-      vscode.window.showErrorMessage(`ATLAS: ${message}`);
-
-      await webview.postMessage({
-        type: "erro",
-        sessionId: this.activeResponseSnapshot?.sessionId,
-        value: message,
-      });
-    } finally {
-      if (this.activeResponseController === responseController) {
-        this.activeResponseController = null;
-      }
-
-      if (this.activeResponseSnapshot?.controller === responseController) {
-        this.activeResponseSnapshot = null;
-      }
-    }
-  }
-
-  private async handleCancelGeneration(webview: vscode.Webview): Promise<void> {
-    if (!this.activeResponseController) {
-      await webview.postMessage({
-        type: "geracaoCancelada",
-      });
-      return;
-    }
-
-    this.activeResponseController.abort();
-  }
-
-  private async handleCreateSession(
-    data: any,
-    webview: vscode.Webview,
-  ): Promise<void> {
-    try {
-      const session = this.deps.sessionService.createSession(
-        data.title ?? "Nova Sessao",
-      );
-
-      await webview.postMessage({
-        type: "sessaoCriada",
-        value: {
-          session: this.serializeSessionForWebview(session),
-          sessions: this.deps.sessionService.listSessions(),
-          activeGeneration: this.serializeActiveGeneration(),
-        },
-      });
-    } catch (error) {
-      await this.postError(webview, error, "Erro ao criar sessao.");
-    }
-  }
-
-  private async handleSwitchSession(
-    data: any,
-    webview: vscode.Webview,
-  ): Promise<void> {
-    try {
-      const session = this.deps.sessionService.switchSession(data.sessionId);
-
-      await webview.postMessage({
-        type: "sessaoTrocada",
-        value: {
-          session: this.serializeSessionForWebview(session),
-          sessions: this.deps.sessionService.listSessions(),
-          activeGeneration: this.serializeActiveGeneration(),
-        },
-      });
-    } catch (error) {
-      await this.postError(webview, error, "Erro ao trocar sessao.");
-    }
-  }
-
-  private async handleDeleteSession(
-    data: any,
-    webview: vscode.Webview,
-  ): Promise<void> {
-    try {
-      this.deps.sessionService.deleteSession(data.sessionId);
-
-      const remaining = this.deps.sessionService.listSessions();
-      const activeSession =
-        remaining.length > 0
-          ? this.deps.sessionService.switchSession(remaining[0].id)
-          : null;
-
-      await webview.postMessage({
-        type: "sessaoExcluida",
-        value: {
-          deletedSessionId: data.sessionId,
-          sessions: remaining,
-          activeSession: activeSession
-            ? this.serializeSessionForWebview(activeSession)
-            : null,
-          activeGeneration: this.serializeActiveGeneration(),
-        },
-      });
-    } catch (error) {
-      await this.postError(webview, error, "Erro ao excluir sessao.");
-    }
-  }
-
-  private async handleRenameSession(
-    data: any,
-    webview: vscode.Webview,
-  ): Promise<void> {
-    try {
-      const session = this.deps.sessionService.renameSession(
-        data.sessionId,
-        data.newTitle,
-      );
-
-      await webview.postMessage({
-        type: "sessaoRenomeada",
-        value: {
-          session: this.serializeSessionForWebview(session),
-          sessions: this.deps.sessionService.listSessions(),
-        },
-      });
-    } catch (error) {
-      await this.postError(webview, error, "Erro ao renomear sessao.");
-    }
-  }
-
-  private async handleListSessions(webview: vscode.Webview): Promise<void> {
-    try {
-      const activeSession = this.deps.sessionService.getActiveSession();
-
-      await webview.postMessage({
-        type: "sessoesListadas",
-        value: {
-          sessions: this.deps.sessionService.listSessions(),
-          activeSessionId: this.deps.sessionService.getActiveSessionId(),
-          activeSession: activeSession
-            ? this.serializeSessionForWebview(activeSession)
-            : null,
-          activeGeneration: this.serializeActiveGeneration(),
-        },
-      });
-    } catch (error) {
-      await this.postError(webview, error, "Erro ao listar sessoes.");
-    }
-  }
-
-  private serializeActiveGeneration() {
-    if (!this.activeResponseSnapshot) {
-      return null;
-    }
-
-    return {
-      sessionId: this.activeResponseSnapshot.sessionId,
-      userContent: this.activeResponseSnapshot.userContent,
-      partialContent: this.activeResponseSnapshot.partialContent,
-      isStreaming: this.activeResponseSnapshot.isStreaming,
-    };
-  }
-
-  private async notifyResponseCompletedIfAway(
-    session: AtlasSession,
-  ): Promise<void> {
-    const isViewingGeneratedChat =
-      this.deps.isChatViewVisible() &&
-      this.activeWebviewRoute === "chat" &&
-      this.deps.sessionService.getActiveSessionId() === session.id;
-
-    if (isViewingGeneratedChat) {
-      return;
-    }
-
-    const title = session.title?.trim() || "chat";
-    const action = await vscode.window.showInformationMessage(
-      `ATLAS: resposta concluída em "${title}".`,
-      "Abrir chat",
-    );
-
-    if (action === "Abrir chat") {
-      await this.deps.focusChatView();
-    }
   }
 
   private async handleSelectMode(
@@ -783,13 +466,13 @@ export class ChatMessageRouter {
       const modelId = typeof data.modelId === "string" ? data.modelId : "";
 
       if (!modelId) {
-        throw new Error("Modelo local invÃ¡lido.");
+        throw new Error("Modelo local inválido.");
       }
 
       const model = this.deps.configManager.getLocalModel(modelId);
 
       if (!model) {
-        throw new Error(`Modelo "${modelId}" nÃ£o encontrado.`);
+        throw new Error(`Modelo "${modelId}" não encontrado.`);
       }
 
       const nextName = await vscode.window.showInputBox({
@@ -849,7 +532,7 @@ export class ChatMessageRouter {
       const model = this.deps.configManager.getLocalModel(modelId);
 
       if (!model) {
-        throw new Error(`Modelo "${modelId}" nÃ£o encontrado.`);
+        throw new Error(`Modelo "${modelId}" não encontrado.`);
       }
 
       const answer = await vscode.window.showWarningMessage(
@@ -1012,37 +695,6 @@ export class ChatMessageRouter {
     }
   }
 
-  private serializeSessionForWebview(session: AtlasSession) {
-    return {
-      id: session.id,
-      title: session.title,
-      messages: session.messages
-        .filter((message) => message.role !== "system")
-        .map((message) => ({
-          role: message.role,
-          content: message.content,
-        })),
-      hasArchitecturalSummary: session.architecturalSummary.length > 0,
-      createdAt: session.createdAt,
-      updatedAt: session.updatedAt,
-    };
-  }
-
-  private buildResponseMetadata(
-    mode: string,
-    response: Awaited<ReturnType<AtlasInferenceService["sendChat"]>>,
-  ) {
-    return {
-      mode,
-      providerId: response.providerId,
-      providerKind: response.providerKind,
-      modelId: response.modelId,
-      finishReason: response.finishReason,
-      usage: response.usage,
-      createdAt: response.createdAt,
-    };
-  }
-
   private async postError(
     webview: vscode.Webview,
     error: unknown,
@@ -1107,5 +759,13 @@ export class ChatMessageRouter {
     if (fs.existsSync(resolvedModelPath)) {
       fs.unlinkSync(resolvedModelPath);
     }
+  }
+
+  private isViewingGeneratedChat(sessionId: string): boolean {
+    return (
+      this.deps.isChatViewVisible() &&
+      this.activeWebviewRoute === "chat" &&
+      this.deps.sessionService.getActiveSessionId() === sessionId
+    );
   }
 }
