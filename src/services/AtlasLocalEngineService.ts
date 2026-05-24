@@ -69,7 +69,7 @@ export class AtlasLocalEngineService {
     );
 
     this.process = spawn(executable, args, {
-      cwd: this.context.extensionPath,
+      cwd: path.dirname(executable),
       windowsHide: true,
     });
     this.runningModelId = model.id;
@@ -133,21 +133,12 @@ export class AtlasLocalEngineService {
       engineSettings,
     );
     const engineFolder = this.getEngineFolder(engineSettings.engineType);
+    const enginesDir = this.getEnginesDir();
 
     const candidates = [
       configured,
-      path.join(
-        this.context.extensionPath,
-        "engine",
-        engineFolder,
-        "llama-server.exe",
-      ),
-      path.join(
-        this.context.extensionPath,
-        "engine",
-        engineFolder,
-        "llama-server",
-      ),
+      path.join(enginesDir, engineFolder, "llama-server.exe"),
+      path.join(enginesDir, engineFolder, "llama-server"),
     ].filter(Boolean);
 
     for (const candidate of candidates) {
@@ -158,13 +149,13 @@ export class AtlasLocalEngineService {
 
     if (engineSettings.engineType !== "cpu") {
       throw new Error(
-        `Engine ${engineSettings.engineType.toUpperCase()} selecionada, mas o llama-server não foi encontrado em engine/${engineFolder}.`,
+        `Engine ${engineSettings.engineType.toUpperCase()} selecionada, mas o llama-server nao foi encontrado em ${path.join(enginesDir, engineFolder)}.`,
       );
     }
 
     const fallbackCandidates = [
-      path.join(this.context.extensionPath, "bin", "llama-server.exe"),
-      path.join(this.context.extensionPath, "bin", "llama-server"),
+      path.join(enginesDir, "bin", "llama-server.exe"),
+      path.join(enginesDir, "bin", "llama-server"),
     ];
 
     for (const candidate of fallbackCandidates) {
@@ -186,7 +177,31 @@ export class AtlasLocalEngineService {
       return model.custom.llamaServerPath;
     }
 
+    const localEngine = this.configManager.getConfig().custom?.localEngine;
+
+    if (typeof localEngine === "object" && localEngine !== null) {
+      const configured = (localEngine as Record<string, unknown>).llamaServerPath;
+
+      if (typeof configured === "string") {
+        return configured.trim();
+      }
+    }
+
     return "";
+  }
+
+  public getEnginesDir(): string {
+    const localEngine = this.configManager.getConfig().custom?.localEngine;
+
+    if (typeof localEngine === "object" && localEngine !== null) {
+      const configured = (localEngine as Record<string, unknown>).enginesDir;
+
+      if (typeof configured === "string" && configured.trim()) {
+        return configured.trim();
+      }
+    }
+
+    return path.join(this.context.extensionPath, "engine");
   }
 
   private getEngineSettings(): {
@@ -255,7 +270,7 @@ export class AtlasLocalEngineService {
     while (Date.now() < deadline) {
       if (this.startupError) {
         throw new Error(
-          `Não foi possível iniciar o llama-server. Configure o binário em custom.localEngine.llamaServerPath ou coloque-o em engine/llama.cpp. Detalhes: ${this.startupError.message}`,
+          `Nao foi possivel iniciar o llama-server. Configure o binario em custom.localEngine.llamaServerPath ou coloque-o na pasta de engines configurada. Detalhes: ${this.startupError.message}`,
         );
       }
 
@@ -274,7 +289,7 @@ export class AtlasLocalEngineService {
     }
 
     throw new Error(
-      "A engine local não ficou pronta a tempo. Verifique o llama-server e o modelo GGUF selecionado.",
+      "A engine local nao ficou pronta a tempo. Verifique o llama-server e o modelo GGUF selecionado.",
     );
   }
 

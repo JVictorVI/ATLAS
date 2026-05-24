@@ -15,79 +15,152 @@
     <title>Configurações Gerais</title>
   </head>
   <body>
-    <h1>Configurações Gerais</h1>
-    <div class="subtitle">Ajuste preferências gerais do ATLAS</div>
+    <header class="page-heading">
+      <h1>Configurações Gerais</h1>
+      <div class="subtitle">Ajuste preferências gerais do ATLAS</div>
+    </header>
 
     <div class="card">
-      <div class="section-title">Engine Local</div>
-      <div class="subtitle">
-        Escolha qual build do llama.cpp o ATLAS deve usar ao iniciar modelos
-        locais
+      <div class="section-header">
+        <div>
+          <div class="section-title">Modelos e engine local</div>
+          <div class="section-description">
+            Informe onde estão seus modelos e escolha a forma desejada de
+            rodá-los. Se não tiver certeza, mantenha a opção CPU
+          </div>
+        </div>
       </div>
 
-      <div class="engine-options">
-        <label class="engine-option">
-          <input
-            type="radio"
-            name="engine-type"
-            id="engine-cpu"
-            value="cpu"
-          />
-          <span>
-            <strong>CPU</strong>
-            <small>Usa a build em engine/llama.cpp.</small>
-          </span>
-        </label>
+      <section class="settings-section">
+        <div class="settings-section-heading">
+          <h2>Pastas utilizadas pelo ATLAS</h2>
+          <p>
+            Essas pastas dizem ao ATLAS onde procurar os arquivos necessários
+            para executar modelos locais
+          </p>
+        </div>
 
-        <label class="engine-option">
-          <input
-            type="radio"
-            name="engine-type"
-            id="engine-cuda"
-            value="cuda"
-          />
-          <span>
-            <strong>GPU NVIDIA CUDA</strong>
-            <small>Usa a build em engine/llama.cpp-cuda.</small>
-          </span>
-        </label>
-
-        <label class="engine-option">
-          <input
-            type="radio"
-            name="engine-type"
-            id="engine-vulkan"
-            value="vulkan"
-          />
-          <span>
-            <strong>GPU Vulkan</strong>
-            <small>Usa a build em engine/llama.cpp-vulkan.</small>
-          </span>
-        </label>
-      </div>
-
-      <label class="startup-option">
-        <input type="checkbox" id="engine-start-on-open" />
-        <span>
-          <strong>Inicialização automática da engine</strong>
+        <div class="folder-setting">
+          <label for="models-folder-path">Pasta de modelos</label>
+          <div class="folder-control">
+            <input id="models-folder-path" type="text" readonly />
+            <button id="choose-models-folder" class="btn-secondary">
+              Alterar
+            </button>
+            <button id="open-models-folder" class="btn-secondary">
+              Abrir pasta
+            </button>
+          </div>
           <small>
-            Habilita a execução automática da engine local ao iniciar o ATLAS
+            Coloque aqui os arquivos de modelos no formato .gguf. Eles
+            aparecerão na Biblioteca
           </small>
-        </span>
-      </label>
+        </div>
+
+        <div class="folder-setting">
+          <label for="engines-folder-path">Pasta das engines</label>
+          <div class="folder-control">
+            <input id="engines-folder-path" type="text" readonly />
+            <button id="choose-engines-folder" class="btn-secondary">
+              Alterar
+            </button>
+            <button id="open-engines-folder" class="btn-secondary">
+              Abrir pasta
+            </button>
+          </div>
+          <small>
+            Use esta pasta para armazenar as versões do llama.cpp utilizadas
+            para rodar os modelos locais
+          </small>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <div class="settings-section-heading">
+          <h2>Forma de execução</h2>
+          <p>
+            Escolha se o modelo deve rodar apenas no processador ou usar a placa
+            de vídeo quando houver suporte
+          </p>
+        </div>
+
+        <div class="engine-options">
+          <label class="engine-option">
+            <input
+              type="radio"
+              name="engine-type"
+              id="engine-cpu"
+              value="cpu"
+            />
+            <span>
+              <strong>CPU</strong>
+              <small>
+                Maior compatibilidade, porém com geração de respostas mais lenta
+              </small>
+            </span>
+          </label>
+
+          <label class="engine-option">
+            <input
+              type="radio"
+              name="engine-type"
+              id="engine-cuda"
+              value="cuda"
+            />
+            <span>
+              <strong>GPU NVIDIA CUDA</strong>
+              <small>
+                Melhor desempenho em placas NVIDIA com suporte a CUDA
+              </small>
+            </span>
+          </label>
+
+          <label class="engine-option">
+            <input
+              type="radio"
+              name="engine-type"
+              id="engine-vulkan"
+              value="vulkan"
+            />
+            <span>
+              <strong>GPU Vulkan</strong>
+              <small>Alternativa multiplataforma para aceleração via GPU</small>
+            </span>
+          </label>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <div class="settings-section-heading">
+          <h2>Inicialização</h2>
+          <p>
+            Defina se o ATLAS deve deixar a execução de modelos locais pronta
+            assim que a extensão for aberta
+          </p>
+        </div>
+
+        <label class="startup-option">
+          <input type="checkbox" id="engine-start-on-open" />
+          <span>
+            <strong>Iniciar engine automaticamente</strong>
+            <small>
+              O ATLAS inicia a engine local ao abrir, usando o modelo local
+              selecionado
+            </small>
+          </span>
+        </label>
+      </section>
 
       <div class="note">
-        Temporário: Baixe a build correspondente da engine llama.cpp que deseja
-        utilizar, extraia o conteúdo completo na pasta "ATLAS/engine" e
-        renomeie a pasta do llama.cpp de acordo com o nome exibido nas opções
-        acima.
+        Para instalar uma engine, baixe uma versão do llama.cpp, extraia os
+        arquivos dentro da pasta de engines e mantenha os nomes das pastas como
+        llama.cpp, llama.cpp-cuda ou llama.cpp-vulkan
         <a
           href="https://github.com/ggml-org/llama.cpp/releases"
           target="_blank"
           rel="noopener noreferrer"
-          >Clique aqui</a
-        >
-        para acessar as builds do llama.cpp.
+          >Abrir página de downloads</a
+        >.
       </div>
 
       <div class="row-end">

@@ -1028,7 +1028,7 @@ textarea {
   background-size: 300% 100%;
   background-clip: text;
   -webkit-background-clip: text;
-  animation: atlasThinkingSweep 7s linear infinite;
+  animation: atlasThinkingSweep 5s linear infinite;
   pointer-events: none;
 }
 

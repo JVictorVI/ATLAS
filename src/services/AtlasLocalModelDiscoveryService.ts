@@ -5,20 +5,17 @@ import { AtlasConfigManager } from "../managers/AtlasConfigManager";
 import { AtlasModelConfig } from "../interfaces/AtlasConfigTypes";
 
 export class AtlasLocalModelDiscoveryService {
-  private readonly modelsDir: string;
-
   constructor(
     private readonly context: vscode.ExtensionContext,
     private readonly configManager: AtlasConfigManager,
-  ) {
-    this.modelsDir = path.join(this.context.extensionPath, "models");
-  }
+  ) {}
 
   public refreshLocalModels(): AtlasModelConfig[] {
+    const modelsDir = this.getModelsDir();
     this.ensureModelsDir();
 
     const discoveredModels = fs
-      .readdirSync(this.modelsDir, { withFileTypes: true })
+      .readdirSync(modelsDir, { withFileTypes: true })
       .filter((entry) => entry.isFile())
       .filter((entry) => entry.name.toLowerCase().endsWith(".gguf"))
       .map((entry) => this.createModelConfig(entry.name));
@@ -43,18 +40,22 @@ export class AtlasLocalModelDiscoveryService {
   }
 
   public getModelsDir(): string {
-    this.ensureModelsDir();
-    return this.modelsDir;
+    const configured = this.getConfiguredModelsDir();
+    const modelsDir = configured || path.join(this.context.extensionPath, "models");
+
+    this.ensureModelsDir(modelsDir);
+    return modelsDir;
   }
 
-  private ensureModelsDir(): void {
-    if (!fs.existsSync(this.modelsDir)) {
-      fs.mkdirSync(this.modelsDir, { recursive: true });
+  private ensureModelsDir(modelsDir = this.getModelsDir()): void {
+    if (!fs.existsSync(modelsDir)) {
+      fs.mkdirSync(modelsDir, { recursive: true });
     }
   }
 
   private createModelConfig(fileName: string): AtlasModelConfig {
-    const filePath = path.join(this.modelsDir, fileName);
+    const modelsDir = this.getModelsDir();
+    const filePath = path.join(modelsDir, fileName);
     const stat = fs.statSync(filePath);
     const modelName = path.basename(fileName, path.extname(fileName));
     const modelId = `local/${modelName}`;
@@ -149,5 +150,17 @@ export class AtlasLocalModelDiscoveryService {
     }
 
     return `${value.toFixed(value >= 10 ? 1 : 2)} ${units[unitIndex]}`;
+  }
+
+  private getConfiguredModelsDir(): string {
+    const localModels = this.configManager.getConfig().custom?.localModels;
+
+    if (typeof localModels !== "object" || localModels === null) {
+      return "";
+    }
+
+    const modelsDir = (localModels as Record<string, unknown>).modelsDir;
+
+    return typeof modelsDir === "string" ? modelsDir.trim() : "";
   }
 }

@@ -4,38 +4,124 @@ body {
   background: var(--vscode-editor-background);
   padding: 16px;
   --atlas-card-background: var(--vscode-editorWidget-background, var(--vscode-sideBar-background, var(--vscode-editor-background)));
+  --atlas-muted-border: var(--vscode-widget-border);
 }
 
 h1 {
-  font-size: 35px;
+  font-size: 30px;
+  line-height: 1.15;
   margin-bottom: 6px;
+}
+
+.page-heading {
+  margin-bottom: 18px;
 }
 
 .subtitle {
   color: var(--vscode-descriptionForeground);
-  margin-bottom: 20px;
+  margin-bottom: 0;
   font-size: 15px;
+  line-height: 1.45;
+  max-width: 760px;
 }
 
 .card {
   background: var(--atlas-card-background);
   border: 1px solid var(--vscode-widget-border);
-  border-radius: 14px;
+  border-radius: 8px;
   padding: 16px;
   margin-bottom: 18px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .section-title {
   font-size: 20px;
   font-weight: 600;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
+}
+
+.section-description {
+  color: var(--vscode-descriptionForeground);
+  font-size: 13px;
+  line-height: 1.45;
+  max-width: 760px;
+}
+
+.settings-section {
+  border-top: 1px solid var(--atlas-muted-border);
+  padding-top: 16px;
+  margin-top: 16px;
+}
+
+.settings-section-heading {
+  margin-bottom: 12px;
+}
+
+.settings-section-heading h2 {
+  font-size: 15px;
+  line-height: 1.35;
+  margin: 0 0 4px;
+}
+
+.settings-section-heading p {
+  color: var(--vscode-descriptionForeground);
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 0;
+  max-width: 760px;
 }
 
 .engine-options {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 12px;
+}
+
+.folder-settings {
+  display: grid;
+  gap: 12px;
   margin-top: 14px;
+}
+
+.folder-setting {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.folder-setting label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.folder-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.folder-control input {
+  min-width: 0;
+  border: 1px solid var(--vscode-input-border, var(--vscode-widget-border));
+  border-radius: 5px;
+  padding: 7px 9px;
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  font-size: 12px;
+}
+
+.folder-setting small {
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .engine-option {
@@ -52,11 +138,11 @@ h1 {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  margin-top: 16px;
   border: 1px solid var(--vscode-widget-border);
   border-radius: 8px;
   padding: 12px;
   cursor: pointer;
+  max-width: 760px;
 }
 
 .engine-option:hover {
@@ -111,7 +197,11 @@ input[type="radio"]:checked::after {
 }
 
 .note {
-  margin-top: 14px;
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid var(--vscode-widget-border);
+  border-radius: 8px;
+  background: var(--vscode-textBlockQuote-background, transparent);
 }
 
 input[type="checkbox"] {
@@ -175,4 +265,19 @@ button {
 
 .btn-primary:hover {
   background: var(--vscode-button-hoverBackground);
+}
+
+.btn-secondary {
+  color: var(--vscode-button-secondaryForeground);
+  background: var(--vscode-button-secondaryBackground);
+}
+
+.btn-secondary:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+@media (max-width: 520px) {
+  .folder-control {
+    grid-template-columns: 1fr;
+  }
 }

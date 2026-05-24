@@ -32,10 +32,18 @@ h1 {
   margin-bottom: 10px;
 }
 
+.section-description {
+  color: var(--vscode-descriptionForeground);
+  font-size: 15px;
+  line-height: 1.45;
+  margin-bottom: 14px;
+  max-width: 760px;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 12px;
+  margin-top: 8px;
 }
 
 th,

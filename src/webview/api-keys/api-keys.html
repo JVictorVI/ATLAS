@@ -25,9 +25,13 @@
 
     <div class="card">
       <div class="section-title">Lista de Provedores Configurados</div>
+      <div class="section-description">
+        Cadastre, revise e remova os provedores em nuvem que o ATLAS pode usar
+        para buscar modelos e enviar requisições
+      </div>
 
       <div id="empty-credentials-state" class="empty-state">
-        Nenhuma chave cadastrada ainda.
+        Nenhuma provedor cadastrado
       </div>
 
       <table id="providers-table">
@@ -43,12 +47,16 @@
       </table>
 
       <div class="row-end">
-        <button id="add-key-btn" class="btn-primary">Adicionar chave</button>
+        <button id="add-key-btn" class="btn-primary">Adicionar</button>
       </div>
     </div>
 
     <div class="card">
       <div class="section-title">Configurações de Execução em Nuvem</div>
+      <div class="section-description">
+        Ajuste os parâmetros de execução aplicados nas chamadas feitas para
+        modelos executados por provedores externos
+      </div>
 
       <div class="checkbox-group">
         <label class="checkBoxSection">

@@ -205,6 +205,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
       getLocalModelsDir: () => this.localModelDiscoveryService.getModelsDir(),
 
+      getLocalEnginesDir: () => this.localEngineService.getEnginesDir(),
+
       getChatEditorContext: () =>
         this.editorContextService.getChatEditorContext(),
 

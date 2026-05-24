@@ -26,6 +26,7 @@ export type RouterDependencies = {
   promptStopLocalEngine: () => Promise<void>;
   stopLocalEngine: () => void;
   getLocalModelsDir: () => string;
+  getLocalEnginesDir: () => string;
   getChatEditorContext: () => AtlasEditorContext | null;
   buildEditorAnalysisContext: (context: AtlasEditorContext) => string;
   isChatViewVisible: () => boolean;

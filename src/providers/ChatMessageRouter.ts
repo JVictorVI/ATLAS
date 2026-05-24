@@ -70,6 +70,15 @@ export class ChatMessageRouter {
       case "salvarConfiguracoesAtlas":
         await this.handleSaveAtlasSettings(data, webview);
         return;
+      case "selecionarPastaModelosLocais":
+        await this.handleSelectLocalModelsFolder(webview);
+        return;
+      case "selecionarPastaEnginesLocais":
+        await this.handleSelectLocalEnginesFolder(webview);
+        return;
+      case "abrirPastaEnginesLocais":
+        await this.handleOpenLocalEnginesFolder();
+        return;
       case "selecionarModelo":
         await this.handleSelectModel(data, webview);
         return;
@@ -396,13 +405,25 @@ export class ChatMessageRouter {
           : {};
       const engineType = this.normalizeLocalEngineType(payload.engineType);
       const startOnAtlasOpen = payload.startOnAtlasOpen === true;
+      const localModels =
+        typeof currentCustom.localModels === "object" &&
+        currentCustom.localModels !== null
+          ? (currentCustom.localModels as Record<string, unknown>)
+          : {};
+      const modelsDir = this.normalizeFolderPath(payload.modelsDir);
+      const enginesDir = this.normalizeFolderPath(payload.enginesDir);
 
       this.deps.configManager.updateCustomRoot({
         ...currentCustom,
+        localModels: {
+          ...localModels,
+          modelsDir: modelsDir || this.deps.getLocalModelsDir(),
+        },
         localEngine: {
           ...currentLocalEngine,
           engineType,
           startOnAtlasOpen,
+          enginesDir: enginesDir || this.deps.getLocalEnginesDir(),
         },
       });
 
@@ -614,6 +635,85 @@ export class ChatMessageRouter {
     );
   }
 
+  private async handleOpenLocalEnginesFolder(): Promise<void> {
+    const enginesDir = this.deps.getLocalEnginesDir();
+    await vscode.commands.executeCommand(
+      "revealFileInOS",
+      vscode.Uri.file(enginesDir),
+    );
+  }
+
+  private async handleSelectLocalModelsFolder(
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      const selected = await vscode.window.showOpenDialog({
+        title: "Selecionar pasta de modelos GGUF",
+        canSelectFiles: false,
+        canSelectFolders: true,
+        canSelectMany: false,
+        defaultUri: vscode.Uri.file(this.deps.getLocalModelsDir()),
+        openLabel: "Usar esta pasta",
+      });
+
+      const folder = selected?.[0]?.fsPath;
+
+      if (!folder) {
+        return;
+      }
+
+      this.saveLocalModelsDir(folder);
+      this.deps.stopLocalEngine();
+      this.deps.refreshLocalModels();
+
+      await webview.postMessage({
+        type: "configuracoesAtlasCarregadas",
+        value: this.getAtlasSettingsPayload(),
+      });
+
+      vscode.window.showInformationMessage(
+        "Pasta de modelos locais atualizada.",
+      );
+    } catch (error) {
+      await this.postError(webview, error, "Erro ao selecionar pasta de modelos.");
+    }
+  }
+
+  private async handleSelectLocalEnginesFolder(
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      const selected = await vscode.window.showOpenDialog({
+        title: "Selecionar pasta de engines do llama.cpp",
+        canSelectFiles: false,
+        canSelectFolders: true,
+        canSelectMany: false,
+        defaultUri: vscode.Uri.file(this.deps.getLocalEnginesDir()),
+        openLabel: "Usar esta pasta",
+      });
+
+      const folder = selected?.[0]?.fsPath;
+
+      if (!folder) {
+        return;
+      }
+
+      this.saveLocalEnginesDir(folder);
+      this.deps.stopLocalEngine();
+
+      await webview.postMessage({
+        type: "configuracoesAtlasCarregadas",
+        value: this.getAtlasSettingsPayload(),
+      });
+
+      vscode.window.showInformationMessage(
+        "Pasta de engines locais atualizada.",
+      );
+    } catch (error) {
+      await this.postError(webview, error, "Erro ao selecionar pasta de engines.");
+    }
+  }
+
   private async handleStartLocalEngineRequest(
     webview: vscode.Webview,
   ): Promise<void> {
@@ -790,6 +890,8 @@ export class ChatMessageRouter {
       return {
         engineType: "cpu",
         startOnAtlasOpen: false,
+        modelsDir: this.deps.getLocalModelsDir(),
+        enginesDir: this.deps.getLocalEnginesDir(),
       };
     }
 
@@ -798,6 +900,8 @@ export class ChatMessageRouter {
     return {
       engineType: this.normalizeLocalEngineType(value.engineType),
       startOnAtlasOpen: value.startOnAtlasOpen === true,
+      modelsDir: this.deps.getLocalModelsDir(),
+      enginesDir: this.deps.getLocalEnginesDir(),
     };
   }
 
@@ -807,6 +911,44 @@ export class ChatMessageRouter {
     }
 
     return "cpu";
+  }
+
+  private normalizeFolderPath(value: unknown): string {
+    return typeof value === "string" ? value.trim() : "";
+  }
+
+  private saveLocalModelsDir(modelsDir: string): void {
+    const currentCustom = this.deps.configManager.getConfig().custom ?? {};
+    const currentLocalModels =
+      typeof currentCustom.localModels === "object" &&
+      currentCustom.localModels !== null
+        ? (currentCustom.localModels as Record<string, unknown>)
+        : {};
+
+    this.deps.configManager.updateCustomRoot({
+      ...currentCustom,
+      localModels: {
+        ...currentLocalModels,
+        modelsDir,
+      },
+    });
+  }
+
+  private saveLocalEnginesDir(enginesDir: string): void {
+    const currentCustom = this.deps.configManager.getConfig().custom ?? {};
+    const currentLocalEngine =
+      typeof currentCustom.localEngine === "object" &&
+      currentCustom.localEngine !== null
+        ? (currentCustom.localEngine as Record<string, unknown>)
+        : {};
+
+    this.deps.configManager.updateCustomRoot({
+      ...currentCustom,
+      localEngine: {
+        ...currentLocalEngine,
+        enginesDir,
+      },
+    });
   }
 
   private deleteModelFileFromModelsFolder(modelPath: string): void {

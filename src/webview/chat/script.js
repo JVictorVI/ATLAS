@@ -511,16 +511,16 @@ function renderPopoverContent() {
     : cloudModelLoadError
       ? `<div class="dropdown-empty dropdown-error"><i class="codicon codicon-error"></i><span>${escapeHtml(cloudModelLoadError)}</span></div>`
       : cloudModels.length
-      ? cloudModels
-          .map(
-            (m) => `
+        ? cloudModels
+            .map(
+              (m) => `
           <div class="dropdown-item model-item ${selectedModel?.id === m.id && selectedMode === "cloud" ? "selected" : ""}"
             data-mode="cloud" data-value="${m.id}" data-name="${m.name}" title="${m.name}">
             <span class="dropdown-item-label">${m.name}</span>
           </div>`,
-          )
-          .join("")
-      : `<div class="dropdown-empty"><i class="codicon codicon-info"></i><span>Nenhum modelo encontrado para este provedor.</span></div>`;
+            )
+            .join("")
+        : `<div class="dropdown-empty"><i class="codicon codicon-info"></i><span>Nenhum modelo encontrado para este provedor.</span></div>`;
 
   popover.innerHTML = `
     <div class="popover-header">
@@ -952,7 +952,7 @@ function renderLibraryView() {
           <i class="codicon codicon-pulse"></i>
         </div>
         <div>
-          <h2>Ambiente local</h2>
+          <h2>Ambiente Local</h2>
           <p>Saude da execução dos modelos locais</p>
         </div>
       </div>
@@ -1051,7 +1051,7 @@ function renderLocalHealthPanel() {
   );
   setLocalHealthText(
     "local-health-vram-summary",
-    gpuMemory?.totalLabel || gpuMemory?.label || "Nao detectada",
+    gpuMemory?.totalLabel || gpuMemory?.label || "Não detectada",
   );
   setLocalHealthText(
     "local-health-vram-used",
