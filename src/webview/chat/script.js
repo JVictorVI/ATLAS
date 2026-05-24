@@ -13,6 +13,7 @@ let loadingElement = null;
 let mensagemAtualBot = null;
 let bufferResposta = "";
 let isLoadingCloudModels = false;
+let cloudModelLoadError = null;
 let isGeneratingResponse = false;
 
 // --- VARIÁVEIS PARA O EFEITO MÁQUINA DE ESCREVER ---
@@ -37,6 +38,9 @@ let isRefreshingModelCatalog = false;
 let selectedMode = "local";
 let selectedProvider = null;
 let selectedModel = null;
+let libraryHealth = null;
+let libraryModels = [];
+let isLocalEngineActionRunning = false;
 
 function notifyCurrentView() {
   vscode.postMessage({ type: "atualizarViewAtual", view: currentView });
@@ -440,16 +444,20 @@ function hydratemodelsDataFromBackend(payload) {
 
   updateMainButton();
 
-  const popover = document.getElementById("agent-popover");
-  if (popover && !popover.classList.contains("hidden")) renderPopoverContent();
-
   if (selectedMode === "cloud" && selectedProvider) {
     isLoadingCloudModels = true;
+    cloudModelLoadError = null;
     vscode.postMessage({
       type: "selecionarProviderCloud",
       providerId: selectedProvider,
     });
+  } else {
+    isLoadingCloudModels = false;
+    cloudModelLoadError = null;
   }
+
+  const popover = document.getElementById("agent-popover");
+  if (popover && !popover.classList.contains("hidden")) renderPopoverContent();
 
   applyStudyModeState(payload.studyModeEnabled === true);
 }
@@ -476,14 +484,14 @@ function renderPopoverContent() {
     ? `<div class="dropdown-loading"><div class="spinner small"></div><span>Atualizando modelos...</span></div>`
     : localModels.length
       ? localModels
-        .map(
-          (m) => `
+          .map(
+            (m) => `
         <div class="dropdown-item model-item ${selectedModel?.id === m.id && selectedMode === "local" ? "selected" : ""}"
           data-mode="local" data-value="${m.id}" data-name="${m.name}" title="${m.name}">
           <span class="dropdown-item-label">${m.name}</span>
         </div>`,
-        )
-        .join("")
+          )
+          .join("")
       : `<div class="dropdown-empty">Nenhum modelo local encontrado</div>`;
 
   const providerListHtml = cloudProviders.length
@@ -499,8 +507,10 @@ function renderPopoverContent() {
     : `<div class="dropdown-empty">Nenhum provedor encontrado</div>`;
 
   const cloudModelListHtml = isLoadingCloudModels
-    ? `<div class="dropdown-loading"><div class="spinner small"></div><span>Buscando modelos...</span></div>`
-    : cloudModels.length
+    ? `<div class="dropdown-loading"><div class="spinner small"></div><span>Buscando modelos do provedor...</span></div>`
+    : cloudModelLoadError
+      ? `<div class="dropdown-empty dropdown-error"><i class="codicon codicon-error"></i><span>${escapeHtml(cloudModelLoadError)}</span></div>`
+      : cloudModels.length
       ? cloudModels
           .map(
             (m) => `
@@ -510,7 +520,7 @@ function renderPopoverContent() {
           </div>`,
           )
           .join("")
-      : `<div class="dropdown-empty">Nenhum modelo carregado</div>`;
+      : `<div class="dropdown-empty"><i class="codicon codicon-info"></i><span>Nenhum modelo encontrado para este provedor.</span></div>`;
 
   popover.innerHTML = `
     <div class="popover-header">
@@ -539,8 +549,14 @@ function renderPopoverContent() {
           <div class="dropdown-list dropdown-scroll hidden" id="list-provider">${providerListHtml}</div>
         </div>
         <div class="custom-dropdown">
-          <button class="popover-dropdown-btn" id="btn-model" ${isLoadingCloudModels ? "disabled" : ""}>
-            <span class="truncate">${isLoadingCloudModels ? "Carregando modelos..." : modelText}</span>
+          <button class="popover-dropdown-btn" id="btn-model">
+            <span class="truncate model-loading-label">${
+              isLoadingCloudModels
+                ? '<span class="spinner small inline-spinner"></span>Carregando modelos...'
+                : cloudModelLoadError
+                  ? "Erro ao carregar modelos"
+                  : modelText
+            }</span>
             <i class="codicon codicon-chevron-down"></i>
           </button>
           <div class="dropdown-list dropdown-scroll hidden" id="list-model">${cloudModelListHtml}</div>
@@ -553,6 +569,8 @@ function renderPopoverContent() {
     if (selectedMode !== "local") {
       selectedMode = "local";
       selectedModel = localModels[0] || null;
+      isLoadingCloudModels = false;
+      cloudModelLoadError = null;
       vscode.postMessage({ type: "selecionarModo", mode: "local" });
       renderPopoverContent();
       updateMainButton();
@@ -565,11 +583,13 @@ function renderPopoverContent() {
       selectedMode = "cloud";
       if (!selectedProvider) selectedProvider = cloudProviders[0]?.[0] || null;
       selectedModel = null;
+      cloudModelLoadError = null;
       vscode.postMessage({ type: "selecionarModo", mode: "cloud" });
       renderPopoverContent();
       updateMainButton();
       if (selectedProvider) {
         isLoadingCloudModels = true;
+        cloudModelLoadError = null;
         renderPopoverContent();
         vscode.postMessage({
           type: "selecionarProviderCloud",
@@ -592,6 +612,7 @@ function renderPopoverContent() {
       selectedProvider = item.getAttribute("data-value");
       selectedModel = null;
       isLoadingCloudModels = true;
+      cloudModelLoadError = null;
       renderPopoverContent();
       updateMainButton();
       vscode.postMessage({
@@ -924,8 +945,201 @@ function renderConfigView() {
 function renderLibraryView() {
   currentView = "library";
   notifyCurrentView();
-  contentContainer.innerHTML = "";
+  contentContainer.innerHTML = `
+    <section class="local-health-view">
+      <div class="local-health-header">
+        <div class="local-health-icon" aria-hidden="true">
+          <i class="codicon codicon-pulse"></i>
+        </div>
+        <div>
+          <h2>Ambiente local</h2>
+          <p>Saude da execução dos modelos locais</p>
+        </div>
+      </div>
+
+      <div class="local-health-status">
+        <span class="local-health-dot"></span>
+        <span id="local-health-engine">Engine: -</span>
+      </div>
+
+      <button class="local-engine-toggle-button" id="local-engine-toggle">
+        <i class="codicon codicon-debug-start"></i>
+        <span>Iniciar engine</span>
+      </button>
+
+      <div class="local-health-meter">
+        <div class="local-health-meter-top">
+          <span>VRAM</span>
+          <strong id="local-health-vram-summary">-</strong>
+        </div>
+        <div class="local-health-bar" aria-hidden="true">
+          <span id="local-health-vram-bar"></span>
+        </div>
+        <div class="local-health-meter-meta">
+          <span id="local-health-vram-used">Usada: -</span>
+          <span id="local-health-vram-free">Livre: -</span>
+        </div>
+      </div>
+
+      <div class="local-health-list">
+        <div class="local-health-item">
+          <span>Modelos instalados</span>
+          <strong id="local-health-model-count">0</strong>
+        </div>
+        <div class="local-health-item">
+          <span>Espaço ocupado</span>
+          <strong id="local-health-model-size">-</strong>
+        </div>
+        <div class="local-health-item local-health-folder">
+          <span>Pasta dos modelos</span>
+          <strong id="local-health-model-folder">-</strong>
+        </div>
+      </div>
+
+      <button class="local-health-folder-button" id="local-health-open-folder">
+        <i class="codicon codicon-folder-opened"></i>
+        <span>Abrir pasta</span>
+      </button>
+    </section>
+  `;
+  bindLocalHealthEvents();
+  renderLocalHealthPanel();
+  vscode.postMessage({ type: "requestModels" });
   vscode.postMessage({ type: "abrirPainelConfig", selectedView: "library" });
+}
+
+function bindLocalHealthEvents() {
+  document
+    .getElementById("local-health-open-folder")
+    ?.addEventListener("click", () => {
+      vscode.postMessage({ type: "openLocalModelsFolder" });
+    });
+
+  document
+    .getElementById("local-engine-toggle")
+    ?.addEventListener("click", () => {
+      if (isLocalEngineActionRunning) {
+        return;
+      }
+
+      const isRunning = libraryHealth?.engineRunning === true;
+      isLocalEngineActionRunning = true;
+      renderLocalEngineToggle();
+      vscode.postMessage({
+        type: isRunning ? "stopLocalEngineRequest" : "startLocalEngineRequest",
+      });
+    });
+}
+
+function renderLocalHealthPanel() {
+  const health = libraryHealth || {};
+  const gpuMemory = health.gpuMemory || null;
+  const usedBytes = Number(gpuMemory?.usedBytes) || 0;
+  const totalBytes = Number(gpuMemory?.totalBytes) || 0;
+  const freeBytes =
+    Number(gpuMemory?.freeBytes) || Math.max(0, totalBytes - usedBytes);
+  const usedPercent =
+    totalBytes > 0
+      ? Math.max(0, Math.min(100, (usedBytes / totalBytes) * 100))
+      : 0;
+
+  setLocalHealthText(
+    "local-health-engine",
+    `Engine: ${String(health.engineType || "cpu").toUpperCase()} · ${
+      health.engineRunning ? "ativa" : "parada"
+    }`,
+  );
+  setLocalHealthText(
+    "local-health-vram-summary",
+    gpuMemory?.totalLabel || gpuMemory?.label || "Nao detectada",
+  );
+  setLocalHealthText(
+    "local-health-vram-used",
+    totalBytes > 0
+      ? `Usada: ${gpuMemory.usedLabel || formatLocalHealthBytes(usedBytes)}`
+      : "Usada: -",
+  );
+  setLocalHealthText(
+    "local-health-vram-free",
+    totalBytes > 0
+      ? `Livre: ${gpuMemory.freeLabel || formatLocalHealthBytes(freeBytes)}`
+      : "Livre: -",
+  );
+  setLocalHealthText(
+    "local-health-model-count",
+    String(health.modelsCount ?? libraryModels.length),
+  );
+  setLocalHealthText(
+    "local-health-model-size",
+    health.totalSizeLabel || formatLocalHealthBytes(sumLocalModelBytes()),
+  );
+  setLocalHealthText("local-health-model-folder", health.modelsDir || "-");
+
+  const bar = document.getElementById("local-health-vram-bar");
+  if (bar) {
+    bar.style.width = `${usedPercent}%`;
+  }
+
+  renderLocalEngineToggle();
+}
+
+function renderLocalEngineToggle() {
+  const button = document.getElementById("local-engine-toggle");
+  if (!button) {
+    return;
+  }
+
+  const isRunning = libraryHealth?.engineRunning === true;
+  const icon = isLocalEngineActionRunning
+    ? "loading"
+    : isRunning
+      ? "debug-stop"
+      : "debug-start";
+  const label = isLocalEngineActionRunning
+    ? isRunning
+      ? "Parando..."
+      : "Iniciando..."
+    : isRunning
+      ? "Parar engine"
+      : "Iniciar engine";
+
+  button.disabled = isLocalEngineActionRunning;
+  button.classList.toggle("running", isRunning);
+  button.innerHTML = `
+    <i class="codicon codicon-${icon}"></i>
+    <span>${label}</span>
+  `;
+}
+
+function setLocalHealthText(id, value) {
+  const element = document.getElementById(id);
+  if (element) {
+    element.textContent = value ?? "";
+  }
+}
+
+function sumLocalModelBytes() {
+  return libraryModels.reduce(
+    (sum, model) => sum + (Number(model.sizeBytes) || 0),
+    0,
+  );
+}
+
+function formatLocalHealthBytes(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0) {
+    return "-";
+  }
+
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let value = bytes;
+  let unitIndex = 0;
+
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+
+  return `${value.toFixed(value >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
 // ── Navbar wiring ─────────────────────────────────────────────────────────────
@@ -1228,7 +1442,10 @@ window.addEventListener("message", (event) => {
     }
 
     case "respostaParcial": {
-      if (message.sessionId && message.sessionId !== activeGenerationSessionId) {
+      if (
+        message.sessionId &&
+        message.sessionId !== activeGenerationSessionId
+      ) {
         activeGenerationSessionId = message.sessionId;
         renderSessionList();
       }
@@ -1282,6 +1499,18 @@ window.addEventListener("message", (event) => {
       updateLoadingMessage(
         message.value?.message || "Iniciando a engine local...",
       );
+      break;
+    }
+    case "engineControlStatus": {
+      isLocalEngineActionRunning = message.value?.loading === true;
+      libraryHealth = {
+        ...(libraryHealth || {}),
+        engineRunning: message.value?.running === true,
+      };
+
+      if (currentView === "library") {
+        renderLocalHealthPanel();
+      }
       break;
     }
 
@@ -1338,6 +1567,7 @@ window.addEventListener("message", (event) => {
       mensagemAtualBot = null;
       bufferResposta = "";
       isLoadingCloudModels = false;
+      cloudModelLoadError = null;
       setGenerationState(false);
       fadeFramePending = false;
       shortcutLoadingState.quickAnalysis = false;
@@ -1369,10 +1599,20 @@ window.addEventListener("message", (event) => {
       hydratemodelsDataFromBackend(message.value);
       break;
     }
+    case "updateModelsList": {
+      libraryModels = message.models || [];
+      libraryHealth = message.health || null;
+
+      if (currentView === "library") {
+        renderLocalHealthPanel();
+      }
+      break;
+    }
     case "modelosCloudCarregados": {
       const { providerId, models } = message.value;
       if (modelsData[providerId]) modelsData[providerId].models = models;
       isLoadingCloudModels = false;
+      cloudModelLoadError = null;
       if (selectedMode === "cloud" && selectedProvider === providerId) {
         const prevId = selectedModel?.id;
         selectedModel =
@@ -1384,13 +1624,31 @@ window.addEventListener("message", (event) => {
       }
       break;
     }
+    case "modelosCloudErro": {
+      const { providerId, message: errorMessage } = message.value || {};
+
+      if (!providerId || selectedProvider === providerId) {
+        isLoadingCloudModels = false;
+        cloudModelLoadError =
+          errorMessage || "Nao foi possivel carregar modelos deste provedor.";
+        selectedModel = null;
+        updateMainButton();
+
+        const popover = document.getElementById("agent-popover");
+        if (popover && !popover.classList.contains("hidden")) {
+          renderPopoverContent();
+        }
+      }
+      break;
+    }
 
     // ── Session messages ────────────────────────────────────────────────────
 
     case "sessoesListadas": {
       activeSessions = message.value.sessions || [];
       activeSessionId = message.value.activeSessionId;
-      activeGenerationSessionId = message.value.activeGeneration?.sessionId || null;
+      activeGenerationSessionId =
+        message.value.activeGeneration?.sessionId || null;
 
       // If no active session exists yet, auto-create one
       if (!activeSessionId && activeSessions.length === 0) {
@@ -1416,7 +1674,8 @@ window.addEventListener("message", (event) => {
     case "sessaoCriada": {
       activeSessions = message.value.sessions || [];
       activeSessionId = message.value.session.id;
-      activeGenerationSessionId = message.value.activeGeneration?.sessionId || null;
+      activeGenerationSessionId =
+        message.value.activeGeneration?.sessionId || null;
       renderSessionList();
       loadChatMessages(message.value.session, message.value.activeGeneration);
       break;
@@ -1425,7 +1684,8 @@ window.addEventListener("message", (event) => {
     case "sessaoTrocada": {
       activeSessions = message.value.sessions || [];
       activeSessionId = message.value.session.id;
-      activeGenerationSessionId = message.value.activeGeneration?.sessionId || null;
+      activeGenerationSessionId =
+        message.value.activeGeneration?.sessionId || null;
       renderSessionList();
       loadChatMessages(message.value.session, message.value.activeGeneration);
       break;
@@ -1434,7 +1694,8 @@ window.addEventListener("message", (event) => {
     case "sessaoExcluida": {
       activeSessions = message.value.sessions || [];
       activeSessionId = message.value.activeSession?.id || null;
-      activeGenerationSessionId = message.value.activeGeneration?.sessionId || null;
+      activeGenerationSessionId =
+        message.value.activeGeneration?.sessionId || null;
       renderSessionList();
       if (message.value.activeSession) {
         loadChatMessages(

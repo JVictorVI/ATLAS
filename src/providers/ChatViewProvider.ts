@@ -157,6 +157,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this.panelManager = new ChatPanelManager(this.context, this.apiKeyManager);
     this.modelWebviewService = new ChatModelWebviewService(
       this.localModelDiscoveryService,
+      this.configManager,
+      () => this.localEngineService.isRunning(),
     );
 
     // Router
@@ -187,6 +189,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
       refreshLocalModels: () => {
         return this.localModelDiscoveryService.refreshLocalModels();
+      },
+
+      startLocalEngine: async () => {
+        await this.startLocalEngineForActiveModel();
       },
 
       promptStopLocalEngine: async () => {
@@ -303,8 +309,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   }
 
   private async startEngineOnAtlasOpen(): Promise<void> {
-    this.localModelDiscoveryService.refreshLocalModels();
-    const model = this.configManager.getActiveLocalModel();
+    const model = this.getActiveModelForEngineStartup();
 
     if (!model) {
       vscode.window.showWarningMessage(
@@ -330,6 +335,25 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     } finally {
       this.notifyEngineStartup = false;
     }
+  }
+
+  private async startLocalEngineForActiveModel(): Promise<void> {
+    const model = this.getActiveModelForEngineStartup();
+
+    if (!model) {
+      throw new Error(
+        "Nenhum modelo local selecionado para iniciar a engine.",
+      );
+    }
+
+    await this.localEngineService.ensureEngine(model);
+  }
+
+  private getActiveModelForEngineStartup() {
+    this.localModelDiscoveryService.refreshLocalModels();
+    const model = this.configManager.getActiveLocalModel();
+
+    return model;
   }
 
   public dispose(): void {

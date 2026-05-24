@@ -97,6 +97,15 @@ export class ChatMessageRouter {
       case "deleteModelRequest":
         await this.handleDeleteModelRequest(data, webview);
         return;
+      case "openLocalModelsFolder":
+        await this.handleOpenLocalModelsFolder();
+        return;
+      case "startLocalEngineRequest":
+        await this.handleStartLocalEngineRequest(webview);
+        return;
+      case "stopLocalEngineRequest":
+        await this.handleStopLocalEngineRequest(webview);
+        return;
       case "loadModelRequest":
         await this.handleLoadModelRequest(data, webview);
         return;
@@ -202,7 +211,6 @@ export class ChatMessageRouter {
   ): Promise<void> {
     try {
       const {
-        confirmCloud,
         blockRag,
         limitPayload,
         maxTokens,
@@ -213,7 +221,6 @@ export class ChatMessageRouter {
       } = data.payload ?? {};
 
       this.deps.configManager.updateSecuritySettings({
-        confirmCloud,
         blockRag,
         limitPayload,
         maxTokens,
@@ -599,6 +606,53 @@ export class ChatMessageRouter {
     }
   }
 
+  private async handleOpenLocalModelsFolder(): Promise<void> {
+    const modelsDir = this.deps.getLocalModelsDir();
+    await vscode.commands.executeCommand(
+      "revealFileInOS",
+      vscode.Uri.file(modelsDir),
+    );
+  }
+
+  private async handleStartLocalEngineRequest(
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      await webview.postMessage({
+        type: "engineControlStatus",
+        value: { loading: true, running: false, message: "Iniciando engine..." },
+      });
+
+      await this.deps.startLocalEngine();
+
+      await webview.postMessage({
+        type: "engineControlStatus",
+        value: { loading: false, running: true, message: "Engine ativa." },
+      });
+      this.deps.sendModelsToWebview(webview);
+      vscode.window.showInformationMessage("Engine local do ATLAS iniciada.");
+    } catch (error) {
+      await webview.postMessage({
+        type: "engineControlStatus",
+        value: { loading: false, running: false },
+      });
+      await this.postError(webview, error, "Erro ao iniciar engine local.");
+    }
+  }
+
+  private async handleStopLocalEngineRequest(
+    webview: vscode.Webview,
+  ): Promise<void> {
+    this.deps.stopLocalEngine();
+
+    await webview.postMessage({
+      type: "engineControlStatus",
+      value: { loading: false, running: false, message: "Engine parada." },
+    });
+    this.deps.sendModelsToWebview(webview);
+    vscode.window.showInformationMessage("Engine local do ATLAS encerrada.");
+  }
+
   private async handleLoadModelBehavior(
     webview: vscode.Webview,
   ): Promise<void> {
@@ -671,7 +725,21 @@ export class ChatMessageRouter {
         },
       });
     } catch (error) {
-      await this.postError(webview, error, "Erro ao carregar modelos cloud.");
+      const message = this.getErrorMessage(
+        error,
+        "Erro ao carregar modelos cloud.",
+      );
+
+      vscode.window.showErrorMessage(`ATLAS: ${message}`);
+
+      await webview.postMessage({
+        type: "modelosCloudErro",
+        value: {
+          providerId:
+            typeof data.providerId === "string" ? data.providerId : null,
+          message,
+        },
+      });
     }
   }
 

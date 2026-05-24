@@ -22,6 +22,7 @@ export type RouterDependencies = {
   sendModelsToWebview: (webview: vscode.Webview) => void;
   executeQuickAnalysis: (webview?: vscode.Webview) => Promise<void>;
   refreshLocalModels: () => ReturnType<AtlasConfigManager["getLocalModels"]>;
+  startLocalEngine: () => Promise<void>;
   promptStopLocalEngine: () => Promise<void>;
   stopLocalEngine: () => void;
   getLocalModelsDir: () => string;

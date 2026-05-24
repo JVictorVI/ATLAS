@@ -185,7 +185,7 @@ Atualização sugerida:
 
 O documento afirma que o sistema permite uso offline e informa quando código será enviado para nuvem.
 
-A arquitetura atual possui modo local, modo nuvem, chaves no Secret Storage, configuração `confirmCloud`, bloqueio de RAG para nuvem e limitação de payload. Porém o envio de contexto ao modelo depende do modo selecionado e ainda não há fluxo completo de consentimento por envio documentado no código analisado.
+A arquitetura atual possui modo local, modo nuvem, chaves no Secret Storage, bloqueio de RAG para nuvem e limitação de payload. Porém o envio de contexto ao modelo depende do modo selecionado e ainda não há fluxo completo de consentimento por envio documentado no código analisado.
 
 Atualização sugerida:
 

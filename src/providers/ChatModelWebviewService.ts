@@ -4,15 +4,32 @@ import * as fs from "fs";
 import { execFileSync } from "child_process";
 
 import { AtlasLocalModelDiscoveryService } from "../services/AtlasLocalModelDiscoveryService";
+import { AtlasConfigManager } from "../managers/AtlasConfigManager";
+
+type GpuMemoryInfo = {
+  totalBytes: number;
+  usedBytes: number;
+  freeBytes: number;
+  label: string;
+  totalLabel: string;
+  usedLabel: string;
+  freeLabel: string;
+};
 
 export class ChatModelWebviewService {
   constructor(
     private readonly localModelDiscoveryService: AtlasLocalModelDiscoveryService,
+    private readonly configManager: AtlasConfigManager,
+    private readonly isLocalEngineRunning: () => boolean,
   ) {}
 
   public sendModelsToWebview(webview: vscode.Webview): void {
     const localModels = this.localModelDiscoveryService.refreshLocalModels();
     const gpuMemory = this.getGpuMemoryInfo();
+    const totalSizeBytes = localModels.reduce(
+      (sum, model) => sum + (model.path ? this.getFileSizeBytes(model.path) : 0),
+      0,
+    );
 
     const modelsList = localModels.map((model) => ({
       id: model.id,
@@ -43,7 +60,19 @@ export class ChatModelWebviewService {
       systemPrompt: model.custom?.systemPrompt || "",
     }));
 
-    webview.postMessage({ type: "updateModelsList", models: modelsList });
+    webview.postMessage({
+      type: "updateModelsList",
+      models: modelsList,
+      health: {
+        engineType: this.getConfiguredEngineType(),
+        engineRunning: this.isLocalEngineRunning(),
+        gpuMemory,
+        modelsDir: this.localModelDiscoveryService.getModelsDir(),
+        modelsCount: localModels.length,
+        totalSizeBytes,
+        totalSizeLabel: this.formatBytes(totalSizeBytes),
+      },
+    });
   }
 
   private getFileSizeBytes(filePath: string): number {
@@ -54,9 +83,14 @@ export class ChatModelWebviewService {
     }
   }
 
-  private getGpuMemoryInfo(): { totalBytes: number; label: string } | null {
+  private getGpuMemoryInfo(): GpuMemoryInfo | null {
     if (process.platform !== "win32") {
       return null;
+    }
+
+    const nvidiaMemory = this.getNvidiaGpuMemoryInfo();
+    if (nvidiaMemory) {
+      return nvidiaMemory;
     }
 
     try {
@@ -83,10 +117,73 @@ export class ChatModelWebviewService {
       return {
         totalBytes,
         label: this.formatBytes(totalBytes),
+        totalLabel: this.formatBytes(totalBytes),
+        usedBytes: 0,
+        usedLabel: this.formatBytes(0),
+        freeBytes: totalBytes,
+        freeLabel: this.formatBytes(totalBytes),
       };
     } catch {
       return null;
     }
+  }
+
+  private getNvidiaGpuMemoryInfo(): GpuMemoryInfo | null {
+    try {
+      const output = execFileSync(
+        "nvidia-smi.exe",
+        [
+          "--query-gpu=memory.total,memory.used",
+          "--format=csv,noheader,nounits",
+        ],
+        { encoding: "utf8", timeout: 5000, windowsHide: true },
+      );
+      const rows = output
+        .trim()
+        .split(/\r?\n/)
+        .map((row) => row.split(",").map((value) => Number(value.trim())))
+        .filter(([total, used]) => Number.isFinite(total) && Number.isFinite(used));
+
+      if (rows.length === 0) {
+        return null;
+      }
+
+      const totals = rows.reduce(
+        (acc, [totalMb, usedMb]) => ({
+          totalBytes: acc.totalBytes + totalMb * 1024 ** 2,
+          usedBytes: acc.usedBytes + usedMb * 1024 ** 2,
+        }),
+        { totalBytes: 0, usedBytes: 0 },
+      );
+      const freeBytes = Math.max(0, totals.totalBytes - totals.usedBytes);
+
+      return {
+        ...totals,
+        freeBytes,
+        label: this.formatBytes(totals.totalBytes),
+        totalLabel: this.formatBytes(totals.totalBytes),
+        usedLabel: this.formatBytes(totals.usedBytes),
+        freeLabel: this.formatBytes(freeBytes),
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private getConfiguredEngineType(): "cpu" | "cuda" | "vulkan" {
+    const localEngine = this.configManager.getConfig().custom?.localEngine;
+
+    if (typeof localEngine !== "object" || localEngine === null) {
+      return "cpu";
+    }
+
+    const engineType = (localEngine as Record<string, unknown>).engineType;
+
+    if (engineType === "cuda" || engineType === "vulkan") {
+      return engineType;
+    }
+
+    return "cpu";
   }
 
   private getGgufLayerCount(filePath: string): number | null {

@@ -8,7 +8,6 @@ export interface AtlasGeneralSettings {
 }
 
 export interface AtlasSecuritySettings {
-  confirmCloud: boolean;
   blockRag: boolean;
   limitPayload: boolean;
   maxTokens?: number;

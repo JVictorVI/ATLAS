@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-05-24T01:52:26.177Z",
+  "updatedAt": "2026-05-24T02:38:46.486Z",
   "general": {
     "theme": "system",
     "language": "pt-BR",
@@ -8,7 +8,6 @@
     "logLevel": "info"
   },
   "cloudSecurity": {
-    "confirmCloud": false,
     "blockRag": false,
     "limitPayload": true,
     "maxTokens": 4096,
@@ -40,8 +39,8 @@
         "activeModelId": "local/gemma-4-E4B-it-Q4_K_S"
       },
       "cloud": {
-        "providerId": "Gemini",
-        "activeModelId": "gemini-flash-lite-latest"
+        "providerId": "Groq",
+        "activeModelId": "openai/gpt-oss-120b"
       }
     },
     "defaults": {
@@ -130,7 +129,7 @@
           "quantization": "Q4_K_S",
           "size": "4.51 GB",
           "installedAt": "2026-05-15T23:15:55.940Z",
-          "updatedAt": "2026-05-24T01:52:26.160Z"
+          "updatedAt": "2026-05-24T02:38:46.466Z"
         },
         "custom": {
           "baseUrl": "http://127.0.0.1:8080/v1",
@@ -161,7 +160,7 @@
           "quantization": "Q8_K_XL",
           "size": "1.72 GB",
           "installedAt": "2026-05-15T23:16:42.419Z",
-          "updatedAt": "2026-05-24T01:52:26.177Z"
+          "updatedAt": "2026-05-24T02:38:46.486Z"
         },
         "custom": {
           "baseUrl": "http://127.0.0.1:8080/v1",
@@ -212,7 +211,7 @@
     },
     "localEngine": {
       "engineType": "cuda",
-      "startOnAtlasOpen": true
+      "startOnAtlasOpen": false
     }
   },
   "providers": [

@@ -15,7 +15,6 @@ export class AtlasConfigDefaults {
         logLevel: "info",
       },
       cloudSecurity: {
-        confirmCloud: true,
         blockRag: false,
         limitPayload: true,
         maxTokens: 2048,
