@@ -277,6 +277,12 @@ body {
   flex-wrap: wrap;
 }
 
+.inline-fields:has(#param-gpu) {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px 20px;
+}
+
 .field {
   display: flex;
   flex-direction: column;
@@ -284,9 +290,38 @@ body {
   min-width: 200px;
 }
 
+.inline-fields:has(#param-gpu) .field {
+  min-width: 0;
+}
+
+.field:has(#param-tokens-res) {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.field:has(#param-context) {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.field:has(#param-max-tokens) {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.field:has(#param-temp) {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.field:has(#param-top-p) {
+  grid-column: 2;
+  grid-row: 2;
+}
+
 .field:has(#param-gpu) {
-  order: 99;
-  flex: 1 1 100%;
+  grid-column: 1 / -1;
+  grid-row: 3;
   max-width: 640px;
 }
 
@@ -498,5 +533,43 @@ button {
 
   .actions button {
     flex: 1;
+  }
+
+  .inline-fields:has(#param-gpu) {
+    grid-template-columns: 1fr;
+  }
+
+  .field:has(#param-tokens-res),
+  .field:has(#param-context),
+  .field:has(#param-max-tokens),
+  .field:has(#param-temp),
+  .field:has(#param-top-p),
+  .field:has(#param-gpu) {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .field:has(#param-tokens-res) {
+    order: 1;
+  }
+
+  .field:has(#param-context) {
+    order: 2;
+  }
+
+  .field:has(#param-max-tokens) {
+    order: 3;
+  }
+
+  .field:has(#param-temp) {
+    order: 4;
+  }
+
+  .field:has(#param-top-p) {
+    order: 5;
+  }
+
+  .field:has(#param-gpu) {
+    order: 6;
   }
 }

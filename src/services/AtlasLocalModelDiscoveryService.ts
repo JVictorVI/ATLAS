@@ -41,7 +41,8 @@ export class AtlasLocalModelDiscoveryService {
 
   public getModelsDir(): string {
     const configured = this.getConfiguredModelsDir();
-    const modelsDir = configured || path.join(this.context.extensionPath, "models");
+    const modelsDir =
+      configured || path.join(this.context.extensionPath, "models");
 
     this.ensureModelsDir(modelsDir);
     return modelsDir;
@@ -71,10 +72,10 @@ export class AtlasLocalModelDiscoveryService {
       apiModelName: existing?.apiModelName ?? modelName,
       parameters: {
         temperature: 0.7,
-        maxTokens: 1024,
+        maxTokens: 4096,
         topP: 0.95,
         gpuLayers: 0,
-        contextWindow: 4096,
+        contextWindow: 8192,
         ...(existing?.parameters ?? {}),
       },
       metadata: {

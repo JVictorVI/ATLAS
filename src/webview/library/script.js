@@ -149,9 +149,10 @@ function selectModel(id) {
   // Atualiza os inputs
   configureGpuSlider(model);
   setValue("param-tokens-res", model.params.tokensRes);
-  setValue("param-temp", model.params.temp);
   setValue("param-context", model.params.context);
   setValue("param-max-tokens", model.params.maxTokens);
+  setValue("param-temp", model.params.temp);
+  setValue("param-top-p", model.params.topP);
 
   // Atualiza Rádios de Comportamento
   if (model.customPrompt) {
@@ -420,9 +421,10 @@ function setupButtons() {
         params: {
           gpuLayers: parseInt(document.getElementById("param-gpu").value) || 0,
           tokensRes: parseInt(document.getElementById("param-tokens-res").value) || 0,
-          temperature: parseFloat(document.getElementById("param-temp").value) || 0,
           contextWindow: parseInt(document.getElementById("param-context").value) || 0,
           maxTokens: parseInt(document.getElementById("param-max-tokens").value) || 0,
+          temperature: parseFloat(document.getElementById("param-temp").value) || 0,
+          topP: parseFloat(document.getElementById("param-top-p").value) || 0,
         },
       });
     });

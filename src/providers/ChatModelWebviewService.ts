@@ -27,7 +27,8 @@ export class ChatModelWebviewService {
     const localModels = this.localModelDiscoveryService.refreshLocalModels();
     const gpuMemory = this.getGpuMemoryInfo();
     const totalSizeBytes = localModels.reduce(
-      (sum, model) => sum + (model.path ? this.getFileSizeBytes(model.path) : 0),
+      (sum, model) =>
+        sum + (model.path ? this.getFileSizeBytes(model.path) : 0),
       0,
     );
 
@@ -51,10 +52,11 @@ export class ChatModelWebviewService {
       },
       params: {
         gpu: model.parameters?.gpuLayers ?? 40,
-        tokensRes: model.custom?.tokensRes ?? 512,
+        tokensRes: model.custom?.tokensRes ?? 2048,
         temp: model.parameters?.temperature ?? 0.7,
-        context: model.parameters?.contextWindow ?? 4096,
-        maxTokens: model.parameters?.maxTokens ?? 300,
+        topP: model.parameters?.topP ?? 0.95,
+        context: model.parameters?.contextWindow ?? 8192,
+        maxTokens: model.parameters?.maxTokens ?? 4096,
       },
       customPrompt: !!model.custom?.systemPrompt,
       systemPrompt: model.custom?.systemPrompt || "",
@@ -142,7 +144,9 @@ export class ChatModelWebviewService {
         .trim()
         .split(/\r?\n/)
         .map((row) => row.split(",").map((value) => Number(value.trim())))
-        .filter(([total, used]) => Number.isFinite(total) && Number.isFinite(used));
+        .filter(
+          ([total, used]) => Number.isFinite(total) && Number.isFinite(used),
+        );
 
       if (rows.length === 0) {
         return null;
