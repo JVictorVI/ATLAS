@@ -1,7 +1,11 @@
 import * as vscode from "vscode";
 import { AtlasQuickAnalysisService } from "../services/AtlasQuickAnalysisService";
 import { AtlasEditorContextService } from "./AtlasEditorContextService";
-import { AtlasQuickIssue } from "../interfaces/AtlasQuickAnalysisTypes";
+import {
+  AtlasQuickIssue,
+  AtlasQuickIssueCategory,
+  AtlasQuickIssueSeverity,
+} from "../interfaces/AtlasQuickAnalysisTypes";
 
 type AtlasQuickAnalysisExecutionOptions = {
   source?: "button" | "chat";
@@ -223,7 +227,7 @@ export class AtlasQuickAnalysisController {
 
       const option: vscode.DecorationOptions = {
         range,
-        hoverMessage: `**ATLAS**\n\n${issue.message}`,
+        hoverMessage: this.buildHoverMessage(issue),
       };
 
       if (issue.severity === "low") {
@@ -238,5 +242,62 @@ export class AtlasQuickAnalysisController {
     editor.setDecorations(this.lowIssueDecoration, lowRanges);
     editor.setDecorations(this.mediumIssueDecoration, mediumRanges);
     editor.setDecorations(this.highIssueDecoration, highRanges);
+  }
+
+  private buildHoverMessage(issue: AtlasQuickIssue): vscode.MarkdownString {
+    const severity = this.getSeverityLabel(issue.severity);
+    const category = this.getCategoryLabel(issue.category);
+    const lineLabel =
+      issue.startLine === issue.endLine
+        ? `Linha ${issue.startLine}`
+        : `Linhas ${issue.startLine}-${issue.endLine}`;
+
+    return new vscode.MarkdownString(
+      [
+        `**ATLAS - ${severity.label}**`,
+        `**Categoria:** ${category}`,
+        `**Trecho:** ${lineLabel}`,
+        issue.message,
+      ].join("\n\n"),
+    );
+  }
+
+  private getSeverityLabel(severity: AtlasQuickIssueSeverity): {
+    label: string;
+    color: string;
+  } {
+    switch (severity) {
+      case "low":
+        return { label: "Baixo impacto", color: "azul" };
+      case "medium":
+        return { label: "Médio impacto", color: "amarelo" };
+      case "high":
+      default:
+        return { label: "Alto impacto", color: "vermelho" };
+    }
+  }
+
+  private getCategoryLabel(category: AtlasQuickIssueCategory): string {
+    switch (category) {
+      case "coupling":
+        return "Acoplamento";
+      case "cohesion":
+        return "Coesão";
+      case "responsibility":
+        return "Responsabilidade";
+      case "abstraction":
+        return "Abstração";
+      case "dependency":
+        return "Dependência";
+      case "layering":
+        return "Camadas";
+      case "solid":
+        return "SOLID";
+      case "grasp":
+        return "GRASP";
+      case "maintainability":
+      default:
+        return "Manutenibilidade";
+    }
   }
 }
