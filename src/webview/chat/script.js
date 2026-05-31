@@ -16,6 +16,9 @@ let bufferResposta = "";
 let isLoadingCloudModels = false;
 let cloudModelLoadError = null;
 let isGeneratingResponse = false;
+let shouldAutoScrollChat = true;
+
+const CHAT_BOTTOM_THRESHOLD_PX = 72;
 
 // --- VARIÁVEIS PARA O EFEITO MÁQUINA DE ESCREVER ---
 let fadeFramePending = false;
@@ -273,7 +276,7 @@ function loadChatMessages(session, activeGeneration = null) {
 
   renderPendingGeneration(pendingGeneration);
 
-  chatContainer.scrollTop = chatContainer.scrollHeight;
+  scrollChatToBottom(true);
 }
 
 function renderPendingGeneration(activeGeneration) {
@@ -292,7 +295,7 @@ function renderPendingGeneration(activeGeneration) {
   }
 
   bufferResposta = partialContent;
-  mensagemAtualBot = addMessage("", "bot", false);
+  mensagemAtualBot = addMessage("", "bot", false, false);
 
   if (mensagemAtualBot) {
     mensagemAtualBot.classList.add("streaming-message");
@@ -327,6 +330,44 @@ function updateActiveTab(activeId) {
 
 function getChatContainer() {
   return document.getElementById("chat-container");
+}
+
+function isChatPinnedToBottom(chatContainer) {
+  if (!chatContainer) {
+    return true;
+  }
+
+  const distanceFromBottom =
+    chatContainer.scrollHeight -
+    chatContainer.scrollTop -
+    chatContainer.clientHeight;
+
+  return distanceFromBottom <= CHAT_BOTTOM_THRESHOLD_PX;
+}
+
+function scrollChatToBottom(force = false) {
+  const chatContainer = getChatContainer();
+  if (!chatContainer) {
+    return;
+  }
+
+  if (force || shouldAutoScrollChat) {
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+    shouldAutoScrollChat = true;
+  }
+}
+
+function bindChatScrollTracking() {
+  const chatContainer = getChatContainer();
+  if (!chatContainer) {
+    return;
+  }
+
+  shouldAutoScrollChat = true;
+
+  chatContainer.addEventListener("scroll", () => {
+    shouldAutoScrollChat = isChatPinnedToBottom(chatContainer);
+  });
 }
 
 function getSingleLineInputHeight(input) {
@@ -679,6 +720,8 @@ function setupChatEvents() {
   );
   const studyModeBtn = document.getElementById("study-mode-btn");
 
+  bindChatScrollTracking();
+
   if (!input || !btn) return;
 
   if (popoverBtn && agentPopover) {
@@ -815,7 +858,7 @@ function renderMarkdownContent(element, content, includeCursor = false) {
   }
 }
 
-function addMessage(content, type, isMarkdown = false) {
+function addMessage(content, type, isMarkdown = false, forceScroll = true) {
   const chatContainer = getChatContainer();
   if (!chatContainer) return null;
   const div = document.createElement("div");
@@ -828,7 +871,7 @@ function addMessage(content, type, isMarkdown = false) {
     div.textContent = content;
   }
   chatContainer.appendChild(div);
-  chatContainer.scrollTop = chatContainer.scrollHeight;
+  scrollChatToBottom(forceScroll);
   return div;
 }
 
@@ -845,7 +888,7 @@ function showLoading(message = "Pensando") {
 
   div.appendChild(text);
   chatContainer.appendChild(div);
-  chatContainer.scrollTop = chatContainer.scrollHeight;
+  scrollChatToBottom(true);
   loadingElement = div;
   setGenerationState(true);
 }
@@ -933,13 +976,14 @@ function finishCurrentBotMessage(cancelled = false) {
       mensagemAtualBot.appendChild(status);
     }
   } else if (cancelled) {
-    addMessage("Resposta interrompida.", "bot");
+    addMessage("Resposta interrompida.", "bot", false, false);
   }
 
   mensagemAtualBot = null;
   bufferResposta = "";
   loadingDefaultMessage = "Pensando";
 
+  scrollChatToBottom();
   setGenerationState(false);
 }
 
@@ -1232,10 +1276,7 @@ function processQueue() {
     }
   }
 
-  const chatContainer = getChatContainer();
-  if (chatContainer) {
-    chatContainer.scrollTop = chatContainer.scrollHeight;
-  }
+  scrollChatToBottom();
 
   setTimeout(() => {
     isTyping = false;
@@ -1458,7 +1499,7 @@ window.addEventListener("message", (event) => {
       setGenerationState(false);
       shortcutLoadingState.architectureAnalysis = false;
       setShortcutLoading("architecture-analysis", false);
-      addMessage(message.value, "bot", true);
+      addMessage(message.value, "bot", true, false);
       break;
     }
 
@@ -1480,7 +1521,7 @@ window.addEventListener("message", (event) => {
       if (!mensagemAtualBot) {
         bufferResposta = "";
 
-        mensagemAtualBot = addMessage("", "bot", false);
+        mensagemAtualBot = addMessage("", "bot", false, false);
 
         mensagemAtualBot.classList.add("streaming-message");
       }
@@ -1503,11 +1544,7 @@ window.addEventListener("message", (event) => {
             }
           }
 
-          const chatContainer = getChatContainer();
-
-          if (chatContainer) {
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-          }
+          scrollChatToBottom();
 
           fadeFramePending = false;
         });
@@ -1560,6 +1597,7 @@ window.addEventListener("message", (event) => {
       bufferResposta = "";
       fadeFramePending = false;
 
+      scrollChatToBottom();
       setGenerationState(false);
 
       shortcutLoadingState.architectureAnalysis = false;

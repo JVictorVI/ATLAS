@@ -53,11 +53,7 @@ export class ChatResponseController {
           : [],
         ragContext: [],
         hasCodeContext: Boolean(editorContext),
-        forcedMode:
-          data.forcedMode ??
-          (editorContext?.source === "selection"
-            ? "developer-assistant"
-            : undefined),
+        forcedMode: data.forcedMode,
         architecturalSummary: session.architecturalSummary || undefined,
       });
 
