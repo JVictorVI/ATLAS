@@ -61,6 +61,15 @@ export class ChatResponseController {
         architecturalSummary: session.architecturalSummary || undefined,
       });
 
+      if (promptResult.mode === "quick-analysis") {
+        await this.handleQuickAnalysisFromChat(
+          session.id,
+          String(data.value ?? ""),
+          webview,
+        );
+        return;
+      }
+
       const response = shouldStream
         ? await this.deps.inferenceService.sendChat(
             promptResult.messages,
@@ -161,6 +170,27 @@ export class ChatResponseController {
     }
 
     this.activeResponseController.abort();
+  }
+
+  private async handleQuickAnalysisFromChat(
+    sessionId: string,
+    userContent: string,
+    webview: vscode.Webview,
+  ): Promise<void> {
+    await this.deps.sessionService.appendMessage(sessionId, {
+      role: "user",
+      content: userContent,
+    });
+
+    await this.deps.executeQuickAnalysis(webview, {
+      source: "chat",
+      sessionId,
+    });
+
+    await webview.postMessage({
+      type: "sessoesAtualizadas",
+      value: this.deps.sessionService.listSessions(),
+    });
   }
 
   public serializeActiveGeneration(): ActiveGenerationPayload {

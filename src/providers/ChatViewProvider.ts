@@ -183,8 +183,11 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         this.modelWebviewService.sendModelsToWebview(webview);
       },
 
-      executeQuickAnalysis: async (webview?: vscode.Webview) => {
-        await this.quickAnalysisController.execute(webview);
+      executeQuickAnalysis: async (
+        webview?: vscode.Webview,
+        options?: { source?: "button" | "chat"; sessionId?: string },
+      ) => {
+        await this.quickAnalysisController.execute(webview, options);
       },
 
       refreshLocalModels: () => {

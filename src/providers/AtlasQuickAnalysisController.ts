@@ -3,6 +3,11 @@ import { AtlasQuickAnalysisService } from "../services/AtlasQuickAnalysisService
 import { AtlasEditorContextService } from "./AtlasEditorContextService";
 import { AtlasQuickIssue } from "../interfaces/AtlasQuickAnalysisTypes";
 
+type AtlasQuickAnalysisExecutionOptions = {
+  source?: "button" | "chat";
+  sessionId?: string;
+};
+
 export class AtlasQuickAnalysisController {
   private readonly lowIssueDecoration: vscode.TextEditorDecorationType;
   private readonly mediumIssueDecoration: vscode.TextEditorDecorationType;
@@ -43,7 +48,11 @@ export class AtlasQuickAnalysisController {
     });
   }
 
-  public async execute(webview?: vscode.Webview): Promise<void> {
+  public async execute(
+    webview?: vscode.Webview,
+    options: AtlasQuickAnalysisExecutionOptions = {},
+  ): Promise<void> {
+    const source = options.source ?? "button";
     const editorContext = this.editorContextService.getFullDocumentContext();
 
     if (!editorContext) {
@@ -52,6 +61,7 @@ export class AtlasQuickAnalysisController {
 
       await webview?.postMessage({
         type: "erro",
+        sessionId: options.sessionId,
         value: message,
       });
 
@@ -70,6 +80,7 @@ export class AtlasQuickAnalysisController {
 
       await webview?.postMessage({
         type: "erro",
+        sessionId: options.sessionId,
         value: message,
       });
 
@@ -80,7 +91,8 @@ export class AtlasQuickAnalysisController {
     try {
       await webview?.postMessage({
         type: "analiseRapidaStatus",
-        value: { loading: true },
+        sessionId: options.sessionId,
+        value: { loading: true, source },
       });
 
       const issues = await this.quickAnalysisService.analyzeCode(
@@ -99,7 +111,9 @@ export class AtlasQuickAnalysisController {
 
         await webview?.postMessage({
           type: "analiseRapidaConcluida",
+          sessionId: options.sessionId,
           value: {
+            source,
             total: 0,
             issues: [],
           },
@@ -116,7 +130,9 @@ export class AtlasQuickAnalysisController {
 
       await webview?.postMessage({
         type: "analiseRapidaConcluida",
+        sessionId: options.sessionId,
         value: {
+          source,
           total: sanitizedIssues.length,
           issues: sanitizedIssues,
         },
@@ -133,6 +149,7 @@ export class AtlasQuickAnalysisController {
 
       await webview?.postMessage({
         type: "erro",
+        sessionId: options.sessionId,
         value: message,
       });
 
@@ -140,7 +157,8 @@ export class AtlasQuickAnalysisController {
     } finally {
       await webview?.postMessage({
         type: "analiseRapidaStatus",
-        value: { loading: false },
+        sessionId: options.sessionId,
+        value: { loading: false, source },
       });
     }
   }

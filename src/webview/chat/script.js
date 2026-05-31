@@ -10,6 +10,7 @@ const configBtn = document.getElementById("config-panel-btn");
 
 let currentView = "chat";
 let loadingElement = null;
+let loadingDefaultMessage = "Pensando";
 let mensagemAtualBot = null;
 let bufferResposta = "";
 let isLoadingCloudModels = false;
@@ -237,6 +238,7 @@ function loadChatMessages(session, activeGeneration = null) {
 
   chatContainer.innerHTML = "";
   loadingElement = null;
+  loadingDefaultMessage = "Pensando";
   mensagemAtualBot = null;
   bufferResposta = "";
   fadeFramePending = false;
@@ -376,7 +378,7 @@ function renderChatView() {
       <div id="agent-popover" class="agent-popover hidden"></div>
 
             <div class="top-controls">
-                <div class="model-selector" id="open-popover" title="Selecionar Agente">
+                <div class="model-selector" id="open-popover" title="Selecionar Modelo">
                     <i class="codicon codicon-chevron-down"></i>
                     <span id="main-btn-text">${selectedModel ? selectedModel.name : "Selecionar modelo"}</span>
                     <i class="codicon codicon-screenfull" style="font-size: 14px; margin-left: 4px;"></i>
@@ -524,7 +526,7 @@ function renderPopoverContent() {
 
   popover.innerHTML = `
     <div class="popover-header">
-      <button class="popover-icon-btn ${selectedMode === "local" ? "active" : ""}" id="tab-local" title="Agente Local">
+      <button class="popover-icon-btn ${selectedMode === "local" ? "active" : ""}" id="tab-local" title="Modelos Locais">
         <i class="codicon codicon-device-desktop"></i>
       </button>
       <div class="popover-separator"></div>
@@ -830,15 +832,16 @@ function addMessage(content, type, isMarkdown = false) {
   return div;
 }
 
-function showLoading() {
+function showLoading(message = "Pensando") {
   const chatContainer = getChatContainer();
   if (!chatContainer) return;
+  loadingDefaultMessage = message;
   const div = document.createElement("div");
   div.className = "message bot loading";
   const text = document.createElement("span");
   text.className = "thinking-word";
-  text.textContent = "Pensando";
-  text.dataset.text = "Pensando";
+  text.textContent = message;
+  text.dataset.text = message;
 
   div.appendChild(text);
   chatContainer.appendChild(div);
@@ -859,6 +862,22 @@ function updateLoadingMessage(message) {
   }
 }
 
+function setLoadingDefaultMessage(message) {
+  loadingDefaultMessage = message;
+  updateLoadingMessage(message);
+}
+
+function resetLoadingMessageToDefault() {
+  updateLoadingMessage(loadingDefaultMessage);
+}
+
+function isEngineReadyMessage(message) {
+  return String(message || "")
+    .trim()
+    .toLowerCase()
+    .startsWith("engine local pronta");
+}
+
 function removeLoading() {
   const chatContainer = getChatContainer();
   if (
@@ -869,6 +888,7 @@ function removeLoading() {
     chatContainer.removeChild(loadingElement);
   }
   loadingElement = null;
+  loadingDefaultMessage = "Pensando";
 }
 
 function setGenerationState(isGenerating) {
@@ -918,6 +938,7 @@ function finishCurrentBotMessage(cancelled = false) {
 
   mensagemAtualBot = null;
   bufferResposta = "";
+  loadingDefaultMessage = "Pensando";
 
   setGenerationState(false);
 }
@@ -1496,9 +1517,15 @@ window.addEventListener("message", (event) => {
     }
 
     case "engineLocalStatus": {
-      updateLoadingMessage(
-        message.value?.message || "Iniciando a engine local...",
-      );
+      const engineMessage =
+        message.value?.message || "Iniciando a engine local...";
+
+      if (isEngineReadyMessage(engineMessage) && isGeneratingResponse) {
+        resetLoadingMessageToDefault();
+        break;
+      }
+
+      updateLoadingMessage(engineMessage);
       break;
     }
     case "engineControlStatus": {
@@ -1579,8 +1606,13 @@ window.addEventListener("message", (event) => {
     }
     case "analiseRapidaStatus": {
       const isLoading = !!message.value?.loading;
+      const isQuickAnalysisFromChat = message.value?.source === "chat";
       shortcutLoadingState.quickAnalysis = isLoading;
       setShortcutLoading("quick-analysis", isLoading);
+
+      if (isQuickAnalysisFromChat && isLoading) {
+        setLoadingDefaultMessage("Analisando e marcando no editor");
+      }
 
       const quickAnalysisBtn = document.getElementById("quick-analysis-btn");
       if (quickAnalysisBtn) {
@@ -1590,6 +1622,22 @@ window.addEventListener("message", (event) => {
       break;
     }
     case "analiseRapidaConcluida": {
+      const isQuickAnalysisFromChat = message.value?.source === "chat";
+
+      if (isQuickAnalysisFromChat) {
+        clearGenerationForMessage(message);
+
+        if (!isMessageForActiveSession(message)) {
+          break;
+        }
+
+        removeLoading();
+        mensagemAtualBot = null;
+        bufferResposta = "";
+        fadeFramePending = false;
+        setGenerationState(false);
+      }
+
       shortcutLoadingState.quickAnalysis = false;
       setShortcutLoading("quick-analysis", false);
       break;

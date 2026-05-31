@@ -20,7 +20,10 @@ export type RouterDependencies = {
   openPanel: (selectedView?: string) => void;
   openSearchModelDetails: (modelId: string) => void;
   sendModelsToWebview: (webview: vscode.Webview) => void;
-  executeQuickAnalysis: (webview?: vscode.Webview) => Promise<void>;
+  executeQuickAnalysis: (
+    webview?: vscode.Webview,
+    options?: { source?: "button" | "chat"; sessionId?: string },
+  ) => Promise<void>;
   refreshLocalModels: () => ReturnType<AtlasConfigManager["getLocalModels"]>;
   startLocalEngine: () => Promise<void>;
   promptStopLocalEngine: () => Promise<void>;
