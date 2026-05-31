@@ -31,19 +31,43 @@ export class AtlasQuickAnalysisService {
     languageId?: string,
     fileName?: string,
   ): string {
+    const numberedCode = this.addLineNumbers(code);
+    const lineCount = numberedCode.lineCount;
+
     return [
       "Realize uma análise rápida arquitetural do código abaixo.",
-      "Identifique apenas linhas ou blocos com problemas arquiteturais observáveis.",
+      "Faça uma varredura completa do arquivo, cobrindo início, meio e fim.",
+      "Identifique todas as linhas ou blocos com problemas arquiteturais observáveis e distintos.",
+      "Não limite a resposta aos primeiros problemas encontrados.",
+      "Use os números no início de cada linha para preencher startLine e endLine.",
+      "Os prefixos no formato '<linha> |' são apenas referência; não fazem parte do código original.",
       "Retorne exclusivamente JSON válido no formato solicitado.",
       "",
       fileName ? `Arquivo: ${fileName}` : "",
       languageId ? `Linguagem: ${languageId}` : "",
+      `Total de linhas recebidas: ${lineCount}`,
       "",
-      "Código:",
-      code,
+      "Código numerado:",
+      numberedCode.content,
     ]
       .filter(Boolean)
       .join("\n");
+  }
+
+  private addLineNumbers(code: string): { content: string; lineCount: number } {
+    const lines = code.split(/\r\n|\r|\n/);
+    const width = String(lines.length).length;
+    const content = lines
+      .map((line, index) => {
+        const lineNumber = String(index + 1).padStart(width, " ");
+        return `${lineNumber} | ${line}`;
+      })
+      .join("\n");
+
+    return {
+      content,
+      lineCount: lines.length,
+    };
   }
 
   private parseIssues(raw: string): AtlasQuickIssue[] {
