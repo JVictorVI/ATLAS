@@ -17,8 +17,9 @@ O projeto também busca apoiar estudo e evolução técnica, oferecendo modos di
 - Respostas com streaming quando o provedor oferece suporte.
 - Sessões de conversa com histórico persistido.
 - Resumo arquitetural de conversas longas para manter contexto entre interações.
-- Análise rápida do arquivo atual com marcações diretamente no editor.
-- Modo de análise arquitetural com foco em decisões de design, trade-offs e riscos de evolução.
+- Análise rápida do arquivo atual com marcações diretamente no editor, acionada pelo botão da interface ou por intenção textual no chat.
+- Normalização de achados da análise rápida, com categorias arquiteturais, severidade (`low`, `medium`, `high`), sanitização de linhas e hover explicativo no editor.
+- Modo de análise arquitetural com foco em decisões de design, trade-offs, evolução do risco, testabilidade e custo de mudança.
 - Modo estudo para explicações mais didáticas.
 - Configurações de execução, como temperatura, top-p, limite de tokens, timeout e streaming.
 - Biblioteca de modelos locais para visualizar e ajustar parâmetros registrados.
@@ -30,7 +31,7 @@ O projeto também busca apoiar estudo e evolução técnica, oferecendo modos di
 - `src/services`: serviços de sessão, seleção de modelos, chamadas para APIs cloud e análise rápida.
 - `src/managers`: facades de configuração e chaves de API.
 - `src/repository`: leitura e escrita de configurações e histórico.
-- `src/prompt`: montagem de prompts, políticas de sistema e resolução de modo de resposta.
+- `src/prompt`: montagem de prompts, políticas de sistema, heurística de resolução de modo e customização de comportamento.
 - `src/interfaces`: contratos TypeScript usados entre serviços.
 - `src/webview`: telas HTML, CSS e JavaScript da interface da extensão.
 - `config`: arquivos locais de configuração e histórico usados em desenvolvimento.
