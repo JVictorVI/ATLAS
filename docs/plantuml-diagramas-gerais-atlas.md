@@ -3,7 +3,15 @@
 Este arquivo contém os casos de uso e os diagramas PlantUML atualizados com base na implementação atual do ATLAS.
 Os blocos podem ser copiados diretamente para o PlantText ou para uma extensão PlantUML compatível com UTF-8.
 
-> **Nota de atualização:** a arquitetura atual do ATLAS é uma extensão do VS Code implementada em TypeScript. O ponto central de inferência é o `AtlasInferenceService`, que decide entre execução em nuvem, por meio do `CloudApiService`, e execução local, por meio do `LocalApiService` integrado ao `AtlasLocalEngineService` e ao `llama-server`. O projeto já possui gerenciamento de sessões, histórico persistido, resumo de conversas longas, descoberta de modelos `.gguf`, seleção de provedor/modelo cloud, chaves em `SecretStorage`, análise rápida via Webview e decoração no editor. RAG, ChromaDB, download automatizado de modelos e integração real com repositórios externos permanecem como evolução futura.
+> **Nota de atualização:** a arquitetura atual do ATLAS é uma extensão do VS Code implementada em TypeScript. O ponto central de inferência é o `AtlasInferenceService`, que decide entre execução em nuvem, por meio do `CloudApiService`, e execução local, por meio do `LocalApiService` integrado ao `AtlasLocalEngineService` e ao `llama-server`. O projeto já possui gerenciamento de sessões, histórico persistido, resumo de conversas longas, descoberta de modelos `.gguf`, seleção de provedor/modelo cloud, chaves em `SecretStorage`, resolução automática de modo por heurística, análise rápida via botão ou intenção textual no chat, normalização de achados e decoração no editor por severidade. RAG, ChromaDB, download automatizado de modelos e integração real com repositórios externos permanecem como evolução futura.
+
+## Pontos atualizados na versão 1.3
+
+- `AtlasPromptModeResolver` passou a decidir entre `developer-assistant`, `architectural-analysis` e `quick-analysis` por uma heurística pontuada, combinando frases explícitas, sinais arquiteturais fortes, termos contextuais, intenção de análise e termos de desenvolvimento.
+- `AtlasSystemPromptPolicyService` agora define um prompt arquitetural obrigatório em 8 tópicos Markdown, um prompt de análise rápida com taxonomia de categorias/severidades e regras rígidas para saída JSON, além de orientações para não transformar respostas comuns em análise formal.
+- `ChatResponseController` mantém snapshot da geração ativa, cancela geração anterior, serializa geração em andamento para troca de sessão e delega ao fluxo de análise rápida quando o modo resolvido é `quick-analysis`.
+- `AtlasQuickAnalysisService` numera o arquivo antes de enviar ao modelo, força o modo `quick-analysis`, extrai arrays JSON mesmo quando há texto extra e normaliza aliases de severidade e categoria.
+- `AtlasQuickAnalysisController` aceita origem da execução (`button` ou `chat`), propaga `sessionId` para a Webview, sanitiza intervalos de linha, limpa decorações quando não há achados e aplica cores/hover por severidade.
 
 ## 1. Diagrama de Casos de Uso
 
@@ -147,14 +155,18 @@ package "Aplicação" {
 
   class ChatResponseController {
     +handleSendQuestion(data, webview)
-    +cancel()
+    +handleCancelGeneration(webview)
+    +serializeActiveGeneration()
+    -handleQuickAnalysisFromChat(sessionId, userContent, webview)
+    -notifyResponseCompletedIfAway(session)
   }
 
   class ChatSessionController {
-    +createSession(webview)
-    +switchSession(data, webview)
-    +renameSession(data, webview)
-    +deleteSession(data, webview)
+    +handleCreateSession(data, webview)
+    +handleSwitchSession(data, webview)
+    +handleRenameSession(data, webview)
+    +handleDeleteSession(data, webview)
+    +handleListSessions(webview)
   }
 
   class ChatModelWebviewService {
@@ -171,14 +183,21 @@ package "Contexto e Análise" {
   }
 
   class AtlasQuickAnalysisController {
-    +execute(webview)
+    +execute(webview, options)
     +clearDecorations(editor)
     +dispose()
+    -sanitizeIssues(issues, lineCount)
+    -applyDecorations(editor, issues)
+    -buildHoverMessage(issue)
   }
 
   class AtlasQuickAnalysisService {
     +analyzeCode(code, languageId, fileName)
+    -buildQuickAnalysisPrompt(code, languageId, fileName)
+    -addLineNumbers(code)
     -parseIssues(raw)
+    -normalizeSeverity(value)
+    -normalizeCategory(value)
     -extractJsonArray(raw)
   }
 }
@@ -200,10 +219,11 @@ package "Inferência" {
   }
 
   class AtlasLocalEngineService {
-    +ensureRunning(selection)
-    +start(selection)
-    +stop()
-    +getHealth()
+    +ensureEngine(model)
+    +stopEngine()
+    +restartEngine(model)
+    +isRunning()
+    +getEnginesDir()
   }
 }
 
@@ -214,10 +234,17 @@ package "Prompts e Sessões" {
 
   class AtlasPromptModeResolver {
     +resolve(input)
+    -scoreTerms(question, terms, weight)
+    -hasAnyTerm(question, terms)
+    -normalize(text)
   }
 
   class AtlasSystemPromptPolicyService {
     +buildBaseSystemMessage(mode)
+    -buildArchitecturalAnalysisMessage()
+    -buildQuickAnalysisMessage()
+    -buildStudyModeMessage()
+    -buildDeveloperAssistantMessage()
   }
 
   class AtlasPromptCustomizationService {
@@ -267,6 +294,7 @@ ChatResponseController --> AtlasEditorContextService
 ChatResponseController --> AtlasPromptAssemblyService
 ChatResponseController --> AtlasInferenceService
 ChatResponseController --> AtlasSessionService
+ChatResponseController --> AtlasQuickAnalysisController : modo quick-analysis
 
 AtlasQuickAnalysisController --> AtlasEditorContextService
 AtlasQuickAnalysisController --> AtlasQuickAnalysisService
@@ -374,10 +402,11 @@ package "Sessões" {
   }
 
   class ChatSessionController {
-    +createSession(webview)
-    +switchSession(data, webview)
-    +renameSession(data, webview)
-    +deleteSession(data, webview)
+    +handleCreateSession(data, webview)
+    +handleSwitchSession(data, webview)
+    +handleRenameSession(data, webview)
+    +handleDeleteSession(data, webview)
+    +handleListSessions(webview)
   }
 }
 
@@ -432,10 +461,17 @@ package "Prompt Layer" {
 
   class AtlasPromptModeResolver {
     +resolve(input)
+    -scoreTerms(question, terms, weight)
+    -hasAnyTerm(question, terms)
+    -normalize(text)
   }
 
   class AtlasSystemPromptPolicyService {
     +buildBaseSystemMessage(mode)
+    -buildArchitecturalAnalysisMessage()
+    -buildQuickAnalysisMessage()
+    -buildStudyModeMessage()
+    -buildDeveloperAssistantMessage()
   }
 
   class AtlasPromptCustomizationService {
@@ -445,8 +481,9 @@ package "Prompt Layer" {
   }
 
   class AtlasSessionService {
-    +getWindowedHistory(sessionId)
-    +getSummary(sessionId)
+    +getWindowMessages(session)
+    +getMessagesToSummarize(session)
+    +summarizeIfNeeded(sessionId)
   }
 }
 
@@ -471,10 +508,11 @@ package "Inferência" {
   }
 
   class AtlasLocalEngineService {
-    +ensureRunning(selection)
-    +start(selection)
-    +stop()
-    +waitUntilReady()
+    +ensureEngine(model)
+    +stopEngine()
+    +restartEngine(model)
+    +isRunning()
+    -waitUntilReady()
   }
 }
 

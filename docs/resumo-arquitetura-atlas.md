@@ -23,7 +23,12 @@
 | Resumo arquitetural               | Implementado                                                           |
 | Streaming                         | Implementado para OpenAI-compatible e local; fallback em Claude/Gemini |
 | Cancelamento de geração           | Implementado                                                           |
-| Análise rápida com marcações      | Implementada                                                           |
+| `ChatResponseController`          | Implementado com snapshot de geração ativa, cancelamento e delegação para análise rápida via chat |
+| `AtlasPromptModeResolver`         | Implementado com heurística pontuada para modo desenvolvedor, arquitetural e análise rápida |
+| `AtlasSystemPromptPolicyService`  | Implementado com prompts especializados, análise arquitetural em 8 tópicos e política JSON para análise rápida |
+| `AtlasQuickAnalysisService`       | Implementado com numeração de linhas, extração de JSON e normalização de severidade/categoria |
+| `AtlasQuickAnalysisController`    | Implementado com origem da execução, `sessionId`, sanitização de linhas e decorações por severidade |
+| Análise rápida com marcações      | Implementada via botão e via intenção textual no chat                  |
 | Modo estudo                       | Implementado                                                           |
 | RAG                               | Planejado                                                              |
 | ChromaDB                          | Planejado                                                              |

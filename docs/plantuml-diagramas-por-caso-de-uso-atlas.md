@@ -3,7 +3,7 @@
 Este arquivo contém diagramas de classe e de sequência em PlantUML para cada caso de uso atualizado do ATLAS.
 Os blocos podem ser copiados diretamente para o PlantText.
 
-> **Nota de atualização:** os diagramas abaixo representam o ATLAS atual como extensão VS Code em TypeScript. O fluxo de resposta passa por `ChatResponseController` e `AtlasInferenceService`, que decide entre `CloudApiService` e `LocalApiService`. A execução local com `llama-server`, sessões, histórico, resumo de conversas, descoberta de modelos `.gguf`, análise rápida via Webview e persistência em arquivos JSON já estão contemplados. RAG, ChromaDB, busca real em Hugging Face e download automatizado continuam marcados como futuro.
+> **Nota de atualização:** os diagramas abaixo representam o ATLAS atual como extensão VS Code em TypeScript. O fluxo de resposta passa por `ChatResponseController`, `AtlasPromptAssemblyService` e `AtlasInferenceService`, que decide entre `CloudApiService` e `LocalApiService`. A execução local com `llama-server`, sessões, histórico, resumo de conversas, descoberta de modelos `.gguf`, análise rápida via botão ou intenção textual no chat, heurística de resolução de modo, normalização de achados e persistência em arquivos JSON já estão contemplados. RAG, ChromaDB, busca real em Hugging Face e download automatizado continuam marcados como futuro.
 
 ## UC001 - Perguntar sobre o código pelo chat
 
@@ -17,11 +17,13 @@ skinparam classAttributeIconSize 0
 class ChatViewProvider
 class ChatMessageRouter {
   +handle(data, webview)
-  -handleSendQuestion(data, webview)
+  -handleUpdateCurrentView(data)
 }
 class ChatResponseController {
   +handleSendQuestion(data, webview)
-  +cancel()
+  +handleCancelGeneration(webview)
+  +serializeActiveGeneration()
+  -handleQuickAnalysisFromChat(sessionId, userContent, webview)
 }
 class AtlasEditorContextService {
   +getChatEditorContext()
@@ -32,10 +34,13 @@ class AtlasPromptAssemblyService {
 }
 class AtlasSessionService {
   +appendMessage(sessionId, message)
-  +getWindowedHistory(sessionId)
+  +getWindowMessages(session)
 }
 class AtlasInferenceService {
   +sendChat(messages, onChunk, options)
+}
+class AtlasQuickAnalysisController {
+  +execute(webview, options)
 }
 class CloudApiService
 class LocalApiService
@@ -46,6 +51,7 @@ ChatResponseController --> AtlasEditorContextService
 ChatResponseController --> AtlasPromptAssemblyService
 ChatResponseController --> AtlasSessionService
 ChatResponseController --> AtlasInferenceService
+ChatResponseController --> AtlasQuickAnalysisController
 AtlasInferenceService --> CloudApiService
 AtlasInferenceService --> LocalApiService
 @enduml
@@ -64,6 +70,7 @@ participant AtlasEditorContextService as EditorContext
 participant AtlasPromptAssemblyService as Prompt
 participant AtlasSessionService as Sessions
 participant AtlasInferenceService as Inference
+participant AtlasQuickAnalysisController as QuickController
 participant "Cloud/Local Model" as Model
 
 Usuário -> Webview : envia pergunta
@@ -75,12 +82,19 @@ Response -> Sessions : obter histórico e resumo
 Sessions --> Response : janela recente + resumo
 Response -> Prompt : buildMessages(input)
 Prompt --> Response : messages + mode
-Response -> Inference : sendChat(messages, onChunk, signal)
-Inference -> Model : consultar modelo selecionado
-Model --> Inference : resposta/chunks
-Inference --> Response : resposta normalizada
-Response -> Sessions : appendMessage(pergunta/resposta)
-Response --> Webview : respostaParcial/fimResposta/novaResposta
+alt mode == quick-analysis
+  Response -> Sessions : appendMessage(pergunta)
+  Response -> QuickController : execute(webview, source="chat", sessionId)
+  QuickController --> Webview : analiseRapidaStatus/analiseRapidaConcluida
+  Response --> Webview : sessoesAtualizadas
+else resposta conversacional
+  Response -> Inference : sendChat(messages, onChunk, signal)
+  Inference -> Model : consultar modelo selecionado
+  Model --> Inference : resposta/chunks
+  Inference --> Response : resposta normalizada
+  Response -> Sessions : appendMessage(pergunta/resposta)
+  Response --> Webview : respostaParcial/fimResposta/novaResposta
+end
 Webview --> Usuário : exibe resposta
 @enduml
 ```
@@ -95,22 +109,31 @@ skinparam shadowing false
 skinparam classAttributeIconSize 0
 
 class ChatMessageRouter {
-  -handleQuickAnalysis(webview)
+  +handle(data, webview)
 }
 class AtlasQuickAnalysisController {
-  +execute(webview)
+  +execute(webview, options)
   +clearDecorations(editor)
+  -sanitizeIssues(issues, lineCount)
   -applyDecorations(editor, issues)
+  -buildHoverMessage(issue)
 }
 class AtlasEditorContextService {
   +getFullDocumentContext()
 }
 class AtlasQuickAnalysisService {
   +analyzeCode(code, languageId, fileName)
+  -buildQuickAnalysisPrompt(code, languageId, fileName)
+  -addLineNumbers(code)
   -parseIssues(raw)
+  -normalizeSeverity(value)
+  -normalizeCategory(value)
   -extractJsonArray(raw)
 }
 class AtlasPromptAssemblyService
+class AtlasSystemPromptPolicyService {
+  -buildQuickAnalysisMessage()
+}
 class AtlasInferenceService
 class AtlasQuickIssue <<type>>
 
@@ -118,6 +141,7 @@ ChatMessageRouter --> AtlasQuickAnalysisController
 AtlasQuickAnalysisController --> AtlasEditorContextService
 AtlasQuickAnalysisController --> AtlasQuickAnalysisService
 AtlasQuickAnalysisService --> AtlasPromptAssemblyService
+AtlasPromptAssemblyService --> AtlasSystemPromptPolicyService
 AtlasQuickAnalysisService --> AtlasInferenceService
 AtlasQuickAnalysisService ..> AtlasQuickIssue
 @enduml
@@ -139,17 +163,25 @@ participant "Editor VS Code" as Editor
 
 Usuário -> Webview : solicita análise rápida
 Webview -> Router : executarAnaliseRapida
-Router -> Controller : execute(webview)
+Router -> Controller : execute(webview, source="button")
 Controller -> EditorContext : getFullDocumentContext()
-EditorContext --> Controller : código + metadados
-Controller -> Webview : analiseRapidaStatus(loading=true)
+EditorContext --> Controller : código + metadados + total de linhas
+Controller -> Webview : analiseRapidaStatus(loading=true, source)
 Controller -> QuickService : analyzeCode(code, languageId, fileName)
-QuickService -> Inference : sendChat(messages)
+QuickService -> QuickService : addLineNumbers(code)
+QuickService -> Inference : sendChat(messages em quick-analysis)
 Inference --> QuickService : JSON de achados
+QuickService -> QuickService : parseIssues + normalização
 QuickService --> Controller : AtlasQuickIssue[]
-Controller -> Editor : setDecorations(...)
-Controller --> Webview : analiseRapidaConcluida(total, issues)
-Controller -> Webview : analiseRapidaStatus(loading=false)
+Controller -> Controller : sanitizeIssues(issues, lineCount)
+alt nenhum achado
+  Controller -> Editor : clearDecorations()
+  Controller --> Webview : analiseRapidaConcluida(total=0, issues=[])
+else achados válidos
+  Controller -> Editor : setDecorations por severidade
+  Controller --> Webview : analiseRapidaConcluida(total, issues)
+end
+Controller -> Webview : analiseRapidaStatus(loading=false, source)
 @enduml
 ```
 
@@ -167,6 +199,9 @@ class AtlasEditorContextService
 class AtlasPromptAssemblyService
 class AtlasPromptModeResolver {
   +resolve(input)
+  -scoreTerms(question, terms, weight)
+  -hasAnyTerm(question, terms)
+  -normalize(text)
 }
 class AtlasSystemPromptPolicyService {
   +buildBaseSystemMessage(mode)
@@ -194,6 +229,7 @@ participant "Webview Chat" as Webview
 participant ChatResponseController as Response
 participant AtlasEditorContextService as EditorContext
 participant AtlasPromptAssemblyService as Prompt
+participant AtlasPromptModeResolver as Resolver
 participant AtlasSystemPromptPolicyService as Policy
 participant AtlasInferenceService as Inference
 participant "Modelo de IA" as Model
@@ -203,6 +239,8 @@ Webview -> Response : handleSendQuestion(forcedMode="architectural-analysis")
 Response -> EditorContext : getChatEditorContext()
 EditorContext --> Response : contexto do código
 Response -> Prompt : buildMessages(input)
+Prompt -> Resolver : resolve(input)
+Resolver --> Prompt : architectural-analysis
 Prompt -> Policy : buildBaseSystemMessage("architectural-analysis")
 Policy --> Prompt : prompt arquitetural
 Prompt --> Response : messages
@@ -702,10 +740,11 @@ skinparam classAttributeIconSize 0
 
 class ChatMessageRouter
 class ChatSessionController {
-  +createSession(webview)
-  +switchSession(data, webview)
-  +renameSession(data, webview)
-  +deleteSession(data, webview)
+  +handleCreateSession(data, webview)
+  +handleSwitchSession(data, webview)
+  +handleRenameSession(data, webview)
+  +handleDeleteSession(data, webview)
+  +handleListSessions(webview)
 }
 class AtlasSessionService {
   +createSession()
@@ -815,10 +854,11 @@ class LocalApiService {
   +isAbortError(error)
 }
 class AtlasLocalEngineService {
-  +ensureRunning(selection)
-  +start(selection)
-  +stop()
-  +getHealth()
+  +ensureEngine(model)
+  +stopEngine()
+  +restartEngine(model)
+  +isRunning()
+  +getEnginesDir()
   -waitUntilReady()
 }
 class AtlasConfigManager
@@ -854,7 +894,7 @@ Webview -> Router : enviarPergunta(value)
 Router -> Response : handleSendQuestion(data, webview)
 Response -> Inference : sendChat(messages)
 Inference -> LocalApi : sendChat(messages, onChunk, options)
-LocalApi -> Engine : ensureRunning(selection)
+LocalApi -> Engine : ensureEngine(model)
 alt engine parada
   Engine -> Llama : spawn llama-server
   Engine -> Llama : GET /health ou /v1/models
@@ -880,9 +920,11 @@ skinparam classAttributeIconSize 0
 class ChatMessageRouter
 class ChatModelWebviewService
 class AtlasLocalModelDiscoveryService {
-  +discoverConfiguredModels()
-  -scanDirectory(path)
-  -inferMetadata(file)
+  +refreshLocalModels()
+  +getModelsDir()
+  -createModelConfig(fileName)
+  -inferProvider(modelName)
+  -inferQuantization(modelName)
 }
 class AtlasConfigManager
 class AtlasModelRegistryService {
@@ -914,7 +956,7 @@ database "Pasta .gguf" as ModelDir
 Usuário -> Webview : seleciona pasta de modelos
 Webview -> Router : selecionarPastaModelosLocais
 Router -> Config : salva caminho configurado
-Router -> Discovery : discoverConfiguredModels()
+Router -> Discovery : refreshLocalModels()
 Discovery -> ModelDir : lista arquivos .gguf
 ModelDir --> Discovery : arquivos encontrados
 Discovery -> Discovery : infere metadados
