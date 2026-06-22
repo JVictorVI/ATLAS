@@ -3,7 +3,7 @@
 Este arquivo contém diagramas de classe e de sequência em PlantUML para cada caso de uso atualizado do ATLAS.
 Os blocos podem ser copiados diretamente para o PlantText.
 
-> **Nota de atualização:** os diagramas abaixo representam o ATLAS atual como extensão VS Code em TypeScript. O fluxo de resposta passa por `ChatResponseController`, `AtlasPromptAssemblyService` e `AtlasInferenceService`, que decide entre `CloudApiService` e `LocalApiService`. A execução local com `llama-server`, sessões, histórico, resumo de conversas, descoberta de modelos `.gguf`, análise rápida via botão ou intenção textual no chat, heurística de resolução de modo, normalização de achados e persistência em arquivos JSON já estão contemplados. RAG, ChromaDB, busca real em Hugging Face e download automatizado continuam marcados como futuro.
+> **Nota de atualização:** os diagramas abaixo representam o ATLAS atual como extensão VS Code em TypeScript. O fluxo de resposta passa por `ChatResponseController`, `AtlasPromptAssemblyService` e `AtlasInferenceService`, que decide entre `CloudApiService` e `LocalApiService`. A execução local com `llama-server`, sessões, histórico, resumo de conversas, descoberta de modelos `.gguf`, análise rápida via botão ou intenção textual no chat, heurística de resolução de modo, normalização de achados e persistência em arquivos JSON já estão contemplados. A análise estática estrutural usa símbolos, diagnósticos e referências disponibilizados pelos provedores de linguagem do VS Code como contexto auxiliar configurável. RAG, ChromaDB, busca real em Hugging Face e download automatizado continuam marcados como futuro.
 
 ## UC001 - Perguntar sobre o código pelo chat
 
@@ -29,6 +29,12 @@ class AtlasEditorContextService {
   +getChatEditorContext()
   +buildEditorAnalysisContext(context)
 }
+class AtlasDocumentStructureService {
+  +collect(document)
+  +buildSummary(structure)
+  +buildDiagnosticsSummary(document)
+  +buildSymbolRelationsSummary(document)
+}
 class AtlasPromptAssemblyService {
   +buildMessages(input)
 }
@@ -48,6 +54,7 @@ class LocalApiService
 ChatViewProvider --> ChatMessageRouter
 ChatMessageRouter --> ChatResponseController
 ChatResponseController --> AtlasEditorContextService
+ChatResponseController --> AtlasDocumentStructureService : se architectural-analysis
 ChatResponseController --> AtlasPromptAssemblyService
 ChatResponseController --> AtlasSessionService
 ChatResponseController --> AtlasInferenceService
@@ -67,6 +74,7 @@ participant "Webview Chat" as Webview
 participant ChatMessageRouter as Router
 participant ChatResponseController as Response
 participant AtlasEditorContextService as EditorContext
+participant AtlasDocumentStructureService as Structure
 participant AtlasPromptAssemblyService as Prompt
 participant AtlasSessionService as Sessions
 participant AtlasInferenceService as Inference
@@ -87,6 +95,16 @@ alt mode == quick-analysis
   Response -> QuickController : execute(webview, source="chat", sessionId)
   QuickController --> Webview : analiseRapidaStatus/analiseRapidaConcluida
   Response --> Webview : sessoesAtualizadas
+else mode == architectural-analysis e coleta estrutural habilitada
+  Response -> Structure : collect(document)
+  Structure --> Response : símbolos + diagnósticos/relações opcionais
+  Response -> Prompt : buildMessages(input + contexto estrutural)
+  Response -> Inference : sendChat(messages, onChunk, signal)
+  Inference -> Model : consultar modelo selecionado
+  Model --> Inference : resposta/chunks
+  Inference --> Response : resposta normalizada
+  Response -> Sessions : appendMessage(pergunta/resposta)
+  Response --> Webview : respostaParcial/fimResposta/novaResposta
 else resposta conversacional
   Response -> Inference : sendChat(messages, onChunk, signal)
   Inference -> Model : consultar modelo selecionado
@@ -114,6 +132,9 @@ class ChatMessageRouter {
 class AtlasQuickAnalysisController {
   +execute(webview, options)
   +clearDecorations(editor)
+  +hasActiveDecorations()
+  +clearActiveDecorations()
+  -restoreDecorations(editor)
   -sanitizeIssues(issues, lineCount)
   -applyDecorations(editor, issues)
   -buildHoverMessage(issue)
@@ -122,25 +143,40 @@ class AtlasEditorContextService {
   +getFullDocumentContext()
 }
 class AtlasQuickAnalysisService {
-  +analyzeCode(code, languageId, fileName)
-  -buildQuickAnalysisPrompt(code, languageId, fileName)
+  +analyzeCode(document, code, languageId, fileName)
+  -buildQuickAnalysisPrompt(code, structureSummary, languageId, fileName)
   -addLineNumbers(code)
   -parseIssues(raw)
   -normalizeSeverity(value)
   -normalizeCategory(value)
   -extractJsonArray(raw)
 }
+class AtlasDocumentStructureService {
+  +collect(document)
+  +buildSummary(structure)
+  +buildDiagnosticsSummary(document)
+  +buildSymbolRelationsSummary(document)
+}
 class AtlasPromptAssemblyService
 class AtlasSystemPromptPolicyService {
   -buildQuickAnalysisMessage()
 }
 class AtlasInferenceService
-class AtlasQuickIssue <<type>>
+class AtlasQuickIssue <<type>> {
+  startLine
+  endLine
+  severity
+  category
+  message
+  impact
+  suggestion
+}
 
 ChatMessageRouter --> AtlasQuickAnalysisController
 AtlasQuickAnalysisController --> AtlasEditorContextService
 AtlasQuickAnalysisController --> AtlasQuickAnalysisService
 AtlasQuickAnalysisService --> AtlasPromptAssemblyService
+AtlasQuickAnalysisService --> AtlasDocumentStructureService
 AtlasPromptAssemblyService --> AtlasSystemPromptPolicyService
 AtlasQuickAnalysisService --> AtlasInferenceService
 AtlasQuickAnalysisService ..> AtlasQuickIssue
@@ -158,6 +194,7 @@ participant ChatMessageRouter as Router
 participant AtlasQuickAnalysisController as Controller
 participant AtlasEditorContextService as EditorContext
 participant AtlasQuickAnalysisService as QuickService
+participant AtlasDocumentStructureService as Structure
 participant AtlasInferenceService as Inference
 participant "Editor VS Code" as Editor
 
@@ -167,7 +204,17 @@ Router -> Controller : execute(webview, source="button")
 Controller -> EditorContext : getFullDocumentContext()
 EditorContext --> Controller : código + metadados + total de linhas
 Controller -> Webview : analiseRapidaStatus(loading=true, source)
-Controller -> QuickService : analyzeCode(code, languageId, fileName)
+Controller -> QuickService : analyzeCode(document, code, languageId, fileName)
+opt coleta estrutural habilitada para análise rápida
+  QuickService -> Structure : collect(document)
+  Structure --> QuickService : símbolos e limitações
+  opt diagnósticos habilitados
+    QuickService -> Structure : buildDiagnosticsSummary(document)
+  end
+  opt relações habilitadas
+    QuickService -> Structure : buildSymbolRelationsSummary(document)
+  end
+end
 QuickService -> QuickService : addLineNumbers(code)
 QuickService -> Inference : sendChat(messages em quick-analysis)
 Inference --> QuickService : JSON de achados
@@ -178,10 +225,16 @@ alt nenhum achado
   Controller -> Editor : clearDecorations()
   Controller --> Webview : analiseRapidaConcluida(total=0, issues=[])
 else achados válidos
+  Controller -> Controller : armazena achados por URI do documento
   Controller -> Editor : setDecorations por severidade
   Controller --> Webview : analiseRapidaConcluida(total, issues)
 end
 Controller -> Webview : analiseRapidaStatus(loading=false, source)
+note over Controller,Editor
+As marcações são restauradas ao alternar editores,
+removidas quando o documento muda e podem ser
+limpas manualmente pela Webview.
+end note
 @enduml
 ```
 
@@ -196,6 +249,12 @@ skinparam classAttributeIconSize 0
 
 class ChatResponseController
 class AtlasEditorContextService
+class AtlasDocumentStructureService {
+  +collect(document)
+  +buildSummary(structure)
+  +buildDiagnosticsSummary(document)
+  +buildSymbolRelationsSummary(document)
+}
 class AtlasPromptAssemblyService
 class AtlasPromptModeResolver {
   +resolve(input)
@@ -211,6 +270,7 @@ class AtlasPromptCustomizationService
 class AtlasInferenceService
 
 ChatResponseController --> AtlasEditorContextService
+ChatResponseController --> AtlasDocumentStructureService
 ChatResponseController --> AtlasPromptAssemblyService
 ChatResponseController --> AtlasInferenceService
 AtlasPromptAssemblyService --> AtlasPromptModeResolver
@@ -228,6 +288,7 @@ actor Usuário
 participant "Webview Chat" as Webview
 participant ChatResponseController as Response
 participant AtlasEditorContextService as EditorContext
+participant AtlasDocumentStructureService as Structure
 participant AtlasPromptAssemblyService as Prompt
 participant AtlasPromptModeResolver as Resolver
 participant AtlasSystemPromptPolicyService as Policy
@@ -241,6 +302,13 @@ EditorContext --> Response : contexto do código
 Response -> Prompt : buildMessages(input)
 Prompt -> Resolver : resolve(input)
 Resolver --> Prompt : architectural-analysis
+opt coleta estrutural habilitada
+  Response -> Structure : collect(document)
+  Structure --> Response : estrutura + dados opcionais
+  Response -> Prompt : buildMessages(input + contexto estrutural)
+  Prompt -> Resolver : resolve(input)
+  Resolver --> Prompt : architectural-analysis
+end
 Prompt -> Policy : buildBaseSystemMessage("architectural-analysis")
 Policy --> Prompt : prompt arquitetural
 Prompt --> Response : messages
@@ -521,8 +589,14 @@ skinparam classAttributeIconSize 0
 class ChatMessageRouter {
   -handleLoadSecuritySettings(webview)
   -handleSaveSecuritySettings(data, webview)
+  -handleLoadAtlasSettings(webview)
+  -handleSaveAtlasSettings(data, webview)
 }
-class AtlasConfigManager
+class AtlasConfigManager {
+  +getStaticAnalysisConfig()
+  +isStaticAnalysisEnabledFor(mode)
+  +updateCustomRoot(customData)
+}
 class AtlasSettingsService {
   +updateSecuritySettings(settings)
   +updateLlmDefaults(defaults)
@@ -531,6 +605,7 @@ class AtlasConfigRepository
 class AtlasConfigDefaults
 interface AtlasSecuritySettings
 interface AtlasLlmDefaults
+interface AtlasStaticAnalysisConfig
 
 ChatMessageRouter --> AtlasConfigManager
 AtlasConfigManager --> AtlasSettingsService
@@ -538,6 +613,7 @@ AtlasSettingsService --> AtlasConfigRepository
 AtlasConfigRepository --> AtlasConfigDefaults
 AtlasSettingsService ..> AtlasSecuritySettings
 AtlasSettingsService ..> AtlasLlmDefaults
+AtlasConfigManager ..> AtlasStaticAnalysisConfig
 @enduml
 ```
 
@@ -554,14 +630,19 @@ participant AtlasSettingsService as Settings
 participant AtlasConfigRepository as Repository
 
 Usuário -> Webview : altera parâmetros
-Webview -> Router : salvarConfiguracoesSeguranca(payload)
-Router -> Config : updateSecuritySettings(...)
-Config -> Settings : updateSecuritySettings(...)
-Settings -> Repository : save(config)
-Router -> Config : updateLlmDefaults(...)
-Config -> Settings : updateLlmDefaults(...)
-Settings -> Repository : save(config)
-Router --> Webview : configuracoesSegurancaSalvas
+alt segurança e parâmetros de LLM
+  Webview -> Router : salvarConfiguracoesSeguranca(payload)
+  Router -> Config : updateSecuritySettings/updateLlmDefaults
+  Config -> Settings : atualiza seções
+  Settings -> Repository : save(config)
+  Router --> Webview : configuracoesSegurancaSalvas
+else execução local e análise estática
+  Webview -> Router : salvarConfiguracoesAtlas(payload)
+  Router -> Config : updateCustomRoot(...)
+  Config -> Settings : persiste localEngine/localModels/staticAnalysis
+  Settings -> Repository : save(config)
+  Router --> Webview : configuracoesAtlasSalvas
+end
 @enduml
 ```
 
@@ -966,6 +1047,84 @@ Discovery --> Router : resultado
 Router --> Webview : updateModelsList(models)
 @enduml
 ```
+
+## Caso de uso implementado na versão 1.4
+
+## UC020 - Configurar análise estática estrutural
+
+### Diagrama de Classes
+
+```plantuml
+@startuml
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+
+class "src/webview/atlas/script.js" as AtlasSettingsWebview <<webview>>
+class ChatMessageRouter {
+  -handleLoadAtlasSettings(webview)
+  -handleSaveAtlasSettings(data, webview)
+  -getAtlasSettingsPayload()
+}
+class AtlasConfigManager {
+  +getStaticAnalysisConfig()
+  +isStaticAnalysisEnabledFor(mode)
+  +updateCustomRoot(customData)
+}
+class AtlasSettingsService
+class AtlasConfigRepository
+class AtlasDocumentStructureService {
+  +collect(document)
+  +buildSummary(structure)
+  +buildDiagnosticsSummary(document)
+  +buildSymbolRelationsSummary(document)
+}
+class AtlasQuickAnalysisService
+class ChatResponseController
+interface AtlasStaticAnalysisConfig
+
+AtlasSettingsWebview --> ChatMessageRouter
+ChatMessageRouter --> AtlasConfigManager
+AtlasConfigManager --> AtlasSettingsService
+AtlasSettingsService --> AtlasConfigRepository
+AtlasConfigManager ..> AtlasStaticAnalysisConfig
+AtlasQuickAnalysisService --> AtlasConfigManager : consulta configuração
+AtlasQuickAnalysisService --> AtlasDocumentStructureService
+ChatResponseController --> AtlasConfigManager : consulta configuração
+ChatResponseController --> AtlasDocumentStructureService
+@enduml
+```
+
+### Diagrama de Sequência
+
+```plantuml
+@startuml
+skinparam shadowing false
+actor Usuário
+participant "Configurações Gerais" as Webview
+participant ChatMessageRouter as Router
+participant AtlasConfigManager as Config
+participant AtlasSettingsService as Settings
+participant AtlasConfigRepository as Repository
+database "config/atlas-config.json" as ConfigFile
+
+Usuário -> Webview : abre Configurações Gerais
+Webview -> Router : carregarConfiguracoesAtlas
+Router -> Config : getStaticAnalysisConfig()
+Config --> Router : configuração efetiva
+Router --> Webview : configuracoesAtlasCarregadas
+Usuário -> Webview : ativa coleta e escolhe opções
+Webview -> Webview : habilita/desabilita opções dependentes
+Usuário -> Webview : salvar
+Webview -> Router : salvarConfiguracoesAtlas(payload)
+Router -> Config : updateCustomRoot(staticAnalysis)
+Config -> Settings : updateCustomRoot(...)
+Settings -> Repository : save(config)
+Repository -> ConfigFile : grava custom.staticAnalysis
+Router --> Webview : configuracoesAtlasSalvas
+@enduml
+```
+
+## Casos de uso futuros
 
 ## UC016 - Indexar projeto com RAG (futuro)
 

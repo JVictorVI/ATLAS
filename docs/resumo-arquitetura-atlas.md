@@ -26,9 +26,16 @@
 | `ChatResponseController`          | Implementado com snapshot de geração ativa, cancelamento e delegação para análise rápida via chat |
 | `AtlasPromptModeResolver`         | Implementado com heurística pontuada para modo desenvolvedor, arquitetural e análise rápida |
 | `AtlasSystemPromptPolicyService`  | Implementado com prompts especializados, análise arquitetural em 8 tópicos e política JSON para análise rápida |
-| `AtlasQuickAnalysisService`       | Implementado com numeração de linhas, extração de JSON e normalização de severidade/categoria |
-| `AtlasQuickAnalysisController`    | Implementado com origem da execução, `sessionId`, sanitização de linhas e decorações por severidade |
+| `AtlasQuickAnalysisService`       | Implementado com numeração de linhas, contexto estrutural opcional, extração de JSON e normalização dos achados |
+| `AtlasQuickAnalysisController`    | Implementado com origem da execução, `sessionId`, sanitização de linhas, decorações por severidade e estado por documento |
 | Análise rápida com marcações      | Implementada via botão e via intenção textual no chat                  |
+| `AtlasDocumentStructureService`   | Implementado com coleta de símbolos, diagnósticos e referências fornecidos pelo VS Code |
+| Análise estática estrutural       | Implementada como contexto auxiliar configurável para análise rápida e arquitetural |
+| Fallback da análise estrutural    | Implementado; mantém a análise textual quando o provedor da linguagem não fornece símbolos |
+| Relações entre símbolos           | Implementadas opcionalmente, com consulta limitada aos primeiros 30 símbolos relevantes |
+| Persistência visual das marcações | Implementada por documento durante a sessão; restaura ao alternar editores e invalida ao editar o arquivo |
+| Limpeza de marcações              | Implementada por ação dedicada na Webview de chat                      |
+| Feedback detalhado dos achados    | Implementado no hover com observação, impacto e sugestão de melhoria   |
 | Modo estudo                       | Implementado                                                           |
 | RAG                               | Planejado                                                              |
 | ChromaDB                          | Planejado                                                              |

@@ -3,9 +3,19 @@
 Este arquivo contém os casos de uso e os diagramas PlantUML atualizados com base na implementação atual do ATLAS.
 Os blocos podem ser copiados diretamente para o PlantText ou para uma extensão PlantUML compatível com UTF-8.
 
-> **Nota de atualização:** a arquitetura atual do ATLAS é uma extensão do VS Code implementada em TypeScript. O ponto central de inferência é o `AtlasInferenceService`, que decide entre execução em nuvem, por meio do `CloudApiService`, e execução local, por meio do `LocalApiService` integrado ao `AtlasLocalEngineService` e ao `llama-server`. O projeto já possui gerenciamento de sessões, histórico persistido, resumo de conversas longas, descoberta de modelos `.gguf`, seleção de provedor/modelo cloud, chaves em `SecretStorage`, resolução automática de modo por heurística, análise rápida via botão ou intenção textual no chat, normalização de achados e decoração no editor por severidade. RAG, ChromaDB, download automatizado de modelos e integração real com repositórios externos permanecem como evolução futura.
+> **Nota de atualização:** a arquitetura atual do ATLAS é uma extensão do VS Code implementada em TypeScript. O ponto central de inferência é o `AtlasInferenceService`, que decide entre execução em nuvem, por meio do `CloudApiService`, e execução local, por meio do `LocalApiService` integrado ao `AtlasLocalEngineService` e ao `llama-server`. O projeto já possui gerenciamento de sessões, histórico persistido, resumo de conversas longas, descoberta de modelos `.gguf`, seleção de provedor/modelo cloud, chaves em `SecretStorage`, resolução automática de modo por heurística e análise rápida com marcações no editor. A camada `AtlasDocumentStructureService` acrescenta contexto estático obtido dos provedores de linguagem do VS Code — símbolos, diagnósticos e, opcionalmente, referências externas — às análises rápida e arquitetural, mantendo fallback textual quando esses dados não estão disponíveis. RAG, ChromaDB, download automatizado de modelos e integração real com repositórios externos permanecem como evolução futura.
 
-## Pontos atualizados na versão 1.3
+## Pontos atualizados na versão 1.4
+
+- `AtlasDocumentStructureService` coleta símbolos hierárquicos e intervalos de linha pelo comando `vscode.executeDocumentSymbolProvider`, resume diagnósticos publicados no editor e pode consultar referências externas com `vscode.executeReferenceProvider`.
+- A coleta estrutural possui fallback explícito para o conteúdo textual quando a extensão da linguagem não oferece símbolos ou quando ocorre falha na consulta.
+- A tela **Configurações Gerais** permite ativar globalmente a análise estática e escolher seu uso na Análise Rápida e na Análise Arquitetural, além da inclusão opcional de diagnósticos e relações entre símbolos.
+- `ChatResponseController` recompõe o prompt arquitetural com o contexto estrutural quando o modo resolvido é `architectural-analysis` e a opção correspondente está habilitada.
+- `AtlasQuickAnalysisService` usa a estrutura como evidência auxiliar, solicita cobertura completa do arquivo e normaliza também os campos `impact` e `suggestion`.
+- `AtlasQuickAnalysisController` mantém achados por documento, restaura as decorações ao alternar editores, invalida marcações quando o texto muda e oferece limpeza manual pela Webview.
+- O hover das marcações passou a separar observação, impacto e sugestão, deixando explícito que a recomendação deve ser validada no contexto do projeto.
+
+## Pontos consolidados da versão 1.3
 
 - `AtlasPromptModeResolver` passou a decidir entre `developer-assistant`, `architectural-analysis` e `quick-analysis` por uma heurística pontuada, combinando frases explícitas, sinais arquiteturais fortes, termos contextuais, intenção de análise e termos de desenvolvimento.
 - `AtlasSystemPromptPolicyService` agora define um prompt arquitetural obrigatório em 8 tópicos Markdown, um prompt de análise rápida com taxonomia de categorias/severidades e regras rígidas para saída JSON, além de orientações para não transformar respostas comuns em análise formal.
@@ -25,6 +35,7 @@ actor "Usuário" as Usuario
 actor "Provedor Cloud" as ProvedorCloud
 actor "llama-server\nlocal" as LlamaServer
 actor "VS Code\nSecretStorage" as SecretStorage
+actor "Provedores de Linguagem\ndo VS Code" as LanguageProviders
 actor "Sistema de\nArquivos Local" as FileSystem
 actor "Repositório de\nModelos (futuro)" as RepoModelos
 actor "Base Vetorial\n(futuro)" as BaseVetorial
@@ -38,6 +49,7 @@ rectangle "ATLAS - Extensão VS Code" {
   usecase "Selecionar provedor\ne modelo cloud" as UC006
   usecase "Alternar modo\nlocal / nuvem" as UC007
   usecase "Configurar parâmetros\ne segurança" as UC008
+  usecase "Configurar análise\nestática estrutural" as UC020
   usecase "Alterar comportamento\ndo modelo" as UC009
   usecase "Gerenciar biblioteca\nde modelos locais" as UC010
   usecase "Abrir painéis\nda extensão" as UC011
@@ -58,6 +70,7 @@ rectangle "ATLAS - Extensão VS Code" {
   usecase "Persistir configuração" as INC_Config
   usecase "Persistir histórico" as INC_Historico
   usecase "Aplicar decorações\nno editor" as INC_Decoracoes
+  usecase "Coletar símbolos,\ndiagnósticos e referências" as INC_Estrutura
 }
 
 Usuario --> UC001
@@ -68,6 +81,7 @@ Usuario --> UC005
 Usuario --> UC006
 Usuario --> UC007
 Usuario --> UC008
+Usuario --> UC020
 Usuario --> UC009
 Usuario --> UC010
 Usuario --> UC011
@@ -87,12 +101,16 @@ UC002 ..> INC_Contexto : <<include>>
 UC002 ..> INC_Prompt : <<include>>
 UC002 ..> INC_Inferencia : <<include>>
 UC002 ..> INC_Decoracoes : <<include>>
+UC002 ..> INC_Estrutura : <<include>>
 UC003 ..> UC001 : <<extend>>
+UC003 ..> INC_Estrutura : <<include>>
 UC004 ..> INC_Config : <<include>>
 UC005 ..> INC_Config : <<include>>
 UC006 ..> INC_Config : <<include>>
 UC007 ..> INC_Config : <<include>>
 UC008 ..> INC_Config : <<include>>
+UC020 ..> INC_Config : <<include>>
+UC020 ..> INC_Estrutura : <<configure>>
 UC009 ..> INC_Prompt : <<include>>
 UC010 ..> INC_Config : <<include>>
 UC012 ..> INC_Historico : <<include>>
@@ -104,6 +122,7 @@ INC_Prompt ..> INC_Modo : <<include>>
 ProvedorCloud --> INC_Inferencia
 LlamaServer --> UC014
 SecretStorage --> UC005
+LanguageProviders --> INC_Estrutura
 FileSystem --> UC015
 FileSystem --> UC014
 
@@ -185,20 +204,30 @@ package "Contexto e Análise" {
   class AtlasQuickAnalysisController {
     +execute(webview, options)
     +clearDecorations(editor)
+    +hasActiveDecorations()
+    +clearActiveDecorations()
     +dispose()
+    -restoreDecorations(editor)
     -sanitizeIssues(issues, lineCount)
     -applyDecorations(editor, issues)
     -buildHoverMessage(issue)
   }
 
   class AtlasQuickAnalysisService {
-    +analyzeCode(code, languageId, fileName)
-    -buildQuickAnalysisPrompt(code, languageId, fileName)
+    +analyzeCode(document, code, languageId, fileName)
+    -buildQuickAnalysisPrompt(code, structureSummary, languageId, fileName)
     -addLineNumbers(code)
     -parseIssues(raw)
     -normalizeSeverity(value)
     -normalizeCategory(value)
     -extractJsonArray(raw)
+  }
+
+  class AtlasDocumentStructureService {
+    +collect(document)
+    +buildSummary(structure)
+    +buildDiagnosticsSummary(document)
+    +buildSymbolRelationsSummary(document)
   }
 }
 
@@ -291,6 +320,7 @@ ChatMessageRouter --> ApiKeyManager
 ChatMessageRouter --> AtlasConfigManager
 
 ChatResponseController --> AtlasEditorContextService
+ChatResponseController --> AtlasDocumentStructureService : análise arquitetural
 ChatResponseController --> AtlasPromptAssemblyService
 ChatResponseController --> AtlasInferenceService
 ChatResponseController --> AtlasSessionService
@@ -300,6 +330,7 @@ AtlasQuickAnalysisController --> AtlasEditorContextService
 AtlasQuickAnalysisController --> AtlasQuickAnalysisService
 AtlasQuickAnalysisService --> AtlasPromptAssemblyService
 AtlasQuickAnalysisService --> AtlasInferenceService
+AtlasQuickAnalysisService --> AtlasDocumentStructureService
 
 AtlasInferenceService --> CloudApiService : modo cloud
 AtlasInferenceService --> LocalApiService : modo local
@@ -339,6 +370,8 @@ package "Gerência de Configuração" {
     +getLocalModels()
     +isStudyModeEnabled()
     +setStudyModeEnabled(enabled)
+    +getStaticAnalysisConfig()
+    +isStaticAnalysisEnabledFor(mode)
   }
 
   class AtlasSettingsService {
@@ -368,6 +401,14 @@ package "Gerência de Configuração" {
     +getLocalModels()
     +upsertModel(model)
     +removeModel(modelId)
+  }
+
+  interface AtlasStaticAnalysisConfig {
+    enabled
+    useInQuickAnalysis
+    useInArchitecturalAnalysis
+    includeDiagnostics
+    includeSymbolRelations
   }
 }
 
@@ -433,6 +474,7 @@ AtlasConfigManager *-- AtlasSelectionService
 AtlasConfigManager *-- AtlasProviderService
 AtlasConfigManager *-- AtlasModelRegistryService
 AtlasConfigManager --> AtlasConfigRepository
+AtlasConfigManager ..> AtlasStaticAnalysisConfig
 AtlasConfigRepository --> AtlasConfigDefaults
 AtlasConfigRepository --> ConfigFile : lê/grava
 
@@ -522,6 +564,18 @@ package "Configuração" {
   class AtlasLocalModelDiscoveryService
 }
 
+package "Contexto Estrutural" {
+  class AtlasDocumentStructureService {
+    +collect(document)
+    +buildSummary(structure)
+    +buildDiagnosticsSummary(document)
+    +buildSymbolRelationsSummary(document)
+  }
+
+  interface AtlasDocumentStructure
+  interface AtlasCodeSymbol
+}
+
 package "Tipos" {
   enum AtlasPromptMode {
     developer-assistant
@@ -551,6 +605,8 @@ CloudApiService --> ApiKeyManager
 LocalApiService --> AtlasConfigManager
 LocalApiService --> AtlasLocalEngineService
 LocalApiService --> AtlasLocalModelDiscoveryService
+AtlasDocumentStructureService ..> AtlasDocumentStructure
+AtlasDocumentStructureService ..> AtlasCodeSymbol
 
 CloudApiService ..> AtlasCloudChatResponse
 CloudApiService ..> AtlasModelSummary
@@ -570,7 +626,7 @@ node "Máquina do Desenvolvedor\n(Windows + VS Code)" as DevMachine {
   node "Visual Studio Code" as VSCode {
     component "ATLAS Extension\n(TypeScript)" as Extension
     component "Webviews\nchat / atlas / library / api-keys" as Webviews
-    component "Serviços da Extensão\nChatResponseController\nAtlasInferenceService\nAtlasSessionService" as ExtensionServices
+    component "Serviços da Extensão\nChatResponseController\nAtlasInferenceService\nAtlasSessionService\nAtlasDocumentStructureService" as ExtensionServices
     database "VS Code SecretStorage" as SecretStorage
   }
 
@@ -603,6 +659,7 @@ ExtensionServices --> SecretStorage : consulta chaves
 ExtensionServices --> ConfigJson : lê/grava configurações
 ExtensionServices --> HistoryJson : lê/grava sessões e resumos
 ExtensionServices --> GgufModels : descobre modelos locais
+ExtensionServices --> VSCode : consulta símbolos, diagnósticos e referências
 ExtensionServices --> LlamaBins : seleciona engine
 ExtensionServices --> LlamaServer : inicia/para e envia requisições
 LlamaServer --> GgufModels : carrega modelo
