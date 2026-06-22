@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { AtlasStaticAnalysisConfig } from "../interfaces/AtlasConfigTypes";
 import { AtlasConfigDefaults } from "../repository/AtlasConfigDefaults";
 import { AtlasConfigRepository } from "../repository/AtlasConfigRepository";
 import { AtlasSettingsService } from "../services/AtlasSettingsService";
@@ -19,6 +20,7 @@ export {
   AtlasModelConfig,
   AtlasLlmSelection,
   AtlasLlmSettings,
+  AtlasStaticAnalysisConfig,
   ProviderConfig,
   AtlasConfigSchema,
   AtlasExecutionMode,
@@ -222,5 +224,32 @@ export class AtlasConfigManager {
 
     config.updatedAt = new Date().toISOString();
     this.saveConfig(config);
+  }
+
+  public getStaticAnalysisConfig(): AtlasStaticAnalysisConfig {
+    const configured = this.getConfig().custom?.staticAnalysis;
+
+    return {
+      enabled: configured?.enabled !== false,
+      useInQuickAnalysis: configured?.useInQuickAnalysis !== false,
+      useInArchitecturalAnalysis:
+        configured?.useInArchitecturalAnalysis !== false,
+      includeDiagnostics: configured?.includeDiagnostics === true,
+      includeSymbolRelations: configured?.includeSymbolRelations === true,
+    };
+  }
+
+  public isStaticAnalysisEnabledFor(
+    mode: "quick-analysis" | "architectural-analysis",
+  ): boolean {
+    const config = this.getStaticAnalysisConfig();
+
+    if (!config.enabled) {
+      return false;
+    }
+
+    return mode === "quick-analysis"
+      ? config.useInQuickAnalysis
+      : config.useInArchitecturalAnalysis;
   }
 }

@@ -19,6 +19,7 @@ import { AtlasConfigDefaults } from "../repository/AtlasConfigDefaults";
 import { AtlasHistoryRepository } from "../repository/AtlasHistoryRepository";
 
 import { AtlasQuickAnalysisService } from "../services/AtlasQuickAnalysisService";
+import { AtlasDocumentStructureService } from "../services/AtlasDocumentStructureService";
 import { AtlasSessionService } from "../services/AtlasSessionService";
 import { AtlasEditorContextService } from "./AtlasEditorContextService";
 import { AtlasQuickAnalysisController } from "./AtlasQuickAnalysisController";
@@ -56,6 +57,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
   // Editor & analysis
   private readonly editorContextService: AtlasEditorContextService;
+  private readonly documentStructureService: AtlasDocumentStructureService;
   private readonly quickAnalysisService: AtlasQuickAnalysisService;
   private readonly quickAnalysisController: AtlasQuickAnalysisController;
 
@@ -141,11 +143,14 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
     // Editor context
     this.editorContextService = new AtlasEditorContextService();
+    this.documentStructureService = new AtlasDocumentStructureService();
 
     // Analysis
     this.quickAnalysisService = new AtlasQuickAnalysisService(
       this.promptAssemblyService,
       this.inferenceService,
+      this.documentStructureService,
+      this.configManager,
     );
 
     this.quickAnalysisController = new AtlasQuickAnalysisController(
@@ -215,6 +220,38 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
       buildEditorAnalysisContext: (context) =>
         this.editorContextService.buildEditorAnalysisContext(context),
+
+      buildDocumentStructureContext: async (document) => {
+        const structure = await this.documentStructureService.collect(document);
+        const summaries = [
+          this.documentStructureService.buildSummary(structure),
+        ];
+
+        if (this.configManager.getStaticAnalysisConfig().includeDiagnostics) {
+          summaries.push(
+            this.documentStructureService.buildDiagnosticsSummary(document),
+          );
+        }
+
+        if (
+          this.configManager.getStaticAnalysisConfig().includeSymbolRelations
+        ) {
+          summaries.push(
+            await this.documentStructureService.buildSymbolRelationsSummary(
+              document,
+            ),
+          );
+        }
+
+        const summary = summaries.join("\n\n");
+
+        console.log(
+          "[ATLAS] Análise estática gerada (análise arquitetural):\n",
+          summary,
+        );
+
+        return summary;
+      },
 
       isChatViewVisible: () => this._view?.visible === true,
 

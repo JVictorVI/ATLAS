@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-05-24T14:22:55.827Z",
+  "updatedAt": "2026-06-22T22:01:28.051Z",
   "general": {
     "theme": "system",
     "language": "pt-BR",
@@ -36,11 +36,11 @@
     "selection": {
       "mode": "cloud",
       "local": {
-        "activeModelId": "local/gemma-4-E4B-it-Q4_K_S"
+        "activeModelId": null
       },
       "cloud": {
         "providerId": "Groq",
-        "activeModelId": "groq/compound"
+        "activeModelId": "openai/gpt-oss-120b"
       }
     },
     "defaults": {
@@ -129,7 +129,7 @@
           "quantization": "Q4_K_S",
           "size": "4.51 GB",
           "installedAt": "2026-05-15T23:15:55.940Z",
-          "updatedAt": "2026-05-24T14:22:55.786Z"
+          "updatedAt": "2026-06-01T01:10:19.677Z"
         },
         "custom": {
           "baseUrl": "http://127.0.0.1:8080/v1",
@@ -190,7 +190,7 @@
           "quantization": "Q8_K_XL",
           "size": "1.72 GB",
           "installedAt": "2026-05-24T14:06:45.655Z",
-          "updatedAt": "2026-05-24T14:22:55.804Z"
+          "updatedAt": "2026-06-01T01:10:19.696Z"
         },
         "custom": {
           "baseUrl": "http://127.0.0.1:8080/v1",
@@ -201,6 +201,13 @@
     }
   },
   "custom": {
+    "staticAnalysis": {
+      "enabled": true,
+      "useInQuickAnalysis": true,
+      "useInArchitecturalAnalysis": true,
+      "includeDiagnostics": false,
+      "includeSymbolRelations": true
+    },
     "systemPrompt": {
       "mode": "custom",
       "enabled": true,

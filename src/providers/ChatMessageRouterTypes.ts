@@ -32,6 +32,9 @@ export type RouterDependencies = {
   getLocalEnginesDir: () => string;
   getChatEditorContext: () => AtlasEditorContext | null;
   buildEditorAnalysisContext: (context: AtlasEditorContext) => string;
+  buildDocumentStructureContext: (
+    document: vscode.TextDocument,
+  ) => Promise<string>;
   isChatViewVisible: () => boolean;
   focusChatView: () => Promise<void>;
 };

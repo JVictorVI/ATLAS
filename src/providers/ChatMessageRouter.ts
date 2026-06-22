@@ -412,9 +412,25 @@ export class ChatMessageRouter {
           : {};
       const modelsDir = this.normalizeFolderPath(payload.modelsDir);
       const enginesDir = this.normalizeFolderPath(payload.enginesDir);
+      const staticAnalysisEnabled = payload.staticAnalysisEnabled === true;
+      const staticAnalysisQuick =
+        payload.staticAnalysisQuick === true;
+      const staticAnalysisArchitectural =
+        payload.staticAnalysisArchitectural === true;
+      const staticAnalysisDiagnostics =
+        payload.staticAnalysisDiagnostics === true;
+      const staticAnalysisRelations =
+        payload.staticAnalysisRelations === true;
 
       this.deps.configManager.updateCustomRoot({
         ...currentCustom,
+        staticAnalysis: {
+          enabled: staticAnalysisEnabled,
+          useInQuickAnalysis: staticAnalysisQuick,
+          useInArchitecturalAnalysis: staticAnalysisArchitectural,
+          includeDiagnostics: staticAnalysisDiagnostics,
+          includeSymbolRelations: staticAnalysisRelations,
+        },
         localModels: {
           ...localModels,
           modelsDir: modelsDir || this.deps.getLocalModelsDir(),
@@ -883,25 +899,26 @@ export class ChatMessageRouter {
   }
 
   private getAtlasSettingsPayload() {
-    const localEngine =
-      this.deps.configManager.getConfig().custom?.localEngine;
-
-    if (typeof localEngine !== "object" || localEngine === null) {
-      return {
-        engineType: "cpu",
-        startOnAtlasOpen: false,
-        modelsDir: this.deps.getLocalModelsDir(),
-        enginesDir: this.deps.getLocalEnginesDir(),
-      };
-    }
-
-    const value = localEngine as Record<string, unknown>;
+    const config = this.deps.configManager.getConfig();
+    const localEngine = config.custom?.localEngine;
+    const value =
+      typeof localEngine === "object" && localEngine !== null
+        ? (localEngine as Record<string, unknown>)
+        : {};
+    const staticAnalysis =
+      this.deps.configManager.getStaticAnalysisConfig();
 
     return {
       engineType: this.normalizeLocalEngineType(value.engineType),
       startOnAtlasOpen: value.startOnAtlasOpen === true,
       modelsDir: this.deps.getLocalModelsDir(),
       enginesDir: this.deps.getLocalEnginesDir(),
+      staticAnalysisEnabled: staticAnalysis.enabled,
+      staticAnalysisQuick: staticAnalysis.useInQuickAnalysis,
+      staticAnalysisArchitectural:
+        staticAnalysis.useInArchitecturalAnalysis,
+      staticAnalysisDiagnostics: staticAnalysis.includeDiagnostics,
+      staticAnalysisRelations: staticAnalysis.includeSymbolRelations,
     };
   }
 

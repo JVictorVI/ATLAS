@@ -23,7 +23,7 @@
     <div class="card">
       <div class="section-header">
         <div>
-          <div class="section-title">Modelos e engine local</div>
+          <div class="section-title">Configurações do ATLAS</div>
           <div class="section-description">
             Informe onde estão seus modelos e escolha a forma desejada de
             rodá-los. Se não tiver certeza, mantenha a opção CPU
@@ -149,6 +149,76 @@
             </small>
           </span>
         </label>
+      </section>
+
+      <section class="settings-section">
+        <div class="settings-section-heading">
+          <h2>Análise estática</h2>
+          <p>
+            Use a estrutura fornecida pelas extensões de linguagem do VS Code
+            como contexto auxiliar para as análises do ATLAS
+          </p>
+        </div>
+
+        <div class="static-analysis-options">
+          <label class="startup-option">
+            <input type="checkbox" id="static-analysis-enabled" />
+            <span>
+              <strong>Ativar coleta estrutural</strong>
+              <small>
+                Coleta símbolos como classes, métodos, funções, interfaces e
+                intervalos de linhas. Quando a linguagem não fornece símbolos,
+                o ATLAS continua usando apenas o conteúdo textual
+              </small>
+            </span>
+          </label>
+
+          <label class="startup-option static-analysis-dependent">
+            <input type="checkbox" id="static-analysis-quick" />
+            <span>
+              <strong>Usar na Análise Rápida</strong>
+              <small>
+                Inclui a estrutura coletada no contexto usado para gerar as
+                marcações no editor
+              </small>
+            </span>
+          </label>
+
+          <label class="startup-option static-analysis-dependent">
+            <input type="checkbox" id="static-analysis-architectural" />
+            <span>
+              <strong>Usar na Análise Arquitetural</strong>
+              <small>
+                Inclui a estrutura coletada nas avaliações arquiteturais
+                formais solicitadas pelo chat
+              </small>
+            </span>
+          </label>
+
+          <label class="startup-option static-analysis-dependent">
+            <input type="checkbox" id="static-analysis-diagnostics" />
+            <span>
+              <strong>Incluir diagnósticos do VS Code</strong>
+              <small>
+                Acrescenta erros, avisos, informações e sugestões já
+                publicados pela extensão da linguagem ou por ferramentas como
+                linters
+              </small>
+            </span>
+          </label>
+
+          <label class="startup-option static-analysis-dependent">
+            <input type="checkbox" id="static-analysis-relations" />
+            <span>
+              <strong>Incluir relações entre arquivos e símbolos</strong>
+              <small>
+                Consulta referências de classes, interfaces, funções, structs
+                e enums para indicar quais arquivos utilizam os símbolos
+                definidos no arquivo atual
+              </small>
+            </span>
+          </label>
+        </div>
       </section>
 
       <div class="note">

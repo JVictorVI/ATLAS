@@ -100,6 +100,7 @@ export class AtlasQuickAnalysisController {
       });
 
       const issues = await this.quickAnalysisService.analyzeCode(
+        editorContext.document,
         editorContext.code,
         editorContext.languageId,
         editorContext.fileName,

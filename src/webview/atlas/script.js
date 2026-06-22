@@ -4,6 +4,19 @@ const engineCpu = document.getElementById("engine-cpu");
 const engineCuda = document.getElementById("engine-cuda");
 const engineVulkan = document.getElementById("engine-vulkan");
 const engineStartOnOpen = document.getElementById("engine-start-on-open");
+const staticAnalysisEnabled = document.getElementById(
+  "static-analysis-enabled",
+);
+const staticAnalysisQuick = document.getElementById("static-analysis-quick");
+const staticAnalysisArchitectural = document.getElementById(
+  "static-analysis-architectural",
+);
+const staticAnalysisDiagnostics = document.getElementById(
+  "static-analysis-diagnostics",
+);
+const staticAnalysisRelations = document.getElementById(
+  "static-analysis-relations",
+);
 const modelsFolderPath = document.getElementById("models-folder-path");
 const enginesFolderPath = document.getElementById("engines-folder-path");
 const chooseModelsFolder = document.getElementById("choose-models-folder");
@@ -14,6 +27,10 @@ const saveButton = document.getElementById("save-atlas-settings");
 
 window.addEventListener("DOMContentLoaded", () => {
   saveButton?.addEventListener("click", saveAtlasSettings);
+  staticAnalysisEnabled?.addEventListener(
+    "change",
+    updateStaticAnalysisAvailability,
+  );
   chooseModelsFolder?.addEventListener("click", () => {
     vscode.postMessage({ type: "selecionarPastaModelosLocais" });
   });
@@ -63,6 +80,31 @@ function applyAtlasSettings(value) {
     engineStartOnOpen.checked = value?.startOnAtlasOpen === true;
   }
 
+  if (staticAnalysisEnabled) {
+    staticAnalysisEnabled.checked = value?.staticAnalysisEnabled !== false;
+  }
+
+  if (staticAnalysisQuick) {
+    staticAnalysisQuick.checked = value?.staticAnalysisQuick !== false;
+  }
+
+  if (staticAnalysisArchitectural) {
+    staticAnalysisArchitectural.checked =
+      value?.staticAnalysisArchitectural !== false;
+  }
+
+  if (staticAnalysisDiagnostics) {
+    staticAnalysisDiagnostics.checked =
+      value?.staticAnalysisDiagnostics === true;
+  }
+
+  if (staticAnalysisRelations) {
+    staticAnalysisRelations.checked =
+      value?.staticAnalysisRelations === true;
+  }
+
+  updateStaticAnalysisAvailability();
+
   if (modelsFolderPath) {
     modelsFolderPath.value = value?.modelsDir || "";
     modelsFolderPath.title = value?.modelsDir || "";
@@ -82,7 +124,37 @@ function saveAtlasSettings() {
       startOnAtlasOpen: engineStartOnOpen?.checked === true,
       modelsDir: modelsFolderPath?.value || "",
       enginesDir: enginesFolderPath?.value || "",
+      staticAnalysisEnabled: staticAnalysisEnabled?.checked === true,
+      staticAnalysisQuick: staticAnalysisQuick?.checked === true,
+      staticAnalysisArchitectural:
+        staticAnalysisArchitectural?.checked === true,
+      staticAnalysisDiagnostics: staticAnalysisDiagnostics?.checked === true,
+      staticAnalysisRelations: staticAnalysisRelations?.checked === true,
     },
+  });
+}
+
+function updateStaticAnalysisAvailability() {
+  const enabled = staticAnalysisEnabled?.checked === true;
+
+  if (staticAnalysisQuick) {
+    staticAnalysisQuick.disabled = !enabled;
+  }
+
+  if (staticAnalysisArchitectural) {
+    staticAnalysisArchitectural.disabled = !enabled;
+  }
+
+  if (staticAnalysisDiagnostics) {
+    staticAnalysisDiagnostics.disabled = !enabled;
+  }
+
+  if (staticAnalysisRelations) {
+    staticAnalysisRelations.disabled = !enabled;
+  }
+
+  document.querySelectorAll(".static-analysis-dependent").forEach((option) => {
+    option.classList.toggle("is-disabled", !enabled);
   });
 }
 

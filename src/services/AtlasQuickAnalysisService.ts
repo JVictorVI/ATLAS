@@ -1,5 +1,8 @@
+import * as vscode from "vscode";
+import { AtlasConfigManager } from "../managers/AtlasConfigManager";
 import { AtlasPromptAssemblyService } from "../prompt/AtlasPromptAssemblyService";
 import { AtlasInferenceService } from "./AtlasInferenceService";
+import { AtlasDocumentStructureService } from "./AtlasDocumentStructureService";
 import {
   AtlasQuickIssue,
   AtlasQuickIssueCategory,
@@ -10,16 +13,27 @@ export class AtlasQuickAnalysisService {
   constructor(
     private readonly promptAssemblyService: AtlasPromptAssemblyService,
     private readonly inferenceService: AtlasInferenceService,
+    private readonly documentStructureService: AtlasDocumentStructureService,
+    private readonly configManager: AtlasConfigManager,
   ) {}
 
   public async analyzeCode(
+    document: vscode.TextDocument,
     code: string,
     languageId?: string,
     fileName?: string,
   ): Promise<AtlasQuickIssue[]> {
+    const structureSummary =
+      await this.buildOptionalStructureSummary(document);
+
     const promptResult = this.promptAssemblyService.buildMessages({
       forcedMode: "quick-analysis",
-      userQuestion: this.buildQuickAnalysisPrompt(code, languageId, fileName),
+      userQuestion: this.buildQuickAnalysisPrompt(
+        code,
+        structureSummary,
+        languageId,
+        fileName,
+      ),
       history: [],
       analysisContext: [],
       ragContext: [],
@@ -32,6 +46,7 @@ export class AtlasQuickAnalysisService {
 
   private buildQuickAnalysisPrompt(
     code: string,
+    structureSummary: string,
     languageId?: string,
     fileName?: string,
   ): string {
@@ -48,6 +63,13 @@ export class AtlasQuickAnalysisService {
       "Use os números no início de cada linha para preencher startLine e endLine.",
       "Os prefixos no formato '<linha> |' são apenas referência; não fazem parte do código original.",
       "Retorne exclusivamente JSON válido no formato solicitado.",
+      "",
+      "Estrutura coletada pelos provedores da linguagem no VS Code:",
+      structureSummary,
+      "",
+      "Use a estrutura acima apenas como evidência auxiliar para localizar e compreender os elementos do arquivo.",
+      "Quando a coleta estiver limitada ou não trouxer símbolos, analise normalmente o código numerado.",
+      "Não invente relações, dependências ou símbolos que não estejam visíveis no código ou na estrutura coletada.",
       "",
       fileName ? `Arquivo: ${fileName}` : "",
       languageId ? `Linguagem: ${languageId}` : "",
@@ -74,6 +96,39 @@ export class AtlasQuickAnalysisService {
       content,
       lineCount: lines.length,
     };
+  }
+
+  private async buildOptionalStructureSummary(
+    document: vscode.TextDocument,
+  ): Promise<string> {
+    if (!this.configManager.isStaticAnalysisEnabledFor("quick-analysis")) {
+      return "Coleta estática desativada para a análise rápida nas configurações do ATLAS.";
+    }
+
+    const structure = await this.documentStructureService.collect(document);
+    const summaries = [this.documentStructureService.buildSummary(structure)];
+
+    if (this.configManager.getStaticAnalysisConfig().includeDiagnostics) {
+      summaries.push(
+        this.documentStructureService.buildDiagnosticsSummary(document),
+      );
+    }
+
+    if (
+      this.configManager.getStaticAnalysisConfig().includeSymbolRelations
+    ) {
+      summaries.push(
+        await this.documentStructureService.buildSymbolRelationsSummary(
+          document,
+        ),
+      );
+    }
+
+    const summary = summaries.join("\n\n");
+
+    console.log("[ATLAS] Análise estática gerada (análise rápida):\n", summary);
+
+    return summary;
   }
 
   private parseIssues(raw: string): AtlasQuickIssue[] {

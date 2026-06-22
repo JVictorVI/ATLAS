@@ -52,7 +52,15 @@ export class AtlasConfigDefaults {
         },
         localModels: {},
       },
-      custom: {},
+      custom: {
+        staticAnalysis: {
+          enabled: true,
+          useInQuickAnalysis: true,
+          useInArchitecturalAnalysis: true,
+          includeDiagnostics: false,
+          includeSymbolRelations: false,
+        },
+      },
       providers: this.createDefaultProviders(),
     };
   }
@@ -108,6 +116,28 @@ export class AtlasConfigDefaults {
       custom: {
         ...(defaults.custom ?? {}),
         ...(partial.custom ?? {}),
+        staticAnalysis: {
+          enabled:
+            partial.custom?.staticAnalysis?.enabled ??
+            defaults.custom?.staticAnalysis?.enabled ??
+            true,
+          useInQuickAnalysis:
+            partial.custom?.staticAnalysis?.useInQuickAnalysis ??
+            defaults.custom?.staticAnalysis?.useInQuickAnalysis ??
+            true,
+          useInArchitecturalAnalysis:
+            partial.custom?.staticAnalysis?.useInArchitecturalAnalysis ??
+            defaults.custom?.staticAnalysis?.useInArchitecturalAnalysis ??
+            true,
+          includeDiagnostics:
+            partial.custom?.staticAnalysis?.includeDiagnostics ??
+            defaults.custom?.staticAnalysis?.includeDiagnostics ??
+            false,
+          includeSymbolRelations:
+            partial.custom?.staticAnalysis?.includeSymbolRelations ??
+            defaults.custom?.staticAnalysis?.includeSymbolRelations ??
+            false,
+        },
       },
       providers: partial.providers ?? defaults.providers,
       updatedAt: partial.updatedAt ?? defaults.updatedAt,

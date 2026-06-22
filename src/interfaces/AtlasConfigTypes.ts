@@ -107,8 +107,17 @@ export interface AtlasStudyModeConfig {
   enabled: boolean;
 }
 
+export interface AtlasStaticAnalysisConfig {
+  enabled: boolean;
+  useInQuickAnalysis: boolean;
+  useInArchitecturalAnalysis: boolean;
+  includeDiagnostics: boolean;
+  includeSymbolRelations: boolean;
+}
+
 export interface AtlasCustomSettings {
   studyMode?: AtlasStudyModeConfig;
+  staticAnalysis?: AtlasStaticAnalysisConfig;
 
   // mantém flexível para futuras extensões
   [key: string]: unknown;

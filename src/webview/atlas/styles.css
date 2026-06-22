@@ -153,6 +153,24 @@ h1 {
   border-color: var(--vscode-focusBorder);
 }
 
+.static-analysis-options {
+  display: grid;
+  gap: 10px;
+}
+
+.static-analysis-dependent {
+  margin-left: 20px;
+}
+
+.static-analysis-dependent.is-disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.static-analysis-dependent.is-disabled:hover {
+  border-color: var(--vscode-widget-border);
+}
+
 .engine-option span,
 .startup-option span {
   display: flex;

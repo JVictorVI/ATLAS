@@ -45,17 +45,48 @@ export class ChatResponseController {
 
       this.activeResponseSnapshot = responseSnapshot;
 
-      const promptResult = this.deps.promptAssemblyService.buildMessages({
+      const baseAnalysisContext = editorContext
+        ? [this.deps.buildEditorAnalysisContext(editorContext)]
+        : [];
+
+      let promptResult = this.deps.promptAssemblyService.buildMessages({
         userQuestion: data.value,
         history: windowMessages,
-        analysisContext: editorContext
-          ? [this.deps.buildEditorAnalysisContext(editorContext)]
-          : [],
+        analysisContext: baseAnalysisContext,
         ragContext: [],
         hasCodeContext: Boolean(editorContext),
         forcedMode: data.forcedMode,
         architecturalSummary: session.architecturalSummary || undefined,
       });
+
+      if (
+        promptResult.mode === "architectural-analysis" &&
+        editorContext &&
+        this.deps.configManager.isStaticAnalysisEnabledFor(
+          "architectural-analysis",
+        )
+      ) {
+        const structureContext =
+          await this.deps.buildDocumentStructureContext(editorContext.document);
+
+        promptResult = this.deps.promptAssemblyService.buildMessages({
+          userQuestion: data.value,
+          history: windowMessages,
+          analysisContext: [
+            ...baseAnalysisContext,
+            [
+              "Estrutura estática coletada pelos provedores da linguagem no VS Code:",
+              structureContext,
+              "",
+              "Use essa estrutura como evidência auxiliar. Não invente relações que não estejam presentes no código ou nos símbolos coletados.",
+            ].join("\n"),
+          ],
+          ragContext: [],
+          hasCodeContext: true,
+          forcedMode: data.forcedMode,
+          architecturalSummary: session.architecturalSummary || undefined,
+        });
+      }
 
       if (promptResult.mode === "quick-analysis") {
         await this.handleQuickAnalysisFromChat(
