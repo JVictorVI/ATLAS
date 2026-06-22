@@ -7,6 +7,10 @@ body {
   --atlas-muted-border: var(--vscode-widget-border);
 }
 
+* {
+  box-sizing: border-box;
+}
+
 h1 {
   font-size: 30px;
   line-height: 1.15;
@@ -28,29 +32,22 @@ h1 {
 .card {
   background: var(--atlas-card-background);
   border: 1px solid var(--vscode-widget-border);
-  border-radius: 8px;
+  border-radius: 14px;
   padding: 16px;
   margin-bottom: 18px;
-}
-
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 16px;
 }
 
 .section-title {
   font-size: 20px;
   font-weight: 600;
-  margin-bottom: 6px;
+  margin-bottom: 10px;
 }
 
 .section-description {
   color: var(--vscode-descriptionForeground);
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.45;
-  max-width: 760px;
+  margin-bottom: 14px;
 }
 
 .settings-section {
@@ -74,19 +71,12 @@ h1 {
   font-size: 13px;
   line-height: 1.45;
   margin: 0;
-  max-width: 760px;
 }
 
 .engine-options {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 12px;
-}
-
-.folder-settings {
-  display: grid;
-  gap: 12px;
-  margin-top: 14px;
 }
 
 .folder-setting {
@@ -159,7 +149,7 @@ h1 {
 }
 
 .static-analysis-dependent {
-  margin-left: 20px;
+  margin-left: 12px;
 }
 
 .static-analysis-dependent.is-disabled {
@@ -268,6 +258,11 @@ input[type="checkbox"]:checked::after {
   margin-top: 14px;
 }
 
+.settings-actions {
+  margin-top: -4px;
+  margin-bottom: 18px;
+}
+
 button {
   border: none;
   border-radius: 5px;
@@ -298,4 +293,9 @@ button {
   .folder-control {
     grid-template-columns: 1fr;
   }
+
+  .static-analysis-dependent {
+    margin-left: 6px;
+  }
+
 }

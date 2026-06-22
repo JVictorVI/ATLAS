@@ -1,15 +1,15 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-05-24T14:22:52.425Z",
+  "updatedAt": "2026-06-22T22:40:07.596Z",
   "sessions": [
     {
-      "id": "f4fe7c1b-7799-48ab-ada4-cb34c5931ad7",
+      "id": "466f74ac-573e-47b3-9cc6-f76225a98e81",
       "title": "Nova Sessão",
       "architecturalSummary": "",
       "messages": [],
       "lastSummarizedIndex": 0,
-      "createdAt": "2026-05-24T14:22:52.425Z",
-      "updatedAt": "2026-05-24T14:22:52.425Z"
+      "createdAt": "2026-06-22T22:40:07.595Z",
+      "updatedAt": "2026-06-22T22:40:07.595Z"
     }
   ]
 }

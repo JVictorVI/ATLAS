@@ -20,123 +20,134 @@
       <div class="subtitle">Ajuste preferências gerais do ATLAS</div>
     </header>
 
-    <div class="card">
-      <div class="section-header">
-        <div>
-          <div class="section-title">Configurações do ATLAS</div>
-          <div class="section-description">
-            Informe onde estão seus modelos e escolha a forma desejada de
-            rodá-los. Se não tiver certeza, mantenha a opção CPU
-          </div>
-        </div>
-      </div>
-
-      <section class="settings-section">
-        <div class="settings-section-heading">
-          <h2>Pastas utilizadas pelo ATLAS</h2>
-          <p>
-            Essas pastas dizem ao ATLAS onde procurar os arquivos necessários
-            para executar modelos locais
-          </p>
+    <main>
+      <section class="card">
+        <div class="section-title">Modelos e execução local</div>
+        <div class="section-description">
+          Informe onde estão seus modelos e escolha a forma desejada de
+          rodá-los. Se não tiver certeza, mantenha a opção CPU
         </div>
 
-        <div class="folder-setting">
-          <label for="models-folder-path">Pasta de modelos</label>
-          <div class="folder-control">
-            <input id="models-folder-path" type="text" readonly />
-            <button id="choose-models-folder" class="btn-secondary">
-              Alterar
-            </button>
-            <button id="open-models-folder" class="btn-secondary">
-              Abrir pasta
-            </button>
+        <div class="settings-section">
+          <div class="settings-section-heading">
+            <h2>Pastas utilizadas pelo ATLAS</h2>
+            <p>
+              Essas pastas dizem ao ATLAS onde procurar os arquivos necessários
+              para executar modelos locais
+            </p>
           </div>
-          <small>
-            Coloque aqui os arquivos de modelos no formato .gguf. Eles
-            aparecerão na Biblioteca
-          </small>
+
+          <div class="folder-setting">
+            <label for="models-folder-path">Pasta de modelos</label>
+            <div class="folder-control">
+              <input id="models-folder-path" type="text" readonly />
+              <button id="choose-models-folder" class="btn-secondary">
+                Alterar
+              </button>
+              <button id="open-models-folder" class="btn-secondary">
+                Abrir pasta
+              </button>
+            </div>
+            <small>
+              Coloque aqui os arquivos de modelos no formato .gguf. Eles
+              aparecerão na Biblioteca
+            </small>
+          </div>
+
+          <div class="folder-setting">
+            <label for="engines-folder-path">Pasta das engines</label>
+            <div class="folder-control">
+              <input id="engines-folder-path" type="text" readonly />
+              <button id="choose-engines-folder" class="btn-secondary">
+                Alterar
+              </button>
+              <button id="open-engines-folder" class="btn-secondary">
+                Abrir pasta
+              </button>
+            </div>
+            <small>
+              Use esta pasta para armazenar as versões do llama.cpp utilizadas
+              para rodar os modelos locais
+            </small>
+          </div>
         </div>
 
-        <div class="folder-setting">
-          <label for="engines-folder-path">Pasta das engines</label>
-          <div class="folder-control">
-            <input id="engines-folder-path" type="text" readonly />
-            <button id="choose-engines-folder" class="btn-secondary">
-              Alterar
-            </button>
-            <button id="open-engines-folder" class="btn-secondary">
-              Abrir pasta
-            </button>
+        <div class="settings-section">
+          <div class="settings-section-heading">
+            <h2>Forma de execução</h2>
+            <p>
+              Escolha se o modelo deve rodar apenas no processador ou usar a
+              placa de vídeo quando houver suporte
+            </p>
           </div>
-          <small>
-            Use esta pasta para armazenar as versões do llama.cpp utilizadas
-            para rodar os modelos locais
-          </small>
+
+          <div class="engine-options">
+            <label class="engine-option">
+              <input
+                type="radio"
+                name="engine-type"
+                id="engine-cpu"
+                value="cpu"
+              />
+              <span>
+                <strong>CPU</strong>
+                <small>
+                  Maior compatibilidade, porém com geração de respostas mais
+                  lenta
+                </small>
+              </span>
+            </label>
+
+            <label class="engine-option">
+              <input
+                type="radio"
+                name="engine-type"
+                id="engine-cuda"
+                value="cuda"
+              />
+              <span>
+                <strong>GPU NVIDIA CUDA</strong>
+                <small>
+                  Melhor desempenho em placas NVIDIA com suporte a CUDA
+                </small>
+              </span>
+            </label>
+
+            <label class="engine-option">
+              <input
+                type="radio"
+                name="engine-type"
+                id="engine-vulkan"
+                value="vulkan"
+              />
+              <span>
+                <strong>GPU Vulkan</strong>
+                <small>
+                  Alternativa multiplataforma para aceleração via GPU
+                </small>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <div class="note">
+          Para instalar uma engine, baixe uma versão do llama.cpp, extraia os
+          arquivos dentro da pasta de engines e mantenha os nomes das pastas
+          como llama.cpp, llama.cpp-cuda ou llama.cpp-vulkan
+          <a
+            href="https://github.com/ggml-org/llama.cpp/releases"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Abrir página de downloads</a
+          >.
         </div>
       </section>
 
-      <section class="settings-section">
-        <div class="settings-section-heading">
-          <h2>Forma de execução</h2>
-          <p>
-            Escolha se o modelo deve rodar apenas no processador ou usar a placa
-            de vídeo quando houver suporte
-          </p>
-        </div>
-
-        <div class="engine-options">
-          <label class="engine-option">
-            <input
-              type="radio"
-              name="engine-type"
-              id="engine-cpu"
-              value="cpu"
-            />
-            <span>
-              <strong>CPU</strong>
-              <small>
-                Maior compatibilidade, porém com geração de respostas mais lenta
-              </small>
-            </span>
-          </label>
-
-          <label class="engine-option">
-            <input
-              type="radio"
-              name="engine-type"
-              id="engine-cuda"
-              value="cuda"
-            />
-            <span>
-              <strong>GPU NVIDIA CUDA</strong>
-              <small>
-                Melhor desempenho em placas NVIDIA com suporte a CUDA
-              </small>
-            </span>
-          </label>
-
-          <label class="engine-option">
-            <input
-              type="radio"
-              name="engine-type"
-              id="engine-vulkan"
-              value="vulkan"
-            />
-            <span>
-              <strong>GPU Vulkan</strong>
-              <small>Alternativa multiplataforma para aceleração via GPU</small>
-            </span>
-          </label>
-        </div>
-      </section>
-
-      <section class="settings-section">
-        <div class="settings-section-heading">
-          <h2>Inicialização</h2>
-          <p>
-            Defina se o ATLAS deve deixar a execução de modelos locais pronta
-            assim que a extensão for aberta
-          </p>
+      <section class="card">
+        <div class="section-title">Inicialização</div>
+        <div class="section-description">
+          Defina se o ATLAS deve deixar a execução de modelos locais pronta
+          assim que a extensão for aberta
         </div>
 
         <label class="startup-option">
@@ -151,13 +162,11 @@
         </label>
       </section>
 
-      <section class="settings-section">
-        <div class="settings-section-heading">
-          <h2>Análise estática</h2>
-          <p>
-            Use a estrutura fornecida pelas extensões de linguagem do VS Code
-            como contexto auxiliar para as análises do ATLAS
-          </p>
+      <section class="card">
+        <div class="section-title">Análise estática</div>
+        <div class="section-description">
+          Use a estrutura fornecida pelas extensões de linguagem do VS Code como
+          contexto auxiliar para as análises do ATLAS
         </div>
 
         <div class="static-analysis-options">
@@ -167,8 +176,8 @@
               <strong>Ativar coleta estrutural</strong>
               <small>
                 Coleta símbolos como classes, métodos, funções, interfaces e
-                intervalos de linhas. Quando a linguagem não fornece símbolos,
-                o ATLAS continua usando apenas o conteúdo textual
+                intervalos de linhas. Quando a linguagem não fornece símbolos, o
+                ATLAS continua usando apenas o conteúdo textual
               </small>
             </span>
           </label>
@@ -189,8 +198,8 @@
             <span>
               <strong>Usar na Análise Arquitetural</strong>
               <small>
-                Inclui a estrutura coletada nas avaliações arquiteturais
-                formais solicitadas pelo chat
+                Inclui a estrutura coletada nas avaliações arquiteturais formais
+                solicitadas pelo chat
               </small>
             </span>
           </label>
@@ -200,9 +209,8 @@
             <span>
               <strong>Incluir diagnósticos do VS Code</strong>
               <small>
-                Acrescenta erros, avisos, informações e sugestões já
-                publicados pela extensão da linguagem ou por ferramentas como
-                linters
+                Acrescenta erros, avisos, informações e sugestões já publicados
+                pela extensão da linguagem ou por ferramentas como linters
               </small>
             </span>
           </label>
@@ -212,31 +220,19 @@
             <span>
               <strong>Incluir relações entre arquivos e símbolos</strong>
               <small>
-                Consulta referências de classes, interfaces, funções, structs
-                e enums para indicar quais arquivos utilizam os símbolos
-                definidos no arquivo atual
+                Consulta referências de classes, interfaces, funções, structs e
+                enums para indicar quais arquivos utilizam os símbolos definidos
+                no arquivo atual
               </small>
             </span>
           </label>
         </div>
       </section>
 
-      <div class="note">
-        Para instalar uma engine, baixe uma versão do llama.cpp, extraia os
-        arquivos dentro da pasta de engines e mantenha os nomes das pastas como
-        llama.cpp, llama.cpp-cuda ou llama.cpp-vulkan
-        <a
-          href="https://github.com/ggml-org/llama.cpp/releases"
-          target="_blank"
-          rel="noopener noreferrer"
-          >Abrir página de downloads</a
-        >.
-      </div>
-
-      <div class="row-end">
+      <div class="row-end settings-actions">
         <button id="save-atlas-settings" class="btn-primary">Salvar</button>
       </div>
-    </div>
+    </main>
 
     <script src="{{scriptUri}}"></script>
   </body>
