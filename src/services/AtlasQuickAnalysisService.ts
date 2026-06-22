@@ -147,6 +147,18 @@ export class AtlasQuickAnalysisService {
         severity: this.normalizeSeverity((item as any).severity),
         category: this.normalizeCategory((item as any).category),
         message: String((item as any).message ?? "").trim(),
+        impact: String(
+          (item as any).impact ??
+            (item as any).problem ??
+            (item as any).consequence ??
+            "",
+        ).trim(),
+        suggestion: String(
+          (item as any).suggestion ??
+            (item as any).recommendation ??
+            (item as any).fix ??
+            "",
+        ).trim(),
       }))
       .filter((item): item is AtlasQuickIssue => {
         return (

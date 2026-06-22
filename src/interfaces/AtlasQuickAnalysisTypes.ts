@@ -17,4 +17,6 @@ export interface AtlasQuickIssue {
   severity: AtlasQuickIssueSeverity;
   category: AtlasQuickIssueCategory;
   message: string;
+  impact: string;
+  suggestion: string;
 }

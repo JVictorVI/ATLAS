@@ -308,6 +308,8 @@ export class AtlasQuickAnalysisController {
           startLine,
           endLine,
           message: issue.message.trim(),
+          impact: issue.impact.trim(),
+          suggestion: issue.suggestion.trim(),
         };
       })
       .filter((issue) => issue.message.length > 0);
@@ -361,14 +363,23 @@ export class AtlasQuickAnalysisController {
         ? `Linha ${issue.startLine}`
         : `Linhas ${issue.startLine}-${issue.endLine}`;
 
-    return new vscode.MarkdownString(
-      [
-        `**ATLAS - ${severity.label}**`,
-        `**Categoria:** ${category}`,
-        `**Trecho:** ${lineLabel}`,
-        issue.message,
-      ].join("\n\n"),
-    );
+    const sections = [
+      `**ATLAS - ${severity.label}**`,
+      `**Categoria:** ${category}`,
+      `**Trecho:** ${lineLabel}`,
+      `**O que foi observado**  \n${issue.message}`,
+      issue.impact
+        ? `**Por que isso é um problema**  \n${issue.impact}`
+        : "",
+      issue.suggestion
+        ? `**Como melhorar**  \n${issue.suggestion}`
+        : "",
+      issue.suggestion
+        ? "_A sugestão é um ponto de partida e deve ser validada no contexto do projeto._"
+        : "",
+    ].filter(Boolean);
+
+    return new vscode.MarkdownString(sections.join("\n\n"));
   }
 
   private getSeverityLabel(severity: AtlasQuickIssueSeverity): {
