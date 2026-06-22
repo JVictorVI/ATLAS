@@ -1222,6 +1222,15 @@ textarea {
   font-weight: 700;
 }
 
+.action-btn.icon-action-btn {
+  min-width: 28px;
+  padding-inline: 7px;
+}
+
+.action-btn.icon-action-btn i {
+  font-size: 13px;
+}
+
 .message h4 {
   font-size: 13px;
 }

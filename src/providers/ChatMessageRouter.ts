@@ -121,6 +121,12 @@ export class ChatMessageRouter {
       case "executarAnaliseRapida":
         await this.deps.executeQuickAnalysis(webview);
         return;
+      case "limparMarcacoesAnaliseRapida":
+        this.deps.clearQuickAnalysisDecorations();
+        return;
+      case "consultarMarcacoesAnaliseRapida":
+        await this.deps.sendQuickAnalysisAvailability(webview);
+        return;
       case "alterarModoEstudo":
         await this.handleToggleStudyMode(data, webview);
         return;

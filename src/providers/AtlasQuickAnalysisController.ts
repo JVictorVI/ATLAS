@@ -16,10 +16,13 @@ export class AtlasQuickAnalysisController {
   private readonly lowIssueDecoration: vscode.TextEditorDecorationType;
   private readonly mediumIssueDecoration: vscode.TextEditorDecorationType;
   private readonly highIssueDecoration: vscode.TextEditorDecorationType;
+  private readonly issuesByDocument = new Map<string, AtlasQuickIssue[]>();
+  private readonly disposables: vscode.Disposable[] = [];
 
   constructor(
     private readonly quickAnalysisService: AtlasQuickAnalysisService,
     private readonly editorContextService: AtlasEditorContextService,
+    private readonly onAvailabilityChanged?: (available: boolean) => void,
   ) {
     this.lowIssueDecoration = vscode.window.createTextEditorDecorationType({
       isWholeLine: false,
@@ -50,6 +53,44 @@ export class AtlasQuickAnalysisController {
       overviewRulerColor: "rgba(185, 28, 28, 1)",
       overviewRulerLane: vscode.OverviewRulerLane.Right,
     });
+
+    this.disposables.push(
+      vscode.window.onDidChangeActiveTextEditor((editor) => {
+        if (editor) {
+          this.restoreDecorations(editor);
+        }
+
+        this.notifyAvailability(editor);
+      }),
+      vscode.window.onDidChangeVisibleTextEditors((editors) => {
+        for (const editor of editors) {
+          this.restoreDecorations(editor);
+        }
+      }),
+      vscode.workspace.onDidChangeTextDocument((event) => {
+        const documentKey = event.document.uri.toString();
+
+        if (!this.issuesByDocument.delete(documentKey)) {
+          return;
+        }
+
+        for (const editor of vscode.window.visibleTextEditors) {
+          if (editor.document.uri.toString() === documentKey) {
+            this.clearEditorDecorations(editor);
+          }
+        }
+
+        if (
+          vscode.window.activeTextEditor?.document.uri.toString() ===
+          documentKey
+        ) {
+          this.notifyAvailability(vscode.window.activeTextEditor);
+        }
+      }),
+      vscode.workspace.onDidCloseTextDocument((document) => {
+        this.issuesByDocument.delete(document.uri.toString());
+      }),
+    );
   }
 
   public async execute(
@@ -131,7 +172,12 @@ export class AtlasQuickAnalysisController {
       }
 
       this.clearDecorations(editor);
+      this.issuesByDocument.set(
+        editor.document.uri.toString(),
+        sanitizedIssues,
+      );
       this.applyDecorations(editor, sanitizedIssues);
+      this.notifyAvailability(editor);
 
       await webview?.postMessage({
         type: "analiseRapidaConcluida",
@@ -175,15 +221,77 @@ export class AtlasQuickAnalysisController {
       return;
     }
 
-    targetEditor.setDecorations(this.lowIssueDecoration, []);
-    targetEditor.setDecorations(this.mediumIssueDecoration, []);
-    targetEditor.setDecorations(this.highIssueDecoration, []);
+    this.issuesByDocument.delete(targetEditor.document.uri.toString());
+    this.clearEditorDecorations(targetEditor);
+
+    if (targetEditor === vscode.window.activeTextEditor) {
+      this.notifyAvailability(targetEditor);
+    }
+  }
+
+  public hasActiveDecorations(): boolean {
+    const editor = vscode.window.activeTextEditor;
+
+    return (
+      !!editor && this.issuesByDocument.has(editor.document.uri.toString())
+    );
+  }
+
+  public clearActiveDecorations(): void {
+    const editor = vscode.window.activeTextEditor;
+
+    if (!editor) {
+      vscode.window.showWarningMessage(
+        "ATLAS: abra um arquivo no editor para limpar as marcações.",
+      );
+      return;
+    }
+
+    const hadDecorations = this.issuesByDocument.has(
+      editor.document.uri.toString(),
+    );
+
+    this.clearDecorations(editor);
+
+    vscode.window.showInformationMessage(
+      hadDecorations
+        ? "ATLAS: marcações da análise rápida removidas."
+        : "ATLAS: não há marcações de análise rápida neste arquivo.",
+    );
   }
 
   public dispose(): void {
+    for (const disposable of this.disposables) {
+      disposable.dispose();
+    }
+
+    this.issuesByDocument.clear();
     this.lowIssueDecoration.dispose();
     this.mediumIssueDecoration.dispose();
     this.highIssueDecoration.dispose();
+  }
+
+  private restoreDecorations(editor: vscode.TextEditor): void {
+    const issues = this.issuesByDocument.get(editor.document.uri.toString());
+
+    if (!issues) {
+      return;
+    }
+
+    this.applyDecorations(editor, issues);
+  }
+
+  private notifyAvailability(editor?: vscode.TextEditor): void {
+    const available =
+      !!editor && this.issuesByDocument.has(editor.document.uri.toString());
+
+    this.onAvailabilityChanged?.(available);
+  }
+
+  private clearEditorDecorations(editor: vscode.TextEditor): void {
+    editor.setDecorations(this.lowIssueDecoration, []);
+    editor.setDecorations(this.mediumIssueDecoration, []);
+    editor.setDecorations(this.highIssueDecoration, []);
   }
 
   private sanitizeIssues(

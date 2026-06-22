@@ -26,6 +26,21 @@ export class ChatPanelManager {
     this.onMessage = handler;
   }
 
+  public postMessage(message: unknown): void {
+    const panels = [
+      this.chatPanel,
+      this.configPanel,
+      this.libraryPanel,
+      this.searchPanel,
+    ];
+
+    for (const panel of panels) {
+      if (panel) {
+        void panel.webview.postMessage(message);
+      }
+    }
+  }
+
   public getLocalResourceRoots(): vscode.Uri[] {
     return [
       vscode.Uri.joinPath(this.context.extensionUri, "src", "webview", "chat"),

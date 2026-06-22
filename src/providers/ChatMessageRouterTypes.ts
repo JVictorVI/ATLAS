@@ -24,6 +24,8 @@ export type RouterDependencies = {
     webview?: vscode.Webview,
     options?: { source?: "button" | "chat"; sessionId?: string },
   ) => Promise<void>;
+  clearQuickAnalysisDecorations: () => void;
+  sendQuickAnalysisAvailability: (webview: vscode.Webview) => Promise<void>;
   refreshLocalModels: () => ReturnType<AtlasConfigManager["getLocalModels"]>;
   startLocalEngine: () => Promise<void>;
   promptStopLocalEngine: () => Promise<void>;

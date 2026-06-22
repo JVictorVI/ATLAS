@@ -153,13 +153,17 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       this.configManager,
     );
 
+    // UI / Panels
+    this.panelManager = new ChatPanelManager(this.context, this.apiKeyManager);
+
     this.quickAnalysisController = new AtlasQuickAnalysisController(
       this.quickAnalysisService,
       this.editorContextService,
+      (available) => {
+        this.broadcastQuickAnalysisAvailability(available);
+      },
     );
 
-    // UI / Panels
-    this.panelManager = new ChatPanelManager(this.context, this.apiKeyManager);
     this.modelWebviewService = new ChatModelWebviewService(
       this.localModelDiscoveryService,
       this.configManager,
@@ -193,6 +197,19 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         options?: { source?: "button" | "chat"; sessionId?: string },
       ) => {
         await this.quickAnalysisController.execute(webview, options);
+      },
+
+      clearQuickAnalysisDecorations: () => {
+        this.quickAnalysisController.clearActiveDecorations();
+      },
+
+      sendQuickAnalysisAvailability: async (webview: vscode.Webview) => {
+        await webview.postMessage({
+          type: "disponibilidadeMarcacoesAnaliseRapida",
+          value: {
+            available: this.quickAnalysisController.hasActiveDecorations(),
+          },
+        });
       },
 
       refreshLocalModels: () => {
@@ -324,6 +341,16 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         })),
       },
     });
+  }
+
+  private broadcastQuickAnalysisAvailability(available: boolean): void {
+    const message = {
+      type: "disponibilidadeMarcacoesAnaliseRapida",
+      value: { available },
+    };
+
+    void this._view?.webview.postMessage(message);
+    this.panelManager.postMessage(message);
   }
 
   private async startEngineOnAtlasOpenIfEnabled(): Promise<void> {

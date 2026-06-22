@@ -428,6 +428,9 @@ function renderChatView() {
                 <div class="action-buttons">
                     <button class="action-btn" id="architeture-analysis-btn">Analisar Arquitetura</button>
                     <button class="action-btn" id="quick-analysis-btn">Análise Rápida</button>
+                    <button class="action-btn icon-action-btn hidden" id="clear-quick-analysis-btn" title="Limpar marcações da análise rápida" aria-label="Limpar marcações da análise rápida">
+                      <i class="codicon codicon-clear-all"></i>
+                    </button>
                 </div>
             </div>
 
@@ -453,6 +456,7 @@ function renderChatView() {
 
   // Request sessions from backend on first render
   vscode.postMessage({ type: "listarSessoes" });
+  vscode.postMessage({ type: "consultarMarcacoesAnaliseRapida" });
 }
 
 // ── Model popover ─────────────────────────────────────────────────────────────
@@ -715,6 +719,9 @@ function setupChatEvents() {
   const popoverBtn = document.getElementById("open-popover");
   const agentPopover = document.getElementById("agent-popover");
   const quickAnalysisBtn = document.getElementById("quick-analysis-btn");
+  const clearQuickAnalysisBtn = document.getElementById(
+    "clear-quick-analysis-btn",
+  );
   const architetureAnalysisBtn = document.getElementById(
     "architeture-analysis-btn",
   );
@@ -744,6 +751,11 @@ function setupChatEvents() {
     setShortcutLoading("quick-analysis", true);
     vscode.postMessage({ type: "executarAnaliseRapida" });
   });
+
+  clearQuickAnalysisBtn?.addEventListener("click", () => {
+    vscode.postMessage({ type: "limparMarcacoesAnaliseRapida" });
+  });
+
   if (architetureAnalysisBtn) {
     architetureAnalysisBtn.addEventListener("click", () => {
       if (shortcutLoadingState.architectureAnalysis || isGeneratingResponse) {
@@ -1678,6 +1690,17 @@ window.addEventListener("message", (event) => {
 
       shortcutLoadingState.quickAnalysis = false;
       setShortcutLoading("quick-analysis", false);
+      break;
+    }
+    case "disponibilidadeMarcacoesAnaliseRapida": {
+      const clearQuickAnalysisBtn = document.getElementById(
+        "clear-quick-analysis-btn",
+      );
+
+      clearQuickAnalysisBtn?.classList.toggle(
+        "hidden",
+        message.value?.available !== true,
+      );
       break;
     }
     case "informarLLMsCarregados": {
