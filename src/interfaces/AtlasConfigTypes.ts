@@ -8,7 +8,6 @@ export interface AtlasGeneralSettings {
 }
 
 export interface AtlasSecuritySettings {
-  blockRag: boolean;
   limitPayload: boolean;
   maxTokens?: number;
   timeout?: number;

@@ -1017,6 +1017,9 @@ function renderConfigView() {
   document.getElementById("atlas-btn")?.addEventListener("click", () => {
     vscode.postMessage({ type: "abrirPainelConfig", selectedView: "atlas" });
   });
+  document.getElementById("rag-btn")?.addEventListener("click", () => {
+    vscode.postMessage({ type: "abrirPainelConfig", selectedView: "rag" });
+  });
 }
 
 function renderLibraryView() {

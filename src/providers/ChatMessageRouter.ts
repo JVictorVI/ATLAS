@@ -226,7 +226,6 @@ export class ChatMessageRouter {
   ): Promise<void> {
     try {
       const {
-        blockRag,
         limitPayload,
         maxTokens,
         timeout,
@@ -236,7 +235,6 @@ export class ChatMessageRouter {
       } = data.payload ?? {};
 
       this.deps.configManager.updateSecuritySettings({
-        blockRag,
         limitPayload,
         maxTokens,
         timeout,

@@ -190,7 +190,6 @@ function bindCredentialActions() {
 function fillCloudSecuritySettings(settings) {
   if (!settings) return;
 
-  const blockRag = document.getElementById("blockRag");
   const limitPayload = document.getElementById("limitPayload");
   const maxTokens = document.getElementById("maxTokens");
   const timeout = document.getElementById("timeout");
@@ -198,7 +197,6 @@ function fillCloudSecuritySettings(settings) {
   const topP = document.getElementById("topP");
   const stream = document.getElementById("stream");
 
-  if (blockRag) blockRag.checked = Boolean(settings.blockRag);
   if (limitPayload) limitPayload.checked = Boolean(settings.limitPayload);
   if (stream) stream.checked = Boolean(settings.stream);
 
@@ -220,7 +218,6 @@ function fillCloudSecuritySettings(settings) {
 }
 
 function saveCloudSecuritySettings() {
-  const blockRag = document.getElementById("blockRag");
   const limitPayload = document.getElementById("limitPayload");
   const maxTokens = document.getElementById("maxTokens");
   const timeout = document.getElementById("timeout");
@@ -231,7 +228,6 @@ function saveCloudSecuritySettings() {
   vscode.postMessage({
     type: "salvarConfiguracoesSeguranca",
     payload: {
-      blockRag: Boolean(blockRag?.checked),
       limitPayload: Boolean(limitPayload?.checked),
       maxTokens: maxTokens?.value ? Number(maxTokens.value) : undefined,
       timeout: timeout?.value ? Number(timeout.value) : undefined,

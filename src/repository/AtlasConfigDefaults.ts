@@ -15,7 +15,6 @@ export class AtlasConfigDefaults {
         logLevel: "info",
       },
       cloudSecurity: {
-        blockRag: false,
         limitPayload: true,
         maxTokens: 2048,
         timeout: 30,
