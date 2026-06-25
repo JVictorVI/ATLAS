@@ -8,6 +8,11 @@ import { AtlasPromptCustomizationService } from "../prompt/AtlasPromptCustomizat
 import { AtlasInferenceService } from "../services/AtlasInferenceService";
 import { AtlasSessionService } from "../services/AtlasSessionService";
 import { CloudApiService } from "../services/CloudApiService";
+import {
+  RagIndexingProgress,
+  RagProjectIndex,
+  RagRuntimeStatus,
+} from "../interfaces/AtlasRagTypes";
 
 export type RouterDependencies = {
   apiKeyManager: ApiKeyManager;
@@ -39,6 +44,24 @@ export type RouterDependencies = {
   ) => Promise<string>;
   isChatViewVisible: () => boolean;
   focusChatView: () => Promise<void>;
+  initializeRag: () => Promise<RagRuntimeStatus>;
+  getRagRuntimeStatus: () => RagRuntimeStatus;
+  stopRag: () => void;
+  listRagProjects: () => RagProjectIndex[];
+  indexCurrentWorkspace: (
+    onProgress?: (progress: RagIndexingProgress) => void | Promise<void>,
+    signal?: AbortSignal,
+  ) => Promise<RagProjectIndex>;
+  indexSelectedFolder: (
+    folderUri: vscode.Uri,
+    onProgress?: (progress: RagIndexingProgress) => void | Promise<void>,
+    signal?: AbortSignal,
+  ) => Promise<RagProjectIndex>;
+  deleteRagProject: (projectId: string) => Promise<void>;
+  getRagContext: (
+    query: string,
+    signal?: AbortSignal,
+  ) => Promise<string[]>;
 };
 
 export type ActiveResponseSnapshot = {

@@ -21,6 +21,9 @@ export interface AtlasRagSettings {
   chunkSize: number;
   chunkOverlap: number;
   ignoredPaths: string[];
+  embeddingModel: string;
+  topK: number;
+  maxContextCharacters: number;
 }
 
 export interface AtlasEngineSettings {

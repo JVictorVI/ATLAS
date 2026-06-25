@@ -58,6 +58,53 @@ export class ChatResponseController {
         forcedMode: data.forcedMode,
         architecturalSummary: session.architecturalSummary || undefined,
       });
+      let ragContext: string[] = [];
+
+      if (promptResult.mode !== "quick-analysis") {
+        try {
+          ragContext = await this.deps.getRagContext(
+            String(data.value ?? ""),
+            responseController.signal,
+          );
+        } catch (error) {
+          if (
+            AtlasInferenceService.isAbortError(error) ||
+            responseController.signal.aborted
+          ) {
+            throw error;
+          }
+
+          console.warn(
+            "[ATLAS] Recuperação RAG indisponível; continuando sem contexto:",
+            error,
+          );
+        }
+
+        if (ragContext.length) {
+          console.log("[ATLAS RAG] Injetando contexto recuperado no prompt:", {
+            chunks: ragContext.length,
+            characters: ragContext.reduce(
+              (total, item) => total + item.length,
+              0,
+            ),
+            mode: promptResult.mode,
+          });
+
+          promptResult = this.deps.promptAssemblyService.buildMessages({
+            userQuestion: data.value,
+            history: windowMessages,
+            analysisContext: baseAnalysisContext,
+            ragContext,
+            hasCodeContext: Boolean(editorContext),
+            forcedMode: data.forcedMode,
+            architecturalSummary: session.architecturalSummary || undefined,
+          });
+        } else {
+          console.log(
+            "[ATLAS RAG] Nenhum contexto recuperado será injetado no prompt.",
+          );
+        }
+      }
 
       if (
         promptResult.mode === "architectural-analysis" &&
@@ -81,7 +128,7 @@ export class ChatResponseController {
               "Use essa estrutura como evidência auxiliar. Não invente relações que não estejam presentes no código ou nos símbolos coletados.",
             ].join("\n"),
           ],
-          ragContext: [],
+          ragContext,
           hasCodeContext: true,
           forcedMode: data.forcedMode,
           architecturalSummary: session.architecturalSummary || undefined,

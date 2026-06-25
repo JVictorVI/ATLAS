@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-06-23T20:33:59.364Z",
+  "updatedAt": "2026-06-25T13:49:17.602Z",
   "general": {
     "theme": "system",
     "language": "pt-BR",
@@ -17,15 +17,18 @@
   "rag": {
     "enabled": true,
     "autoIndex": false,
-    "allowCloudContext": false,
-    "offlineOnly": true,
+    "allowCloudContext": true,
+    "offlineOnly": false,
     "chunkSize": 1000,
     "chunkOverlap": 200,
     "ignoredPaths": [
       "node_modules",
       "dist",
       ".git"
-    ]
+    ],
+    "embeddingModel": "atlas-embedding",
+    "topK": 6,
+    "maxContextCharacters": 12000
   },
   "ui": {
     "defaultView": "chat",
@@ -35,7 +38,7 @@
     "selection": {
       "mode": "cloud",
       "local": {
-        "activeModelId": null
+        "activeModelId": "local/Qwen3.5-4B-UD-Q8_K_XL"
       },
       "cloud": {
         "providerId": "Groq",
@@ -195,6 +198,36 @@
           "baseUrl": "http://127.0.0.1:8080/v1",
           "engine": "llama.cpp",
           "tokensRes": 2048
+        }
+      },
+      "local/Qwen3.5-4B-UD-Q8_K_XL": {
+        "id": "local/Qwen3.5-4B-UD-Q8_K_XL",
+        "name": "Qwen3.5-4B-UD-Q8_K_XL",
+        "provider": "Qwen",
+        "enabled": true,
+        "source": "local",
+        "path": "c:\\Users\\jvict\\Downloads\\modelos\\Qwen3.5-4B-UD-Q8_K_XL.gguf",
+        "apiModelName": "Qwen3.5-4B-UD-Q8_K_XL",
+        "parameters": {
+          "temperature": 0.7,
+          "maxTokens": 4096,
+          "topP": 0.95,
+          "gpuLayers": 0,
+          "contextWindow": 8192
+        },
+        "metadata": {
+          "source": "models-folder",
+          "tags": [
+            "4B"
+          ],
+          "quantization": "Q8_K_XL",
+          "size": "771.6 MB",
+          "installedAt": "2026-06-23T20:38:09.267Z",
+          "updatedAt": "2026-06-25T13:49:17.602Z"
+        },
+        "custom": {
+          "baseUrl": "http://127.0.0.1:8080/v1",
+          "engine": "llama.cpp"
         }
       }
     }

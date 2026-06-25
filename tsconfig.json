@@ -2,11 +2,12 @@
   "compilerOptions": {
     "target": "ES2020",
     "module": "commonjs",
-    "lib": ["ES2020"],
+    "lib": ["ES2020", "DOM"],
     "types": ["node", "vscode", "mocha"],
     "rootDir": "src",
     "outDir": "out",
     "strict": true,
+    "skipLibCheck": true,
     "sourceMap": true
   }
 }

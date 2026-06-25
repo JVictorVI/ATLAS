@@ -1,15 +1,68 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-06-22T22:40:07.596Z",
+  "updatedAt": "2026-06-25T13:37:50.251Z",
   "sessions": [
     {
-      "id": "466f74ac-573e-47b3-9cc6-f76225a98e81",
-      "title": "Nova Sessão",
+      "id": "9c1d1fe3-a36e-413b-bb38-b0482a35d8d7",
+      "title": "Qual o algoritmo de criptografia utilizado...",
       "architecturalSummary": "",
-      "messages": [],
+      "messages": [
+        {
+          "role": "user",
+          "content": "qual o algoritmo de criptografia utilizado nesse projeto?"
+        },
+        {
+          "role": "assistant",
+          "content": "Doutor,\n\nNo código‑fonte do **frontend** (`synken‑frontend/src/Service/EncryptionService.js`) a criptografia de mensagens é feita com a biblioteca **CryptoJS**:\n\n```javascript\nCryptoJS.AES.encrypt(message, key, {\n  iv: iv,\n  mode: CryptoJS.mode.CBC,\n  padding: CryptoJS.pad.Pkcs7,\n});\n```\n\nPortanto, o algoritmo empregado é **AES (Advanced Encryption Standard)**, operando no modo **CBC (Cipher Block Chaining)** e utilizando **padding PKCS#7**.  \n\nAlém disso:\n\n* **Derivação da chave** – a chave simétrica é obtida a partir dos IDs dos usuários usando `CryptoJS.SHA256`, que gera um hash SHA‑256 (64 hex chars) que depois é convertido para `CryptoJS.enc.Hex`.\n* **Hash de senhas** – no backend (`SecurityConfig.java`) o `PasswordEncoder` é um `BCryptPasswordEncoder`, ou seja, senhas são armazenadas com **BCrypt**, que é um algoritmo de hash, não de criptografia.\n\nResumindo:\n\n| Camada | Algoritmo | Uso |\n|--------|-----------|-----|\n| Criptografia de mensagens | **AES‑CBC** com PKCS#7 | Confidencialidade dos textos trocados |\n| Derivação da chave | **SHA‑256** (hash) | Geração da chave simétrica a partir dos IDs |\n| Hash de senhas | **BCrypt** | Armazenamento seguro de senhas no backend |\n\nEsses são os algoritmos de criptografia e hashing presentes no projeto."
+        },
+        {
+          "role": "user",
+          "content": "o que é esse projeto?"
+        },
+        {
+          "role": "assistant",
+          "content": "Doutor,\n\n### Visão geral do projeto **Synken**\n\n| Camada | Tecnologia | Função principal |\n|--------|------------|------------------|\n| **Backend** | Spring Boot (Java) | API REST + WebSocket para gerenciamento de usuários, autenticação (JWT/BCrypt) e troca de mensagens em tempo real. |\n| **Frontend** | React + Vite (JavaScript/JSX) | Interface de usuário responsiva que consome a API, abre conexões STOMP/WebSocket e exibe conversas privadas. |\n| **Comunicação em tempo real** | Spring WebSocket + STOMP | Permite que mensagens sejam enviadas e recebidas instantaneamente entre clientes sem recarregar a página. |\n| **Segurança** | - `BCryptPasswordEncoder` (hash de senhas) <br> - Criptografia AES‑CBC (mensagens) <br> - JWT (provável, embora não esteja explicitado nos trechos mostrados) | Garante confidencialidade das mensagens e integridade das credenciais. |\n| **Persistência** | (não exibido nos trechos, mas tipicamente) JPA/Hibernate + banco relacional (ex.: PostgreSQL, MySQL) | Armazena usuários, conversas, mensagens, etc. |\n| **Build / Dependências** | Maven (pom.xml) – exclui Lombok do *shade* <br> npm / Vite – gerencia dependências do frontend | Compilação e empacotamento tanto do backend quanto do frontend. |\n\n#### Principais recursos observados nos arquivos\n\n1. **WebSocketConfig.java**  \n   ```java\n   @EnableWebSocketMessageBroker\n   public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {\n       // …\n       config.enableSimpleBroker(\"/topic\", \"/queue\");\n       config.setApplicationDestinationPrefixes(\"/app\");\n       config.setUserDestinationPrefix(\"/user\");\n   }\n   ```\n   - Define um broker simples que entrega mensagens para destinos `/topic` (broadcast) e `/queue` (ponto‑a‑ponto).  \n   - O prefixo `/app` indica onde o cliente enviará mensagens que serão roteadas para os *handlers* do Spring.  \n   - `/user` permite enviar mensagens específicas a um usuário conectado.\n\n2. **PrivateChat.jsx** (frontend)  \n   - Renderiza a lista de mensagens de um chat privado.  \n   - Formata data/hora (`formatDateString`, `formatTime`).  \n   - Diferencia visualmente mensagens enviadas pelo usuário atual (`style.userMessageBox`) e as recebidas (`style.friendMessageBox`).  \n\n3. **EncryptionService.js** (não incluído nos trechos, mas mencionado)  \n   - Usa **CryptoJS** para criptografar o conteúdo da mensagem com **AES‑CBC** e `PKCS#7` padding.  \n   - A chave simétrica é derivada dos IDs dos usuários usando **SHA‑256**.  \n\n4. **pom.xml** (backend)  \n   - Projeto Maven padrão; exclui Lombok da camada de *shaded* jar, indicando que o jar final não inclui Lombok (ele serve apenas como anotação em tempo de compilação).  \n\n5. **index.html** (frontend)  \n   - Estrutura mínima de um app React: ponto de montagem `<div id=\"root\">` e carregamento do bundle via `<script type=\"module\" src=\"/src/index.jsx\"></script>`.\n\n#### Como o fluxo típico funciona\n\n1. **Login / Registro** – O usuário cria uma conta; a senha é armazenada como hash BCrypt no banco.\n2. **Autenticação** – Após login, o cliente recebe um token (geralmente JWT) que será enviado nos headers das chamadas REST.\n3. **Abertura de conexão WebSocket** – O frontend cria uma conexão STOMP para `ws://<host>/ws` (endpoint definido em `WebSocketConfig`).  \n4. **Criptografia de mensagem** – Antes de enviar, o texto é criptografado com AES‑CBC usando a chave derivada dos IDs dos participantes. O payload criptografado é enviado via STOMP para `/app/chat.sendMessage` (ou similar).  \n5. **Recebimento** – O servidor encaminha a mensagem ao destino `/user/{username}/queue/messages`. O cliente escuta esse tópico, descriptografa a mensagem e a exibe.  \n6. **Persistência** – O backend salva a mensagem (texto criptografado) no banco para histórico.\n\n#### Propósito do projeto\n\nO nome **Synken** (possivelmente “synchronised chat” ou algo semelhante) indica que o objetivo é oferecer um **chat privado e seguro**, onde:\n\n- As conversas são **em tempo real** via WebSocket.  \n- O **conteúdo das mensagens** permanece confidencial, pois é criptografado no cliente antes de ser enviado ao servidor.  \n- O **backend** atua apenas como roteador e armazenador, sem ter acesso ao texto plano das mensagens.  \n\nEm resumo, trata‑se de um **sistema de mensagens instantâneas** com foco em **segurança de ponta a ponta**, construído com um stack Java Spring + React/Vite."
+        }
+      ],
       "lastSummarizedIndex": 0,
-      "createdAt": "2026-06-22T22:40:07.595Z",
-      "updatedAt": "2026-06-22T22:40:07.595Z"
+      "createdAt": "2026-06-25T13:37:08.320Z",
+      "updatedAt": "2026-06-25T13:37:50.250Z"
+    },
+    {
+      "id": "24e0f068-1d76-4e83-b517-6ffe891012af",
+      "title": "Quantos comportamentos tem o atlas?",
+      "architecturalSummary": "",
+      "messages": [
+        {
+          "role": "user",
+          "content": "quantos comportamentos tem o atlas?"
+        },
+        {
+          "role": "assistant",
+          "content": "Doutor, o ATLAS possui **três comportamentos principais** definidos nos seus prompts de sistema:\n\n| Comportamento | Descrição resumida |\n|---------------|--------------------|\n| **Modo padrão** | Atua como assistente técnico geral de desenvolvimento, respondendo a dúvidas de programação, arquitetura, depuração, testes, APIs etc. |\n| **Modo de análise rápida arquitetural** | Quando ativado, varre todo o código recebido e devolve exclusivamente uma lista JSON contendo os problemas arquiteturais observáveis. |\n| **Modo estudo** | Combina a assistência técnica com uma abordagem didática, explicando conceitos e trechos de código de forma progressiva e pedagógica. |\n\nEsses são os comportamentos explicitamente modelados nos arquivos de política do ATLAS. Outros fluxos (por exemplo, controle do engine local) são funcionalidades auxiliares, mas não constituem “comportamentos” distintos no sentido da definição de modo de operação."
+        }
+      ],
+      "lastSummarizedIndex": 0,
+      "createdAt": "2026-06-25T13:30:07.791Z",
+      "updatedAt": "2026-06-25T13:30:08.992Z"
+    },
+    {
+      "id": "36787034-c4a8-4d5a-9a94-4d6f78add780",
+      "title": "No processamento de pedidos, quais cupons...",
+      "architecturalSummary": "",
+      "messages": [
+        {
+          "role": "user",
+          "content": "No processamento de pedidos, quais cupons são aceitos e qual desconto cada um aplica?"
+        },
+        {
+          "role": "assistant",
+          "content": "Doutor,\n\nNo fluxo de **processamento de pedidos** o código verifica o campo `order.coupon` e aplica os descontos a seguir:\n\n| Cupom          | Tipo de desconto | Cálculo aplicado                                            |\n|----------------|------------------|-------------------------------------------------------------|\n| **PROMO10**    | Percentual 10 %  | `total = total - total * 0.1` (reduz 10 % do valor total)   |\n| **PROMO20**    | Percentual 20 %  | `total = total - total * 0.2` (reduz 20 % do valor total)   |\n| **BLACKFRIDAY**| Percentual 50 %  | `total = total - total * 0.5` (reduz 50 % do valor total)   |\n| **VIP**        | Valor fixo       | `total = total - 75` (subtrai R$ 75 do valor total)          |\n\n**Observações adicionais**\n\n1. **Valor mínimo** – após a aplicação do desconto, se `total < 0` o código o ajusta para `0`, evitando valores negativos.  \n2. **Acréscimo por segmento** – se o usuário pertence ao segmento `\"enterprise\"`, o código adiciona `12.37` ao total **após** os descontos (`total = total + 12.37`).  \n3. O campo `order.coupon` vem do objeto `order` retornado pelo repositório; se o cupom não corresponde a nenhum dos quatro listados, nenhum desconto é aplicado.\n\nEsses são todos os cupons reconhecidos pelo trecho de código que você compartilhou."
+        }
+      ],
+      "lastSummarizedIndex": 0,
+      "createdAt": "2026-06-25T13:26:59.492Z",
+      "updatedAt": "2026-06-25T13:27:26.130Z"
     }
   ]
 }

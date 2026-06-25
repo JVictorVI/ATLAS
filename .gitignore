@@ -8,3 +8,6 @@ config/atlas-history.json
 models/*.gguf
 models/**/*.gguf
 engine/
+resources/chroma/*/chromadb-binding.node
+resources/embeddings/atlas-embedding/
+resources/embedding-runtime/node_modules/

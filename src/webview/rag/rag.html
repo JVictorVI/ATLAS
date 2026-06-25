@@ -45,6 +45,11 @@
         </label>
       </section>
 
+      <section class="runtime-section" aria-live="polite">
+        <strong>Base vetorial:</strong>
+        <span id="rag-runtime-status">Verificando ChromaDB...</span>
+      </section>
+
       <section class="content-section" aria-labelledby="indexed-projects-title">
         <div class="section-heading">
           <h2 id="indexed-projects-title">
@@ -54,7 +59,7 @@
         </div>
 
         <div class="projects-card">
-          <div class="projects-table" role="table" aria-label="Projetos indexados">
+          <div id="projects-table" class="projects-table" role="table" aria-label="Projetos indexados">
             <div class="project-row project-header" role="row">
               <span role="columnheader">Projeto</span>
               <span role="columnheader">Caminho</span>
@@ -63,64 +68,15 @@
               <span role="columnheader">Status</span>
               <span role="columnheader">Ações</span>
             </div>
-
-            <div class="project-row" role="row">
-              <span data-label="Projeto" role="cell">AtlasProject</span>
-              <span data-label="Caminho" role="cell" title=".../documentos/projetos/tcc">.../documentos/projetos/tcc</span>
-              <span data-label="N.º de Arquivos" role="cell">109 arquivos</span>
-              <span data-label="Tamanho" role="cell">26MB</span>
-              <span data-label="Status" role="cell"><strong class="status status-updated">Atualizado</strong></span>
-              <span class="row-actions" data-label="Ações" role="cell">
-                <button class="btn btn-outline btn-reindex" type="button">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6v5h-5" /><path d="M18.5 15.5A8 8 0 1 1 19 8l1 3" /></svg>
-                  Reindexar
-                </button>
-                <button class="btn btn-danger btn-delete" type="button">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5" /></svg>
-                  Excluir
-                </button>
-              </span>
-            </div>
-
-            <div class="project-row" role="row">
-              <span data-label="Projeto" role="cell">FlutterApp</span>
-              <span data-label="Caminho" role="cell" title=".../documentos/projetos/apps">.../documentos/projetos/apps</span>
-              <span data-label="N.º de Arquivos" role="cell">25 arquivos</span>
-              <span data-label="Tamanho" role="cell">3MB</span>
-              <span data-label="Status" role="cell"><strong class="status status-outdated">Desatualizado</strong></span>
-              <span class="row-actions" data-label="Ações" role="cell">
-                <button class="btn btn-outline btn-reindex" type="button">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6v5h-5" /><path d="M18.5 15.5A8 8 0 1 1 19 8l1 3" /></svg>
-                  Reindexar
-                </button>
-                <button class="btn btn-danger btn-delete" type="button">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5" /></svg>
-                  Excluir
-                </button>
-              </span>
-            </div>
-
-            <div class="project-row" role="row">
-              <span data-label="Projeto" role="cell">UniBet</span>
-              <span data-label="Caminho" role="cell" title=".../documentos/projetos/programs">.../documentos/projetos/programs</span>
-              <span data-label="N.º de Arquivos" role="cell">69420 arquivos</span>
-              <span data-label="Tamanho" role="cell">67MB</span>
-              <span data-label="Status" role="cell"><strong class="status status-indexing">Reindexando...</strong></span>
-              <span class="row-actions" data-label="Ações" role="cell">
-                <button class="btn btn-outline btn-reindex" type="button">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6v5h-5" /><path d="M18.5 15.5A8 8 0 1 1 19 8l1 3" /></svg>
-                  Reindexar
-                </button>
-                <button class="btn btn-danger btn-delete" type="button">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5" /></svg>
-                  Excluir
-                </button>
-              </span>
+            <div id="projects-empty" class="empty-state">
+              Nenhum projeto indexado.
             </div>
           </div>
 
           <div class="card-actions">
-            <button id="add-project" class="btn btn-primary" type="button">Adicionar projeto</button>
+            <button id="cancel-indexing" class="btn btn-outline" type="button" hidden>Cancelar indexação</button>
+            <button id="select-folder" class="btn btn-outline" type="button">Escolher pasta</button>
+            <button id="add-project" class="btn btn-primary" type="button">Indexar workspace atual</button>
           </div>
         </div>
       </section>

@@ -21,6 +21,10 @@ import { AtlasHistoryRepository } from "../repository/AtlasHistoryRepository";
 import { AtlasQuickAnalysisService } from "../services/AtlasQuickAnalysisService";
 import { AtlasDocumentStructureService } from "../services/AtlasDocumentStructureService";
 import { AtlasSessionService } from "../services/AtlasSessionService";
+import { AtlasChromaService } from "../services/AtlasChromaService";
+import { AtlasRagService } from "../services/AtlasRagService";
+import { AtlasEmbeddingService } from "../services/AtlasEmbeddingService";
+import { AtlasRagRepository } from "../repository/AtlasRagRepository";
 import { AtlasEditorContextService } from "./AtlasEditorContextService";
 import { AtlasQuickAnalysisController } from "./AtlasQuickAnalysisController";
 import { ChatPanelManager } from "./ChatPanelManager";
@@ -60,6 +64,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private readonly documentStructureService: AtlasDocumentStructureService;
   private readonly quickAnalysisService: AtlasQuickAnalysisService;
   private readonly quickAnalysisController: AtlasQuickAnalysisController;
+  private readonly chromaService: AtlasChromaService;
+  private readonly embeddingService: AtlasEmbeddingService;
+  private readonly ragRepository: AtlasRagRepository;
+  private readonly ragService: AtlasRagService;
 
   // UI orchestration
   private readonly panelManager: ChatPanelManager;
@@ -144,6 +152,21 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     // Editor context
     this.editorContextService = new AtlasEditorContextService();
     this.documentStructureService = new AtlasDocumentStructureService();
+    this.chromaService = new AtlasChromaService(this.context);
+    this.embeddingService = new AtlasEmbeddingService(
+      this.context,
+      this.configManager,
+    );
+    this.ragRepository = new AtlasRagRepository(
+      this.context,
+      this.chromaService,
+    );
+    this.ragService = new AtlasRagService(
+      this.configManager,
+      this.chromaService,
+      this.embeddingService,
+      this.ragRepository,
+    );
 
     // Analysis
     this.quickAnalysisService = new AtlasQuickAnalysisService(
@@ -274,6 +297,42 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
       focusChatView: async () => {
         await vscode.commands.executeCommand(`${ChatViewProvider.viewType}.focus`);
+      },
+
+      initializeRag: async () => {
+        return this.ragService.initialize();
+      },
+
+      getRagRuntimeStatus: () => {
+        return this.ragService.getRuntimeStatus();
+      },
+
+      stopRag: () => {
+        this.ragService.dispose();
+      },
+
+      listRagProjects: () => {
+        return this.ragService.listProjects();
+      },
+
+      indexCurrentWorkspace: async (onProgress, signal) => {
+        return this.ragService.indexCurrentWorkspace(onProgress, signal);
+      },
+
+      indexSelectedFolder: async (folderUri, onProgress, signal) => {
+        return this.ragService.indexSelectedFolder(
+          folderUri,
+          onProgress,
+          signal,
+        );
+      },
+
+      deleteRagProject: async (projectId) => {
+        await this.ragService.deleteProjectIndex(projectId);
+      },
+
+      getRagContext: async (query, signal) => {
+        return this.ragService.retrieveContext(query, signal);
       },
     });
 
@@ -426,6 +485,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   }
 
   public dispose(): void {
+    this.ragService.dispose();
     this.localEngineService.stopEngine();
     this.quickAnalysisController.dispose();
   }

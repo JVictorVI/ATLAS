@@ -1,0 +1,9 @@
+{
+  "name": "atlas-embedding-runtime",
+  "private": true,
+  "version": "1.0.0",
+  "dependencies": {
+    "onnxruntime-node": "1.21.0",
+    "sharp": "0.34.5"
+  }
+}

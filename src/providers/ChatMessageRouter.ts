@@ -5,9 +5,11 @@ import * as path from "path";
 import { ChatResponseController } from "./ChatResponseController";
 import { ChatSessionController } from "./ChatSessionController";
 import { RouterDependencies } from "./ChatMessageRouterTypes";
+import { RagIndexingProgress } from "../interfaces/AtlasRagTypes";
 
 export class ChatMessageRouter {
   private activeWebviewRoute = "chat";
+  private ragIndexController: AbortController | null = null;
   private readonly responseController: ChatResponseController;
   private readonly sessionController: ChatSessionController;
 
@@ -66,6 +68,27 @@ export class ChatMessageRouter {
         return;
       case "carregarConfiguracoesAtlas":
         await this.handleLoadAtlasSettings(webview);
+        return;
+      case "carregarEstadoRag":
+        await this.handleLoadRagStatus(webview);
+        return;
+      case "inicializarRag":
+        await this.handleInitializeRag(webview);
+        return;
+      case "salvarConfiguracoesRag":
+        await this.handleSaveRagSettings(data, webview);
+        return;
+      case "indexarWorkspaceRag":
+        await this.handleIndexWorkspaceRag(webview, "workspace");
+        return;
+      case "selecionarPastaRag":
+        await this.handleIndexWorkspaceRag(webview, "folder");
+        return;
+      case "cancelarIndexacaoRag":
+        this.ragIndexController?.abort();
+        return;
+      case "excluirProjetoRag":
+        await this.handleDeleteRagProject(data, webview);
         return;
       case "salvarConfiguracoesAtlas":
         await this.handleSaveAtlasSettings(data, webview);
@@ -178,6 +201,217 @@ export class ChatMessageRouter {
       });
     } catch (error) {
       await this.postError(webview, error, "Erro ao carregar LLMs.");
+    }
+  }
+
+  private async handleLoadRagStatus(webview: vscode.Webview): Promise<void> {
+    const settings = this.deps.configManager.getSection("rag");
+    let runtime = this.deps.getRagRuntimeStatus();
+
+    if (settings.enabled && !runtime.running) {
+      try {
+        runtime = await this.deps.initializeRag();
+      } catch (error) {
+        runtime = {
+          ...this.deps.getRagRuntimeStatus(),
+          errorMessage: this.getErrorMessage(
+            error,
+            "Não foi possível inicializar o ChromaDB.",
+          ),
+        };
+      }
+    }
+
+    await webview.postMessage({
+      type: "estadoRagCarregado",
+      value: {
+        settings,
+        runtime,
+        projects: this.deps.listRagProjects(),
+      },
+    });
+  }
+
+  private async handleInitializeRag(webview: vscode.Webview): Promise<void> {
+    try {
+      const runtime = await this.deps.initializeRag();
+
+      await webview.postMessage({
+        type: "estadoRagCarregado",
+        value: {
+          settings: this.deps.configManager.getSection("rag"),
+          runtime,
+          projects: this.deps.listRagProjects(),
+        },
+      });
+    } catch (error) {
+      await this.postError(
+        webview,
+        error,
+        "Não foi possível inicializar o ChromaDB.",
+      );
+    }
+  }
+
+  private async handleSaveRagSettings(
+    data: any,
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      const payload = data.payload ?? {};
+      const config = this.deps.configManager.updateRagSettings({
+        enabled: payload.enabled === true,
+        allowCloudContext: payload.allowCloudContext === true,
+        offlineOnly: payload.allowCloudContext !== true,
+      });
+
+      let runtime = this.deps.getRagRuntimeStatus();
+
+      if (config.rag.enabled && !runtime.running) {
+        runtime = await this.deps.initializeRag();
+      } else if (!config.rag.enabled && runtime.running) {
+        this.deps.stopRag();
+        runtime = this.deps.getRagRuntimeStatus();
+      }
+
+      await webview.postMessage({
+        type: "estadoRagCarregado",
+        value: {
+          settings: config.rag,
+          runtime,
+          projects: this.deps.listRagProjects(),
+        },
+      });
+    } catch (error) {
+      await this.postError(
+        webview,
+        error,
+        "Não foi possível salvar as configurações do RAG.",
+      );
+    }
+  }
+
+  private async handleIndexWorkspaceRag(
+    webview: vscode.Webview,
+    source: "workspace" | "folder",
+  ): Promise<void> {
+    if (this.ragIndexController) {
+      await webview.postMessage({
+        type: "erro",
+        value: "Já existe uma indexação RAG em andamento.",
+      });
+      return;
+    }
+
+    const controller = new AbortController();
+    this.ragIndexController = controller;
+
+    try {
+      let selectedFolder: vscode.Uri | undefined;
+
+      if (source === "folder") {
+        const selection = await vscode.window.showOpenDialog({
+          canSelectFiles: false,
+          canSelectFolders: true,
+          canSelectMany: false,
+          openLabel: "Indexar pasta",
+          title: "Selecione a pasta que será indexada pelo RAG",
+        });
+        selectedFolder = selection?.[0];
+
+        if (!selectedFolder) {
+          await webview.postMessage({
+            type: "indexacaoRagCancelada",
+            value: {
+              projects: this.deps.listRagProjects(),
+            },
+          });
+          return;
+        }
+      }
+
+      const onProgress = async (progress: RagIndexingProgress) => {
+        await webview.postMessage({
+          type: "progressoIndexacaoRag",
+          value: progress,
+        });
+      };
+      const project = selectedFolder
+        ? await this.deps.indexSelectedFolder(
+            selectedFolder,
+            onProgress,
+            controller.signal,
+          )
+        : await this.deps.indexCurrentWorkspace(
+            onProgress,
+            controller.signal,
+          );
+
+      await webview.postMessage({
+        type: "indexacaoRagConcluida",
+        value: {
+          project,
+          projects: this.deps.listRagProjects(),
+        },
+      });
+    } catch (error) {
+      if (controller.signal.aborted) {
+        await webview.postMessage({
+          type: "indexacaoRagCancelada",
+          value: {
+            projects: this.deps.listRagProjects(),
+          },
+        });
+        return;
+      }
+
+      await this.postError(
+        webview,
+        error,
+        "Não foi possível indexar o workspace.",
+      );
+    } finally {
+      if (this.ragIndexController === controller) {
+        this.ragIndexController = null;
+      }
+    }
+  }
+
+  private async handleDeleteRagProject(
+    data: any,
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      const projectId =
+        typeof data.projectId === "string" ? data.projectId : "";
+
+      if (!projectId) {
+        throw new Error("Projeto RAG inválido.");
+      }
+
+      const answer = await vscode.window.showWarningMessage(
+        "Deseja excluir a base vetorial deste projeto?",
+        { modal: true },
+        "Excluir",
+      );
+
+      if (answer !== "Excluir") {
+        return;
+      }
+
+      await this.deps.deleteRagProject(projectId);
+      await webview.postMessage({
+        type: "projetoRagExcluido",
+        value: {
+          projects: this.deps.listRagProjects(),
+        },
+      });
+    } catch (error) {
+      await this.postError(
+        webview,
+        error,
+        "Não foi possível excluir a base vetorial.",
+      );
     }
   }
 

@@ -65,6 +65,17 @@ input {
   background: var(--atlas-card-background);
 }
 
+.runtime-section {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 18px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.runtime-section strong {
+  color: var(--vscode-foreground);
+}
+
 .toggle-section {
   margin-bottom: 12px;
 }
@@ -163,6 +174,13 @@ input {
   display: grid;
 }
 
+.empty-state {
+  border-top: 1px solid var(--atlas-border);
+  padding: 20px 10px;
+  color: var(--vscode-descriptionForeground);
+  text-align: center;
+}
+
 .project-row {
   display: grid;
   grid-template-columns:
@@ -183,6 +201,11 @@ input {
 
 .project-header span {
   padding: 0 10px;
+}
+
+.project-header span:last-child {
+  justify-self: center;
+  text-align: center;
 }
 
 .project-row:not(.project-header) {
@@ -208,7 +231,7 @@ input {
   font-weight: 600;
 }
 
-.status-updated {
+.status-ready {
   color: var(
     --vscode-testing-iconPassed,
     var(--vscode-gitDecoration-addedResourceForeground)
@@ -222,13 +245,20 @@ input {
   );
 }
 
-.status-indexing {
+.status-indexing,
+.status-not-indexed {
   color: var(--vscode-descriptionForeground);
 }
 
+.status-error {
+  color: var(--atlas-danger-foreground);
+}
+
 .project-row .row-actions {
-  justify-content: flex-end;
+  width: 100%;
+  justify-content: center;
   gap: 8px;
+  overflow: visible;
 }
 
 .btn {
@@ -292,7 +322,13 @@ input {
 .card-actions {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
   margin-top: 14px;
+}
+
+.card-actions [hidden] {
+  display: none;
 }
 
 .documents-card {
@@ -436,6 +472,7 @@ input {
 
   .project-row .row-actions {
     grid-column: 1 / -1;
+    justify-content: center;
   }
 
   .project-row .row-actions::before {
@@ -458,7 +495,7 @@ input {
 
   .project-row .row-actions {
     grid-column: auto;
-    justify-content: stretch;
+    justify-content: center;
   }
 
   .row-actions .btn {
@@ -466,6 +503,15 @@ input {
   }
 
   .card-actions .btn-primary {
+    width: 100%;
+  }
+
+  .card-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .card-actions .btn {
     width: 100%;
   }
 }

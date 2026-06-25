@@ -27,6 +27,9 @@ export class AtlasConfigDefaults {
         chunkSize: 1000,
         chunkOverlap: 200,
         ignoredPaths: ["node_modules", "dist", ".git"],
+        embeddingModel: "atlas-embedding",
+        topK: 6,
+        maxContextCharacters: 12000,
       },
       ui: {
         defaultView: "chat",

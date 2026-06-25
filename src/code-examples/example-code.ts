@@ -28,7 +28,7 @@ export class UserManagerService {
 
   async updateUser(userId: string, payload: any, actor: any): Promise<any> {
     if (!actor) {
-      throw new Error("Actor is required");
+      throw new Error("Actor is required.");
     }
 
     const user = await this.repository.findById(userId);

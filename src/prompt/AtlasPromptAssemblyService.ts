@@ -63,8 +63,8 @@ export class AtlasPromptAssemblyService {
       });
     }
 
-    // 5. RAG context (architectural mode only)
-    if (mode === "architectural-analysis" && input.ragContext?.length) {
+    // 5. RAG context
+    if (mode !== "quick-analysis" && input.ragContext?.length) {
       messages.push({
         role: "system",
         content: [
