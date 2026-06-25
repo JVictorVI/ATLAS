@@ -3,7 +3,7 @@
 Este arquivo contém diagramas de classe e de sequência em PlantUML para cada caso de uso atualizado do ATLAS.
 Os blocos podem ser copiados diretamente para o PlantText.
 
-> **Nota de atualização:** os diagramas abaixo representam o ATLAS atual como extensão VS Code em TypeScript. O fluxo de resposta passa por `ChatResponseController`, `AtlasPromptAssemblyService` e `AtlasInferenceService`, que decide entre `CloudApiService` e `LocalApiService`. A execução local com `llama-server`, sessões, histórico, resumo de conversas, descoberta de modelos `.gguf`, análise rápida via botão ou intenção textual no chat, heurística de resolução de modo, normalização de achados e persistência em arquivos JSON já estão contemplados. A análise estática estrutural usa símbolos, diagnósticos e referências disponibilizados pelos provedores de linguagem do VS Code como contexto auxiliar configurável. RAG, ChromaDB, busca real em Hugging Face e download automatizado continuam marcados como futuro.
+> **Nota de atualização:** os diagramas abaixo representam o ATLAS atual como extensão VS Code em TypeScript. Além dos fluxos de inferência local/cloud, sessões, análise rápida e contexto estrutural, o RAG local está implementado com `AtlasRagService`, embeddings locais, ChromaDB empacotado, indexação por projeto e recuperação integrada ao chat. Busca real em Hugging Face, download automatizado de modelos de chat e ingestão de documentos externos continuam marcados como futuro.
 
 ## UC001 - Perguntar sobre o código pelo chat
 
@@ -38,6 +38,9 @@ class AtlasDocumentStructureService {
 class AtlasPromptAssemblyService {
   +buildMessages(input)
 }
+class AtlasRagService {
+  +retrieveContext(query, signal)
+}
 class AtlasSessionService {
   +appendMessage(sessionId, message)
   +getWindowMessages(session)
@@ -55,6 +58,7 @@ ChatViewProvider --> ChatMessageRouter
 ChatMessageRouter --> ChatResponseController
 ChatResponseController --> AtlasEditorContextService
 ChatResponseController --> AtlasDocumentStructureService : se architectural-analysis
+ChatResponseController --> AtlasRagService : recuperar contexto do projeto
 ChatResponseController --> AtlasPromptAssemblyService
 ChatResponseController --> AtlasSessionService
 ChatResponseController --> AtlasInferenceService
@@ -75,6 +79,7 @@ participant ChatMessageRouter as Router
 participant ChatResponseController as Response
 participant AtlasEditorContextService as EditorContext
 participant AtlasDocumentStructureService as Structure
+participant AtlasRagService as RAG
 participant AtlasPromptAssemblyService as Prompt
 participant AtlasSessionService as Sessions
 participant AtlasInferenceService as Inference
@@ -88,6 +93,8 @@ Response -> EditorContext : getChatEditorContext()
 EditorContext --> Response : contexto ou null
 Response -> Sessions : obter histórico e resumo
 Sessions --> Response : janela recente + resumo
+Response -> RAG : retrieveContext(pergunta, signal)
+RAG --> Response : contexto + fontes
 Response -> Prompt : buildMessages(input)
 Prompt --> Response : messages + mode
 alt mode == quick-analysis
@@ -1124,9 +1131,9 @@ Router --> Webview : configuracoesAtlasSalvas
 @enduml
 ```
 
-## Casos de uso futuros
+## Casos de uso atuais e futuros
 
-## UC016 - Indexar projeto com RAG (futuro)
+## UC016 - Indexar projeto com RAG
 
 ### Diagrama de Classes
 
@@ -1135,27 +1142,44 @@ Router --> Webview : configuracoesAtlasSalvas
 skinparam shadowing false
 skinparam classAttributeIconSize 0
 
-class RagConfigurationUI <<future>>
-class ProjectIndexer <<future>> {
-  +indexProject(workspace)
+class "Webview RAG" as RagConfigurationUI {
+  +exibirProjetos()
+  +exibirProgresso()
+  +cancelarIndexacao()
 }
-class EmbeddingGenerator <<future>> {
-  +generateEmbeddings(chunks)
+class ChatMessageRouter {
+  -handleIndexWorkspaceRag(webview, source, projectId)
 }
-class VectorDatabaseManager <<future>> {
-  +saveVectors(vectors)
-  +deleteCollection(projectId)
+class AtlasRagService {
+  +indexCurrentWorkspace(onProgress, signal)
+  +indexSelectedFolder(folderUri, onProgress, signal)
+  +indexProject(projectId, onProgress, signal)
+  +deleteProjectIndex(projectId)
 }
-class ContextRetriever <<future>>
-class AtlasConfigManager
-database ChromaDB <<future>>
+class AtlasEmbeddingService {
+  +embedDocuments(chunks, signal)
+}
+class AtlasChromaService {
+  +ensureReady()
+  +getStatus()
+}
+class AtlasRagRepository {
+  +upsertChunks(collection, chunks)
+  +replaceCollection(staging, target)
+  +saveProject(project)
+  +deleteProject(projectId)
+}
+database "ChromaDB local" as ChromaDB
+artifact "index-manifest.json" as Manifest
 
-RagConfigurationUI --> ProjectIndexer
-ProjectIndexer --> EmbeddingGenerator
-ProjectIndexer --> VectorDatabaseManager
-ProjectIndexer --> AtlasConfigManager
-VectorDatabaseManager --> ChromaDB
-ContextRetriever --> VectorDatabaseManager
+RagConfigurationUI --> ChatMessageRouter : postMessage
+ChatMessageRouter --> AtlasRagService
+AtlasRagService --> AtlasEmbeddingService
+AtlasRagService --> AtlasChromaService
+AtlasRagService --> AtlasRagRepository
+AtlasRagRepository --> AtlasChromaService
+AtlasRagRepository --> ChromaDB
+AtlasRagRepository --> Manifest
 @enduml
 ```
 
@@ -1165,22 +1189,40 @@ ContextRetriever --> VectorDatabaseManager
 @startuml
 skinparam shadowing false
 actor Usuário
-participant "RAG Configuration UI\n(futuro)" as UI
-participant "ProjectIndexer\n(futuro)" as Indexer
-participant "EmbeddingGenerator\n(futuro)" as Embeddings
-participant "VectorDatabaseManager\n(futuro)" as VectorDb
-database "ChromaDB\n(futuro)" as Chroma
+participant "Webview RAG" as UI
+participant ChatMessageRouter as Router
+participant AtlasRagService as RAG
+participant AtlasEmbeddingService as Embeddings
+participant AtlasRagRepository as Repository
+participant AtlasChromaService as Runtime
+database "ChromaDB local" as Chroma
+database "Manifesto JSON" as Manifest
 
-Usuário -> UI : solicita indexação do projeto
-UI -> Indexer : indexProject(workspace)
-Indexer -> Indexer : lê arquivos e gera chunks
-Indexer -> Embeddings : generateEmbeddings(chunks)
-Embeddings --> Indexer : vetores
-Indexer -> VectorDb : saveVectors(vectors)
-VectorDb -> Chroma : persistir embeddings
-VectorDb --> Indexer : indexação concluída
-Indexer --> UI : status/tamanho da base
-UI --> Usuário : exibe resultado
+Usuário -> UI : indexa workspace, pasta ou projeto
+UI -> Router : indexarWorkspaceRag / selecionarPastaRag / reindexarProjetoRag
+Router -> RAG : index...(onProgress, signal)
+RAG -> Runtime : ensureReady()
+Runtime --> RAG : ChromaClient disponível
+RAG -> RAG : lê, filtra e gera chunks
+loop preparação por arquivo
+  RAG --> Router : progresso de arquivos/chunks
+  Router --> UI : progressoIndexacaoRag
+end
+loop lotes de 16 chunks
+  RAG -> Embeddings : embedDocuments(texts, signal)
+  Embeddings --> RAG : vetores normalizados
+  RAG -> Repository : upsertChunks(coleção temporária, chunks)
+  Repository -> Chroma : persistir documentos, metadados e vetores
+  RAG --> Router : progresso dos embeddings
+  Router --> UI : chunks processados/restantes
+end
+RAG -> Repository : replaceCollection(staging, coleção ativa)
+Repository -> Chroma : substitui coleção
+RAG -> Repository : saveProject/replaceProjectSources
+Repository -> Manifest : grava estado
+RAG --> Router : projeto concluído
+Router --> UI : indexacaoRagConcluida
+UI --> Usuário : exibe status, tamanho e fontes
 @enduml
 ```
 

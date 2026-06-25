@@ -1377,6 +1377,29 @@ textarea {
   font-style: italic;
 }
 
+.rag-sources {
+  margin-top: 12px;
+  border-top: 1px solid var(--atlas-border);
+  padding-top: 8px;
+  color: var(--atlas-muted-fg);
+  font-size: 12px;
+}
+
+.rag-sources summary {
+  color: var(--vscode-textLink-foreground);
+  cursor: pointer;
+  user-select: none;
+}
+
+.rag-sources ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.rag-sources li {
+  margin: 4px 0;
+}
+
 @keyframes blink {
   0%,
   100% {

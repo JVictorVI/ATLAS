@@ -1,6 +1,11 @@
+import { RagContextSource } from "./AtlasRagTypes";
+
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
   content: string;
+  metadata?: {
+    ragSources?: RagContextSource[];
+  };
 }
 
 export interface OpenAiCompatibleResponse {

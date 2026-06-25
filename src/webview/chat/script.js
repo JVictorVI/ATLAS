@@ -271,6 +271,7 @@ function loadChatMessages(session, activeGeneration = null) {
     } else {
       div.textContent = msg.content;
     }
+    appendRagSources(div, msg.metadata?.ragSources);
     chatContainer.appendChild(div);
   }
 
@@ -885,6 +886,36 @@ function addMessage(content, type, isMarkdown = false, forceScroll = true) {
   chatContainer.appendChild(div);
   scrollChatToBottom(forceScroll);
   return div;
+}
+
+function appendRagSources(messageElement, sources) {
+  if (!messageElement || !Array.isArray(sources) || !sources.length) {
+    return;
+  }
+
+  messageElement.querySelector(".rag-sources")?.remove();
+  const details = document.createElement("details");
+  details.className = "rag-sources";
+  const summary = document.createElement("summary");
+  summary.textContent = `Fontes RAG utilizadas (${sources.length})`;
+  details.appendChild(summary);
+  const list = document.createElement("ul");
+
+  sources.forEach((source) => {
+    const item = document.createElement("li");
+    const location =
+      source.startLine && source.endLine
+        ? `${source.relativePath}:${source.startLine}-${source.endLine}`
+        : source.relativePath;
+    const relevance = Number.isFinite(source.relevance)
+      ? ` · relevância ${(source.relevance * 100).toFixed(1)}%`
+      : "";
+    item.textContent = `${location}${relevance}`;
+    list.appendChild(item);
+  });
+
+  details.appendChild(list);
+  messageElement.appendChild(details);
 }
 
 function showLoading(message = "Pensando") {
@@ -1514,7 +1545,8 @@ window.addEventListener("message", (event) => {
       setGenerationState(false);
       shortcutLoadingState.architectureAnalysis = false;
       setShortcutLoading("architecture-analysis", false);
-      addMessage(message.value, "bot", true, false);
+      const responseElement = addMessage(message.value, "bot", true, false);
+      appendRagSources(responseElement, message.metadata?.ragSources);
       break;
     }
 
@@ -1606,6 +1638,7 @@ window.addEventListener("message", (event) => {
         updateMessagePresentation(mensagemAtualBot, bufferResposta, true);
 
         renderMarkdownContent(mensagemAtualBot, bufferResposta, false);
+        appendRagSources(mensagemAtualBot, message.metadata?.ragSources);
       }
 
       mensagemAtualBot = null;

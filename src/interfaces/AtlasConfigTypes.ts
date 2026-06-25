@@ -24,6 +24,23 @@ export interface AtlasRagSettings {
   embeddingModel: string;
   topK: number;
   maxContextCharacters: number;
+  maxFileSizeBytes: number;
+  allowedExtensions: string[];
+  respectGitIgnore: boolean;
+  includeMarkdownFiles: boolean;
+  includeConfigFiles: boolean;
+  indexOnAdd: boolean;
+  autoIndexDebounceMs: number;
+  relevanceMode: "maxDistance" | "minRelevance";
+  relevanceThreshold: number;
+  maxChunksPerFile: number;
+  diversifyFiles: boolean;
+  excludeActiveFile: boolean;
+  includeExternalDocuments: boolean;
+  sourcePriority: "code" | "documentation" | "balanced";
+  languageFilters: string[];
+  directoryFilters: string[];
+  showSources: boolean;
 }
 
 export interface AtlasEngineSettings {

@@ -29,7 +29,8 @@ body {
 }
 
 button,
-input {
+input,
+textarea {
   font-family: var(--vscode-font-family);
 }
 
@@ -74,6 +75,71 @@ input {
 
 .runtime-section strong {
   color: var(--vscode-foreground);
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.field > span {
+  font-weight: 600;
+}
+
+.field input,
+.field textarea,
+.field select {
+  width: 100%;
+  border: 1px solid var(--vscode-input-border, var(--atlas-border));
+  border-radius: 5px;
+  padding: 8px 10px;
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  outline: none;
+}
+
+.field textarea {
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.field input:focus,
+.field textarea:focus,
+.field select:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+.field small {
+  color: var(--vscode-descriptionForeground);
+  line-height: 1.4;
+}
+
+.field-full {
+  margin-top: 14px;
+}
+
+.settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+.option-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.compact-toggle {
+  max-width: none;
 }
 
 .toggle-section {
@@ -170,6 +236,106 @@ input {
   background: transparent;
 }
 
+.indexing-progress {
+  margin-bottom: 16px;
+  border: 1px solid var(--atlas-border);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(
+    --vscode-editorWidget-background,
+    var(--vscode-input-background)
+  );
+}
+
+.indexing-progress[hidden] {
+  display: none;
+}
+
+.indexing-progress-heading,
+.indexing-progress-details {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.indexing-progress-heading {
+  margin-bottom: 9px;
+}
+
+.indexing-progress-heading strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#indexing-progress-percent {
+  flex: 0 0 auto;
+  color: var(--vscode-descriptionForeground);
+  font-variant-numeric: tabular-nums;
+}
+
+.indexing-progress-track {
+  position: relative;
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(
+    --vscode-progressBar-background,
+    var(--vscode-inputOption-activeBackground)
+  );
+  opacity: 0.35;
+}
+
+.indexing-progress-bar {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--vscode-progressBar-background);
+  transition: width 180ms ease-out;
+}
+
+.indexing-progress-track:not(.is-indeterminate) {
+  background: var(--vscode-input-background);
+  opacity: 1;
+}
+
+.indexing-progress-track.is-indeterminate .indexing-progress-bar {
+  width: 35%;
+  animation: indexing-progress-slide 1.2s ease-in-out infinite;
+}
+
+.indexing-progress-details {
+  margin-top: 8px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+}
+
+#indexing-progress-count {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+}
+
+#indexing-progress-file {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+}
+
+@keyframes indexing-progress-slide {
+  from {
+    transform: translateX(-110%);
+  }
+
+  to {
+    transform: translateX(310%);
+  }
+}
+
 .projects-table {
   display: grid;
 }
@@ -223,6 +389,14 @@ input {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.project-row:not(.project-header) > .path-cell {
+  display: block;
+  direction: rtl;
+  text-align: left;
+  text-overflow: ellipsis;
+  unicode-bidi: plaintext;
 }
 
 .status {
@@ -417,31 +591,6 @@ input {
   justify-content: flex-end;
 }
 
-.toast {
-  position: fixed;
-  right: 24px;
-  bottom: 24px;
-  z-index: 10;
-  max-width: 340px;
-  border: 1px solid var(--atlas-border);
-  border-radius: 8px;
-  padding: 10px 14px;
-  color: var(--vscode-notifications-foreground, var(--vscode-foreground));
-  background: var(--vscode-notifications-background, var(--atlas-card-background));
-  box-shadow: 0 8px 24px var(--vscode-widget-shadow, rgb(0 0 0 / 28%));
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(8px);
-  transition:
-    opacity 140ms ease,
-    transform 140ms ease;
-}
-
-.toast.is-visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
 @media (max-width: 900px) {
   .project-header {
     display: none;
@@ -461,6 +610,12 @@ input {
   .project-row:not(.project-header) > span {
     padding: 6px 8px;
     white-space: normal;
+  }
+
+  .project-row:not(.project-header) > .path-cell {
+    direction: ltr;
+    text-align: left;
+    overflow-wrap: anywhere;
   }
 
   .project-row:not(.project-header) > span::before {
@@ -487,6 +642,25 @@ input {
 
   .toggle-option {
     max-width: none;
+  }
+
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .indexing-progress-details {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  #indexing-progress-file {
+    width: 100%;
+    text-align: left;
+  }
+
+  .settings-actions .btn {
+    width: 100%;
   }
 
   .project-row:not(.project-header) {

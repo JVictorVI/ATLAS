@@ -178,6 +178,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
     // UI / Panels
     this.panelManager = new ChatPanelManager(this.context, this.apiKeyManager);
+    this.ragService.onProjectsChanged((projects) => {
+      this.panelManager.postMessage({
+        type: "projetosRagAtualizados",
+        value: { projects },
+      });
+    });
 
     this.quickAnalysisController = new AtlasQuickAnalysisController(
       this.quickAnalysisService,
@@ -327,12 +333,24 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         );
       },
 
+      registerSelectedFolder: (folderUri) => {
+        return this.ragService.registerSelectedFolder(folderUri);
+      },
+
+      indexRagProject: async (projectId, onProgress, signal) => {
+        return this.ragService.indexProject(projectId, onProgress, signal);
+      },
+
       deleteRagProject: async (projectId) => {
         await this.ragService.deleteProjectIndex(projectId);
       },
 
       getRagContext: async (query, signal) => {
         return this.ragService.retrieveContext(query, signal);
+      },
+
+      markRagProjectsOutdated: (reason) => {
+        this.ragService.markAllProjectsOutdated(reason);
       },
     });
 

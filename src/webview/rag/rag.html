@@ -41,8 +41,306 @@
         <label class="toggle-option">
           <input id="cloud-rag-enabled" type="checkbox" />
           <span class="checkbox" aria-hidden="true"></span>
-          <span>Permite o envio de contexto recuperado para modelos em nuvem</span>
+          <span
+            >Permite o envio de contexto recuperado para modelos em nuvem</span
+          >
         </label>
+      </section>
+
+      <section class="toggle-section" aria-labelledby="auto-index-title">
+        <h2 id="auto-index-title">Atualização Automática</h2>
+        <label class="toggle-option">
+          <input id="auto-index-enabled" type="checkbox" />
+          <span class="checkbox" aria-hidden="true"></span>
+          <span
+            >Reindexa automaticamente após alterações nos arquivos do
+            projeto</span
+          >
+        </label>
+      </section>
+
+      <section
+        class="content-section"
+        aria-labelledby="retrieval-settings-title"
+      >
+        <div class="section-heading">
+          <h2 id="retrieval-settings-title">Configurações de Recuperação</h2>
+          <p>
+            Controle quantos trechos são recuperados e quanto contexto pode ser
+            enviado ao modelo
+          </p>
+        </div>
+
+        <div class="settings-grid">
+          <label class="field">
+            <span>Quantidade máxima de resultados (topK)</span>
+            <input id="rag-top-k" type="number" min="1" max="30" step="1" />
+            <small>Entre 1 e 30 chunks por consulta</small>
+          </label>
+
+          <label class="field">
+            <span>Limite de contexto enviado ao modelo</span>
+            <input
+              id="rag-context-limit"
+              type="number"
+              min="1000"
+              max="100000"
+              step="1000"
+            />
+            <small
+              >Quantidade máxima aproximada de caracteres recuperados</small
+            >
+          </label>
+        </div>
+
+        <label class="field field-full">
+          <span>Pastas e padrões ignorados</span>
+          <textarea
+            id="rag-ignored-paths"
+            rows="5"
+            spellcheck="false"
+            placeholder="node_modules&#10;dist&#10;.git&#10;**/*.generated.ts"
+          ></textarea>
+          <small>Informe um caminho ou padrão glob por linha</small>
+        </label>
+
+        <div class="settings-actions">
+          <button id="save-rag-settings" class="btn btn-primary" type="button">
+            Salvar configurações
+          </button>
+        </div>
+      </section>
+
+      <section
+        class="content-section"
+        aria-labelledby="indexing-settings-title"
+      >
+        <div class="section-heading">
+          <h2 id="indexing-settings-title">Configurações de Indexação</h2>
+          <p>
+            Defina como arquivos são selecionados, divididos e atualizados na
+            base vetorial
+          </p>
+        </div>
+
+        <div class="settings-grid">
+          <label class="field">
+            <span>Tamanho do chunk</span>
+            <input
+              id="rag-chunk-size"
+              type="number"
+              min="300"
+              max="12000"
+              step="100"
+            />
+            <small>Quantidade aproximada de caracteres por chunk</small>
+          </label>
+
+          <label class="field">
+            <span>Sobreposição entre chunks</span>
+            <input
+              id="rag-chunk-overlap"
+              type="number"
+              min="0"
+              max="6000"
+              step="50"
+            />
+            <small>Deve ser menor ou igual à metade do tamanho do chunk</small>
+          </label>
+
+          <label class="field">
+            <span>Tamanho máximo por arquivo</span>
+            <input
+              id="rag-max-file-size"
+              type="number"
+              min="1"
+              max="100"
+              step="1"
+            />
+            <small>Valor em MB. Arquivos maiores serão ignorados</small>
+          </label>
+
+          <label class="field">
+            <span>Debounce após alterações</span>
+            <input
+              id="rag-debounce"
+              type="number"
+              min="500"
+              max="60000"
+              step="500"
+            />
+            <small
+              >Tempo em milissegundos antes da reindexação automática</small
+            >
+          </label>
+        </div>
+
+        <label class="field field-full">
+          <span>Extensões permitidas</span>
+          <textarea
+            id="rag-allowed-extensions"
+            rows="5"
+            spellcheck="false"
+            placeholder=".ts&#10;.tsx&#10;.py&#10;.java"
+          ></textarea>
+          <small
+            >Informe uma extensão por linha. O ponto inicial é opcional</small
+          >
+        </label>
+
+        <div class="option-list">
+          <label class="toggle-option compact-toggle">
+            <input id="rag-respect-gitignore" type="checkbox" />
+            <span class="checkbox" aria-hidden="true"></span>
+            <span>Respeitar regras do arquivo .gitignore</span>
+          </label>
+
+          <label class="toggle-option compact-toggle">
+            <input id="rag-markdown-files" type="checkbox" />
+            <span class="checkbox" aria-hidden="true"></span>
+            <span>Indexar arquivos Markdown</span>
+          </label>
+
+          <label class="toggle-option compact-toggle">
+            <input id="rag-config-files" type="checkbox" />
+            <span class="checkbox" aria-hidden="true"></span>
+            <span>Indexar JSON e arquivos de configuração</span>
+          </label>
+
+          <label class="toggle-option compact-toggle">
+            <input id="rag-index-on-add" type="checkbox" />
+            <span class="checkbox" aria-hidden="true"></span>
+            <span
+              >Iniciar indexação automaticamente ao adicionar um projeto</span
+            >
+          </label>
+        </div>
+
+        <div class="settings-actions">
+          <button
+            id="save-indexing-settings"
+            class="btn btn-primary"
+            type="button"
+          >
+            Salvar configurações de indexação
+          </button>
+        </div>
+      </section>
+
+      <section
+        class="content-section"
+        aria-labelledby="advanced-retrieval-title"
+      >
+        <div class="section-heading">
+          <h2 id="advanced-retrieval-title">Recuperação e Fontes</h2>
+          <p>
+            Refine a seleção dos chunks e controle como as fontes aparecem nas
+            respostas.
+          </p>
+        </div>
+
+        <div class="settings-grid">
+          <label class="field">
+            <span>Critério de relevância</span>
+            <select id="rag-relevance-mode">
+              <option value="maxDistance">Distância máxima</option>
+              <option value="minRelevance">Relevância mínima</option>
+            </select>
+            <small>Distância menor é melhor; relevância maior é melhor</small>
+          </label>
+
+          <label class="field">
+            <span>Limite de relevância</span>
+            <input
+              id="rag-relevance-threshold"
+              type="number"
+              min="0"
+              max="2"
+              step="0.05"
+            />
+            <small>Para relevância mínima, use valores entre 0 e 1</small>
+          </label>
+
+          <label class="field">
+            <span>Máximo de chunks do mesmo arquivo</span>
+            <input
+              id="rag-max-chunks-file"
+              type="number"
+              min="1"
+              max="20"
+              step="1"
+            />
+          </label>
+
+          <label class="field">
+            <span>Prioridade de fontes</span>
+            <select id="rag-source-priority">
+              <option value="balanced">Código e documentação</option>
+              <option value="code">Priorizar código</option>
+              <option value="documentation">Priorizar documentação</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="settings-grid field-full">
+          <label class="field">
+            <span>Filtrar por linguagem</span>
+            <textarea
+              id="rag-language-filters"
+              rows="4"
+              spellcheck="false"
+              placeholder="typescript&#10;python"
+            ></textarea>
+            <small>Vazio permite todas as linguagens</small>
+          </label>
+
+          <label class="field">
+            <span>Filtrar por diretório</span>
+            <textarea
+              id="rag-directory-filters"
+              rows="4"
+              spellcheck="false"
+              placeholder="src/services&#10;docs/**"
+            ></textarea>
+            <small>Informe caminhos relativos ou padrões glob</small>
+          </label>
+        </div>
+
+        <div class="option-list">
+          <label class="toggle-option compact-toggle">
+            <input id="rag-diversify-files" type="checkbox" />
+            <span class="checkbox" aria-hidden="true"></span>
+            <span>Priorizar diversidade entre arquivos</span>
+          </label>
+
+          <label class="toggle-option compact-toggle">
+            <input id="rag-exclude-active-file" type="checkbox" />
+            <span class="checkbox" aria-hidden="true"></span>
+            <span>Excluir o arquivo aberto dos resultados RAG duplicados</span>
+          </label>
+
+          <label class="toggle-option compact-toggle">
+            <input id="rag-external-documents" type="checkbox" />
+            <span class="checkbox" aria-hidden="true"></span>
+            <span>Incluir documentos externos nas consultas</span>
+          </label>
+
+          <label class="toggle-option compact-toggle">
+            <input id="rag-show-sources" type="checkbox" />
+            <span class="checkbox" aria-hidden="true"></span>
+            <span>Exibir fontes utilizadas abaixo da resposta</span>
+          </label>
+        </div>
+
+        <div class="settings-actions">
+          <button
+            id="save-retrieval-settings"
+            class="btn btn-primary"
+            type="button"
+          >
+            Salvar recuperação
+          </button>
+        </div>
       </section>
 
       <section class="runtime-section" aria-live="polite">
@@ -52,14 +350,50 @@
 
       <section class="content-section" aria-labelledby="indexed-projects-title">
         <div class="section-heading">
-          <h2 id="indexed-projects-title">
-            Projetos Indexados
-          </h2>
+          <h2 id="indexed-projects-title">Projetos Indexados</h2>
           <p>Gerencie as bases vetoriais criadas para cada projeto analisado</p>
         </div>
 
         <div class="projects-card">
-          <div id="projects-table" class="projects-table" role="table" aria-label="Projetos indexados">
+          <div
+            id="indexing-progress"
+            class="indexing-progress"
+            aria-live="polite"
+            hidden
+          >
+            <div class="indexing-progress-heading">
+              <strong id="indexing-progress-label"
+                >Preparando indexação...</strong
+              >
+              <span id="indexing-progress-percent">0%</span>
+            </div>
+            <div
+              id="indexing-progress-track"
+              class="indexing-progress-track is-indeterminate"
+              role="progressbar"
+              aria-label="Progresso da indexação RAG"
+              aria-valuemin="0"
+              aria-valuemax="100"
+            >
+              <span
+                id="indexing-progress-bar"
+                class="indexing-progress-bar"
+              ></span>
+            </div>
+            <div class="indexing-progress-details">
+              <span id="indexing-progress-count"
+                >Aguardando análise dos arquivos...</span
+              >
+              <span id="indexing-progress-file"></span>
+            </div>
+          </div>
+
+          <div
+            id="projects-table"
+            class="projects-table"
+            role="table"
+            aria-label="Projetos indexados"
+          >
             <div class="project-row project-header" role="row">
               <span role="columnheader">Projeto</span>
               <span role="columnheader">Caminho</span>
@@ -74,19 +408,34 @@
           </div>
 
           <div class="card-actions">
-            <button id="cancel-indexing" class="btn btn-outline" type="button" hidden>Cancelar indexação</button>
-            <button id="select-folder" class="btn btn-outline" type="button">Escolher pasta</button>
-            <button id="add-project" class="btn btn-primary" type="button">Indexar workspace atual</button>
+            <button
+              id="cancel-indexing"
+              class="btn btn-outline"
+              type="button"
+              hidden
+            >
+              Cancelar indexação
+            </button>
+            <button id="select-folder" class="btn btn-outline" type="button">
+              Escolher pasta
+            </button>
+            <button id="add-project" class="btn btn-primary" type="button">
+              Indexar workspace atual
+            </button>
           </div>
         </div>
       </section>
 
-      <section class="content-section external-section" aria-labelledby="external-documents-title">
+      <section
+        class="content-section external-section"
+        aria-labelledby="external-documents-title"
+      >
         <div class="section-heading">
-          <h2 id="external-documents-title">
-            Documentos Externos no RAG
-          </h2>
-          <p>Adicione materiais complementares para enriquecer o contexto das respostas</p>
+          <h2 id="external-documents-title">Documentos Externos no RAG</h2>
+          <p>
+            Adicione materiais complementares para enriquecer o contexto das
+            respostas
+          </p>
         </div>
 
         <div class="documents-card">
@@ -101,7 +450,13 @@
               <strong>Documentação - ATLAS</strong>
               <span>3MB - 21/02/2026</span>
             </div>
-            <button class="more-button" type="button" aria-label="Mais opções para Documentação - ATLAS">•••</button>
+            <button
+              class="more-button"
+              type="button"
+              aria-label="Mais opções para Documentação - ATLAS"
+            >
+              •••
+            </button>
           </article>
 
           <article class="document-item">
@@ -115,17 +470,24 @@
               <strong>Padrões de Projeto - Facade</strong>
               <span>22MB - 11/03/2026</span>
             </div>
-            <button class="more-button" type="button" aria-label="Mais opções para Padrões de Projeto - Facade">•••</button>
+            <button
+              class="more-button"
+              type="button"
+              aria-label="Mais opções para Padrões de Projeto - Facade"
+            >
+              •••
+            </button>
           </article>
 
           <div class="card-actions">
-            <button id="add-file" class="btn btn-primary" type="button">Adicionar novo arquivo</button>
+            <button id="add-file" class="btn btn-primary" type="button">
+              Adicionar novo arquivo
+            </button>
           </div>
         </div>
       </section>
     </main>
 
-    <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script src="{{scriptUri}}"></script>
   </body>
 </html>

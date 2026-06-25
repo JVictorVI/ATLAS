@@ -1,9 +1,12 @@
 import * as crypto from "crypto";
 import * as path from "path";
 import * as vscode from "vscode";
+import { minimatch } from "minimatch";
 import { AtlasConfigManager } from "../managers/AtlasConfigManager";
 import {
   RagChunkRecord,
+  RagContextResult,
+  RagContextSource,
   RagIndexedSource,
   RagIndexingProgress,
   RagProjectIndex,
@@ -15,12 +18,26 @@ import { AtlasChromaService } from "./AtlasChromaService";
 import { AtlasEmbeddingService } from "./AtlasEmbeddingService";
 
 export class AtlasRagService {
+  private readonly watchers = new Map<string, vscode.FileSystemWatcher>();
+  private readonly autoIndexTimers = new Map<string, NodeJS.Timeout>();
+  private readonly indexingProjects = new Set<string>();
+  private projectsChangedListener?: (projects: RagProjectIndex[]) => void;
+
   constructor(
     private readonly configManager: AtlasConfigManager,
     private readonly chromaService: AtlasChromaService,
     private readonly embeddingService: AtlasEmbeddingService,
     private readonly repository: AtlasRagRepository,
-  ) {}
+  ) {
+    this.repository.normalizeInterruptedIndexes();
+    this.refreshProjectWatchers();
+  }
+
+  public onProjectsChanged(
+    listener: (projects: RagProjectIndex[]) => void,
+  ): void {
+    this.projectsChangedListener = listener;
+  }
 
   public async initialize(): Promise<RagRuntimeStatus> {
     await this.chromaService.ensureReady();
@@ -33,6 +50,27 @@ export class AtlasRagService {
 
   public listProjects(): RagProjectIndex[] {
     return this.repository.listProjects();
+  }
+
+  public markAllProjectsOutdated(reason: string): void {
+    let changed = false;
+
+    for (const project of this.repository.listProjects()) {
+      if (project.status !== "ready") {
+        continue;
+      }
+
+      this.repository.updateProjectStatus(
+        project.projectId,
+        "outdated",
+        reason,
+      );
+      changed = true;
+    }
+
+    if (changed) {
+      this.emitProjectsChanged();
+    }
   }
 
   public async indexCurrentWorkspace(
@@ -67,6 +105,57 @@ export class AtlasRagService {
     return this.indexFolder(folderUri, folderName, onProgress, signal);
   }
 
+  public registerSelectedFolder(folderUri: vscode.Uri): RagProjectIndex {
+    const rootPath = folderUri.fsPath;
+    const folderName = path.basename(rootPath);
+
+    if (!folderName) {
+      throw new Error("A pasta selecionada não possui um nome válido.");
+    }
+
+    const projectId = this.getProjectId(rootPath);
+    const previous = this.repository.getProject(projectId);
+    const now = new Date().toISOString();
+    const project: RagProjectIndex = previous ?? {
+      projectId,
+      name: folderName,
+      rootPath,
+      collectionName: `atlas_${projectId}`,
+      status: "not-indexed",
+      embeddingModel: this.embeddingService.getModelId(),
+      embeddingDimensions: 0,
+      sourceCount: 0,
+      chunkCount: 0,
+      sizeBytes: 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    this.repository.saveProject(project);
+    this.refreshProjectWatchers();
+    this.emitProjectsChanged();
+    return project;
+  }
+
+  public async indexProject(
+    projectId: string,
+    onProgress?: (progress: RagIndexingProgress) => void | Promise<void>,
+    signal?: AbortSignal,
+  ): Promise<RagProjectIndex> {
+    const project = this.repository.getProject(projectId);
+
+    if (!project) {
+      throw new Error("Projeto RAG não encontrado.");
+    }
+
+    return this.indexFolder(
+      vscode.Uri.file(project.rootPath),
+      project.name,
+      onProgress,
+      signal,
+    );
+  }
+
   private async indexFolder(
     folderUri: vscode.Uri,
     folderName: string,
@@ -75,9 +164,7 @@ export class AtlasRagService {
   ): Promise<RagProjectIndex> {
     await this.initialize();
     const rootPath = folderUri.fsPath;
-    const projectId = this.hashText(
-      process.platform === "win32" ? rootPath.toLowerCase() : rootPath,
-    ).slice(0, 24);
+    const projectId = this.getProjectId(rootPath);
     const collectionName = `atlas_${projectId}`;
     const stagingCollectionName = `${collectionName}_build_${Date.now()}`;
     const previous = this.repository.getProject(projectId);
@@ -98,6 +185,8 @@ export class AtlasRagService {
     };
 
     this.repository.saveProject(project);
+    this.indexingProjects.add(projectId);
+    this.emitProjectsChanged();
 
     try {
       const files = await this.scanFolder(folderUri, signal);
@@ -204,6 +293,8 @@ export class AtlasRagService {
       };
       this.repository.replaceProjectSources(projectId, sources);
       this.repository.saveProject(project);
+      this.refreshProjectWatchers();
+      this.emitProjectsChanged();
 
       await onProgress?.({
         projectId,
@@ -229,6 +320,7 @@ export class AtlasRagService {
             errorMessage: undefined,
           },
         );
+        this.emitProjectsChanged();
         throw error;
       }
 
@@ -240,12 +332,17 @@ export class AtlasRagService {
           error instanceof Error ? error.message : "Falha na indexação.",
       };
       this.repository.saveProject(project);
+      this.emitProjectsChanged();
       throw error;
+    } finally {
+      this.indexingProjects.delete(projectId);
     }
   }
 
   public async deleteProjectIndex(projectId: string): Promise<void> {
     await this.repository.deleteProject(projectId);
+    this.disposeProjectWatcher(projectId);
+    this.emitProjectsChanged();
   }
 
   public async upsertChunks(
@@ -284,7 +381,7 @@ export class AtlasRagService {
   public async retrieveContext(
     query: string,
     signal?: AbortSignal,
-  ): Promise<string[]> {
+  ): Promise<RagContextResult> {
     const searchId = crypto.randomUUID().slice(0, 8);
     const startedAt = Date.now();
     const settings = this.configManager.getConfig().rag;
@@ -307,7 +404,7 @@ export class AtlasRagService {
         !settings.enabled ? "RAG desabilitado." : "Pergunta vazia.",
       );
       console.groupEnd();
-      return [];
+      return { context: [], sources: [] };
     }
 
     if (
@@ -318,7 +415,7 @@ export class AtlasRagService {
         "Busca bloqueada: contexto RAG não autorizado para o modo cloud.",
       );
       console.groupEnd();
-      return [];
+      return { context: [], sources: [] };
     }
 
     const workspaceFolder = this.resolveCurrentWorkspaceFolder();
@@ -326,13 +423,11 @@ export class AtlasRagService {
     if (!workspaceFolder) {
       console.log("Busca ignorada: nenhum workspace ativo.");
       console.groupEnd();
-      return [];
+      return { context: [], sources: [] };
     }
 
     const rootPath = workspaceFolder.uri.fsPath;
-    const projectId = this.hashText(
-      process.platform === "win32" ? rootPath.toLowerCase() : rootPath,
-    ).slice(0, 24);
+    const projectId = this.getProjectId(rootPath);
     const project = this.repository.getProject(projectId);
 
     if (!project || project.status !== "ready") {
@@ -342,7 +437,7 @@ export class AtlasRagService {
         status: project?.status ?? "not-indexed",
       });
       console.groupEnd();
-      return [];
+      return { context: [], sources: [] };
     }
 
     console.log("Índice selecionado:", {
@@ -373,14 +468,21 @@ export class AtlasRagService {
       console.log("Consultando ChromaDB...", {
         collectionName: project.collectionName,
         topK: settings.topK,
+        candidateCount: Math.max(settings.topK * 5, settings.topK),
       });
-      const results = await this.repository.search(
+      const candidates = await this.repository.search(
         project.collectionName,
         queryEmbedding,
-        settings.topK,
+        Math.max(settings.topK * 5, settings.topK),
+      );
+      const results = this.selectRetrievalResults(
+        candidates,
+        settings,
+        workspaceFolder,
       );
       console.log("Resultados retornados:", {
-        count: results.length,
+        candidates: candidates.length,
+        selected: results.length,
         durationMs: Date.now() - queryStartedAt,
       });
 
@@ -392,6 +494,7 @@ export class AtlasRagService {
           chunkId: result.chunkId,
           sourceId: result.sourceId,
           sourceType: result.sourceType,
+          externalDocument: result.externalDocument === true,
           language: result.language,
         });
         console.log("Distância vetorial:", result.distance);
@@ -400,6 +503,7 @@ export class AtlasRagService {
       });
 
       const context: string[] = [];
+      const sources: RagContextSource[] = [];
       let currentSize = 0;
 
       for (const result of results) {
@@ -429,6 +533,17 @@ export class AtlasRagService {
         }
 
         context.push(formatted);
+        sources.push({
+          chunkId: result.chunkId,
+          relativePath: result.relativePath,
+          sourceType: result.sourceType,
+          externalDocument: result.externalDocument,
+          distance: result.distance,
+          relevance: this.distanceToRelevance(result.distance),
+          language: result.language,
+          startLine: result.startLine,
+          endLine: result.endLine,
+        });
         currentSize += formatted.length;
       }
 
@@ -438,7 +553,7 @@ export class AtlasRagService {
         durationMs: Date.now() - startedAt,
       });
 
-      return context;
+      return { context, sources };
     } catch (error) {
       console.error("Falha durante a busca RAG:", error);
       throw error;
@@ -447,8 +562,310 @@ export class AtlasRagService {
     }
   }
 
+  private selectRetrievalResults(
+    candidates: RagSearchResult[],
+    settings: ReturnType<AtlasConfigManager["getConfig"]>["rag"],
+    workspaceFolder: vscode.WorkspaceFolder,
+  ): RagSearchResult[] {
+    const activeDocument = vscode.window.activeTextEditor?.document;
+    const activeFile =
+      activeDocument &&
+      vscode.workspace.getWorkspaceFolder(activeDocument.uri)?.uri.toString() ===
+        workspaceFolder.uri.toString()
+        ? path
+            .relative(workspaceFolder.uri.fsPath, activeDocument.uri.fsPath)
+            .replace(/\\/g, "/")
+        : null;
+    const directoryPatterns = settings.directoryFilters.flatMap((entry) =>
+      this.expandFilterPattern(entry),
+    );
+    const filterStats = {
+      candidates: candidates.length,
+      relevance: 0,
+      generatedFiles: 0,
+      externalDocuments: 0,
+      activeFile: 0,
+      language: 0,
+      directory: 0,
+      perFileLimit: 0,
+    };
+    let filtered = candidates.filter((result) => {
+      const relevance = this.distanceToRelevance(result.distance);
+
+      if (
+        settings.relevanceMode === "maxDistance"
+          ? result.distance > settings.relevanceThreshold
+          : relevance < settings.relevanceThreshold
+      ) {
+        filterStats.relevance += 1;
+        return false;
+      }
+
+      if (this.isGeneratedDependencyFile(result.relativePath)) {
+        filterStats.generatedFiles += 1;
+        return false;
+      }
+
+      if (
+        !settings.includeExternalDocuments &&
+        result.externalDocument === true
+      ) {
+        filterStats.externalDocuments += 1;
+        return false;
+      }
+
+      if (
+        settings.excludeActiveFile &&
+        activeFile &&
+        (process.platform === "win32"
+          ? result.relativePath.toLowerCase() === activeFile.toLowerCase()
+          : result.relativePath === activeFile)
+      ) {
+        filterStats.activeFile += 1;
+        return false;
+      }
+
+      if (
+        settings.languageFilters.length &&
+        (!result.language ||
+          !settings.languageFilters.includes(result.language.toLowerCase()))
+      ) {
+        filterStats.language += 1;
+        return false;
+      }
+
+      if (
+        directoryPatterns.length &&
+        !this.matchesIgnoredPath(result.relativePath, directoryPatterns)
+      ) {
+        filterStats.directory += 1;
+        return false;
+      }
+
+      return true;
+    });
+
+    if (settings.sourcePriority !== "balanced") {
+      const preferredType =
+        settings.sourcePriority === "code" ? "code" : "document";
+      filtered = filtered.sort((left, right) => {
+        const leftPriority = left.sourceType === preferredType ? 0 : 1;
+        const rightPriority = right.sourceType === preferredType ? 0 : 1;
+        return leftPriority - rightPriority || left.distance - right.distance;
+      });
+    }
+
+    const perFile = new Map<string, number>();
+    const limited = filtered.filter((result) => {
+      const count = perFile.get(result.relativePath) ?? 0;
+
+      if (count >= settings.maxChunksPerFile) {
+        filterStats.perFileLimit += 1;
+        return false;
+      }
+
+      perFile.set(result.relativePath, count + 1);
+      return true;
+    });
+
+    console.log("[ATLAS RAG] Aplicação dos filtros:", {
+      ...filterStats,
+      afterFilters: filtered.length,
+      afterPerFileLimit: limited.length,
+      relevanceMode: settings.relevanceMode,
+      relevanceThreshold: settings.relevanceThreshold,
+    });
+
+    if (!settings.diversifyFiles) {
+      return limited.slice(0, settings.topK);
+    }
+
+    const selected: RagSearchResult[] = [];
+    const deferred: RagSearchResult[] = [];
+    const seenFiles = new Set<string>();
+
+    for (const result of limited) {
+      if (seenFiles.has(result.relativePath)) {
+        deferred.push(result);
+      } else {
+        selected.push(result);
+        seenFiles.add(result.relativePath);
+      }
+    }
+
+    return [...selected, ...deferred].slice(0, settings.topK);
+  }
+
+  private distanceToRelevance(distance: number): number {
+    return Math.max(0, Math.min(1, 1 - distance));
+  }
+
+  private expandFilterPattern(value: string): string[] {
+    const normalized = value
+      .trim()
+      .replace(/\\/g, "/")
+      .replace(/^\.\/+|^\/+|\/+$/g, "");
+
+    if (!normalized) {
+      return [];
+    }
+
+    if (this.isGlobPattern(normalized)) {
+      return [normalized, `${normalized}/**`];
+    }
+
+    return [normalized, `${normalized}/**`];
+  }
+
   public dispose(): void {
+    for (const watcher of this.watchers.values()) {
+      watcher.dispose();
+    }
+    this.watchers.clear();
+
+    for (const timer of this.autoIndexTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.autoIndexTimers.clear();
     this.chromaService.stop();
+  }
+
+  private refreshProjectWatchers(): void {
+    const projects = this.repository.listProjects();
+    const projectIds = new Set(projects.map((project) => project.projectId));
+
+    for (const projectId of this.watchers.keys()) {
+      if (!projectIds.has(projectId)) {
+        this.disposeProjectWatcher(projectId);
+      }
+    }
+
+    for (const project of projects) {
+      if (this.watchers.has(project.projectId)) {
+        continue;
+      }
+
+      const rootUri = vscode.Uri.file(project.rootPath);
+      const watcher = vscode.workspace.createFileSystemWatcher(
+        new vscode.RelativePattern(rootUri, "**/*"),
+      );
+      const handleChange = (uri: vscode.Uri) => {
+        this.handleIndexedProjectChange(project, uri);
+      };
+
+      watcher.onDidCreate(handleChange);
+      watcher.onDidChange(handleChange);
+      watcher.onDidDelete(handleChange);
+      this.watchers.set(project.projectId, watcher);
+    }
+  }
+
+  private handleIndexedProjectChange(
+    project: RagProjectIndex,
+    uri: vscode.Uri,
+  ): void {
+    const currentProject =
+      this.repository.getProject(project.projectId) ?? project;
+
+    if (
+      this.indexingProjects.has(currentProject.projectId) ||
+      !this.shouldTrackChangedFile(currentProject.rootPath, uri)
+    ) {
+      return;
+    }
+
+    const autoIndex = this.configManager.getConfig().rag.autoIndex;
+
+    if (
+      currentProject.status === "not-indexed" ||
+      currentProject.status === "error"
+    ) {
+      if (autoIndex) {
+        this.scheduleAutomaticIndex(currentProject);
+      }
+      return;
+    }
+
+    const updated = this.repository.updateProjectStatus(
+      currentProject.projectId,
+      "outdated",
+      "Arquivos do projeto foram alterados após a última indexação.",
+    );
+
+    if (!updated) {
+      return;
+    }
+
+    console.log("[ATLAS RAG] Índice marcado como desatualizado:", {
+      project: updated.name,
+      changedFile: path.relative(updated.rootPath, uri.fsPath),
+    });
+    this.emitProjectsChanged();
+
+    if (autoIndex) {
+      this.scheduleAutomaticIndex(updated);
+    }
+  }
+
+  private shouldTrackChangedFile(rootPath: string, uri: vscode.Uri): boolean {
+    const relativePath = path
+      .relative(rootPath, uri.fsPath)
+      .replace(/\\/g, "/");
+
+    if (
+      !relativePath ||
+      relativePath.startsWith("../") ||
+      path.isAbsolute(relativePath)
+    ) {
+      return false;
+    }
+
+    const ignoredPatterns = this.configManager
+      .getConfig()
+      .rag.ignoredPaths.flatMap((entry) => this.expandIgnoredPattern(entry));
+
+    if (this.matchesIgnoredPath(relativePath, ignoredPatterns)) {
+      return false;
+    }
+
+    return this.isIndexableFile(uri);
+  }
+
+  private scheduleAutomaticIndex(project: RagProjectIndex): void {
+    const currentTimer = this.autoIndexTimers.get(project.projectId);
+
+    if (currentTimer) {
+      clearTimeout(currentTimer);
+    }
+
+    const timer = setTimeout(() => {
+      this.autoIndexTimers.delete(project.projectId);
+      void this.indexSelectedFolder(
+        vscode.Uri.file(project.rootPath),
+      ).catch((error) => {
+        console.error(
+          `[ATLAS RAG] Falha na reindexação automática de ${project.name}:`,
+          error,
+        );
+      });
+    }, this.configManager.getConfig().rag.autoIndexDebounceMs);
+
+    this.autoIndexTimers.set(project.projectId, timer);
+  }
+
+  private disposeProjectWatcher(projectId: string): void {
+    this.watchers.get(projectId)?.dispose();
+    this.watchers.delete(projectId);
+
+    const timer = this.autoIndexTimers.get(projectId);
+    if (timer) {
+      clearTimeout(timer);
+      this.autoIndexTimers.delete(projectId);
+    }
+  }
+
+  private emitProjectsChanged(): void {
+    this.projectsChangedListener?.(this.listProjects());
   }
 
   private resolveCurrentWorkspaceFolder(): vscode.WorkspaceFolder | null {
@@ -488,33 +905,72 @@ export class AtlasRagService {
       "bin",
       "obj",
     ]);
-    const gitIgnoreEntries = await this.readGitIgnoreEntries(folderUri);
+    const gitIgnoreEntries = this.configManager.getConfig().rag.respectGitIgnore
+      ? await this.readGitIgnoreEntries(folderUri)
+      : [];
 
     for (const entry of gitIgnoreEntries) {
       ignored.add(entry);
     }
 
-    const excludePattern = `{${Array.from(ignored)
-      .map((entry) => {
-        const normalized = entry.replace(/\\/g, "/").replace(/^\/+/, "");
-
-        if (!normalized.includes("*")) {
-          return `**/${normalized}/**`;
-        }
-
-        if (!normalized.includes("/")) {
-          return `**/${normalized}`;
-        }
-
-        return normalized;
-      })
-      .join(",")}}`;
+    const ignoredPatterns = Array.from(ignored).flatMap((entry) =>
+      this.expandIgnoredPattern(entry),
+    );
+    const excludePattern =
+      ignoredPatterns.length > 0 ? `{${ignoredPatterns.join(",")}}` : undefined;
     const files = await vscode.workspace.findFiles(
       new vscode.RelativePattern(folderUri, "**/*"),
       excludePattern,
     );
 
-    return files.filter((uri) => this.isIndexableFile(uri));
+    return files.filter((uri) => {
+      const relativePath = path
+        .relative(folderUri.fsPath, uri.fsPath)
+        .replace(/\\/g, "/");
+
+      return (
+        this.isIndexableFile(uri) &&
+        !this.matchesIgnoredPath(relativePath, ignoredPatterns)
+      );
+    });
+  }
+
+  private expandIgnoredPattern(value: string): string[] {
+    const normalized = value
+      .trim()
+      .replace(/\\/g, "/")
+      .replace(/^\.\/+/, "")
+      .replace(/^\/+|\/+$/g, "");
+
+    if (!normalized) {
+      return [];
+    }
+
+    if (this.isGlobPattern(normalized)) {
+      const rooted = normalized.includes("/")
+        ? normalized
+        : `**/${normalized}`;
+      return [rooted, `${rooted}/**`];
+    }
+
+    return [`**/${normalized}`, `**/${normalized}/**`];
+  }
+
+  private matchesIgnoredPath(
+    relativePath: string,
+    patterns: string[],
+  ): boolean {
+    return patterns.some((pattern) =>
+      minimatch(relativePath, pattern, {
+        dot: true,
+        matchBase: true,
+        nocase: process.platform === "win32",
+      }),
+    );
+  }
+
+  private isGlobPattern(value: string): boolean {
+    return /[*?[\]{}()!+@]/.test(value);
   }
 
   private async readGitIgnoreEntries(
@@ -542,45 +998,51 @@ export class AtlasRagService {
 
   private isIndexableFile(uri: vscode.Uri): boolean {
     const extension = path.extname(uri.fsPath).toLowerCase();
-    const allowedExtensions = new Set([
-      ".ts",
-      ".tsx",
-      ".js",
-      ".jsx",
-      ".mjs",
-      ".cjs",
-      ".py",
-      ".java",
-      ".kt",
-      ".kts",
-      ".cs",
-      ".cpp",
-      ".cc",
-      ".c",
-      ".h",
-      ".hpp",
-      ".go",
-      ".rs",
-      ".php",
-      ".rb",
-      ".swift",
-      ".dart",
-      ".vue",
-      ".svelte",
-      ".html",
-      ".css",
-      ".scss",
-      ".sql",
+    const settings = this.configManager.getConfig().rag;
+    const allowedExtensions = new Set(settings.allowedExtensions);
+    const markdownExtensions = new Set([".md", ".markdown"]);
+    const configExtensions = new Set([
       ".json",
+      ".jsonc",
       ".yaml",
       ".yml",
       ".xml",
       ".toml",
-      ".md",
+      ".ini",
+      ".cfg",
+      ".conf",
+      ".properties",
       ".txt",
     ]);
 
+    if (this.isGeneratedDependencyFile(uri.fsPath)) {
+      return false;
+    }
+
+    if (markdownExtensions.has(extension)) {
+      return settings.includeMarkdownFiles;
+    }
+
+    if (configExtensions.has(extension)) {
+      return settings.includeConfigFiles;
+    }
+
     return allowedExtensions.has(extension);
+  }
+
+  private isGeneratedDependencyFile(filePath: string): boolean {
+    const fileName = filePath.split(/[\\/]/).pop()?.toLowerCase() ?? "";
+    const generatedDependencyFiles = new Set([
+      "package-lock.json",
+      "npm-shrinkwrap.json",
+      "yarn.lock",
+      "pnpm-lock.yaml",
+      "composer.lock",
+      "poetry.lock",
+      "cargo.lock",
+    ]);
+
+    return generatedDependencyFiles.has(fileName);
   }
 
   private async prepareSource(
@@ -592,7 +1054,7 @@ export class AtlasRagService {
     chunks: Array<Omit<RagChunkRecord, "embedding">>;
   } | null> {
     const stat = await vscode.workspace.fs.stat(uri);
-    const maxFileSize = 2 * 1024 * 1024;
+    const maxFileSize = this.configManager.getConfig().rag.maxFileSizeBytes;
 
     if (stat.size === 0 || stat.size > maxFileSize) {
       return null;
@@ -637,7 +1099,8 @@ export class AtlasRagService {
           chunk.content,
         ].join("\n"),
         relativePath,
-        sourceType: "code" as const,
+        sourceType: this.getSourceType(relativePath),
+        externalDocument: false,
         language,
         startLine: chunk.startLine,
         endLine: chunk.endLine,
@@ -650,7 +1113,7 @@ export class AtlasRagService {
       source: {
         sourceId,
         projectId,
-        type: "code",
+        type: this.getSourceType(relativePath),
         relativePath,
         language,
         contentHash,
@@ -758,8 +1221,35 @@ export class AtlasRagService {
     return languages[extension] ?? (extension.replace(/^\./, "") || "text");
   }
 
+  private getSourceType(relativePath: string): "code" | "document" {
+    const extension = path.extname(relativePath).toLowerCase();
+    const documentationExtensions = new Set([
+      ".md",
+      ".markdown",
+      ".txt",
+      ".json",
+      ".jsonc",
+      ".yaml",
+      ".yml",
+      ".xml",
+      ".toml",
+      ".ini",
+      ".cfg",
+      ".conf",
+      ".properties",
+    ]);
+
+    return documentationExtensions.has(extension) ? "document" : "code";
+  }
+
   private hashText(value: string): string {
     return crypto.createHash("sha256").update(value).digest("hex");
+  }
+
+  private getProjectId(rootPath: string): string {
+    return this.hashText(
+      process.platform === "win32" ? rootPath.toLowerCase() : rootPath,
+    ).slice(0, 24);
   }
 
   private throwIfAborted(signal?: AbortSignal): void {

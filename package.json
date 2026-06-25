@@ -72,6 +72,7 @@
     "@huggingface/transformers": "^3.8.1",
     "axios": "^1.18.1",
     "chromadb": "^3.4.3",
+    "minimatch": "^10.2.4",
     "uuid": "^14.0.0"
   },
   "overrides": {

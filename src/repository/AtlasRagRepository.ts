@@ -15,13 +15,14 @@ import {
 } from "../interfaces/AtlasRagTypes";
 import { AtlasChromaService } from "../services/AtlasChromaService";
 
-const MANIFEST_VERSION = "1.0.0";
+const MANIFEST_VERSION = "1.1.0";
 
 type RagChunkMetadata = Metadata & {
   projectId: string;
   sourceId: string;
   relativePath: string;
   sourceType: "code" | "document";
+  externalDocument?: boolean;
   chunkIndex: number;
   contentHash: string;
   language?: string;
@@ -45,16 +46,45 @@ export class AtlasRagRepository {
   }
 
   public listProjects(): RagProjectIndex[] {
-    return this.loadManifest().projects.map((project) =>
-      project.status === "indexing"
-        ? {
-            ...project,
-            status: "outdated",
-            errorMessage:
-              "A indexação anterior foi interrompida antes da conclusão.",
-          }
-        : project,
-    );
+    return this.loadManifest().projects;
+  }
+
+  public normalizeInterruptedIndexes(): void {
+    const manifest = this.loadManifest();
+    let changed = false;
+    const metadataUpgradeRequired = manifest.version !== MANIFEST_VERSION;
+
+    manifest.projects = manifest.projects.map((project) => {
+      if (project.status === "indexing") {
+        changed = true;
+        return {
+          ...project,
+          status: "outdated",
+          updatedAt: new Date().toISOString(),
+          errorMessage:
+            "A indexação anterior foi interrompida antes da conclusão.",
+        };
+      }
+
+      if (!metadataUpgradeRequired || project.status !== "ready") {
+        return project;
+      }
+
+      changed = true;
+      return {
+        ...project,
+        status: "outdated",
+        updatedAt: new Date().toISOString(),
+        errorMessage:
+          "A estrutura de metadados do RAG foi atualizada; reindexe o projeto.",
+      };
+    });
+
+    if (changed || metadataUpgradeRequired) {
+      manifest.version = MANIFEST_VERSION;
+      manifest.updatedAt = new Date().toISOString();
+      this.saveManifest(manifest);
+    }
   }
 
   public getProject(projectId: string): RagProjectIndex | null {
@@ -79,6 +109,27 @@ export class AtlasRagRepository {
 
     manifest.updatedAt = new Date().toISOString();
     this.saveManifest(manifest);
+  }
+
+  public updateProjectStatus(
+    projectId: string,
+    status: RagProjectIndex["status"],
+    errorMessage?: string,
+  ): RagProjectIndex | null {
+    const project = this.getProject(projectId);
+
+    if (!project) {
+      return null;
+    }
+
+    const updated: RagProjectIndex = {
+      ...project,
+      status,
+      updatedAt: new Date().toISOString(),
+      errorMessage,
+    };
+    this.saveProject(updated);
+    return updated;
   }
 
   public replaceProjectSources(
@@ -148,6 +199,7 @@ export class AtlasRagRepository {
           relativePath: String(metadata.relativePath),
           sourceType:
             metadata.sourceType === "document" ? "document" : "code",
+          externalDocument: metadata.externalDocument === true,
           distance: Number(distances[index] ?? 0),
           language: this.optionalString(metadata.language),
           startLine: this.optionalNumber(metadata.startLine),
@@ -236,6 +288,7 @@ export class AtlasRagRepository {
       sourceId: chunk.sourceId,
       relativePath: chunk.relativePath,
       sourceType: chunk.sourceType,
+      externalDocument: chunk.externalDocument === true,
       chunkIndex: chunk.chunkIndex,
       contentHash: chunk.contentHash,
     };

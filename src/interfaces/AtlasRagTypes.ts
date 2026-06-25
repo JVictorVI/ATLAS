@@ -41,6 +41,7 @@ export interface RagChunkRecord {
   embedding: number[];
   relativePath: string;
   sourceType: "code" | "document";
+  externalDocument?: boolean;
   language?: string;
   startLine?: number;
   endLine?: number;
@@ -55,11 +56,29 @@ export interface RagSearchResult {
   content: string;
   relativePath: string;
   sourceType: "code" | "document";
+  externalDocument?: boolean;
   distance: number;
   language?: string;
   startLine?: number;
   endLine?: number;
   symbolName?: string;
+}
+
+export interface RagContextSource {
+  chunkId: string;
+  relativePath: string;
+  sourceType: "code" | "document";
+  externalDocument?: boolean;
+  distance: number;
+  relevance: number;
+  language?: string;
+  startLine?: number;
+  endLine?: number;
+}
+
+export interface RagContextResult {
+  context: string[];
+  sources: RagContextSource[];
 }
 
 export interface RagRuntimeStatus {

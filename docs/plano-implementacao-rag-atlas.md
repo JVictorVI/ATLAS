@@ -1,40 +1,42 @@
-# Plano de Implementação do RAG no ATLAS
+# Plano e Estado da Implementação do RAG no ATLAS
+
+Atualizado em 25 de junho de 2026.
 
 ## 1. Objetivo
 
-Implementar recuperação semântica local para que o ATLAS possa:
+O RAG do ATLAS fornece recuperação semântica local para:
 
-- indexar manual ou automaticamente o código-fonte de um workspace;
-- transformar arquivos e documentos externos em chunks e embeddings;
-- persistir vetores e metadados em uma base local;
-- atualizar apenas os arquivos alterados;
-- recuperar trechos relevantes para a pergunta do usuário;
-- injetar o contexto recuperado na camada de prompts;
-- impedir envio de contexto RAG para provedores cloud sem consentimento;
-- exibir status, tamanho e ações de manutenção da base na tela RAG.
+- indexar o workspace atual ou uma pasta escolhida pelo usuário;
+- transformar arquivos elegíveis em chunks e embeddings;
+- persistir vetores e metadados localmente;
+- recuperar trechos relevantes para perguntas feitas no chat;
+- injetar o contexto recuperado na montagem do prompt;
+- controlar explicitamente o envio desse contexto para modelos cloud;
+- exibir projetos, status, tamanho, progresso e ações de manutenção na tela RAG.
 
-O plano cobre os requisitos RF12 a RF15, a composição de prompt do RF17 e os requisitos não funcionais RNF12 e RNF16 a RNF20 descritos na documentação do projeto.
+O fluxo principal já está implementado. As evoluções restantes concentram-se em atualização incremental por arquivo, documentos externos e melhorias de qualidade.
 
-## 2. Estado atual e pontos de integração
+## 2. Estado atual
 
-O projeto já possui parte da infraestrutura necessária:
+| Área | Estado |
+| --- | --- |
+| Runtime ChromaDB local | Implementado |
+| Modelo local de embeddings | Implementado |
+| Indexação do workspace atual | Implementada |
+| Indexação manual de outra pasta | Implementada |
+| Chunking textual e metadados de linhas | Implementados |
+| Persistência por projeto | Implementada |
+| Recuperação no chat | Implementada |
+| Fontes utilizadas na resposta | Implementadas e persistidas na sessão |
+| Tela de projetos indexados | Implementada |
+| Barra de progresso e cancelamento | Implementados |
+| Configurações de indexação e recuperação | Implementadas |
+| Watcher e debounce | Implementados |
+| Atualização incremental por arquivo | Pendente; a atualização automática atual reindexa o projeto completo |
+| Documentos externos | Interface preparada; ingestão pendente |
+| Chunking orientado a símbolos | Pendente |
 
-| Área | Estado atual | Ação |
-| --- | --- | --- |
-| Configuração | `AtlasRagSettings` já contém ativação, autoindexação, permissão cloud, modo offline, chunking e caminhos ignorados | ampliar contrato e conectar à UI e aos serviços |
-| Prompt | `AtlasPromptAssemblyService` já aceita `ragContext` | manter contrato e enriquecer a formatação com fontes |
-| Chat | `ChatResponseController` sempre envia `ragContext: []` | consultar o RAG antes da montagem final do prompt |
-| Análise rápida | `AtlasQuickAnalysisService` também envia contexto vazio | deixar fora do primeiro corte; integrar posteriormente com limite mais restrito |
-| UI | `src/webview/rag` é um protótipo estático | trocar dados simulados por mensagens reais da extensão |
-| Persistência | configurações e histórico usam JSON; não existe armazenamento do índice | criar diretório próprio no `globalStorageUri` da extensão |
-| Ciclo de vida | `ChatViewProvider` instancia e conecta os serviços | registrar ali o subsistema RAG e descartá-lo no `dispose()` |
-| Testes | existe apenas teste de exemplo | criar testes unitários dos componentes puros e testes de integração do fluxo |
-
-## 3. Arquitetura enxuta proposta
-
-### 3.1 Componentes
-
-O núcleo deve usar quatro componentes:
+## 3. Arquitetura implementada
 
 ```text
 ChatResponseController / ChatMessageRouter
@@ -42,382 +44,325 @@ ChatResponseController / ChatMessageRouter
        -> AtlasEmbeddingService
        -> AtlasChromaService
        -> AtlasRagRepository
+            -> ChromaDB local
+            -> index-manifest.json
 ```
 
-Responsabilidades:
+### 3.1 Responsabilidades
 
-- `AtlasRagService`: indexar, atualizar, consultar e excluir índices. Também realiza leitura de arquivos, chunking e formatação do contexto.
-- `AtlasEmbeddingService`: gerar embeddings locais para documentos e perguntas.
-- `AtlasChromaService`: iniciar, verificar e encerrar o servidor ChromaDB incluído na extensão.
-- `AtlasRagRepository`: encapsular a base vetorial e o manifesto JSON usado pela UI e pela detecção de mudanças.
+- `AtlasRagService`: scanner, regras de exclusão, chunking, indexação, watchers, recuperação, filtros, orçamento de contexto e formatação das fontes.
+- `AtlasEmbeddingService`: carrega o modelo local com Transformers.js e gera embeddings de documentos e perguntas.
+- `AtlasChromaService`: inicia e encerra o processo ChromaDB, escolhe uma porta local livre, executa heartbeat e define o diretório persistente.
+- `AtlasRagRepository`: gerencia coleções, chunks, consultas e exclusões no ChromaDB, além do manifesto JSON usado pela interface.
+- `ChatResponseController`: solicita o contexto RAG antes de montar o prompt e associa as fontes à resposta persistida.
+- `ChatMessageRouter`: trata configuração, indexação, reindexação, cancelamento, exclusão e notificações da Webview.
 
-Não criar inicialmente serviços separados para scanner, chunker, recuperação, sincronização, formatação ou ingestão. Esses comportamentos começam como métodos privados do `AtlasRagService` e só serão extraídos quando houver complexidade ou necessidade de substituição comprovada.
+O desenho continua deliberadamente enxuto: scanner, chunker e pós-processamento permanecem privados ao `AtlasRagService` enquanto não houver necessidade concreta de extração.
 
-Essa organização mantém o RAG independente da inferência sem espalhar o fluxo entre muitas classes.
+## 4. Runtime e distribuição
 
-### 3.2 Base vetorial
+O usuário não precisa instalar Python, Docker ou ChromaDB.
 
-Decisão:
+O pacote da extensão prepara:
 
-- utilizar ChromaDB local em modo cliente-servidor;
-- incluir o runtime do ChromaDB no pacote de instalação do ATLAS;
-- executar o servidor como processo auxiliar gerenciado pela extensão;
-- conectar pelo cliente TypeScript oficial;
-- dados armazenados em `context.globalStorageUri/rag/`;
-- coleção separada por workspace;
-- nomes de coleção derivados de um `projectId` estável, nunca diretamente do caminho;
-- metadados do índice mantidos em JSON pelo ATLAS, sem depender da base vetorial para a tela de gestão.
-
-O usuário não deverá instalar Python, Docker, ChromaDB ou executar comandos adicionais. O pacote da extensão deve conter:
-
-- runtime executável do ChromaDB para a plataforma;
 - cliente TypeScript `chromadb`;
-- runtime e modelo local de embeddings;
-- arquivos de licença das dependências;
-- código de inicialização, health check, recuperação e encerramento do processo.
-
-O `AtlasRagRepository` será a fronteira entre o ATLAS e o ChromaDB. Ele será responsável por coleções, inserção, atualização, consulta e exclusão. Não será criada uma abstração para múltiplos bancos vetoriais.
-
-### 3.2.1 Distribuição
-
-A distribuição deverá usar VSIX específico por plataforma, começando por `win32-x64`, conforme o escopo atual do projeto.
-
-Estrutura prevista no pacote:
-
-```text
-atlas/
-├── dist/extension.js
-├── node_modules/chromadb/
-├── resources/
-│   ├── chroma/win32-x64/
-│   └── embeddings/
-└── package.json
-```
+- binding nativo do ChromaDB para a plataforma;
+- launcher `resources/chroma/chroma-runner.cjs`;
+- Transformers.js e runtime ONNX local;
+- modelo de embeddings em `resources/embeddings/atlas-embedding`;
+- scripts de preparação, poda e validação.
 
 Na ativação do RAG:
 
-1. localizar o runtime compatível com `process.platform` e `process.arch`;
-2. iniciar o ChromaDB em `127.0.0.1` usando uma porta livre;
-3. apontar a persistência para `globalStorageUri/rag/chroma`;
-4. aguardar o health check;
-5. criar o cliente TypeScript;
-6. reutilizar o processo enquanto o ATLAS estiver ativo;
-7. encerrar somente o processo iniciado pela extensão.
+1. `AtlasChromaService` procura o binding para `process.platform` e `process.arch`;
+2. reserva uma porta livre em `127.0.0.1`;
+3. inicia o runner usando o Node/Electron da extensão;
+4. aponta os dados para `context.globalStorageUri/rag/chroma`;
+5. aguarda o heartbeat por até 30 segundos;
+6. disponibiliza um `ChromaClient`;
+7. encerra somente o processo criado pelo ATLAS.
 
-Se não existir runtime compatível no pacote, o RAG deve ser desabilitado com uma mensagem clara, sem impedir o restante do ATLAS de funcionar.
+O alvo de empacotamento atualmente validado é `win32-x64`.
 
-### 3.3 Embeddings
-
-O `AtlasEmbeddingService` terá somente duas operações:
-
-```ts
-class AtlasEmbeddingService {
-  embedDocuments(texts: string[], signal?: AbortSignal): Promise<number[][]>;
-  embedQuery(text: string, signal?: AbortSignal): Promise<number[]>;
-}
-```
-
-Política inicial:
-
-- embeddings locais por padrão;
-- modelo de embedding configurado separadamente do LLM de chat;
-- processamento em lote;
-- nenhuma chamada cloud para embeddings no MVP;
-- envio dos vetores já calculados ao ChromaDB, sem depender da função de embedding padrão do servidor;
-- registrar modelo e dimensões na coleção para impedir mistura de vetores incompatíveis;
-- troca de modelo de embedding exige reindexação.
-
-### 3.4 Tipos e persistência
-
-Usar três tipos principais:
-
-- `RagProjectIndex`;
-- `RagIndexedSource`;
-- `RagSearchResult`;
-
-Campos mínimos:
-
-- projeto: `projectId`, nome, raiz, coleção, status, datas, modelo de embedding, dimensões e tamanho;
-- fonte: `sourceId`, tipo, caminho relativo, hash, tamanho, modificação e linguagem;
-- resultado: score, conteúdo, caminho, linhas, símbolo e tipo de artefato.
-
-O `projectId` deve ser derivado de uma identidade persistida do workspace, não apenas do nome da pasta.
-
-### 3.5 Chunking
-
-No primeiro corte, usar chunking textual simples:
-
-1. dividir por tamanho com overlap;
-2. evitar cortar uma linha no meio;
-3. manter caminho, linguagem e intervalo de linhas nos metadados;
-4. calcular `hash_chunk` para evitar embeddings repetidos.
-
-Os valores atuais `chunkSize: 1000` e `chunkOverlap: 200` serão tratados inicialmente como caracteres, mas o contrato deve explicitar a unidade para evitar ambiguidade futura.
-
-Chunking orientado a símbolos permanece como otimização posterior.
-
-### 3.6 Recuperação e orçamento de contexto
-
-Fluxo:
-
-1. validar se RAG está habilitado e se existe índice pronto para o workspace;
-2. gerar embedding da pergunta;
-3. recuperar candidatos por similaridade;
-4. remover duplicações e chunks muito sobrepostos;
-5. aplicar limiar mínimo de relevância;
-6. limitar por quantidade de trechos e orçamento de caracteres/tokens;
-7. formatar cada trecho com fonte, linhas e score;
-8. injetar o resultado em `ragContext`.
-
-Configurações novas sugeridas:
-
-```ts
-interface AtlasRagSettings {
-  enabled: boolean;
-  autoIndex: boolean;
-  allowCloudContext: boolean;
-  offlineOnly: boolean;
-  chunkSize: number;
-  chunkOverlap: number;
-  ignoredPaths: string[];
-  embeddingModel: string;
-  topK: number;
-  maxContextCharacters: number;
-}
-```
-
-`minScore`, filtros avançados e opções específicas para documentos externos só devem entrar quando essas funcionalidades forem implementadas.
-
-O RAG deve ser aplicável aos modos `developer-assistant`, `architectural-analysis` e `study-mode`. A análise rápida fica fora do MVP para não degradar sua latência e seu formato estruturado.
-
-### 3.7 Segurança
-
-Regras obrigatórias:
-
-- índice, documentos e embeddings permanecem locais;
-- `offlineOnly: true` bloqueia contexto RAG quando o modo de inferência for cloud;
-- em modo cloud, o contexto só pode ser usado quando `allowCloudContext === true`;
-- a UI deve explicar que serão enviados apenas os chunks recuperados, não a base completa;
-- documentos externos devem ser copiados apenas com consentimento ou referenciados explicitamente conforme escolha de produto;
-- logs não devem imprimir conteúdo completo dos chunks;
-- caminhos exibidos ao modelo devem ser relativos ao workspace sempre que possível.
-
-## 4. Arquivos a criar
-
-### Tipos
-
-- `src/interfaces/AtlasRagTypes.ts`
-
-### Serviços
-
-- `src/services/AtlasRagService.ts`
-- `src/services/AtlasEmbeddingService.ts`
-- `src/services/AtlasChromaService.ts`
-
-### Persistência
-
-- `src/repository/AtlasRagRepository.ts`
-
-### Integrações existentes
-
-- novas mensagens RAG em `ChatMessageRouter`;
-- dependências RAG em `ChatMessageRouterTypes`;
-- instanciação no `ChatViewProvider`;
-- recuperação de contexto no `ChatResponseController`;
-- substituição dos dados simulados em `src/webview/rag`.
-
-O `AtlasChromaService` gerencia o processo, a porta e o health check. O `AtlasRagRepository` utiliza o cliente ChromaDB e não conhece detalhes de inicialização do executável.
-
-## 5. Fluxos principais
-
-### 5.1 Indexação manual
+Scripts relacionados:
 
 ```text
-Usuário -> Webview RAG: indexar workspace
-Webview -> ChatMessageRouter: indexarProjetoRag
-Router -> AtlasRagService: indexProject(workspace)
-AtlasRagService -> AtlasRagService: ler, filtrar e dividir arquivos
-AtlasRagService -> AtlasEmbeddingService: gerar vetores em lote
-AtlasRagService -> AtlasRagRepository: salvar vetores e metadados
-Router -> Webview: progresso e resultado
+npm run prepare-rag-runtime
+npm run prepare-embedding-model
+npm run prepare-embedding-runtime
+npm run test-rag-runtime
+npm run test-rag-semantic
+npm run vsix
 ```
 
-### 5.2 Consulta no chat
+## 5. Embeddings
+
+O `AtlasEmbeddingService` expõe:
+
+```ts
+embedDocuments(texts: string[], signal?: AbortSignal): Promise<number[][]>;
+embedQuery(text: string, signal?: AbortSignal): Promise<number[]>;
+```
+
+Características atuais:
+
+- execução exclusivamente local;
+- modelo lógico configurado como `atlas-embedding`;
+- artefato baseado em `Xenova/paraphrase-multilingual-MiniLM-L12-v2`;
+- inferência quantizada `q8`;
+- pooling médio e normalização dos vetores;
+- 384 dimensões no modelo atual;
+- processamento da indexação em lotes de 16 chunks;
+- nenhuma função automática de embedding do ChromaDB: o ATLAS sempre envia os vetores calculados.
+
+Uma mudança de modelo ou de metadados incompatíveis deve marcar os índices como desatualizados e exigir reindexação.
+
+## 6. Persistência
+
+### 6.1 Diretórios
 
 ```text
-ChatResponseController
-  -> resolve contexto do editor
-  -> AtlasRagService.retrieveContext(pergunta, workspace, modo)
-  -> AtlasPromptAssemblyService.buildMessages(..., ragContext)
-  -> AtlasInferenceService.sendChat(...)
+context.globalStorageUri/
+└── rag/
+    ├── chroma/
+    └── index-manifest.json
 ```
 
-O contexto do arquivo aberto continua sendo evidência principal. O RAG complementa essa visão com trechos de outros arquivos e documentos.
+### 6.2 Coleções
 
-### 5.3 Atualização incremental
+- Cada projeto possui uma coleção `atlas_<projectId>`.
+- O `projectId` é um hash estável do caminho raiz normalizado.
+- Durante a indexação é criada uma coleção temporária `atlas_<projectId>_build_<timestamp>`.
+- A coleção ativa só é substituída após a conclusão da indexação.
+- Falhas ou cancelamentos removem a coleção temporária e preservam o índice anterior quando existente.
 
-- observar criação, alteração e exclusão com um `FileSystemWatcher` registrado pelo `AtlasRagService`;
-- usar debounce para agrupar salvamentos rápidos;
-- comparar hash e data de modificação com o manifesto;
-- apagar os chunks antigos da fonte;
-- gerar e inserir somente os chunks novos;
-- marcar o índice como `outdated` quando a atualização falhar;
-- nunca executar reindexação completa por uma alteração pontual.
+### 6.3 Manifesto
 
-## 6. Roadmap de implementação
+O manifesto mantém:
 
-### Fase 0 - Empacotamento do runtime
+- projeto, caminho raiz, coleção e status;
+- modelo e dimensões dos embeddings;
+- quantidade de fontes e chunks;
+- tamanho estimado;
+- datas e mensagem de erro;
+- fontes, hashes, tamanho, linguagem e IDs de chunks.
 
-Entregas:
+Status possíveis:
 
-- runtime ChromaDB empacotado no VSIX `win32-x64`;
-- inicialização sem Python ou Docker instalados no sistema;
-- health check e encerramento seguro;
-- prova de persistência, busca, filtros e exclusão;
-- runtime e modelo local de embeddings empacotados;
-- definição do diretório de dados no `globalStorageUri`;
-- validação das licenças e do tamanho final do VSIX.
+```text
+not-indexed | indexing | ready | outdated | error
+```
 
-Critério de saída:
+## 7. Indexação
 
-- instalar o VSIX em uma máquina Windows limpa, indexar dez chunks, reiniciar o VS Code e recuperar os mesmos dados sem instalar dependências adicionais.
+### 7.1 Fluxo
 
-### Fase 1 - Vertical slice: indexar e consultar o workspace atual
+```text
+Webview RAG
+  -> ChatMessageRouter
+  -> AtlasRagService.indexCurrentWorkspace/indexSelectedFolder/indexProject
+  -> scanner e filtros
+  -> chunking
+  -> AtlasEmbeddingService
+  -> AtlasRagRepository
+  -> coleção temporária
+  -> substituição da coleção ativa
+  -> manifesto e Webview
+```
 
-Entregas:
+A interface mostra:
 
-- scanner com exclusões padrão e respeito a `.gitignore`;
-- chunking textual com metadados de linhas;
-- embeddings locais em lote;
-- criação e exclusão de coleção;
-- indexação manual do workspace atual;
-- recuperação top-k;
-- injeção no `ChatResponseController`;
-- indicação das fontes na resposta ou nos metadados da UI.
+- análise inicial dos arquivos;
+- preparação dos chunks;
+- geração de embeddings;
+- chunks processados e restantes;
+- arquivo atual quando disponível;
+- salvamento da base;
+- conclusão e cancelamento.
 
-Critério de saída:
+### 7.2 Seleção de arquivos
 
-- uma pergunta sobre código fora do arquivo aberto recupera o arquivo correto e o envia ao prompt;
-- em modo cloud, nenhum contexto é enviado sem `allowCloudContext`;
-- excluir o índice remove coleção e manifesto.
+São aplicados:
 
-### Fase 2 - Tela e atualização incremental
+- extensões permitidas configuráveis;
+- caminhos e padrões glob ignorados;
+- regras do `.gitignore`, quando habilitadas;
+- limite de tamanho por arquivo;
+- rejeição de arquivos vazios e binários;
+- exclusão de lockfiles gerados, como `package-lock.json`, `pnpm-lock.yaml` e `Cargo.lock`;
+- opções independentes para Markdown e para JSON/arquivos de configuração.
 
-Entregas:
+Arquivos Markdown:
 
-- carregar e salvar configurações RAG;
-- lista real de projetos indexados;
-- status `not-indexed`, `indexing`, `ready`, `outdated`, `error`;
-- progresso por arquivos/chunks;
-- tamanho em disco;
-- ações indexar, cancelar, reindexar e excluir;
-- mensagens claras para base ausente ou indisponível.
-- manifesto com hash por fonte e chunk;
-- watcher do workspace;
-- fila assíncrona com debounce e cancelamento;
-- atualização por create/change/delete;
-- opção `autoIndex`;
-- detecção de mudança de configuração ou modelo que exige reindexação total.
+```text
+.md, .markdown
+```
 
-Critério de saída:
+JSON e configurações:
 
-- a tela não contém dados simulados e reflete o estado persistido após reiniciar o VS Code;
-- editar um arquivo atualiza somente sua fonte;
-- excluir um arquivo remove seus chunks;
-- alterações não bloqueiam o editor.
+```text
+.json, .jsonc, .yaml, .yml, .xml, .toml,
+.ini, .cfg, .conf, .properties, .txt
+```
 
-### Fase 3 - Documentos externos
+### 7.3 Chunking
 
-Entregas:
+O chunking atual é textual:
 
-- seleção de PDF, Markdown e TXT;
-- parsing incorporado ao `AtlasRagService`, com funções privadas por tipo;
-- metadados de origem e páginas quando disponíveis;
-- inclusão/exclusão por documento;
-- filtro para habilitar ou não documentos externos na consulta;
-- tratamento de arquivo movido, alterado ou inacessível.
+1. usa `chunkSize` em caracteres;
+2. mantém `chunkOverlap` entre trechos;
+3. tenta preservar limites de linha;
+4. registra caminho, linguagem e intervalo de linhas;
+5. calcula hash do conteúdo e do chunk;
+6. inclui um cabeçalho textual com arquivo, linguagem e linhas no documento armazenado.
 
-Critério de saída:
+Os valores padrão são 1.000 caracteres por chunk e sobreposição de 200 caracteres.
 
-- uma pergunta recupera conteúdo de um PDF indexado e apresenta a fonte correspondente.
+### 7.4 Atualização automática
 
-### Fase 4 - Refinamento de recuperação
+O `FileSystemWatcher` observa projetos registrados. Quando um arquivo elegível é criado, alterado ou removido:
 
-Entregas:
+1. o índice é marcado como `outdated`;
+2. o debounce agrupa alterações próximas;
+3. se `autoIndex` estiver habilitado, o projeto é reindexado.
 
-- chunking orientado a símbolos;
-- deduplicação e diversidade entre arquivos;
-- limiar de score configurável;
-- orçamento de contexto;
-- filtros por linguagem, tipo e caminho;
-- integração opcional com análise rápida após benchmark;
-- conjunto de avaliação com perguntas e trechos esperados.
+Importante: a implementação atual reconstrói o índice completo. Atualizar apenas as fontes modificadas continua no roadmap.
 
-Critério de saída:
+## 8. Recuperação
 
-- os testes de avaliação demonstram recuperação relevante sem exceder o orçamento de contexto definido.
+### 8.1 Fluxo
 
-## 7. Critérios de aceite globais
+1. validar se o RAG está habilitado;
+2. validar a política local/cloud;
+3. resolver o projeto correspondente ao workspace ativo;
+4. gerar o embedding da pergunta;
+5. consultar até `topK * 5` candidatos no ChromaDB;
+6. aplicar filtros e limites;
+7. selecionar até `topK` resultados;
+8. respeitar `maxContextCharacters`;
+9. formatar contexto e fontes;
+10. injetar o contexto em `AtlasPromptAssemblyService`.
 
-- indexação inicial de projeto com menos de 20 mil linhas em até 3 minutos no ambiente de referência;
-- atualização incremental sem reindexação completa;
-- operações longas assíncronas e canceláveis;
-- nenhuma transmissão externa de documento, embedding ou chunk sem consentimento;
-- recuperação limitada por relevância e orçamento;
-- índice persistente entre sessões do VS Code;
-- exclusão completa e verificável da base do projeto;
-- tela informa quantidade de arquivos, chunks, tamanho, modelo de embedding, data e status;
-- falha do mecanismo RAG não impede o chat de funcionar sem RAG;
-- troca de modelo/dimensões não mistura embeddings incompatíveis;
-- caminhos ignorados e arquivos binários nunca são indexados.
+### 8.2 Filtros implementados
 
-## 8. Estratégia de testes
+- distância máxima ou relevância mínima;
+- exclusão de lockfiles gerados;
+- inclusão ou exclusão de documentos externos;
+- exclusão do arquivo atualmente aberto;
+- linguagens permitidas;
+- diretórios ou padrões glob permitidos;
+- máximo de chunks por arquivo;
+- diversidade entre arquivos;
+- prioridade para código, documentação ou ambos;
+- limite total de caracteres.
 
-### Unitários
+A relevância apresentada é derivada por:
 
-- normalização de caminhos e regras de exclusão;
-- chunking, overlap e cálculo de linhas;
-- hashes e detecção de mudança;
-- orçamento de contexto;
-- política de segurança local/cloud;
-- formatação das fontes;
-- migração e defaults da configuração.
+```text
+relevance = clamp(1 - distance, 0, 1)
+```
 
-### Integração
+O padrão atual usa distância máxima `0.9`.
 
-- indexar, recuperar, atualizar e excluir uma coleção;
-- reiniciar o armazenamento e preservar o índice;
-- cancelar indexação;
-- falha parcial do embedding ou vector store;
-- troca do modelo de embedding;
-- watcher para criação, alteração e exclusão.
+### 8.3 Projeto selecionado
 
-### Avaliação de recuperação
+A consulta usa somente a coleção do projeto correspondente ao workspace ativo. Projetos adicionados manualmente ficam disponíveis para gestão e indexação, mas não são misturados automaticamente em perguntas feitas em outro workspace.
 
-Criar um fixture de projeto com perguntas conhecidas e medir:
+### 8.4 Fontes
 
-- recall@k;
-- precisão dos trechos recuperados;
-- latência de consulta;
-- quantidade de contexto descartado por score/orçamento;
-- diversidade de fontes.
+Quando `showSources` está habilitado, a resposta apresenta:
 
-### Segurança
+- caminho relativo;
+- intervalo de linhas;
+- linguagem;
+- tipo da fonte;
+- distância e relevância.
 
-- cloud bloqueado com `offlineOnly`;
-- cloud bloqueado sem `allowCloudContext`;
-- logs sem conteúdo sensível;
-- exclusão limitada ao diretório RAG gerenciado pela extensão;
-- rejeição de caminhos externos não autorizados.
+As fontes também são armazenadas nos metadados da mensagem da sessão.
 
-## 9. Ordem recomendada para começar
+## 9. Configurações
 
-1. empacotar e validar ChromaDB + embeddings locais em uma máquina Windows limpa;
-2. criar os três tipos principais e os quatro componentes;
-3. implementar indexação manual no `AtlasRagService`;
-4. implementar recuperação e conectar ao `ChatResponseController`;
-5. tornar a Webview RAG funcional e adicionar atualização incremental;
-6. adicionar documentos externos;
-7. otimizar qualidade, desempenho e análise rápida.
+### 9.1 Principais
 
-O primeiro marco demonstrável deve ser pequeno e completo: indexar o workspace atual, fazer uma pergunta sobre outro arquivo e mostrar quais trechos foram recuperados. Esse corte valida a arquitetura inteira antes de ampliar a superfície da UI e dos formatos de documento.
+- habilitar RAG;
+- atualização automática;
+- permitir contexto RAG em modelos cloud;
+- quantidade máxima de resultados (`topK`);
+- limite de contexto enviado ao modelo;
+- pastas e padrões ignorados.
+
+### 9.2 Indexação
+
+- tamanho do chunk;
+- sobreposição;
+- tamanho máximo por arquivo;
+- extensões permitidas;
+- respeitar `.gitignore`;
+- indexar Markdown;
+- indexar JSON e arquivos de configuração;
+- indexar automaticamente ao adicionar projeto;
+- debounce após alterações.
+
+### 9.3 Recuperação
+
+- modo e limite de relevância;
+- máximo de chunks do mesmo arquivo;
+- diversidade entre arquivos;
+- exclusão do arquivo aberto;
+- inclusão de documentos externos;
+- prioridade de fontes;
+- filtros por linguagem e diretório;
+- exibição das fontes.
+
+Alterações que mudam o formato do índice marcam projetos prontos como `outdated`.
+
+## 10. Segurança e privacidade
+
+- Índices e embeddings permanecem locais.
+- O ChromaDB escuta apenas em `127.0.0.1`.
+- Em modo cloud, contexto RAG só é usado com `allowCloudContext`.
+- Apenas os chunks selecionados são enviados ao modelo, nunca a base completa.
+- Caminhos enviados ao prompt são relativos ao projeto.
+- Os logs de diagnóstico do RAG são destinados ao desenvolvimento e podem mostrar conteúdo dos chunks recuperados; não devem ser habilitados indiscriminadamente em builds de produção.
+- Uma falha do RAG não deve impedir o uso do restante da extensão.
+
+## 11. Testes existentes
+
+- `test-rag-runtime`: inicializa o binding, valida heartbeat, persistência e operações básicas do ChromaDB.
+- `test-rag-semantic`: gera embeddings locais, grava documentos e verifica se a consulta recupera o trecho esperado.
+- `check-types`: valida os contratos TypeScript.
+- `compile`: executa tipagem, lint e bundle.
+
+## 12. Roadmap
+
+### Concluído
+
+- runtime e embeddings locais;
+- coleção por projeto e manifesto;
+- indexação manual e por pasta;
+- recuperação integrada ao chat;
+- fontes nas respostas;
+- tela real de projetos;
+- configurações principais, de indexação e de recuperação;
+- watcher, debounce, cancelamento e progresso;
+- filtros avançados e orçamento de contexto;
+- exclusão de arquivos gerados que poluem a busca.
+
+### Próximas evoluções
+
+1. atualização incremental somente das fontes alteradas;
+2. ingestão real de documentos externos, incluindo PDF;
+3. chunking orientado a símbolos;
+4. avaliação automatizada com `recall@k`, precisão, latência e diversidade;
+5. suporte e empacotamento validados para outras plataformas;
+6. redução ou proteção dos logs de conteúdo em builds de produção;
+7. integração opcional do RAG com análise rápida após benchmark de latência.
+
+## 13. Critérios de aceite pendentes
+
+- alteração pontual não exigir reconstrução completa;
+- exclusão de arquivo remover somente seus chunks;
+- documento externo indexado aparecer como fonte;
+- benchmarks demonstrarem recuperação relevante dentro do orçamento;
+- instalação em máquina limpa funcionar sem dependências externas;
+- suporte de plataforma falhar de forma clara sem derrubar o chat.

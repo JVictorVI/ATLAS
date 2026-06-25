@@ -1,5 +1,6 @@
 import {
   AtlasConfigSchema,
+  AtlasRagSettings,
   ProviderConfig,
 } from "../interfaces/AtlasConfigTypes";
 
@@ -30,6 +31,52 @@ export class AtlasConfigDefaults {
         embeddingModel: "atlas-embedding",
         topK: 6,
         maxContextCharacters: 12000,
+        maxFileSizeBytes: 2 * 1024 * 1024,
+        allowedExtensions: [
+          ".ts",
+          ".tsx",
+          ".js",
+          ".jsx",
+          ".mjs",
+          ".cjs",
+          ".py",
+          ".java",
+          ".kt",
+          ".kts",
+          ".cs",
+          ".cpp",
+          ".cc",
+          ".c",
+          ".h",
+          ".hpp",
+          ".go",
+          ".rs",
+          ".php",
+          ".rb",
+          ".swift",
+          ".dart",
+          ".vue",
+          ".svelte",
+          ".html",
+          ".css",
+          ".scss",
+          ".sql",
+        ],
+        respectGitIgnore: true,
+        includeMarkdownFiles: true,
+        includeConfigFiles: true,
+        indexOnAdd: true,
+        autoIndexDebounceMs: 2000,
+        relevanceMode: "maxDistance",
+        relevanceThreshold: 0.9,
+        maxChunksPerFile: 2,
+        diversifyFiles: true,
+        excludeActiveFile: true,
+        includeExternalDocuments: true,
+        sourcePriority: "balanced",
+        languageFilters: [],
+        directoryFilters: [],
+        showSources: true,
       },
       ui: {
         defaultView: "chat",
@@ -71,6 +118,17 @@ export class AtlasConfigDefaults {
     partial: Partial<AtlasConfigSchema>,
   ): AtlasConfigSchema {
     const defaults = this.createDefaultConfig();
+    const ragPartial = (partial.rag ?? {}) as Partial<AtlasRagSettings> & {
+      includeSupportFiles?: boolean;
+    };
+    const {
+      includeSupportFiles: legacyIncludeSupportFiles,
+      ...currentRagPartial
+    } = ragPartial;
+    const includeMarkdownFiles =
+      ragPartial.includeMarkdownFiles ?? legacyIncludeSupportFiles;
+    const includeConfigFiles =
+      ragPartial.includeConfigFiles ?? legacyIncludeSupportFiles;
 
     return {
       ...defaults,
@@ -85,7 +143,11 @@ export class AtlasConfigDefaults {
       },
       rag: {
         ...defaults.rag,
-        ...(partial.rag ?? {}),
+        ...currentRagPartial,
+        includeMarkdownFiles:
+          includeMarkdownFiles ?? defaults.rag.includeMarkdownFiles,
+        includeConfigFiles:
+          includeConfigFiles ?? defaults.rag.includeConfigFiles,
       },
       ui: {
         ...defaults.ui,

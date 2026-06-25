@@ -9,6 +9,7 @@ import { AtlasInferenceService } from "../services/AtlasInferenceService";
 import { AtlasSessionService } from "../services/AtlasSessionService";
 import { CloudApiService } from "../services/CloudApiService";
 import {
+  RagContextResult,
   RagIndexingProgress,
   RagProjectIndex,
   RagRuntimeStatus,
@@ -57,11 +58,18 @@ export type RouterDependencies = {
     onProgress?: (progress: RagIndexingProgress) => void | Promise<void>,
     signal?: AbortSignal,
   ) => Promise<RagProjectIndex>;
+  registerSelectedFolder: (folderUri: vscode.Uri) => RagProjectIndex;
+  indexRagProject: (
+    projectId: string,
+    onProgress?: (progress: RagIndexingProgress) => void | Promise<void>,
+    signal?: AbortSignal,
+  ) => Promise<RagProjectIndex>;
   deleteRagProject: (projectId: string) => Promise<void>;
   getRagContext: (
     query: string,
     signal?: AbortSignal,
-  ) => Promise<string[]>;
+  ) => Promise<RagContextResult>;
+  markRagProjectsOutdated: (reason: string) => void;
 };
 
 export type ActiveResponseSnapshot = {

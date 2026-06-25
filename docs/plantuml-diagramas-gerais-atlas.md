@@ -3,7 +3,17 @@
 Este arquivo contém os casos de uso e os diagramas PlantUML atualizados com base na implementação atual do ATLAS.
 Os blocos podem ser copiados diretamente para o PlantText ou para uma extensão PlantUML compatível com UTF-8.
 
-> **Nota de atualização:** a arquitetura atual do ATLAS é uma extensão do VS Code implementada em TypeScript. O ponto central de inferência é o `AtlasInferenceService`, que decide entre execução em nuvem, por meio do `CloudApiService`, e execução local, por meio do `LocalApiService` integrado ao `AtlasLocalEngineService` e ao `llama-server`. O projeto já possui gerenciamento de sessões, histórico persistido, resumo de conversas longas, descoberta de modelos `.gguf`, seleção de provedor/modelo cloud, chaves em `SecretStorage`, resolução automática de modo por heurística e análise rápida com marcações no editor. A camada `AtlasDocumentStructureService` acrescenta contexto estático obtido dos provedores de linguagem do VS Code — símbolos, diagnósticos e, opcionalmente, referências externas — às análises rápida e arquitetural, mantendo fallback textual quando esses dados não estão disponíveis. RAG, ChromaDB, download automatizado de modelos e integração real com repositórios externos permanecem como evolução futura.
+> **Nota de atualização:** a arquitetura atual do ATLAS é uma extensão do VS Code implementada em TypeScript. O ponto central de inferência é o `AtlasInferenceService`, que decide entre execução em nuvem e execução local. O projeto possui sessões, histórico, resumo de conversas, modelos `.gguf`, análise rápida e contexto estrutural do VS Code. O RAG local também está implementado: `AtlasRagService` coordena indexação e recuperação, `AtlasEmbeddingService` gera vetores localmente, `AtlasChromaService` gerencia o processo ChromaDB empacotado e `AtlasRagRepository` mantém coleções e manifesto. Documentos externos, busca real em Hugging Face e download automatizado de modelos de chat permanecem como evolução.
+
+## Pontos atualizados na versão 1.5
+
+- RAG local integrado ao fluxo de resposta do chat, com fontes persistidas nas mensagens.
+- ChromaDB iniciado automaticamente em porta local dinâmica e persistido no `globalStorageUri`.
+- Indexação do workspace atual ou de pasta selecionada, com coleção independente por projeto.
+- Barra de progresso por arquivos e chunks, cancelamento, reindexação e exclusão da base.
+- Configurações de indexação e recuperação, incluindo controles separados para Markdown e JSON/configurações.
+- Watcher e debounce implementados; a atualização automática atual reconstrói o índice completo.
+- Recuperação com distância/relevância, diversidade, filtros por linguagem/diretório, prioridade de fonte e orçamento de contexto.
 
 ## Pontos atualizados na versão 1.4
 
@@ -38,7 +48,7 @@ actor "VS Code\nSecretStorage" as SecretStorage
 actor "Provedores de Linguagem\ndo VS Code" as LanguageProviders
 actor "Sistema de\nArquivos Local" as FileSystem
 actor "Repositório de\nModelos (futuro)" as RepoModelos
-actor "Base Vetorial\n(futuro)" as BaseVetorial
+actor "ChromaDB\nlocal" as BaseVetorial
 
 rectangle "ATLAS - Extensão VS Code" {
   usecase "Perguntar sobre\no código" as UC001
@@ -126,7 +136,7 @@ LanguageProviders --> INC_Estrutura
 FileSystem --> UC015
 FileSystem --> UC014
 
-UC016 ..> BaseVetorial : <<future>>
+UC016 --> BaseVetorial
 UC017 ..> RepoModelos : <<future>>
 UC018 ..> RepoModelos : <<future>>
 UC018 ..> FileSystem : <<future>>
@@ -161,6 +171,7 @@ package "Interface / Webview" {
   class "src/webview/atlas" as WebviewAtlas <<webview>>
   class "src/webview/api-keys" as WebviewApiKeys <<webview>>
   class "src/webview/library" as WebviewLibrary <<webview>>
+  class "src/webview/rag" as WebviewRag <<webview>>
 }
 
 package "Aplicação" {
@@ -256,6 +267,37 @@ package "Inferência" {
   }
 }
 
+package "RAG Local" {
+  class AtlasRagService {
+    +indexCurrentWorkspace(onProgress, signal)
+    +indexSelectedFolder(folderUri, onProgress, signal)
+    +indexProject(projectId, onProgress, signal)
+    +retrieveContext(query, signal)
+    +deleteProjectIndex(projectId)
+  }
+
+  class AtlasEmbeddingService {
+    +embedDocuments(texts, signal)
+    +embedQuery(text, signal)
+  }
+
+  class AtlasChromaService {
+    +ensureReady()
+    +getStatus()
+    +stop()
+  }
+
+  class AtlasRagRepository {
+    +listProjects()
+    +upsertChunks(collection, chunks)
+    +search(collection, embedding, topK)
+    +deleteProject(projectId)
+  }
+
+  database "ChromaDB local" as ChromaDb
+  artifact "index-manifest.json" as RagManifest
+}
+
 package "Prompts e Sessões" {
   class AtlasPromptAssemblyService {
     +buildMessages(input)
@@ -310,7 +352,9 @@ ChatPanelManager --> WebviewChat : renderiza
 ChatPanelManager --> WebviewAtlas : renderiza
 ChatPanelManager --> WebviewApiKeys : renderiza
 ChatPanelManager --> WebviewLibrary : renderiza
+ChatPanelManager --> WebviewRag : renderiza
 WebviewChat --> ChatMessageRouter : postMessage
+WebviewRag --> ChatMessageRouter : postMessage
 
 ChatMessageRouter --> ChatResponseController
 ChatMessageRouter --> ChatSessionController
@@ -318,9 +362,11 @@ ChatMessageRouter --> ChatModelWebviewService
 ChatMessageRouter --> AtlasQuickAnalysisController
 ChatMessageRouter --> ApiKeyManager
 ChatMessageRouter --> AtlasConfigManager
+ChatMessageRouter --> AtlasRagService : indexação e gestão
 
 ChatResponseController --> AtlasEditorContextService
 ChatResponseController --> AtlasDocumentStructureService : análise arquitetural
+ChatResponseController --> AtlasRagService : recuperar contexto
 ChatResponseController --> AtlasPromptAssemblyService
 ChatResponseController --> AtlasInferenceService
 ChatResponseController --> AtlasSessionService
@@ -335,6 +381,13 @@ AtlasQuickAnalysisService --> AtlasDocumentStructureService
 AtlasInferenceService --> CloudApiService : modo cloud
 AtlasInferenceService --> LocalApiService : modo local
 LocalApiService --> AtlasLocalEngineService
+
+AtlasRagService --> AtlasEmbeddingService
+AtlasRagService --> AtlasChromaService
+AtlasRagService --> AtlasRagRepository
+AtlasRagRepository --> AtlasChromaService
+AtlasRagRepository --> ChromaDb
+AtlasRagRepository --> RagManifest
 
 AtlasPromptAssemblyService --> AtlasPromptModeResolver
 AtlasPromptAssemblyService --> AtlasSystemPromptPolicyService
@@ -625,8 +678,8 @@ title ATLAS - Visão de Implantação Atual
 node "Máquina do Desenvolvedor\n(Windows + VS Code)" as DevMachine {
   node "Visual Studio Code" as VSCode {
     component "ATLAS Extension\n(TypeScript)" as Extension
-    component "Webviews\nchat / atlas / library / api-keys" as Webviews
-    component "Serviços da Extensão\nChatResponseController\nAtlasInferenceService\nAtlasSessionService\nAtlasDocumentStructureService" as ExtensionServices
+    component "Webviews\nchat / atlas / library / api-keys / rag" as Webviews
+    component "Serviços da Extensão\nChatResponseController\nAtlasInferenceService\nAtlasSessionService\nAtlasDocumentStructureService\nAtlasRagService" as ExtensionServices
     database "VS Code SecretStorage" as SecretStorage
   }
 
@@ -647,7 +700,19 @@ node "Máquina do Desenvolvedor\n(Windows + VS Code)" as DevMachine {
     component "llama-server\n127.0.0.1:8080" as LlamaServer
   }
 
-  database "Base Vetorial Local\n(futuro)" as VectorDb
+  folder "Runtime RAG Empacotado" as RagRuntime {
+    artifact "chromadb-binding.node" as ChromaBinding
+    artifact "Modelo atlas-embedding\nTransformers.js / ONNX" as EmbeddingModel
+  }
+
+  node "Processo ChromaDB Local" as ChromaProcess {
+    component "chroma-runner.cjs\n127.0.0.1:porta dinâmica" as ChromaRunner
+  }
+
+  folder "VS Code globalStorageUri/rag" as RagStorage {
+    database "chroma/" as VectorDb
+    artifact "index-manifest.json" as RagManifest
+  }
 }
 
 cloud "Provedores de IA em Nuvem\nOpenAI-compatible / Claude / Gemini / xAI" as CloudProviders
@@ -665,7 +730,11 @@ ExtensionServices --> LlamaServer : inicia/para e envia requisições
 LlamaServer --> GgufModels : carrega modelo
 ExtensionServices --> CloudProviders : inferência cloud
 ExtensionServices ..> ModelRepository : busca/download planejado
-ExtensionServices ..> VectorDb : RAG planejado
+ExtensionServices --> EmbeddingModel : gera embeddings locais
+ExtensionServices --> ChromaRunner : inicia/para e consulta
+ChromaRunner --> ChromaBinding : carrega binding nativo
+ChromaRunner --> VectorDb : persiste coleções
+ExtensionServices --> RagManifest : lê/grava projetos e fontes
 @enduml
 ```
 
@@ -678,45 +747,47 @@ skinparam classAttributeIconSize 0
 skinparam packageStyle rectangle
 title ATLAS - Modelo Conceitual do Banco Vetorial (RAG)
 
-class ProjetoIndexado <<conceitual>> {
+class ProjetoIndexado <<implementado>> {
   +project_id
   +nome_projeto
   +caminho_raiz
-  +data_indexacao
-  +linguagem_principal
-  +hash_indexacao
+  +collection_name
+  +status
+  +embedding_model
+  +embedding_dimensions
+  +source_count
+  +chunk_count
 }
 
-class FonteIndexada <<conceitual>> {
+class FonteIndexada <<implementado>> {
   +source_id
   +project_id
   +tipo_fonte
-  +caminho
-  +nome_arquivo
+  +relative_path
   +linguagem
   +hash_conteudo
+  +chunk_ids
 }
 
-class ChunkRAG <<conceitual>> {
+class ChunkRAG <<implementado>> {
   +chunk_id
   +conteudo_texto
-  +tipo_chunk
+  +source_type
+  +external_document
   +linha_inicio
   +linha_fim
   +chunk_index
+  +hash_chunk
 }
 
-class Embedding <<conceitual>> {
-  +embedding_id
+class Embedding <<implementado>> {
   +vetor_embedding
   +modelo_embedding_utilizado
   +dimensoes
-  +data_geracao
 }
 
-class MetadadosIndexacao <<conceitual>> {
-  +metadata_id
-  +file_path
+class MetadadosIndexacao <<implementado>> {
+  +relative_path
   +language
   +start_line
   +end_line
@@ -724,12 +795,10 @@ class MetadadosIndexacao <<conceitual>> {
   +artifact_type
 }
 
-class ColecaoVetorial <<conceitual>> {
-  +collection_id
+class ColecaoVetorial <<implementado>> {
   +nome_colecao
-  +engine_vetorial
-  +metrica_similaridade
-  +data_criacao
+  +engine = ChromaDB
+  +project_id
 }
 
 ProjetoIndexado "1" -- "1..*" FonteIndexada : possui
@@ -750,59 +819,60 @@ skinparam packageStyle rectangle
 title ATLAS - Modelo Lógico do Banco Vetorial (RAG)
 
 entity "ProjetoIndexado" as Projeto {
-  *project_id : UUID
+  *project_id : VARCHAR(24)
   --
   nome_projeto : VARCHAR
   caminho_raiz : VARCHAR
-  linguagem_principal : VARCHAR
-  data_indexacao : DATETIME
-  hash_indexacao : VARCHAR
+  collection_name : VARCHAR
   status_indexacao : VARCHAR
+  embedding_model : VARCHAR
+  embedding_dimensions : INT
+  source_count : INT
+  chunk_count : INT
+  size_bytes : BIGINT
+  created_at : DATETIME
+  updated_at : DATETIME
 }
 
 entity "FonteIndexada" as Fonte {
-  *source_id : UUID
+  *source_id : VARCHAR(32)
   --
-  project_id : UUID <<FK>>
+  project_id : VARCHAR(24) <<FK>>
   tipo_fonte : VARCHAR
-  file_path : VARCHAR
-  nome_arquivo : VARCHAR
+  relative_path : VARCHAR
   linguagem : VARCHAR
   hash_conteudo : VARCHAR
-  tamanho_bytes : INT
+  tamanho_bytes : BIGINT
   data_modificacao : DATETIME
+  chunk_ids : JSON
 }
 
 entity "ColecaoVetorial" as Colecao {
-  *collection_id : UUID
+  *nome_colecao : VARCHAR
   --
-  nome_colecao : VARCHAR
-  engine_vetorial : VARCHAR
+  project_id : VARCHAR(24)
+  engine_vetorial : VARCHAR = "ChromaDB"
   modelo_embedding_padrao : VARCHAR
   dimensoes : INT
-  metrica_similaridade : VARCHAR
-  data_criacao : DATETIME
 }
 
 entity "ColecaoVetorialChunk" as Chunk {
-  *chunk_id : UUID
+  *chunk_id : VARCHAR(40)
   --
-  collection_id : UUID <<FK>>
-  project_id : UUID <<FK>>
-  source_id : UUID <<FK>>
+  collection_name : VARCHAR <<FK>>
+  project_id : VARCHAR(24) <<FK>>
+  source_id : VARCHAR(32) <<FK>>
   conteudo_texto : TEXT
   vetor_embedding : VECTOR
-  modelo_embedding_utilizado : VARCHAR
-  dimensoes : INT
   metadata_json : JSON
-  tipo_chunk : VARCHAR
+  source_type : VARCHAR
+  external_document : BOOLEAN
   linguagem : VARCHAR
-  file_path : VARCHAR
+  relative_path : VARCHAR
   linha_inicio : INT
   linha_fim : INT
   chunk_index : INT
   hash_chunk : VARCHAR
-  data_geracao : DATETIME
 }
 
 Projeto ||--o{ Fonte : possui

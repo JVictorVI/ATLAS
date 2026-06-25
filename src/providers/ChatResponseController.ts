@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 
 import { AtlasSession } from "../interfaces/AtlasHistoryTypes";
+import { RagContextSource } from "../interfaces/AtlasRagTypes";
 import { AtlasInferenceService } from "../services/AtlasInferenceService";
 import {
   ActiveGenerationPayload,
@@ -59,13 +60,16 @@ export class ChatResponseController {
         architecturalSummary: session.architecturalSummary || undefined,
       });
       let ragContext: string[] = [];
+      let ragSources: RagContextSource[] = [];
 
       if (promptResult.mode !== "quick-analysis") {
         try {
-          ragContext = await this.deps.getRagContext(
+          const retrieval = await this.deps.getRagContext(
             String(data.value ?? ""),
             responseController.signal,
           );
+          ragContext = retrieval.context;
+          ragSources = retrieval.sources;
         } catch (error) {
           if (
             AtlasInferenceService.isAbortError(error) ||
@@ -171,6 +175,11 @@ export class ChatResponseController {
       await this.deps.sessionService.appendMessage(session.id, {
         role: "assistant",
         content: response.content,
+        metadata: {
+          ragSources: this.deps.configManager.getConfig().rag.showSources
+            ? ragSources
+            : [],
+        },
       });
 
       this.deps.sessionService.summarizeIfNeeded(session.id).catch((error) => {
@@ -185,6 +194,9 @@ export class ChatResponseController {
           metadata: {
             ...this.buildResponseMetadata(promptResult.mode, response),
             sessionId: session.id,
+            ragSources: this.deps.configManager.getConfig().rag.showSources
+              ? ragSources
+              : [],
           },
         });
       } else {
@@ -194,6 +206,9 @@ export class ChatResponseController {
           metadata: {
             ...this.buildResponseMetadata(promptResult.mode, response),
             sessionId: session.id,
+            ragSources: this.deps.configManager.getConfig().rag.showSources
+              ? ragSources
+              : [],
           },
         });
       }

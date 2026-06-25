@@ -78,11 +78,21 @@ export class ChatMessageRouter {
       case "salvarConfiguracoesRag":
         await this.handleSaveRagSettings(data, webview);
         return;
+      case "mostrarNotificacaoRag":
+        this.handleRagNotification(data);
+        return;
       case "indexarWorkspaceRag":
         await this.handleIndexWorkspaceRag(webview, "workspace");
         return;
       case "selecionarPastaRag":
         await this.handleIndexWorkspaceRag(webview, "folder");
+        return;
+      case "reindexarProjetoRag":
+        await this.handleIndexWorkspaceRag(
+          webview,
+          "project",
+          typeof data.projectId === "string" ? data.projectId : undefined,
+        );
         return;
       case "cancelarIndexacaoRag":
         this.ragIndexController?.abort();
@@ -259,11 +269,128 @@ export class ChatMessageRouter {
   ): Promise<void> {
     try {
       const payload = data.payload ?? {};
+      const current = this.deps.configManager.getSection("rag");
+      const topK = this.normalizeInteger(
+        payload.topK,
+        1,
+        30,
+        current.topK,
+      );
+      const maxContextCharacters = this.normalizeInteger(
+        payload.maxContextCharacters,
+        1000,
+        100000,
+        current.maxContextCharacters,
+      );
+      const ignoredPaths = this.normalizeIgnoredPaths(
+        payload.ignoredPaths,
+        current.ignoredPaths,
+      );
+      const chunkSize = this.normalizeInteger(
+        payload.chunkSize,
+        300,
+        12000,
+        current.chunkSize,
+      );
+      const chunkOverlap = this.normalizeInteger(
+        payload.chunkOverlap,
+        0,
+        Math.floor(chunkSize / 2),
+        Math.min(current.chunkOverlap, Math.floor(chunkSize / 2)),
+      );
+      const maxFileSizeBytes = this.normalizeInteger(
+        payload.maxFileSizeBytes,
+        1024 * 1024,
+        100 * 1024 * 1024,
+        current.maxFileSizeBytes,
+      );
+      const allowedExtensions = this.normalizeExtensions(
+        payload.allowedExtensions,
+        current.allowedExtensions,
+      );
+      const respectGitIgnore = payload.respectGitIgnore !== false;
+      const includeMarkdownFiles = payload.includeMarkdownFiles !== false;
+      const includeConfigFiles = payload.includeConfigFiles !== false;
+      const indexOnAdd = payload.indexOnAdd !== false;
+      const autoIndexDebounceMs = this.normalizeInteger(
+        payload.autoIndexDebounceMs,
+        500,
+        60000,
+        current.autoIndexDebounceMs,
+      );
+      const relevanceMode =
+        payload.relevanceMode === "minRelevance"
+          ? "minRelevance"
+          : "maxDistance";
+      const relevanceThreshold = this.normalizeNumber(
+        payload.relevanceThreshold,
+        0,
+        relevanceMode === "minRelevance" ? 1 : 2,
+        current.relevanceThreshold,
+      );
+      const maxChunksPerFile = this.normalizeInteger(
+        payload.maxChunksPerFile,
+        1,
+        20,
+        current.maxChunksPerFile,
+      );
+      const sourcePriority =
+        payload.sourcePriority === "code" ||
+        payload.sourcePriority === "documentation"
+          ? payload.sourcePriority
+          : "balanced";
+      const languageFilters = this.normalizeSimpleList(
+        payload.languageFilters,
+        current.languageFilters,
+      );
+      const directoryFilters = this.normalizeIgnoredPaths(
+        payload.directoryFilters,
+        current.directoryFilters,
+      );
+      const indexShapeChanged =
+        JSON.stringify(ignoredPaths) !== JSON.stringify(current.ignoredPaths) ||
+        chunkSize !== current.chunkSize ||
+        chunkOverlap !== current.chunkOverlap ||
+        maxFileSizeBytes !== current.maxFileSizeBytes ||
+        JSON.stringify(allowedExtensions) !==
+          JSON.stringify(current.allowedExtensions) ||
+        respectGitIgnore !== current.respectGitIgnore ||
+        includeMarkdownFiles !== current.includeMarkdownFiles ||
+        includeConfigFiles !== current.includeConfigFiles;
       const config = this.deps.configManager.updateRagSettings({
         enabled: payload.enabled === true,
+        autoIndex: payload.autoIndex === true,
         allowCloudContext: payload.allowCloudContext === true,
         offlineOnly: payload.allowCloudContext !== true,
+        topK,
+        maxContextCharacters,
+        ignoredPaths,
+        chunkSize,
+        chunkOverlap,
+        maxFileSizeBytes,
+        allowedExtensions,
+        respectGitIgnore,
+        includeMarkdownFiles,
+        includeConfigFiles,
+        indexOnAdd,
+        autoIndexDebounceMs,
+        relevanceMode,
+        relevanceThreshold,
+        maxChunksPerFile,
+        diversifyFiles: payload.diversifyFiles === true,
+        excludeActiveFile: payload.excludeActiveFile === true,
+        includeExternalDocuments: payload.includeExternalDocuments === true,
+        sourcePriority,
+        languageFilters,
+        directoryFilters,
+        showSources: payload.showSources === true,
       });
+
+      if (indexShapeChanged) {
+        this.deps.markRagProjectsOutdated(
+          "As configurações de indexação foram alteradas; reindexe o projeto.",
+        );
+      }
 
       let runtime = this.deps.getRagRuntimeStatus();
 
@@ -282,6 +409,9 @@ export class ChatMessageRouter {
           projects: this.deps.listRagProjects(),
         },
       });
+      await webview.postMessage({
+        type: "configuracoesRagSalvas",
+      });
     } catch (error) {
       await this.postError(
         webview,
@@ -291,9 +421,133 @@ export class ChatMessageRouter {
     }
   }
 
+  private handleRagNotification(data: any): void {
+    const message =
+      typeof data.message === "string" ? data.message.trim() : "";
+
+    if (!message) {
+      return;
+    }
+
+    if (data.level === "error") {
+      vscode.window.showErrorMessage(`ATLAS: ${message}`);
+      return;
+    }
+
+    if (data.level === "warning") {
+      vscode.window.showWarningMessage(`ATLAS: ${message}`);
+      return;
+    }
+
+    vscode.window.showInformationMessage(`ATLAS: ${message}`);
+  }
+
+  private normalizeInteger(
+    value: unknown,
+    minimum: number,
+    maximum: number,
+    fallback: number,
+  ): number {
+    const parsed =
+      typeof value === "number"
+        ? value
+        : typeof value === "string"
+          ? Number.parseInt(value, 10)
+          : Number.NaN;
+
+    if (!Number.isInteger(parsed) || parsed < minimum || parsed > maximum) {
+      return fallback;
+    }
+
+    return parsed;
+  }
+
+  private normalizeNumber(
+    value: unknown,
+    minimum: number,
+    maximum: number,
+    fallback: number,
+  ): number {
+    const parsed =
+      typeof value === "number"
+        ? value
+        : typeof value === "string"
+          ? Number.parseFloat(value)
+          : Number.NaN;
+
+    return Number.isFinite(parsed) && parsed >= minimum && parsed <= maximum
+      ? parsed
+      : fallback;
+  }
+
+  private normalizeIgnoredPaths(
+    value: unknown,
+    fallback: string[],
+  ): string[] {
+    if (!Array.isArray(value)) {
+      return fallback;
+    }
+
+    return Array.from(
+      new Set(
+        value
+          .filter((item): item is string => typeof item === "string")
+          .map((item) => item.trim().replace(/\\/g, "/"))
+          .filter(
+            (item) =>
+              Boolean(item) &&
+              item.length <= 200 &&
+              !path.isAbsolute(item) &&
+              !item.split("/").includes(".."),
+          ),
+      ),
+    ).slice(0, 100);
+  }
+
+  private normalizeExtensions(
+    value: unknown,
+    fallback: string[],
+  ): string[] {
+    if (!Array.isArray(value)) {
+      return fallback;
+    }
+
+    const extensions = Array.from(
+      new Set(
+        value
+          .filter((item): item is string => typeof item === "string")
+          .map((item) => item.trim().toLowerCase())
+          .filter(Boolean)
+          .map((item) => (item.startsWith(".") ? item : `.${item}`))
+          .filter((item) => /^\.[a-z0-9][a-z0-9._+-]*$/i.test(item)),
+      ),
+    ).slice(0, 100);
+
+    return extensions.length ? extensions : fallback;
+  }
+
+  private normalizeSimpleList(
+    value: unknown,
+    fallback: string[],
+  ): string[] {
+    if (!Array.isArray(value)) {
+      return fallback;
+    }
+
+    return Array.from(
+      new Set(
+        value
+          .filter((item): item is string => typeof item === "string")
+          .map((item) => item.trim().toLowerCase())
+          .filter((item) => Boolean(item) && item.length <= 100),
+      ),
+    ).slice(0, 100);
+  }
+
   private async handleIndexWorkspaceRag(
     webview: vscode.Webview,
-    source: "workspace" | "folder",
+    source: "workspace" | "folder" | "project",
+    projectId?: string,
   ): Promise<void> {
     if (this.ragIndexController) {
       await webview.postMessage({
@@ -328,6 +582,22 @@ export class ChatMessageRouter {
           });
           return;
         }
+
+        if (!this.deps.configManager.getSection("rag").indexOnAdd) {
+          const project = this.deps.registerSelectedFolder(selectedFolder);
+          await webview.postMessage({
+            type: "projetoRagAdicionado",
+            value: {
+              project,
+              projects: this.deps.listRagProjects(),
+            },
+          });
+          return;
+        }
+      }
+
+      if (source === "project" && !projectId) {
+        throw new Error("Projeto RAG inválido para reindexação.");
       }
 
       const onProgress = async (progress: RagIndexingProgress) => {
@@ -336,16 +606,23 @@ export class ChatMessageRouter {
           value: progress,
         });
       };
-      const project = selectedFolder
-        ? await this.deps.indexSelectedFolder(
-            selectedFolder,
-            onProgress,
-            controller.signal,
-          )
-        : await this.deps.indexCurrentWorkspace(
-            onProgress,
-            controller.signal,
-          );
+      const project =
+        source === "project"
+          ? await this.deps.indexRagProject(
+              projectId!,
+              onProgress,
+              controller.signal,
+            )
+          : selectedFolder
+            ? await this.deps.indexSelectedFolder(
+                selectedFolder,
+                onProgress,
+                controller.signal,
+              )
+            : await this.deps.indexCurrentWorkspace(
+                onProgress,
+                controller.signal,
+              );
 
       await webview.postMessage({
         type: "indexacaoRagConcluida",
