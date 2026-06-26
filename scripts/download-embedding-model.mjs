@@ -47,6 +47,7 @@ await writeFile(
   path.join(destinationRoot, "atlas-model.json"),
   JSON.stringify(
     {
+      name: "Modelo padrão (paraphrase-multilingual-MiniLM-L12-v2)",
       source: "Xenova/paraphrase-multilingual-MiniLM-L12-v2",
       revision: "main",
       task: "feature-extraction",

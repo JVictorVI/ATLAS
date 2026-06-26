@@ -29,6 +29,7 @@ export class AtlasConfigDefaults {
         chunkOverlap: 200,
         ignoredPaths: ["node_modules", "dist", ".git"],
         embeddingModel: "atlas-embedding",
+        embeddingModelsDir: "",
         topK: 6,
         maxContextCharacters: 12000,
         maxFileSizeBytes: 2 * 1024 * 1024,

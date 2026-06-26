@@ -35,6 +35,14 @@
     --vscode-editorWarning-foreground,
     var(--vscode-editorWarning-border, var(--vscode-foreground))
   );
+  --atlas-study-bg: var(
+    --vscode-inputValidation-warningBackground,
+    rgba(255, 193, 7, 0.16)
+  );
+  --atlas-study-border: var(
+    --vscode-editorWarning-border,
+    var(--atlas-warning-fg)
+  );
   --atlas-code-bg: var(
     --vscode-textCodeBlock-background,
     var(--vscode-editorWidget-background, var(--atlas-app-bg))
@@ -551,9 +559,9 @@ body {
   background-color: var(--atlas-surface-bg);
   border: 1px solid var(--atlas-border);
   border-radius: 4px;
-  padding: 4px 6px 4px 10px;
+  padding: 7px 6px 7px 10px;
   flex: 1;
-  min-height: 38px;
+  min-height: 46px;
 }
 
 .input-container.expanded {
@@ -576,13 +584,13 @@ textarea {
 }
 
 #pergunta {
-  min-height: 24px;
-  max-height: 132px;
-  line-height: 18px;
+  min-height: 30px;
+  max-height: 148px;
+  line-height: 20px;
   resize: none;
   overflow-y: auto;
   font-family: var(--vscode-font-family);
-  padding: 3px 0;
+  padding: 5px 0;
 }
 
 #send-btn,
@@ -1411,12 +1419,14 @@ textarea {
 }
 
 #study-mode-btn.active {
-  background-color: var(
-    --vscode-list-activeSelectionBackground,
-    var(--atlas-surface-bg)
-  );
-  color: var(--vscode-list-activeSelectionForeground, var(--atlas-warning-fg));
-  border-color: var(--atlas-warning-fg);
+  background-color: var(--atlas-study-bg);
+  color: var(--atlas-warning-fg);
+  border-color: var(--atlas-study-border);
+}
+
+#study-mode-btn.active:hover {
+  background-color: var(--atlas-study-bg);
+  border-color: var(--atlas-study-border);
 }
 
 #study-mode-btn i {

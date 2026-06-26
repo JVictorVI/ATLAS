@@ -24,6 +24,7 @@ import { AtlasSessionService } from "../services/AtlasSessionService";
 import { AtlasChromaService } from "../services/AtlasChromaService";
 import { AtlasRagService } from "../services/AtlasRagService";
 import { AtlasEmbeddingService } from "../services/AtlasEmbeddingService";
+import { AtlasEmbeddingModelDiscoveryService } from "../services/AtlasEmbeddingModelDiscoveryService";
 import { AtlasRagRepository } from "../repository/AtlasRagRepository";
 import { AtlasEditorContextService } from "./AtlasEditorContextService";
 import { AtlasQuickAnalysisController } from "./AtlasQuickAnalysisController";
@@ -65,6 +66,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private readonly quickAnalysisService: AtlasQuickAnalysisService;
   private readonly quickAnalysisController: AtlasQuickAnalysisController;
   private readonly chromaService: AtlasChromaService;
+  private readonly embeddingModelDiscoveryService: AtlasEmbeddingModelDiscoveryService;
   private readonly embeddingService: AtlasEmbeddingService;
   private readonly ragRepository: AtlasRagRepository;
   private readonly ragService: AtlasRagService;
@@ -153,9 +155,15 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this.editorContextService = new AtlasEditorContextService();
     this.documentStructureService = new AtlasDocumentStructureService();
     this.chromaService = new AtlasChromaService(this.context);
+    this.embeddingModelDiscoveryService =
+      new AtlasEmbeddingModelDiscoveryService(
+        this.context,
+        this.configManager,
+      );
     this.embeddingService = new AtlasEmbeddingService(
       this.context,
       this.configManager,
+      this.embeddingModelDiscoveryService,
     );
     this.ragRepository = new AtlasRagRepository(
       this.context,
@@ -260,6 +268,21 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       getLocalModelsDir: () => this.localModelDiscoveryService.getModelsDir(),
 
       getLocalEnginesDir: () => this.localEngineService.getEnginesDir(),
+
+      refreshRagEmbeddingModels: () => {
+        return this.embeddingModelDiscoveryService.refreshEmbeddingModels();
+      },
+
+      getRagEmbeddingModelsDir: () => {
+        return this.embeddingModelDiscoveryService.getModelsDir();
+      },
+
+      downloadDefaultRagEmbeddingModel: (onProgress, signal) => {
+        return this.embeddingModelDiscoveryService.downloadDefaultEmbeddingModel(
+          onProgress,
+          signal,
+        );
+      },
 
       getChatEditorContext: () =>
         this.editorContextService.getChatEditorContext(),

@@ -14,6 +14,8 @@ Os blocos podem ser copiados diretamente para o PlantText ou para uma extensão 
 - Configurações de indexação e recuperação, incluindo controles separados para Markdown e JSON/configurações.
 - Watcher e debounce implementados; a atualização automática atual reconstrói o índice completo.
 - Recuperação com distância/relevância, diversidade, filtros por linguagem/diretório, prioridade de fonte e orçamento de contexto.
+- Tela RAG com status da base vetorial no topo, projetos indexados em destaque, documentos externos preparados e carregamento inicial não bloqueante.
+- Seleção de modelos de embeddings por pasta configurável, com atualização ao abrir o seletor e download do modelo padrão quando necessário.
 
 ## Pontos atualizados na versão 1.4
 
@@ -281,6 +283,13 @@ package "RAG Local" {
     +embedQuery(text, signal)
   }
 
+  class AtlasEmbeddingModelDiscoveryService {
+    +refreshEmbeddingModels()
+    +getModelsDir()
+    +resolveActiveModel()
+    +downloadDefaultEmbeddingModel()
+  }
+
   class AtlasChromaService {
     +ensureReady()
     +getStatus()
@@ -383,6 +392,7 @@ AtlasInferenceService --> LocalApiService : modo local
 LocalApiService --> AtlasLocalEngineService
 
 AtlasRagService --> AtlasEmbeddingService
+AtlasEmbeddingService --> AtlasEmbeddingModelDiscoveryService
 AtlasRagService --> AtlasChromaService
 AtlasRagService --> AtlasRagRepository
 AtlasRagRepository --> AtlasChromaService
@@ -702,7 +712,15 @@ node "Máquina do Desenvolvedor\n(Windows + VS Code)" as DevMachine {
 
   folder "Runtime RAG Empacotado" as RagRuntime {
     artifact "chromadb-binding.node" as ChromaBinding
-    artifact "Modelo atlas-embedding\nTransformers.js / ONNX" as EmbeddingModel
+    artifact "Modelo atlas-embedding\nopcional no pacote" as BundledEmbedding
+  }
+
+  folder "Pasta configurável de embeddings" as EmbeddingFolder {
+    artifact "Modelos Transformers.js / ONNX" as EmbeddingModels
+  }
+
+  folder "VS Code globalStorageUri/rag/embedding-models" as UserEmbeddingFolder {
+    artifact "Modelo padrão baixado" as DownloadedEmbeddingModel
   }
 
   node "Processo ChromaDB Local" as ChromaProcess {
@@ -730,7 +748,9 @@ ExtensionServices --> LlamaServer : inicia/para e envia requisições
 LlamaServer --> GgufModels : carrega modelo
 ExtensionServices --> CloudProviders : inferência cloud
 ExtensionServices ..> ModelRepository : busca/download planejado
-ExtensionServices --> EmbeddingModel : gera embeddings locais
+ExtensionServices --> BundledEmbedding : descobre modelo empacotado
+ExtensionServices --> EmbeddingModels : descobre modelo selecionado
+ExtensionServices --> DownloadedEmbeddingModel : baixa modelo padrão
 ExtensionServices --> ChromaRunner : inicia/para e consulta
 ChromaRunner --> ChromaBinding : carrega binding nativo
 ChromaRunner --> VectorDb : persiste coleções

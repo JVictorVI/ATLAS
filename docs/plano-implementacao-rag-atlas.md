@@ -1,6 +1,6 @@
 # Plano e Estado da Implementação do RAG no ATLAS
 
-Atualizado em 25 de junho de 2026.
+Atualizado em 26 de junho de 2026.
 
 ## 1. Objetivo
 
@@ -14,14 +14,14 @@ O RAG do ATLAS fornece recuperação semântica local para:
 - controlar explicitamente o envio desse contexto para modelos cloud;
 - exibir projetos, status, tamanho, progresso e ações de manutenção na tela RAG.
 
-O fluxo principal já está implementado. As evoluções restantes concentram-se em atualização incremental por arquivo, documentos externos e melhorias de qualidade.
+O fluxo principal já está implementado. As evoluções restantes concentram-se em atualização incremental por arquivo, ingestão real de documentos externos e melhorias de qualidade.
 
 ## 2. Estado atual
 
 | Área | Estado |
 | --- | --- |
 | Runtime ChromaDB local | Implementado |
-| Modelo local de embeddings | Implementado |
+| Modelo local de embeddings | Implementado com pasta configurável, seletor e download do padrão |
 | Indexação do workspace atual | Implementada |
 | Indexação manual de outra pasta | Implementada |
 | Chunking textual e metadados de linhas | Implementados |
@@ -29,6 +29,7 @@ O fluxo principal já está implementado. As evoluções restantes concentram-se
 | Recuperação no chat | Implementada |
 | Fontes utilizadas na resposta | Implementadas e persistidas na sessão |
 | Tela de projetos indexados | Implementada |
+| Tela RAG com carregamento inicial seguro | Implementada; spinner inicial não bloqueia acesso em caso de erro ou timeout |
 | Barra de progresso e cancelamento | Implementados |
 | Configurações de indexação e recuperação | Implementadas |
 | Watcher e debounce | Implementados |
@@ -51,7 +52,8 @@ ChatResponseController / ChatMessageRouter
 ### 3.1 Responsabilidades
 
 - `AtlasRagService`: scanner, regras de exclusão, chunking, indexação, watchers, recuperação, filtros, orçamento de contexto e formatação das fontes.
-- `AtlasEmbeddingService`: carrega o modelo local com Transformers.js e gera embeddings de documentos e perguntas.
+- `AtlasEmbeddingModelDiscoveryService`: descobre modelos de embeddings empacotados, modelos disponíveis na pasta configurada pelo usuário e baixa o modelo padrão quando solicitado.
+- `AtlasEmbeddingService`: carrega o modelo local selecionado com Transformers.js e gera embeddings de documentos e perguntas.
 - `AtlasChromaService`: inicia e encerra o processo ChromaDB, escolhe uma porta local livre, executa heartbeat e define o diretório persistente.
 - `AtlasRagRepository`: gerencia coleções, chunks, consultas e exclusões no ChromaDB, além do manifesto JSON usado pela interface.
 - `ChatResponseController`: solicita o contexto RAG antes de montar o prompt e associa as fontes à resposta persistida.
@@ -69,7 +71,9 @@ O pacote da extensão prepara:
 - binding nativo do ChromaDB para a plataforma;
 - launcher `resources/chroma/chroma-runner.cjs`;
 - Transformers.js e runtime ONNX local;
-- modelo de embeddings em `resources/embeddings/atlas-embedding`;
+- modelo de embeddings empacotado em `resources/embeddings/atlas-embedding`, quando preparado no build;
+- suporte a pasta configurável de embeddings via `rag.embeddingModelsDir`;
+- pasta gravável padrão em `context.globalStorageUri/rag/embedding-models/` quando o usuário ainda não escolheu outra;
 - scripts de preparação, poda e validação.
 
 Na ativação do RAG:
@@ -107,7 +111,10 @@ embedQuery(text: string, signal?: AbortSignal): Promise<number[]>;
 Características atuais:
 
 - execução exclusivamente local;
-- modelo lógico configurado como `atlas-embedding`;
+- modelo lógico padrão configurado como `atlas-embedding`;
+- pasta de modelos configurável na tela do RAG;
+- seletor de modelos disponíveis descobertos na pasta escolhida e no pacote da extensão, com atualização ao abrir o seletor;
+- botão para baixar o modelo padrão multilíngue quando nenhum modelo está disponível ou quando o usuário quiser repor o padrão;
 - artefato baseado em `Xenova/paraphrase-multilingual-MiniLM-L12-v2`;
 - inferência quantizada `q8`;
 - pooling médio e normalização dos vetores;
@@ -115,7 +122,7 @@ Características atuais:
 - processamento da indexação em lotes de 16 chunks;
 - nenhuma função automática de embedding do ChromaDB: o ATLAS sempre envia os vetores calculados.
 
-Uma mudança de modelo ou de metadados incompatíveis deve marcar os índices como desatualizados e exigir reindexação.
+Uma mudança de modelo de embeddings marca os índices como desatualizados e exige reindexação, pois os vetores antigos não são comparáveis com outro modelo.
 
 ## 6. Persistência
 
@@ -147,6 +154,11 @@ O manifesto mantém:
 - datas e mensagem de erro;
 - fontes, hashes, tamanho, linguagem e IDs de chunks.
 
+A configuração do RAG mantém:
+
+- `embeddingModel`: identificador do modelo de embeddings ativo;
+- `embeddingModelsDir`: pasta escolhida pelo usuário para armazenar modelos adicionais.
+
 Status possíveis:
 
 ```text
@@ -155,7 +167,26 @@ not-indexed | indexing | ready | outdated | error
 
 ## 7. Indexação
 
-### 7.1 Fluxo
+### 7.1 Estado inicial da tela RAG
+
+Ao abrir a tela RAG, a Webview exibe apenas um spinner enquanto solicita ao backend:
+
+- configurações do RAG;
+- projetos indexados;
+- modelos de embeddings disponíveis;
+- pasta ativa de modelos de embeddings;
+- status do ChromaDB/base vetorial.
+
+Esse loading é apenas visual e não deve impedir o usuário de acessar as configurações. Se o backend retornar erro antes do primeiro `estadoRagCarregado`, a Webview remove o loading, libera a tela e exibe uma notificação do VS Code com o detalhe do problema. Se nenhuma resposta chegar em até 10 segundos, o loading também é removido e a tela é liberada com uma notificação de timeout.
+
+A organização atual da tela prioriza:
+
+1. status da base vetorial no topo;
+2. projetos indexados;
+3. documentos externos no RAG;
+4. configurações principais, embeddings, indexação e recuperação.
+
+### 7.2 Fluxo
 
 ```text
 Webview RAG
@@ -180,7 +211,7 @@ A interface mostra:
 - salvamento da base;
 - conclusão e cancelamento.
 
-### 7.2 Seleção de arquivos
+### 7.3 Seleção de arquivos
 
 São aplicados:
 
@@ -205,7 +236,7 @@ JSON e configurações:
 .ini, .cfg, .conf, .properties, .txt
 ```
 
-### 7.3 Chunking
+### 7.4 Chunking
 
 O chunking atual é textual:
 
@@ -218,7 +249,7 @@ O chunking atual é textual:
 
 Os valores padrão são 1.000 caracteres por chunk e sobreposição de 200 caracteres.
 
-### 7.4 Atualização automática
+### 7.5 Atualização automática
 
 O `FileSystemWatcher` observa projetos registrados. Quando um arquivo elegível é criado, alterado ou removido:
 
@@ -325,6 +356,7 @@ Alterações que mudam o formato do índice marcam projetos prontos como `outdat
 - Caminhos enviados ao prompt são relativos ao projeto.
 - Os logs de diagnóstico do RAG são destinados ao desenvolvimento e podem mostrar conteúdo dos chunks recuperados; não devem ser habilitados indiscriminadamente em builds de produção.
 - Uma falha do RAG não deve impedir o uso do restante da extensão.
+- O carregamento inicial da tela RAG não é bloqueante: erro ou timeout libera a interface e informa o problema por notificação do VS Code.
 
 ## 11. Testes existentes
 
@@ -346,7 +378,8 @@ Alterações que mudam o formato do índice marcam projetos prontos como `outdat
 - configurações principais, de indexação e de recuperação;
 - watcher, debounce, cancelamento e progresso;
 - filtros avançados e orçamento de contexto;
-- exclusão de arquivos gerados que poluem a busca.
+- exclusão de arquivos gerados que poluem a busca;
+- carregamento inicial seguro da tela RAG, sem bloquear acesso às configurações em caso de erro ou timeout.
 
 ### Próximas evoluções
 

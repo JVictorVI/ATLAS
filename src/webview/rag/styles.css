@@ -34,9 +34,52 @@ textarea {
   font-family: var(--vscode-font-family);
 }
 
+[hidden] {
+  display: none !important;
+}
+
 .rag-page {
   width: 100%;
   max-width: 1100px;
+}
+
+body.rag-loading-active .rag-page {
+  display: none;
+}
+
+.rag-loading-overlay {
+  display: grid;
+  min-height: calc(100vh - 32px);
+  place-items: center;
+  color: var(--vscode-foreground);
+}
+
+.rag-loading-card {
+  display: flex;
+  width: 72px;
+  height: 72px;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border: 1px solid var(--atlas-border);
+  border-radius: 14px;
+  padding: 18px;
+  background: var(--atlas-card-background);
+}
+
+.rag-loading-spinner {
+  width: 34px;
+  height: 34px;
+  border: 3px solid var(--vscode-progressBar-background, var(--atlas-border));
+  border-top-color: var(--vscode-button-background);
+  border-radius: 50%;
+  animation: rag-loading-spin 850ms linear infinite;
+}
+
+@keyframes rag-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .page-heading {
@@ -83,6 +126,10 @@ textarea {
   gap: 14px;
 }
 
+.embedding-model-grid.is-model-ready {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .field {
   display: flex;
   flex-direction: column;
@@ -111,6 +158,20 @@ textarea {
   line-height: 1.45;
 }
 
+.folder-picker {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+}
+
+.folder-picker input {
+  min-width: 0;
+}
+
+.field-action {
+  justify-content: flex-end;
+}
+
 .field input:focus,
 .field textarea:focus,
 .field select:focus {
@@ -124,6 +185,17 @@ textarea {
 
 .field-full {
   margin-top: 14px;
+}
+
+.inline-warning {
+  margin-top: 14px;
+  border: 1px solid
+    var(--vscode-inputValidation-warningBorder, var(--atlas-border));
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--vscode-editorWarning-foreground, var(--vscode-foreground));
+  background: var(--vscode-inputValidation-warningBackground, transparent);
+  line-height: 1.45;
 }
 
 .settings-actions {
@@ -645,6 +717,10 @@ textarea {
   }
 
   .settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .folder-picker {
     grid-template-columns: 1fr;
   }
 

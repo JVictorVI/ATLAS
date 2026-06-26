@@ -106,3 +106,17 @@ export interface RagIndexingProgress {
   totalChunks: number;
   currentFile?: string;
 }
+
+export interface RagEmbeddingModelInfo {
+  id: string;
+  name: string;
+  path: string;
+  source: "bundled" | "custom";
+  sizeBytes: number;
+  sizeLabel: string;
+  updatedAt: string;
+  task?: string;
+  dimensions?: number;
+  quantization?: string;
+  sourceModel?: string;
+}

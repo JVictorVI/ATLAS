@@ -5,7 +5,12 @@ import * as path from "path";
 import { ChatResponseController } from "./ChatResponseController";
 import { ChatSessionController } from "./ChatSessionController";
 import { RouterDependencies } from "./ChatMessageRouterTypes";
-import { RagIndexingProgress } from "../interfaces/AtlasRagTypes";
+import {
+  RagEmbeddingModelInfo,
+  RagIndexingProgress,
+  RagRuntimeStatus,
+} from "../interfaces/AtlasRagTypes";
+import { AtlasRagSettings } from "../interfaces/AtlasConfigTypes";
 
 export class ChatMessageRouter {
   private activeWebviewRoute = "chat";
@@ -77,6 +82,21 @@ export class ChatMessageRouter {
         return;
       case "salvarConfiguracoesRag":
         await this.handleSaveRagSettings(data, webview);
+        return;
+      case "selecionarPastaModelosEmbeddingRag":
+        await this.handleSelectRagEmbeddingModelsFolder(webview);
+        return;
+      case "abrirPastaModelosEmbeddingRag":
+        await this.handleOpenRagEmbeddingModelsFolder();
+        return;
+      case "atualizarModelosEmbeddingRag":
+        await this.handleRefreshRagEmbeddingModels(data, webview);
+        return;
+      case "baixarModeloEmbeddingPadraoRag":
+        await this.handleDownloadDefaultRagEmbeddingModel(webview);
+        return;
+      case "selecionarModeloEmbeddingRag":
+        await this.handleSelectRagEmbeddingModel(data, webview);
         return;
       case "mostrarNotificacaoRag":
         this.handleRagNotification(data);
@@ -234,11 +254,7 @@ export class ChatMessageRouter {
 
     await webview.postMessage({
       type: "estadoRagCarregado",
-      value: {
-        settings,
-        runtime,
-        projects: this.deps.listRagProjects(),
-      },
+      value: this.getRagStatePayload(runtime, settings),
     });
   }
 
@@ -248,11 +264,7 @@ export class ChatMessageRouter {
 
       await webview.postMessage({
         type: "estadoRagCarregado",
-        value: {
-          settings: this.deps.configManager.getSection("rag"),
-          runtime,
-          projects: this.deps.listRagProjects(),
-        },
+        value: this.getRagStatePayload(runtime),
       });
     } catch (error) {
       await this.postError(
@@ -347,8 +359,13 @@ export class ChatMessageRouter {
         payload.directoryFilters,
         current.directoryFilters,
       );
+      const embeddingModel = this.normalizeEmbeddingModelId(
+        payload.embeddingModel,
+        current.embeddingModel,
+      );
       const indexShapeChanged =
         JSON.stringify(ignoredPaths) !== JSON.stringify(current.ignoredPaths) ||
+        embeddingModel !== current.embeddingModel ||
         chunkSize !== current.chunkSize ||
         chunkOverlap !== current.chunkOverlap ||
         maxFileSizeBytes !== current.maxFileSizeBytes ||
@@ -365,6 +382,7 @@ export class ChatMessageRouter {
         topK,
         maxContextCharacters,
         ignoredPaths,
+        embeddingModel,
         chunkSize,
         chunkOverlap,
         maxFileSizeBytes,
@@ -403,11 +421,7 @@ export class ChatMessageRouter {
 
       await webview.postMessage({
         type: "estadoRagCarregado",
-        value: {
-          settings: config.rag,
-          runtime,
-          projects: this.deps.listRagProjects(),
-        },
+        value: this.getRagStatePayload(runtime, config.rag),
       });
       await webview.postMessage({
         type: "configuracoesRagSalvas",
@@ -417,6 +431,221 @@ export class ChatMessageRouter {
         webview,
         error,
         "Não foi possível salvar as configurações do RAG.",
+      );
+    }
+  }
+
+  private async handleSelectRagEmbeddingModelsFolder(
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      const selected = await vscode.window.showOpenDialog({
+        title: "Selecionar pasta de modelos de embeddings",
+        canSelectFiles: false,
+        canSelectFolders: true,
+        canSelectMany: false,
+        defaultUri: vscode.Uri.file(this.deps.getRagEmbeddingModelsDir()),
+        openLabel: "Usar esta pasta",
+      });
+
+      const folder = selected?.[0]?.fsPath;
+
+      if (!folder) {
+        return;
+      }
+
+      const current = this.deps.configManager.getSection("rag");
+      let config = this.deps.configManager.updateRagSettings({
+        embeddingModelsDir: folder,
+      });
+      const models = this.deps.refreshRagEmbeddingModels();
+      const currentModelExists = models.some(
+        (model) => model.id === current.embeddingModel,
+      );
+
+      if (!currentModelExists && models[0]) {
+        config = this.deps.configManager.updateRagSettings({
+          embeddingModel: models[0].id,
+        });
+        this.deps.markRagProjectsOutdated(
+          "O modelo de embeddings foi alterado; reindexe o projeto.",
+        );
+      }
+
+      await webview.postMessage({
+        type: "estadoRagCarregado",
+        value: this.getRagStatePayload(
+          this.deps.getRagRuntimeStatus(),
+          config.rag,
+          models,
+        ),
+      });
+
+      vscode.window.showInformationMessage(
+        "ATLAS: pasta de modelos de embeddings atualizada.",
+      );
+    } catch (error) {
+      await this.postError(
+        webview,
+        error,
+        "Erro ao selecionar pasta de modelos de embeddings.",
+      );
+    }
+  }
+
+  private async handleOpenRagEmbeddingModelsFolder(): Promise<void> {
+    await vscode.commands.executeCommand(
+      "revealFileInOS",
+      vscode.Uri.file(this.deps.getRagEmbeddingModelsDir()),
+    );
+  }
+
+  private async handleRefreshRagEmbeddingModels(
+    data: any,
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      const silent = data.silent === true;
+
+      await webview.postMessage({
+        type: "modelosEmbeddingRagAtualizados",
+        value: {
+          models: this.deps.refreshRagEmbeddingModels(),
+          modelsDir: this.deps.getRagEmbeddingModelsDir(),
+          selectedModelId:
+            this.deps.configManager.getSection("rag").embeddingModel,
+          silent,
+        },
+      });
+
+      if (!silent) {
+        vscode.window.showInformationMessage(
+          "ATLAS: lista de modelos de embeddings atualizada.",
+        );
+      }
+    } catch (error) {
+      await this.postError(
+        webview,
+        error,
+        "Erro ao atualizar modelos de embeddings.",
+      );
+    }
+  }
+
+  private async handleDownloadDefaultRagEmbeddingModel(
+    webview: vscode.Webview,
+  ): Promise<void> {
+    const controller = new AbortController();
+
+    try {
+      const model = await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: "ATLAS: baixando modelo padrão de embeddings",
+          cancellable: true,
+        },
+        async (progress, token) => {
+          token.onCancellationRequested(() => {
+            controller.abort();
+          });
+
+          return this.deps.downloadDefaultRagEmbeddingModel(
+            (downloadProgress) => {
+              const status = downloadProgress.skipped
+                ? "já disponível"
+                : "baixando";
+              progress.report({
+                message: `${downloadProgress.processedFiles}/${downloadProgress.totalFiles} • ${status}: ${downloadProgress.fileName}`,
+              });
+            },
+            controller.signal,
+          );
+        },
+      );
+
+      const current = this.deps.configManager.getSection("rag");
+      const config = this.deps.configManager.updateRagSettings({
+        embeddingModel: model.id,
+      });
+      const models = this.deps.refreshRagEmbeddingModels();
+
+      if (current.embeddingModel !== model.id) {
+        this.deps.markRagProjectsOutdated(
+          "O modelo de embeddings foi alterado; reindexe o projeto.",
+        );
+      }
+
+      await webview.postMessage({
+        type: "estadoRagCarregado",
+        value: this.getRagStatePayload(
+          this.deps.getRagRuntimeStatus(),
+          config.rag,
+          models,
+        ),
+      });
+
+      vscode.window.showInformationMessage(
+        "ATLAS: modelo padrão de embeddings baixado e selecionado.",
+      );
+    } catch (error) {
+      if (controller.signal.aborted) {
+        await webview.postMessage({
+          type: "downloadModeloEmbeddingRagCancelado",
+        });
+        vscode.window.showWarningMessage(
+          "ATLAS: download do modelo de embeddings cancelado.",
+        );
+        return;
+      }
+
+      await this.postError(
+        webview,
+        error,
+        "Erro ao baixar modelo padrão de embeddings.",
+      );
+    }
+  }
+
+  private async handleSelectRagEmbeddingModel(
+    data: any,
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      const modelId = this.normalizeEmbeddingModelId(data.modelId, "");
+      const models = this.deps.refreshRagEmbeddingModels();
+
+      if (!modelId || !models.some((model) => model.id === modelId)) {
+        throw new Error("Modelo de embeddings inválido ou não encontrado.");
+      }
+
+      const current = this.deps.configManager.getSection("rag");
+      const config = this.deps.configManager.updateRagSettings({
+        embeddingModel: modelId,
+      });
+
+      if (current.embeddingModel !== modelId) {
+        this.deps.markRagProjectsOutdated(
+          "O modelo de embeddings foi alterado; reindexe o projeto.",
+        );
+      }
+
+      await webview.postMessage({
+        type: "estadoRagCarregado",
+        value: this.getRagStatePayload(
+          this.deps.getRagRuntimeStatus(),
+          config.rag,
+          models,
+        ),
+      });
+
+      vscode.window.showInformationMessage(
+        "ATLAS: modelo de embeddings selecionado.",
+      );
+    } catch (error) {
+      await this.postError(
+        webview,
+        error,
+        "Erro ao selecionar modelo de embeddings.",
       );
     }
   }
@@ -440,6 +669,21 @@ export class ChatMessageRouter {
     }
 
     vscode.window.showInformationMessage(`ATLAS: ${message}`);
+  }
+
+  private getRagStatePayload(
+    runtime: RagRuntimeStatus,
+    settings: AtlasRagSettings = this.deps.configManager.getSection("rag"),
+    embeddingModels: RagEmbeddingModelInfo[] =
+      this.deps.refreshRagEmbeddingModels(),
+  ) {
+    return {
+      settings,
+      runtime,
+      projects: this.deps.listRagProjects(),
+      embeddingModels,
+      embeddingModelsDir: this.deps.getRagEmbeddingModelsDir(),
+    };
   }
 
   private normalizeInteger(
@@ -542,6 +786,25 @@ export class ChatMessageRouter {
           .filter((item) => Boolean(item) && item.length <= 100),
       ),
     ).slice(0, 100);
+  }
+
+  private normalizeEmbeddingModelId(
+    value: unknown,
+    fallback: string,
+  ): string {
+    const modelId = typeof value === "string" ? value.trim() : "";
+
+    if (
+      !modelId ||
+      modelId.length > 120 ||
+      modelId.includes("/") ||
+      modelId.includes("\\") ||
+      modelId.includes("..")
+    ) {
+      return fallback;
+    }
+
+    return modelId;
   }
 
   private async handleIndexWorkspaceRag(

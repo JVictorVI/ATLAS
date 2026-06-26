@@ -399,7 +399,7 @@ function resizeChatInput(input) {
   const singleLineHeight = getSingleLineInputHeight(input);
 
   input.style.height = "auto";
-  input.style.height = `${Math.min(input.scrollHeight, 132)}px`;
+  input.style.height = `${Math.min(input.scrollHeight, 148)}px`;
   input
     .closest(".input-container")
     ?.classList.toggle("expanded", input.scrollHeight > singleLineHeight + 2);
@@ -440,7 +440,7 @@ function renderChatView() {
               <div class="input-container">
                   <textarea id="pergunta" rows="1" placeholder="Perguntar ao ATLAS"></textarea>
                   
-                  <button id="study-mode-btn" title="Modo Estudante">
+                  <button id="study-mode-btn" title="Modo Estudante: o ATLAS explica o raciocínio e ajuda você a chegar à solução entendendo cada etapa." aria-pressed="false">
                     <i class="codicon codicon-mortar-board"></i>
                   </button>
 
@@ -1909,8 +1909,9 @@ function applyStudyModeState(enabled) {
   if (studyModeBtn) {
     studyModeBtn.classList.toggle("active", isStudyModeEnabled);
     studyModeBtn.title = isStudyModeEnabled
-      ? "Modo Estudante ativado"
-      : "Modo Estudante desativado";
+      ? "Modo Estudante ativo: o ATLAS explica o raciocínio e ajuda você a chegar à solução entendendo cada etapa."
+      : "Modo Estudante: o ATLAS explica o raciocínio e ajuda você a chegar à solução entendendo cada etapa.";
+    studyModeBtn.setAttribute("aria-pressed", String(isStudyModeEnabled));
   }
 
   if (input) {

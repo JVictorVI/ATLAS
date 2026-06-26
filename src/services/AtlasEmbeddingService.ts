@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
 import { AtlasConfigManager } from "../managers/AtlasConfigManager";
+import { AtlasEmbeddingModelDiscoveryService } from "./AtlasEmbeddingModelDiscoveryService";
 
 type FeatureExtractionOutput = {
   tolist(): unknown;
@@ -17,10 +18,12 @@ type FeatureExtractionPipeline = (
 
 export class AtlasEmbeddingService {
   private pipelinePromise: Promise<FeatureExtractionPipeline> | null = null;
+  private pipelineModelPath: string | null = null;
 
   constructor(
     private readonly context: vscode.ExtensionContext,
     private readonly configManager: AtlasConfigManager,
+    private readonly modelDiscoveryService: AtlasEmbeddingModelDiscoveryService,
   ) {}
 
   public async embedDocuments(
@@ -63,16 +66,19 @@ export class AtlasEmbeddingService {
   }
 
   public getModelPath(): string {
-    return path.join(
-      this.context.extensionPath,
-      "resources",
-      "embeddings",
-      this.getModelId(),
-    );
+    return this.modelDiscoveryService.resolveActiveModelPath().path;
   }
 
   private async getPipeline(): Promise<FeatureExtractionPipeline> {
+    const modelPath = this.getModelPath();
+
+    if (this.pipelineModelPath !== modelPath) {
+      this.pipelinePromise = null;
+      this.pipelineModelPath = null;
+    }
+
     if (!this.pipelinePromise) {
+      this.pipelineModelPath = modelPath;
       this.pipelinePromise = this.loadPipeline();
     }
 
@@ -80,13 +86,15 @@ export class AtlasEmbeddingService {
       return await this.pipelinePromise;
     } catch (error) {
       this.pipelinePromise = null;
+      this.pipelineModelPath = null;
       throw error;
     }
   }
 
   private async loadPipeline(): Promise<FeatureExtractionPipeline> {
-    const modelId = this.getModelId();
-    const modelPath = this.getModelPath();
+    const model = this.modelDiscoveryService.resolveActiveModelPath();
+    const modelPath = model.path;
+    const modelId = path.basename(modelPath);
 
     if (!fs.existsSync(modelPath)) {
       throw new Error(
@@ -98,11 +106,7 @@ export class AtlasEmbeddingService {
     const transformers = await import("@huggingface/transformers");
     transformers.env.allowRemoteModels = false;
     transformers.env.allowLocalModels = true;
-    transformers.env.localModelPath = path.join(
-      this.context.extensionPath,
-      "resources",
-      "embeddings",
-    );
+    transformers.env.localModelPath = path.dirname(modelPath);
 
     const extractor = await transformers.pipeline(
       "feature-extraction",

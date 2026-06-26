@@ -1,4 +1,6 @@
 const vscode = acquireVsCodeApi();
+const ragPage = document.getElementById("rag-page");
+const ragLoading = document.getElementById("rag-loading");
 const projectsTable = document.getElementById("projects-table");
 const addProjectButton = document.getElementById("add-project");
 const selectFolderButton = document.getElementById("select-folder");
@@ -54,7 +56,28 @@ const externalDocumentsInput = document.getElementById(
   "rag-external-documents",
 );
 const showSourcesInput = document.getElementById("rag-show-sources");
+const embeddingModelsFolderInput = document.getElementById(
+  "embedding-models-folder-path",
+);
+const chooseEmbeddingModelsFolderButton = document.getElementById(
+  "choose-embedding-models-folder",
+);
+const openEmbeddingModelsFolderButton = document.getElementById(
+  "open-embedding-models-folder",
+);
+const downloadDefaultEmbeddingModelButton = document.getElementById(
+  "download-default-embedding-model",
+);
+const embeddingDefaultModelAction = document.getElementById(
+  "embedding-default-model-action",
+);
+const embeddingModelGrid = document.getElementById("embedding-model-grid");
+const embeddingModelSelect = document.getElementById("rag-embedding-model");
+const embeddingModelStatus = document.getElementById("embedding-model-status");
 let indexingInProgress = false;
+let embeddingModelsRefreshInProgress = false;
+let initialRagStateLoaded = false;
+let initialRagStateTimeout = undefined;
 
 function showFeedback(message, level = "info") {
   if (!message) {
@@ -205,6 +228,7 @@ function saveRagSettings(options = {}) {
         document.getElementById("cloud-rag-enabled")?.checked === true,
       autoIndex:
         document.getElementById("auto-index-enabled")?.checked === true,
+      embeddingModel: embeddingModelSelect?.value || undefined,
       topK,
       maxContextCharacters,
       ignoredPaths: parseIgnoredPaths(ignoredPathsInput?.value ?? ""),
@@ -278,6 +302,40 @@ cancelIndexingButton?.addEventListener("click", () => {
   vscode.postMessage({ type: "cancelarIndexacaoRag" });
 });
 
+chooseEmbeddingModelsFolderButton?.addEventListener("click", () => {
+  vscode.postMessage({ type: "selecionarPastaModelosEmbeddingRag" });
+});
+
+openEmbeddingModelsFolderButton?.addEventListener("click", () => {
+  vscode.postMessage({ type: "abrirPastaModelosEmbeddingRag" });
+});
+
+downloadDefaultEmbeddingModelButton?.addEventListener("click", () => {
+  setEmbeddingDownloadState(true);
+  vscode.postMessage({ type: "baixarModeloEmbeddingPadraoRag" });
+});
+
+embeddingModelSelect?.addEventListener("pointerdown", () => {
+  refreshEmbeddingModelsFromSelector();
+});
+
+embeddingModelSelect?.addEventListener("focus", () => {
+  refreshEmbeddingModelsFromSelector();
+});
+
+embeddingModelSelect?.addEventListener("change", () => {
+  const modelId = embeddingModelSelect.value;
+
+  if (!modelId) {
+    return;
+  }
+
+  vscode.postMessage({
+    type: "selecionarModeloEmbeddingRag",
+    modelId,
+  });
+});
+
 document.getElementById("add-file")?.addEventListener("click", () => {
   showFeedback("O envio de documentos será implementado em uma próxima etapa.");
 });
@@ -293,6 +351,15 @@ window.addEventListener("message", (event) => {
 
   if (message.type === "erro") {
     setIndexingState(false);
+    setEmbeddingDownloadState(false);
+    embeddingModelsRefreshInProgress = false;
+
+    if (!initialRagStateLoaded) {
+      releaseRagLoadingWithError(
+        `Não foi possível carregar as informações do RAG: ${message.value ?? "erro desconhecido"}`,
+      );
+    }
+
     return;
   }
 
@@ -347,9 +414,32 @@ window.addEventListener("message", (event) => {
     return;
   }
 
+  if (message.type === "downloadModeloEmbeddingRagCancelado") {
+    setEmbeddingDownloadState(false);
+    embeddingModelsRefreshInProgress = false;
+    return;
+  }
+
+  if (message.type === "modelosEmbeddingRagAtualizados") {
+    embeddingModelsRefreshInProgress = false;
+    renderEmbeddingModels(
+      message.value?.models ?? [],
+      message.value?.selectedModelId ?? "",
+      message.value?.modelsDir ?? "",
+    );
+
+    if (message.value?.silent !== true) {
+      showFeedback("Lista de modelos de embeddings atualizada.");
+    }
+
+    return;
+  }
+
   if (message.type !== "estadoRagCarregado") {
     return;
   }
+
+  setEmbeddingDownloadState(false);
 
   const settings = message.value?.settings ?? {};
   const runtime = message.value?.runtime ?? {};
@@ -473,6 +563,12 @@ window.addEventListener("message", (event) => {
     showSourcesInput.checked = settings.showSources !== false;
   }
 
+  renderEmbeddingModels(
+    message.value?.embeddingModels ?? [],
+    settings.embeddingModel ?? "",
+    message.value?.embeddingModelsDir ?? settings.embeddingModelsDir ?? "",
+  );
+
   if (runtimeStatus) {
     if (runtime.running) {
       runtimeStatus.textContent = `ChromaDB ativo em ${runtime.host}:${runtime.port}`;
@@ -484,7 +580,149 @@ window.addEventListener("message", (event) => {
   }
 
   renderProjects(message.value?.projects ?? []);
+  initialRagStateLoaded = true;
+  window.clearTimeout(initialRagStateTimeout);
+  setRagLoading(false);
 });
+
+function setRagLoading(loading) {
+  document.body.classList.toggle("rag-loading-active", loading);
+
+  if (ragLoading) {
+    ragLoading.hidden = !loading;
+  }
+
+  if (ragPage) {
+    ragPage.setAttribute("aria-busy", loading ? "true" : "false");
+
+    if (loading) {
+      ragPage.setAttribute("aria-hidden", "true");
+    } else {
+      ragPage.removeAttribute("aria-hidden");
+    }
+  }
+}
+
+function releaseRagLoadingWithError(message) {
+  initialRagStateLoaded = true;
+  window.clearTimeout(initialRagStateTimeout);
+  setRagLoading(false);
+  showFeedback(message, "error");
+
+  const runtimeStatus = document.getElementById("rag-runtime-status");
+
+  if (runtimeStatus) {
+    runtimeStatus.textContent = "Não foi possível verificar o ChromaDB.";
+  }
+}
+
+function renderEmbeddingModels(models, selectedModelId, modelsDir) {
+  const safeModels = Array.isArray(models) ? models : [];
+
+  if (embeddingModelsFolderInput) {
+    embeddingModelsFolderInput.value = modelsDir || "";
+    embeddingModelsFolderInput.title = modelsDir || "";
+  }
+
+  if (!embeddingModelSelect) {
+    return;
+  }
+
+  embeddingModelSelect.innerHTML = "";
+  setDefaultEmbeddingModelActionVisibility(safeModels.length === 0);
+
+  if (!safeModels.length) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "Nenhum modelo encontrado";
+    embeddingModelSelect.appendChild(option);
+    embeddingModelSelect.disabled = false;
+
+    if (embeddingModelStatus) {
+      embeddingModelStatus.textContent =
+        "Nenhum modelo compatível encontrado. Escolha uma pasta ou baixe o modelo padrão.";
+    }
+
+    return;
+  }
+
+  embeddingModelSelect.disabled = false;
+  const selectedExists = safeModels.some((model) => model.id === selectedModelId);
+
+  if (selectedModelId && !selectedExists) {
+    const missingOption = document.createElement("option");
+    missingOption.value = selectedModelId;
+    missingOption.textContent = `${selectedModelId} (não encontrado)`;
+    embeddingModelSelect.appendChild(missingOption);
+  }
+
+  safeModels.forEach((model) => {
+    const option = document.createElement("option");
+    const sourceLabel = model.source === "bundled" ? "empacotado" : "pasta";
+    const details = [model.dimensions ? `${model.dimensions}d` : "", sourceLabel]
+      .filter(Boolean)
+      .join(" • ");
+
+    option.value = model.id;
+    option.textContent = details
+      ? `${model.name || model.id} — ${details}`
+      : model.name || model.id;
+    option.title = model.path || "";
+    embeddingModelSelect.appendChild(option);
+  });
+
+  embeddingModelSelect.value = selectedModelId || safeModels[0]?.id || "";
+
+  if (embeddingModelStatus) {
+    const selected = safeModels.find(
+      (model) => model.id === embeddingModelSelect.value,
+    );
+
+    embeddingModelStatus.textContent = selected
+      ? `${safeModels.length} modelo(s) disponível(is). Ativo: ${selected.name || selected.id} (${selected.sizeLabel || "tamanho desconhecido"}).`
+      : selectedModelId
+        ? `Modelo configurado não encontrado: ${selectedModelId}. Escolha outro modelo disponível.`
+        : `${safeModels.length} modelo(s) disponível(is).`;
+  }
+}
+
+function setDefaultEmbeddingModelActionVisibility(visible) {
+  if (!embeddingDefaultModelAction) {
+    return;
+  }
+
+  embeddingDefaultModelAction.hidden = !visible;
+  embeddingDefaultModelAction.style.display = visible ? "" : "none";
+  embeddingModelGrid?.classList.toggle("is-model-ready", !visible);
+}
+
+function refreshEmbeddingModelsFromSelector() {
+  if (embeddingModelsRefreshInProgress) {
+    return;
+  }
+
+  embeddingModelsRefreshInProgress = true;
+
+  if (embeddingModelStatus) {
+    embeddingModelStatus.textContent = "Atualizando modelos disponíveis...";
+  }
+
+  vscode.postMessage({
+    type: "atualizarModelosEmbeddingRag",
+    silent: true,
+  });
+}
+
+function setEmbeddingDownloadState(downloading) {
+  if (!downloadDefaultEmbeddingModelButton) {
+    return;
+  }
+
+  downloadDefaultEmbeddingModelButton.disabled = downloading;
+  downloadDefaultEmbeddingModelButton.textContent = downloading
+    ? "Baixando..."
+    : "Baixar modelo padrão";
+}
 
 function setIndexingState(indexing) {
   indexingInProgress = indexing;
@@ -790,5 +1028,15 @@ function parseSimpleList(value) {
     ),
   );
 }
+
+initialRagStateTimeout = window.setTimeout(() => {
+  if (initialRagStateLoaded) {
+    return;
+  }
+
+  releaseRagLoadingWithError(
+    "O carregamento inicial do RAG demorou mais que o esperado. A tela foi liberada para você ajustar as configurações.",
+  );
+}, 10000);
 
 vscode.postMessage({ type: "carregarEstadoRag" });

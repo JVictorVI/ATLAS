@@ -14,8 +14,19 @@
     <link rel="stylesheet" href="{{styleUri}}" />
     <title>Geração Aumentada por Recuperação (RAG)</title>
   </head>
-  <body>
-    <main class="rag-page">
+  <body class="rag-loading-active">
+    <div
+      id="rag-loading"
+      class="rag-loading-overlay"
+      role="status"
+      aria-live="polite"
+    >
+      <div class="rag-loading-card">
+        <span class="rag-loading-spinner" aria-hidden="true"></span>
+      </div>
+    </div>
+
+    <main id="rag-page" class="rag-page" aria-busy="true" aria-hidden="true">
       <header class="page-heading">
         <h1>Geração Aumentada por Recuperação (RAG)</h1>
         <div class="subtitle">
@@ -23,6 +34,150 @@
           complementares nas análises
         </div>
       </header>
+
+      <section class="runtime-section" aria-live="polite">
+        <strong>Base vetorial:</strong>
+        <span id="rag-runtime-status">Verificando ChromaDB...</span>
+      </section>
+
+      <section class="content-section" aria-labelledby="indexed-projects-title">
+        <div class="section-heading">
+          <h2 id="indexed-projects-title">Projetos Indexados</h2>
+          <p>Gerencie as bases vetoriais criadas para cada projeto analisado</p>
+        </div>
+
+        <div class="projects-card">
+          <div
+            id="indexing-progress"
+            class="indexing-progress"
+            aria-live="polite"
+            hidden
+          >
+            <div class="indexing-progress-heading">
+              <strong id="indexing-progress-label"
+                >Preparando indexação...</strong
+              >
+              <span id="indexing-progress-percent">0%</span>
+            </div>
+            <div
+              id="indexing-progress-track"
+              class="indexing-progress-track is-indeterminate"
+              role="progressbar"
+              aria-label="Progresso da indexação RAG"
+              aria-valuemin="0"
+              aria-valuemax="100"
+            >
+              <span
+                id="indexing-progress-bar"
+                class="indexing-progress-bar"
+              ></span>
+            </div>
+            <div class="indexing-progress-details">
+              <span id="indexing-progress-count"
+                >Aguardando análise dos arquivos...</span
+              >
+              <span id="indexing-progress-file"></span>
+            </div>
+          </div>
+
+          <div
+            id="projects-table"
+            class="projects-table"
+            role="table"
+            aria-label="Projetos indexados"
+          >
+            <div class="project-row project-header" role="row">
+              <span role="columnheader">Projeto</span>
+              <span role="columnheader">Caminho</span>
+              <span role="columnheader">N.º de Arquivos</span>
+              <span role="columnheader">Tamanho</span>
+              <span role="columnheader">Status</span>
+              <span role="columnheader">Ações</span>
+            </div>
+            <div id="projects-empty" class="empty-state">
+              Nenhum projeto indexado.
+            </div>
+          </div>
+
+          <div class="card-actions">
+            <button
+              id="cancel-indexing"
+              class="btn btn-outline"
+              type="button"
+              hidden
+            >
+              Cancelar indexação
+            </button>
+            <button id="select-folder" class="btn btn-outline" type="button">
+              Escolher pasta
+            </button>
+            <button id="add-project" class="btn btn-primary" type="button">
+              Indexar workspace atual
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section
+        class="content-section external-section"
+        aria-labelledby="external-documents-title"
+      >
+        <div class="section-heading">
+          <h2 id="external-documents-title">Documentos Externos no RAG</h2>
+          <p>
+            Adicione materiais complementares para enriquecer o contexto das
+            respostas
+          </p>
+        </div>
+
+        <div class="documents-card">
+          <article class="document-item">
+            <div class="document-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 2.5h8l4 4v15H6z" />
+                <path d="M14 2.5v5h4M8.5 13h7M8.5 16h7" />
+              </svg>
+            </div>
+            <div class="document-copy">
+              <strong>Documentação - ATLAS</strong>
+              <span>3MB - 21/02/2026</span>
+            </div>
+            <button
+              class="more-button"
+              type="button"
+              aria-label="Mais opções para Documentação - ATLAS"
+            >
+              •••
+            </button>
+          </article>
+
+          <article class="document-item">
+            <div class="document-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 2.5h8l4 4v15H6z" />
+                <path d="M14 2.5v5h4M8.5 13h7M8.5 16h7" />
+              </svg>
+            </div>
+            <div class="document-copy">
+              <strong>Padrões de Projeto - Facade</strong>
+              <span>22MB - 11/03/2026</span>
+            </div>
+            <button
+              class="more-button"
+              type="button"
+              aria-label="Mais opções para Padrões de Projeto - Facade"
+            >
+              •••
+            </button>
+          </article>
+
+          <div class="card-actions">
+            <button id="add-file" class="btn btn-primary" type="button">
+              Adicionar novo arquivo
+            </button>
+          </div>
+        </div>
+      </section>
 
       <section class="toggle-section" aria-labelledby="rag-use-title">
         <h2 id="rag-use-title">Utilização de RAG</h2>
@@ -57,6 +212,82 @@
             projeto</span
           >
         </label>
+      </section>
+
+      <section
+        class="content-section"
+        aria-labelledby="embedding-model-settings-title"
+      >
+        <div class="section-heading">
+          <h2 id="embedding-model-settings-title">Modelo de Embeddings</h2>
+          <p>
+            Escolha onde o ATLAS deve procurar modelos de embeddings locais e
+            qual deles será usado para indexar e consultar o RAG.
+          </p>
+        </div>
+
+        <label class="field field-full">
+          <span>Pasta dos modelos de embeddings</span>
+          <div class="folder-picker">
+            <input id="embedding-models-folder-path" type="text" readonly />
+            <button
+              id="choose-embedding-models-folder"
+              class="btn btn-outline"
+              type="button"
+            >
+              Escolher pasta
+            </button>
+            <button
+              id="open-embedding-models-folder"
+              class="btn btn-outline"
+              type="button"
+            >
+              Abrir pasta
+            </button>
+          </div>
+          <small>
+            Coloque nessa pasta subpastas compatíveis com Transformers.js
+            contendo config, tokenizer e arquivos ONNX.
+          </small>
+        </label>
+
+        <div
+          id="embedding-model-grid"
+          class="settings-grid field-full embedding-model-grid is-model-ready"
+        >
+          <label class="field">
+            <span>Modelo ativo</span>
+            <select id="rag-embedding-model"></select>
+            <small id="embedding-model-status">
+              Carregando modelos disponíveis...
+            </small>
+          </label>
+
+          <div
+            id="embedding-default-model-action"
+            class="field field-action"
+            hidden
+          >
+            <span>Instalar modelo padrão</span>
+            <button
+              id="download-default-embedding-model"
+              class="btn btn-primary"
+              type="button"
+            >
+              Baixar modelo padrão
+            </button>
+            <small>
+              Baixe o modelo multilíngue padrão para habilitar o RAG sem
+              configurar uma pasta manualmente.
+            </small>
+          </div>
+        </div>
+
+        <div class="inline-warning" role="note">
+          Ao trocar o modelo de embeddings, os projetos já indexados serão
+          marcados como desatualizados. Reindexe o projeto para gerar novos
+          vetores compatíveis com o modelo selecionado.
+        </div>
       </section>
 
       <section
@@ -340,150 +571,6 @@
           >
             Salvar recuperação
           </button>
-        </div>
-      </section>
-
-      <section class="runtime-section" aria-live="polite">
-        <strong>Base vetorial:</strong>
-        <span id="rag-runtime-status">Verificando ChromaDB...</span>
-      </section>
-
-      <section class="content-section" aria-labelledby="indexed-projects-title">
-        <div class="section-heading">
-          <h2 id="indexed-projects-title">Projetos Indexados</h2>
-          <p>Gerencie as bases vetoriais criadas para cada projeto analisado</p>
-        </div>
-
-        <div class="projects-card">
-          <div
-            id="indexing-progress"
-            class="indexing-progress"
-            aria-live="polite"
-            hidden
-          >
-            <div class="indexing-progress-heading">
-              <strong id="indexing-progress-label"
-                >Preparando indexação...</strong
-              >
-              <span id="indexing-progress-percent">0%</span>
-            </div>
-            <div
-              id="indexing-progress-track"
-              class="indexing-progress-track is-indeterminate"
-              role="progressbar"
-              aria-label="Progresso da indexação RAG"
-              aria-valuemin="0"
-              aria-valuemax="100"
-            >
-              <span
-                id="indexing-progress-bar"
-                class="indexing-progress-bar"
-              ></span>
-            </div>
-            <div class="indexing-progress-details">
-              <span id="indexing-progress-count"
-                >Aguardando análise dos arquivos...</span
-              >
-              <span id="indexing-progress-file"></span>
-            </div>
-          </div>
-
-          <div
-            id="projects-table"
-            class="projects-table"
-            role="table"
-            aria-label="Projetos indexados"
-          >
-            <div class="project-row project-header" role="row">
-              <span role="columnheader">Projeto</span>
-              <span role="columnheader">Caminho</span>
-              <span role="columnheader">N.º de Arquivos</span>
-              <span role="columnheader">Tamanho</span>
-              <span role="columnheader">Status</span>
-              <span role="columnheader">Ações</span>
-            </div>
-            <div id="projects-empty" class="empty-state">
-              Nenhum projeto indexado.
-            </div>
-          </div>
-
-          <div class="card-actions">
-            <button
-              id="cancel-indexing"
-              class="btn btn-outline"
-              type="button"
-              hidden
-            >
-              Cancelar indexação
-            </button>
-            <button id="select-folder" class="btn btn-outline" type="button">
-              Escolher pasta
-            </button>
-            <button id="add-project" class="btn btn-primary" type="button">
-              Indexar workspace atual
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <section
-        class="content-section external-section"
-        aria-labelledby="external-documents-title"
-      >
-        <div class="section-heading">
-          <h2 id="external-documents-title">Documentos Externos no RAG</h2>
-          <p>
-            Adicione materiais complementares para enriquecer o contexto das
-            respostas
-          </p>
-        </div>
-
-        <div class="documents-card">
-          <article class="document-item">
-            <div class="document-icon">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M6 2.5h8l4 4v15H6z" />
-                <path d="M14 2.5v5h4M8.5 13h7M8.5 16h7" />
-              </svg>
-            </div>
-            <div class="document-copy">
-              <strong>Documentação - ATLAS</strong>
-              <span>3MB - 21/02/2026</span>
-            </div>
-            <button
-              class="more-button"
-              type="button"
-              aria-label="Mais opções para Documentação - ATLAS"
-            >
-              •••
-            </button>
-          </article>
-
-          <article class="document-item">
-            <div class="document-icon">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M6 2.5h8l4 4v15H6z" />
-                <path d="M14 2.5v5h4M8.5 13h7M8.5 16h7" />
-              </svg>
-            </div>
-            <div class="document-copy">
-              <strong>Padrões de Projeto - Facade</strong>
-              <span>22MB - 11/03/2026</span>
-            </div>
-            <button
-              class="more-button"
-              type="button"
-              aria-label="Mais opções para Padrões de Projeto - Facade"
-            >
-              •••
-            </button>
-          </article>
-
-          <div class="card-actions">
-            <button id="add-file" class="btn btn-primary" type="button">
-              Adicionar novo arquivo
-            </button>
-          </div>
         </div>
       </section>
     </main>

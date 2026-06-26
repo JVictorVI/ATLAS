@@ -3,7 +3,8 @@
 Este arquivo contém diagramas de classe e de sequência em PlantUML para cada caso de uso atualizado do ATLAS.
 Os blocos podem ser copiados diretamente para o PlantText.
 
-> **Nota de atualização:** os diagramas abaixo representam o ATLAS atual como extensão VS Code em TypeScript. Além dos fluxos de inferência local/cloud, sessões, análise rápida e contexto estrutural, o RAG local está implementado com `AtlasRagService`, embeddings locais, ChromaDB empacotado, indexação por projeto e recuperação integrada ao chat. Busca real em Hugging Face, download automatizado de modelos de chat e ingestão de documentos externos continuam marcados como futuro.
+> **Nota de atualização:** os diagramas abaixo representam o ATLAS atual como extensão VS Code em TypeScript. Além dos fluxos de inferência local/cloud, sessões, análise rápida e contexto estrutural, o RAG local está implementado com `AtlasRagService`, embeddings locais, ChromaDB empacotado, indexação por projeto e recuperação integrada ao chat.
+> Busca real em Hugging Face, download automatizado de modelos de chat e ingestão de documentos externos continuam marcados como futuro.
 
 ## UC001 - Perguntar sobre o código pelo chat
 
@@ -1143,8 +1144,11 @@ skinparam shadowing false
 skinparam classAttributeIconSize 0
 
 class "Webview RAG" as RagConfigurationUI {
+  +carregarEstadoInicial()
+  +exibirStatusBaseVetorial()
   +exibirProjetos()
   +exibirProgresso()
+  +liberarTelaEmErroOuTimeout()
   +cancelarIndexacao()
 }
 class ChatMessageRouter {
@@ -1158,6 +1162,11 @@ class AtlasRagService {
 }
 class AtlasEmbeddingService {
   +embedDocuments(chunks, signal)
+}
+class AtlasEmbeddingModelDiscoveryService {
+  +resolveActiveModel()
+  +refreshEmbeddingModels()
+  +downloadDefaultEmbeddingModel()
 }
 class AtlasChromaService {
   +ensureReady()
@@ -1175,6 +1184,7 @@ artifact "index-manifest.json" as Manifest
 RagConfigurationUI --> ChatMessageRouter : postMessage
 ChatMessageRouter --> AtlasRagService
 AtlasRagService --> AtlasEmbeddingService
+AtlasEmbeddingService --> AtlasEmbeddingModelDiscoveryService
 AtlasRagService --> AtlasChromaService
 AtlasRagService --> AtlasRagRepository
 AtlasRagRepository --> AtlasChromaService
@@ -1193,10 +1203,17 @@ participant "Webview RAG" as UI
 participant ChatMessageRouter as Router
 participant AtlasRagService as RAG
 participant AtlasEmbeddingService as Embeddings
+participant AtlasEmbeddingModelDiscoveryService as EmbeddingModels
 participant AtlasRagRepository as Repository
 participant AtlasChromaService as Runtime
 database "ChromaDB local" as Chroma
 database "Manifesto JSON" as Manifest
+
+UI -> Router : carregarEstadoRag
+Router --> UI : estadoRagCarregado ou erro
+alt erro/timeout inicial
+  UI --> Usuário : remove loading e mantém configurações acessíveis
+end
 
 Usuário -> UI : indexa workspace, pasta ou projeto
 UI -> Router : indexarWorkspaceRag / selecionarPastaRag / reindexarProjetoRag
@@ -1209,6 +1226,8 @@ loop preparação por arquivo
   Router --> UI : progressoIndexacaoRag
 end
 loop lotes de 16 chunks
+  Embeddings -> EmbeddingModels : resolveActiveModel()
+  EmbeddingModels --> Embeddings : caminho do modelo selecionado
   RAG -> Embeddings : embedDocuments(texts, signal)
   Embeddings --> RAG : vetores normalizados
   RAG -> Repository : upsertChunks(coleção temporária, chunks)
@@ -1351,15 +1370,15 @@ class ExternalDocumentIngestionService <<future>> {
 class DocumentParser <<future>> {
   +parse(file)
 }
-class EmbeddingGenerator <<future>>
-class VectorDatabaseManager <<future>>
-database ChromaDB <<future>>
+class AtlasEmbeddingService <<implemented>>
+class AtlasRagRepository <<implemented>>
+database "ChromaDB local" as ChromaDB <<implemented>>
 
 RagDocumentsUI --> ExternalDocumentIngestionService
 ExternalDocumentIngestionService --> DocumentParser
-ExternalDocumentIngestionService --> EmbeddingGenerator
-ExternalDocumentIngestionService --> VectorDatabaseManager
-VectorDatabaseManager --> ChromaDB
+ExternalDocumentIngestionService --> AtlasEmbeddingService
+ExternalDocumentIngestionService --> AtlasRagRepository
+AtlasRagRepository --> ChromaDB
 @enduml
 ```
 
@@ -1372,9 +1391,9 @@ actor Usuário
 participant "RagDocumentsUI\n(futuro)" as UI
 participant "ExternalDocumentIngestionService\n(futuro)" as Ingestion
 participant "DocumentParser\n(futuro)" as Parser
-participant "EmbeddingGenerator\n(futuro)" as Embeddings
-participant "VectorDatabaseManager\n(futuro)" as VectorDb
-database "ChromaDB\n(futuro)" as Chroma
+participant AtlasEmbeddingService as Embeddings
+participant AtlasRagRepository as Repository
+database "ChromaDB local" as Chroma
 
 Usuário -> UI : adiciona documento externo
 UI -> Ingestion : addDocument(file)
@@ -1382,9 +1401,9 @@ Ingestion -> Parser : parse(file)
 Parser --> Ingestion : texto/chunks
 Ingestion -> Embeddings : generateEmbeddings(chunks)
 Embeddings --> Ingestion : vetores
-Ingestion -> VectorDb : saveVectors(vectors)
-VectorDb -> Chroma : persistir vetores
-VectorDb --> Ingestion : concluído
+Ingestion -> Repository : upsertExternalDocumentChunks(vectors)
+Repository -> Chroma : persistir vetores
+Repository --> Ingestion : concluído
 Ingestion --> UI : documento indexado
 UI --> Usuário : confirma inclusão
 @enduml

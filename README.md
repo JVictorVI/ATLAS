@@ -20,7 +20,9 @@ O projeto também busca apoiar estudo e evolução técnica, oferecendo modos di
 - Análise rápida do arquivo atual com marcações diretamente no editor, acionada pelo botão da interface ou por intenção textual no chat.
 - Normalização de achados da análise rápida, com categorias arquiteturais, severidade (`low`, `medium`, `high`), sanitização de linhas e hover explicativo no editor.
 - Modo de análise arquitetural com foco em decisões de design, trade-offs, evolução do risco, testabilidade e custo de mudança.
-- Modo estudo para explicações mais didáticas.
+- Modo estudo para explicações mais didáticas, com pistas progressivas e botão dedicado no chat.
+- RAG local com ChromaDB gerenciado pela extensão, embeddings locais, indexação do workspace atual ou de uma pasta escolhida e recuperação semântica integrada ao chat.
+- Tela RAG com projetos indexados, status da base vetorial, progresso por arquivos/chunks, cancelamento, seleção de modelo de embeddings e carregamento inicial não bloqueante.
 - Configurações de execução, como temperatura, top-p, limite de tokens, timeout e streaming.
 - Biblioteca de modelos locais para visualizar e ajustar parâmetros registrados.
 
@@ -28,7 +30,7 @@ O projeto também busca apoiar estudo e evolução técnica, oferecendo modos di
 
 - `src/extension.ts`: ponto de entrada da extensão.
 - `src/providers`: integração com Webviews, roteamento de mensagens e controladores de UI/editor.
-- `src/services`: serviços de sessão, seleção de modelos, chamadas para APIs cloud e análise rápida.
+- `src/services`: serviços de sessão, seleção de modelos, chamadas para APIs cloud, execução local, análise rápida e RAG.
 - `src/managers`: facades de configuração e chaves de API.
 - `src/repository`: leitura e escrita de configurações e histórico.
 - `src/prompt`: montagem de prompts, políticas de sistema, heurística de resolução de modo e customização de comportamento.
@@ -36,6 +38,7 @@ O projeto também busca apoiar estudo e evolução técnica, oferecendo modos di
 - `src/webview`: telas HTML, CSS e JavaScript da interface da extensão.
 - `config`: arquivos locais de configuração e histórico usados em desenvolvimento.
 - `docs`: documentação e materiais de modelagem do projeto.
+- `resources`: runtimes e artefatos empacotáveis, incluindo ChromaDB, engines locais e modelos de embeddings quando preparados para distribuição.
 
 ## Comandos úteis
 

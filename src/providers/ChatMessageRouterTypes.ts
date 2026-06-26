@@ -10,6 +10,7 @@ import { AtlasSessionService } from "../services/AtlasSessionService";
 import { CloudApiService } from "../services/CloudApiService";
 import {
   RagContextResult,
+  RagEmbeddingModelInfo,
   RagIndexingProgress,
   RagProjectIndex,
   RagRuntimeStatus,
@@ -38,6 +39,17 @@ export type RouterDependencies = {
   stopLocalEngine: () => void;
   getLocalModelsDir: () => string;
   getLocalEnginesDir: () => string;
+  refreshRagEmbeddingModels: () => RagEmbeddingModelInfo[];
+  getRagEmbeddingModelsDir: () => string;
+  downloadDefaultRagEmbeddingModel: (
+    onProgress?: (progress: {
+      fileName: string;
+      processedFiles: number;
+      totalFiles: number;
+      skipped: boolean;
+    }) => void,
+    signal?: AbortSignal,
+  ) => Promise<RagEmbeddingModelInfo>;
   getChatEditorContext: () => AtlasEditorContext | null;
   buildEditorAnalysisContext: (context: AtlasEditorContext) => string;
   buildDocumentStructureContext: (

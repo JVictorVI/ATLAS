@@ -22,6 +22,7 @@ export interface AtlasRagSettings {
   chunkOverlap: number;
   ignoredPaths: string[];
   embeddingModel: string;
+  embeddingModelsDir: string;
   topK: number;
   maxContextCharacters: number;
   maxFileSizeBytes: number;

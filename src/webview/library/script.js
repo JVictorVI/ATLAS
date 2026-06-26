@@ -9,17 +9,17 @@ document.addEventListener("DOMContentLoaded", () => {
   setupButtons();
   setupDropdown();
   setupGpuSlider();
-  
+
   vscode.postMessage({ type: "requestModels" });
 });
 
 window.addEventListener("message", (event) => {
   const message = event.data;
-  
+
   if (message.type === "updateModelsList") {
     loadedModels = message.models;
     renderModelDropdown();
-    
+
     // Se não houver seleção mas tivermos modelos, seleciona o primeiro
     const selectedModelStillExists = loadedModels.some(
       (model) => model.id === selectedModelId,

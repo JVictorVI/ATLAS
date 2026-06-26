@@ -1,11 +1,11 @@
 # Resumo de Status Arquitetural
 
-Atualizado em 25 de junho de 2026 com base na implementação presente no repositório.
+Atualizado em 26 de junho de 2026 com base na implementação presente no repositório.
 
 | Componente | Status atual |
 | --- | --- |
 | Extensão VS Code | Implementada |
-| Webview de chat | Implementada |
+| Webview de chat | Implementada, incluindo input com autosize e botão de modo estudante com estado visual ativo |
 | Painel de provedores em nuvem | Implementado |
 | Painel de configurações gerais | Implementado |
 | Biblioteca local de modelos | Implementada parcialmente |
@@ -34,16 +34,18 @@ Atualizado em 25 de junho de 2026 com base na implementação presente no reposi
 | `AtlasDocumentStructureService` | Implementado com símbolos, diagnósticos e referências fornecidos pelo VS Code |
 | Análise estática estrutural | Implementada como contexto auxiliar configurável para análises rápida e arquitetural |
 | Persistência visual das marcações | Implementada por documento durante a sessão |
-| Modo estudo | Implementado |
+| Modo estudo | Implementado com prompt especializado, estado persistido, botão dedicado e tooltip explicativo |
 | RAG local | Implementado para projetos e workspaces |
 | `AtlasRagService` | Implementado: scanner, chunking, indexação, watchers, recuperação, filtros e orçamento de contexto |
 | ChromaDB | Implementado com binding nativo empacotado e processo local gerenciado pela extensão |
 | `AtlasChromaService` | Implementado com porta dinâmica, heartbeat, persistência e encerramento do processo auxiliar |
-| Embeddings locais | Implementados com Transformers.js, modelo local quantizado e vetores normalizados de 384 dimensões |
+| Embeddings locais | Implementados com Transformers.js, pasta configurável, seletor, download do modelo padrão e vetores normalizados |
+| `AtlasEmbeddingModelDiscoveryService` | Implementado para descobrir modelos empacotados, modelos em pasta escolhida pelo usuário e baixar o modelo padrão |
 | `AtlasRagRepository` | Implementado com coleções Chroma e manifesto JSON persistente |
 | Indexação do workspace atual | Implementada |
 | Indexação de pasta escolhida | Implementada |
 | Progresso da indexação | Implementado por etapa, arquivos e chunks, com cancelamento |
+| Tela RAG | Implementada com status da base vetorial no topo, projetos indexados em destaque, documentos externos preparados e loading inicial não bloqueante |
 | Atualização automática | Implementada por watcher e debounce; atualmente reindexa o projeto completo |
 | Recuperação semântica no chat | Implementada com fontes, relevância, filtros e limite de contexto |
 | Configurações de indexação | Implementadas, incluindo Markdown e JSON/configuração como opções independentes |
@@ -57,8 +59,11 @@ Atualizado em 25 de junho de 2026 com base na implementação presente no reposi
 
 - Base ChromaDB: `context.globalStorageUri/rag/chroma/`.
 - Manifesto dos projetos e fontes: `context.globalStorageUri/rag/index-manifest.json`.
+- Modelo ativo e pasta de embeddings: `rag.embeddingModel` e `rag.embeddingModelsDir` na configuração do ATLAS.
+- Quando nenhuma pasta é escolhida, downloads de embeddings usam `context.globalStorageUri/rag/embedding-models/`.
 - Uma coleção é mantida por projeto, com nome derivado de um `projectId` estável.
 - A reconstrução utiliza uma coleção temporária e só substitui a coleção ativa após concluir a indexação.
+- A tela RAG solicita o estado inicial ao backend, mas erro ou timeout nessa consulta remove o loading e mantém as configurações acessíveis.
 
 ## Limitações atuais
 
