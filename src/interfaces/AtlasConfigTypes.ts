@@ -1,8 +1,10 @@
 export type JsonMap = Record<string, unknown>;
 
+export type AtlasResponseLanguage = "pt-BR" | "en-US";
+
 export interface AtlasGeneralSettings {
   theme: string;
-  language: string;
+  language: AtlasResponseLanguage;
   autoSave: boolean;
   logLevel: "debug" | "info" | "warn" | "error";
 }

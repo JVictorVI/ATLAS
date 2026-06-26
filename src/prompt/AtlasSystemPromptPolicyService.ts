@@ -1,8 +1,14 @@
 import { AtlasPromptMode } from "../interfaces/AtlasPromptTypes";
+import { AtlasResponseLanguage } from "../interfaces/AtlasConfigTypes";
+import { AtlasConfigRepository } from "../repository/AtlasConfigRepository";
 
 export class AtlasSystemPromptPolicyService {
+  constructor(private readonly repository?: AtlasConfigRepository) {}
+
   public buildBaseSystemMessage(mode: AtlasPromptMode): string {
-    switch (mode) {
+    const language = this.getConfiguredLanguage();
+    const message = (() => {
+      switch (mode) {
       case "architectural-analysis":
         return this.buildArchitecturalAnalysisMessage();
 
@@ -15,7 +21,35 @@ export class AtlasSystemPromptPolicyService {
       case "developer-assistant":
       default:
         return this.buildDeveloperAssistantMessage();
+      }
+    })();
+
+    return [message, "", this.buildLanguageInstruction(language)].join("\n");
+  }
+
+  private getConfiguredLanguage(): AtlasResponseLanguage {
+    const language = this.repository?.load().general.language;
+    return language === "en-US" ? "en-US" : "pt-BR";
+  }
+
+  private buildLanguageInstruction(language: AtlasResponseLanguage): string {
+    if (language === "en-US") {
+      return [
+        "Response language policy:",
+        "- Respond in English.",
+        "- Keep machine-readable schemas, JSON keys and code identifiers unchanged.",
+        "- For required Markdown structures, preserve the numbering and structure, but translate human-readable headings and prose to English.",
+        "- For quick-analysis JSON, write the human-readable values in message, impact and suggestion in English.",
+      ].join("\n");
     }
+
+    return [
+      "Politica de idioma das respostas:",
+      "- Responda em portugues do Brasil.",
+      "- Mantenha schemas, chaves JSON e identificadores de codigo inalterados.",
+      "- Em estruturas Markdown obrigatorias, preserve a numeracao e a estrutura, usando titulos e texto em portugues do Brasil.",
+      "- Na analise rapida em JSON, escreva os valores legiveis de message, impact e suggestion em portugues do Brasil.",
+    ].join("\n");
   }
 
   private buildArchitecturalAnalysisMessage(): string {

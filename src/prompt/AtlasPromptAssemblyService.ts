@@ -98,6 +98,9 @@ export class AtlasPromptAssemblyService {
    */
   private applyWindow(history: ChatMessage[]): ChatMessage[] {
     const nonSystem = history.filter((m) => m.role !== "system");
-    return nonSystem.slice(-WINDOW_SIZE);
+    return nonSystem.slice(-WINDOW_SIZE).map((message) => ({
+      role: message.role,
+      content: message.content,
+    }));
   }
 }

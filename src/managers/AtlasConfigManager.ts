@@ -9,6 +9,7 @@ import { AtlasSelectionService } from "../services/AtlasSelectionService";
 
 export {
   JsonMap,
+  AtlasResponseLanguage,
   AtlasGeneralSettings,
   AtlasSecuritySettings,
   AtlasRagSettings,

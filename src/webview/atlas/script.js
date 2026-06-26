@@ -1,5 +1,6 @@
 const vscode = acquireVsCodeApi();
 
+const atlasLanguage = document.getElementById("atlas-language");
 const engineCpu = document.getElementById("engine-cpu");
 const engineCuda = document.getElementById("engine-cuda");
 const engineVulkan = document.getElementById("engine-vulkan");
@@ -60,6 +61,10 @@ window.addEventListener("message", (event) => {
 });
 
 function applyAtlasSettings(value) {
+  if (atlasLanguage) {
+    atlasLanguage.value = value?.language === "en-US" ? "en-US" : "pt-BR";
+  }
+
   const engineType = ["cuda", "vulkan"].includes(value?.engineType)
     ? value.engineType
     : "cpu";
@@ -120,6 +125,7 @@ function saveAtlasSettings() {
   vscode.postMessage({
     type: "salvarConfiguracoesAtlas",
     payload: {
+      language: atlasLanguage?.value === "en-US" ? "en-US" : "pt-BR",
       engineType: getSelectedEngineType(),
       startOnAtlasOpen: engineStartOnOpen?.checked === true,
       modelsDir: modelsFolderPath?.value || "",

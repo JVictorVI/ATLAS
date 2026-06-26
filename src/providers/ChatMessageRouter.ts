@@ -10,7 +10,10 @@ import {
   RagIndexingProgress,
   RagRuntimeStatus,
 } from "../interfaces/AtlasRagTypes";
-import { AtlasRagSettings } from "../interfaces/AtlasConfigTypes";
+import {
+  AtlasRagSettings,
+  AtlasResponseLanguage,
+} from "../interfaces/AtlasConfigTypes";
 
 export class ChatMessageRouter {
   private activeWebviewRoute = "chat";
@@ -1175,6 +1178,7 @@ export class ChatMessageRouter {
   ): Promise<void> {
     try {
       const payload = data.payload ?? {};
+      const language = this.normalizeResponseLanguage(payload.language);
       const currentCustom = this.deps.configManager.getConfig().custom ?? {};
       const currentLocalEngine =
         typeof currentCustom.localEngine === "object" &&
@@ -1199,6 +1203,10 @@ export class ChatMessageRouter {
         payload.staticAnalysisDiagnostics === true;
       const staticAnalysisRelations =
         payload.staticAnalysisRelations === true;
+
+      this.deps.configManager.updateGeneralSettings({
+        language,
+      });
 
       this.deps.configManager.updateCustomRoot({
         ...currentCustom,
@@ -1687,6 +1695,7 @@ export class ChatMessageRouter {
       this.deps.configManager.getStaticAnalysisConfig();
 
     return {
+      language: this.normalizeResponseLanguage(config.general.language),
       engineType: this.normalizeLocalEngineType(value.engineType),
       startOnAtlasOpen: value.startOnAtlasOpen === true,
       modelsDir: this.deps.getLocalModelsDir(),
@@ -1706,6 +1715,10 @@ export class ChatMessageRouter {
     }
 
     return "cpu";
+  }
+
+  private normalizeResponseLanguage(value: unknown): AtlasResponseLanguage {
+    return value === "en-US" ? "en-US" : "pt-BR";
   }
 
   private normalizeFolderPath(value: unknown): string {

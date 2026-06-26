@@ -1,6 +1,7 @@
 import {
   AtlasCloudChatResponse,
   AtlasCloudProviderKind,
+  AtlasChatMessage,
   AtlasModelSummary,
   ChatMessage,
   ClaudeModelRaw,
@@ -237,7 +238,7 @@ export class CloudApiService {
       },
       body: JSON.stringify({
         model: modelId,
-        messages,
+        messages: this.toProviderMessages(messages),
         temperature,
         max_tokens: maxTokens,
         top_p: topP,
@@ -367,6 +368,13 @@ export class CloudApiService {
     const error = new Error("Geração em nuvem cancelada pelo usuário.");
     error.name = "AbortError";
     return error;
+  }
+
+  private toProviderMessages(messages: ChatMessage[]): AtlasChatMessage[] {
+    return messages.map((message) => ({
+      role: message.role,
+      content: message.content,
+    }));
   }
 
   private async sendClaudeChat(

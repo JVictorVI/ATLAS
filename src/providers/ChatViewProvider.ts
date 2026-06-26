@@ -93,7 +93,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this.historyRepository = new AtlasHistoryRepository(context);
 
     // Prompt
-    this.promptPolicyService = new AtlasSystemPromptPolicyService();
+    this.promptPolicyService = new AtlasSystemPromptPolicyService(
+      this.configRepository,
+    );
     this.modeResolver = new AtlasPromptModeResolver();
 
     this.promptCustomizationService = new AtlasPromptCustomizationService(

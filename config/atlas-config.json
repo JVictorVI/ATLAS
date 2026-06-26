@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-06-26T17:40:44.503Z",
+  "updatedAt": "2026-06-26T18:18:02.985Z",
   "general": {
     "theme": "system",
     "language": "pt-BR",
@@ -270,7 +270,7 @@
           "quantization": "Q8_K_XL",
           "size": "771.6 MB",
           "installedAt": "2026-06-23T20:38:09.267Z",
-          "updatedAt": "2026-06-26T17:40:44.503Z"
+          "updatedAt": "2026-06-26T18:18:02.985Z"
         },
         "custom": {
           "baseUrl": "http://127.0.0.1:8080/v1",
