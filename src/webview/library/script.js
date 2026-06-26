@@ -1,8 +1,16 @@
 const vscode = acquireVsCodeApi();
+const libraryPage = document.getElementById("library-page");
+const libraryLoading = document.getElementById("library-loading");
+const emptyState = document.getElementById("empty-state");
+const defaultEmptyStateMessage =
+  emptyState?.textContent?.replace(/\s+/g, " ").trim() ||
+  "Nenhum modelo encontrado.";
 
 let loadedModels = [];
 let selectedModelId = null;
 let currentGpuSliderModel = null;
+let initialLibraryModelsLoaded = false;
+let initialLibraryModelsTimeout = undefined;
 
 document.addEventListener("DOMContentLoaded", () => {
   setupToggles();
@@ -10,14 +18,36 @@ document.addEventListener("DOMContentLoaded", () => {
   setupDropdown();
   setupGpuSlider();
 
-  vscode.postMessage({ type: "requestModels" });
+  initialLibraryModelsTimeout = window.setTimeout(() => {
+    if (initialLibraryModelsLoaded) {
+      return;
+    }
+
+    releaseLibraryLoadingWithMessage(
+      "O carregamento inicial da biblioteca demorou mais que o esperado. Verifique as Configurações Gerais e tente abrir a Biblioteca novamente.",
+    );
+  }, 10000);
+
+  requestModels();
 });
 
 window.addEventListener("message", (event) => {
   const message = event.data;
 
+  if (message.type === "erro") {
+    if (!initialLibraryModelsLoaded) {
+      releaseLibraryLoadingWithMessage(
+        `Não foi possível carregar a biblioteca: ${message.value ?? "erro desconhecido"}`,
+      );
+    }
+
+    return;
+  }
+
   if (message.type === "updateModelsList") {
-    loadedModels = message.models;
+    releaseLibraryLoading();
+    setEmptyStateMessage(defaultEmptyStateMessage);
+    loadedModels = Array.isArray(message.models) ? message.models : [];
     renderModelDropdown();
 
     // Se não houver seleção mas tivermos modelos, seleciona o primeiro
@@ -25,7 +55,9 @@ window.addEventListener("message", (event) => {
       (model) => model.id === selectedModelId,
     );
 
-    if ((!selectedModelId || !selectedModelStillExists) && loadedModels.length > 0) {
+    if (loadedModels.length === 0) {
+      selectedModelId = null;
+    } else if (!selectedModelId || !selectedModelStillExists) {
       selectedModelId = loadedModels[0].id;
     }
 
@@ -51,6 +83,49 @@ window.addEventListener("message", (event) => {
   }
 
 });
+
+function requestModels() {
+  vscode.postMessage({ type: "requestModels" });
+}
+
+function setLibraryLoading(loading) {
+  document.body.classList.toggle("library-loading-active", loading);
+
+  if (libraryLoading) {
+    libraryLoading.hidden = !loading;
+  }
+
+  if (libraryPage) {
+    libraryPage.setAttribute("aria-busy", loading ? "true" : "false");
+
+    if (loading) {
+      libraryPage.setAttribute("aria-hidden", "true");
+    } else {
+      libraryPage.removeAttribute("aria-hidden");
+    }
+  }
+}
+
+function releaseLibraryLoading() {
+  initialLibraryModelsLoaded = true;
+  window.clearTimeout(initialLibraryModelsTimeout);
+  setLibraryLoading(false);
+}
+
+function releaseLibraryLoadingWithMessage(message) {
+  releaseLibraryLoading();
+  loadedModels = [];
+  selectedModelId = null;
+  currentGpuSliderModel = null;
+  setEmptyStateMessage(message);
+  renderModelDropdown();
+}
+
+function setEmptyStateMessage(message) {
+  if (emptyState) {
+    emptyState.textContent = message;
+  }
+}
 
 function showButtonFeedback(buttonId, temporaryText) {
   const button = document.getElementById(buttonId);
@@ -104,7 +179,7 @@ function setupDropdown() {
 
   button?.addEventListener("click", (e) => {
     e.stopPropagation();
-    vscode.postMessage({ type: "requestModels" });
+    requestModels();
     list?.classList.toggle("hidden");
   });
 

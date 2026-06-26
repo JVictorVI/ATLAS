@@ -6,8 +6,20 @@
     <title>Minha Biblioteca</title>
     <link rel="stylesheet" href="{{styleUri}}" />
   </head>
-  <body>
-    <main class="content">
+  <body class="library-loading-active">
+    <div
+      id="library-loading"
+      class="library-loading-overlay"
+      role="status"
+      aria-live="polite"
+      aria-label="Carregando biblioteca"
+    >
+      <div class="library-loading-card">
+        <span class="library-loading-spinner" aria-hidden="true"></span>
+      </div>
+    </div>
+
+    <main id="library-page" class="content" aria-busy="true" aria-hidden="true">
       <section class="library-page-heading">
         <span class="library-page-icon">
           <span aria-hidden="true">▦</span>
