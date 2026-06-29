@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-06-29T16:32:25.468Z",
+  "updatedAt": "2026-06-29T22:25:25.564Z",
   "general": {
     "theme": "system",
     "language": "pt-BR",
@@ -32,6 +32,7 @@
     "topK": 6,
     "maxContextCharacters": 12000,
     "maxFileSizeBytes": 2097152,
+    "externalDocumentMaxFileSizeBytes": 26214400,
     "allowedExtensions": [
       ".ts",
       ".tsx",
@@ -73,7 +74,7 @@
     "diversifyFiles": true,
     "excludeActiveFile": true,
     "includeExternalDocuments": true,
-    "sourcePriority": "balanced",
+    "sourcePriority": "documentation",
     "languageFilters": [],
     "directoryFilters": [],
     "showSources": true
@@ -84,7 +85,7 @@
   },
   "llms": {
     "selection": {
-      "mode": "local",
+      "mode": "cloud",
       "local": {
         "activeModelId": "local/gemma-3-1b-it-UD-Q5_K_XL"
       },

@@ -29,6 +29,7 @@ export interface AtlasRagSettings {
   topK: number;
   maxContextCharacters: number;
   maxFileSizeBytes: number;
+  externalDocumentMaxFileSizeBytes: number;
   allowedExtensions: string[];
   respectGitIgnore: boolean;
   includeMarkdownFiles: boolean;

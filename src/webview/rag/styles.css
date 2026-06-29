@@ -585,12 +585,34 @@ body.rag-loading-active .rag-page {
   width: 100%;
 }
 
+.documents-list {
+  display: grid;
+  gap: 10px;
+}
+
+.supported-files {
+  margin: 10px 0 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.external-document-controls {
+  display: grid;
+  grid-template-columns: minmax(160px, 220px);
+  gap: 12px;
+  margin-top: 12px;
+}
+
+#rag-external-max-file-size {
+  max-width: 160px;
+}
+
 .document-item {
   display: flex;
   align-items: center;
   gap: 12px;
   min-height: 68px;
-  margin-bottom: 10px;
   border: 1px solid var(--atlas-border);
   border-radius: 8px;
   padding: 10px 12px;
@@ -613,6 +635,9 @@ body.rag-loading-active .rag-page {
     --vscode-inputValidation-errorBorder,
     var(--atlas-danger-foreground)
   );
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0;
 }
 
 .document-icon svg {
@@ -659,6 +684,10 @@ body.rag-loading-active .rag-page {
 .more-button:hover {
   color: var(--vscode-foreground);
   background: var(--atlas-hover-background);
+}
+
+.document-delete-button {
+  flex: 0 0 auto;
 }
 
 .documents-card .card-actions {
@@ -743,6 +772,10 @@ body.rag-loading-active .rag-page {
     width: 100%;
   }
 
+  .external-document-controls {
+    grid-template-columns: 1fr;
+  }
+
   .project-row:not(.project-header) {
     grid-template-columns: 1fr;
   }
@@ -756,7 +789,7 @@ body.rag-loading-active .rag-page {
     flex: 1;
   }
 
-  .card-actions .btn-primary {
+  .card-actions .btn {
     width: 100%;
   }
 

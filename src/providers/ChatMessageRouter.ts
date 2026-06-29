@@ -14,6 +14,7 @@ import {
   AtlasRagSettings,
   AtlasResponseLanguage,
 } from "../interfaces/AtlasConfigTypes";
+import { AtlasExternalDocumentParser } from "../services/AtlasExternalDocumentParser";
 
 export class ChatMessageRouter {
   private activeWebviewRoute = "chat";
@@ -110,6 +111,15 @@ export class ChatMessageRouter {
         return;
       case "mostrarNotificacaoRag":
         this.handleRagNotification(data);
+        return;
+      case "adicionarDocumentoExternoRag":
+        await this.handleAddExternalRagDocuments(webview);
+        return;
+      case "excluirDocumentoExternoRag":
+        await this.handleDeleteExternalRagDocument(data, webview);
+        return;
+      case "removerTodosDocumentosExternosRag":
+        await this.handleClearExternalRagDocuments(webview);
         return;
       case "indexarWorkspaceRag":
         await this.handleIndexWorkspaceRag(webview, "workspace");
@@ -323,6 +333,12 @@ export class ChatMessageRouter {
         100 * 1024 * 1024,
         current.maxFileSizeBytes,
       );
+      const externalDocumentMaxFileSizeBytes = this.normalizeInteger(
+        payload.externalDocumentMaxFileSizeBytes,
+        1024 * 1024,
+        250 * 1024 * 1024,
+        current.externalDocumentMaxFileSizeBytes ?? 25 * 1024 * 1024,
+      );
       const allowedExtensions = this.normalizeExtensions(
         payload.allowedExtensions,
         current.allowedExtensions,
@@ -393,6 +409,7 @@ export class ChatMessageRouter {
         chunkSize,
         chunkOverlap,
         maxFileSizeBytes,
+        externalDocumentMaxFileSizeBytes,
         allowedExtensions,
         respectGitIgnore,
         includeMarkdownFiles,
@@ -688,6 +705,7 @@ export class ChatMessageRouter {
       settings,
       runtime,
       projects: this.deps.listRagProjects(),
+      externalDocuments: this.deps.listExternalRagDocuments(),
       embeddingModels,
       embeddingModelsDir: this.deps.getRagEmbeddingModelsDir(),
     };
@@ -812,6 +830,192 @@ export class ChatMessageRouter {
     }
 
     return modelId;
+  }
+
+  private async handleAddExternalRagDocuments(
+    webview: vscode.Webview,
+  ): Promise<void> {
+    let controller: AbortController | null = null;
+
+    try {
+      const supportedExtensions =
+        AtlasExternalDocumentParser.getSupportedExtensions().map((extension) =>
+          extension.replace(/^\./, ""),
+        );
+      const selection = await vscode.window.showOpenDialog({
+        canSelectFiles: true,
+        canSelectFolders: false,
+        canSelectMany: true,
+        filters: {
+          "Documentos suportados": supportedExtensions,
+          "Todos os arquivos": ["*"],
+        },
+        openLabel: "Adicionar ao RAG",
+        title: "Selecione documentos externos para o RAG",
+      });
+
+      if (!selection?.length) {
+        await webview.postMessage({
+          type: "documentosExternosRagAtualizados",
+          value: {
+            cancelled: true,
+            documents: this.deps.listExternalRagDocuments(),
+            importedCount: 0,
+            skipped: [],
+          },
+        });
+        return;
+      }
+
+      controller = new AbortController();
+      const activeController = controller;
+      const result = await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: "ATLAS: adicionando documentos ao RAG",
+          cancellable: true,
+        },
+        async (progress, token) => {
+          token.onCancellationRequested(() => {
+            controller?.abort();
+          });
+
+          return this.deps.addExternalRagDocuments(
+            selection,
+            (importProgress) => {
+              const currentFile = importProgress.currentFile
+                ? ` - ${importProgress.currentFile}`
+                : "";
+              progress.report({
+                message: `${importProgress.processedFiles}/${importProgress.totalFiles}${currentFile}`,
+              });
+            },
+            activeController.signal,
+          );
+        },
+      );
+
+      await webview.postMessage({
+        type: "documentosExternosRagAtualizados",
+        value: {
+          documents: result.documents,
+          importedCount: result.imported.length,
+          skipped: result.skipped,
+        },
+      });
+    } catch (error) {
+      if (controller?.signal.aborted) {
+        await webview.postMessage({
+          type: "documentosExternosRagAtualizados",
+          value: {
+            cancelled: true,
+            documents: this.deps.listExternalRagDocuments(),
+            importedCount: 0,
+            skipped: [],
+          },
+        });
+        return;
+      }
+
+      await this.postError(
+        webview,
+        error,
+        "Nao foi possivel adicionar documentos externos ao RAG.",
+      );
+    }
+  }
+
+  private async handleDeleteExternalRagDocument(
+    data: any,
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      const sourceId = typeof data.sourceId === "string" ? data.sourceId : "";
+
+      if (!sourceId) {
+        throw new Error("Documento externo RAG invalido.");
+      }
+
+      const answer = await vscode.window.showWarningMessage(
+        "Deseja excluir este documento externo do RAG?",
+        { modal: true },
+        "Excluir",
+      );
+
+      if (answer !== "Excluir") {
+        await webview.postMessage({
+          type: "documentosExternosRagAtualizados",
+          value: {
+            cancelled: true,
+            documents: this.deps.listExternalRagDocuments(),
+            importedCount: 0,
+            skipped: [],
+          },
+        });
+        return;
+      }
+
+      const documents = await this.deps.deleteExternalRagDocument(sourceId);
+
+      await webview.postMessage({
+        type: "documentosExternosRagAtualizados",
+        value: {
+          documents,
+          deleted: true,
+          importedCount: 0,
+          skipped: [],
+        },
+      });
+    } catch (error) {
+      await this.postError(
+        webview,
+        error,
+        "Nao foi possivel excluir o documento externo.",
+      );
+    }
+  }
+
+  private async handleClearExternalRagDocuments(
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      const answer = await vscode.window.showWarningMessage(
+        "Deseja remover todos os documentos externos deste workspace do RAG?",
+        { modal: true },
+        "Remover todos",
+      );
+
+      if (answer !== "Remover todos") {
+        await webview.postMessage({
+          type: "documentosExternosRagAtualizados",
+          value: {
+            cancelled: true,
+            documents: this.deps.listExternalRagDocuments(),
+            importedCount: 0,
+            skipped: [],
+          },
+        });
+        return;
+      }
+
+      const documents = await this.deps.clearExternalRagDocuments();
+
+      await webview.postMessage({
+        type: "documentosExternosRagAtualizados",
+        value: {
+          documents,
+          deletedAll: true,
+          importedCount: 0,
+          skipped: [],
+        },
+      });
+    } catch (error) {
+      await this.postError(
+        webview,
+        error,
+        "Nao foi possivel remover os documentos externos.",
+      );
+    }
   }
 
   private async handleIndexWorkspaceRag(

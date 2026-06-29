@@ -11,6 +11,8 @@ import { CloudApiService } from "../services/CloudApiService";
 import {
   RagContextResult,
   RagEmbeddingModelInfo,
+  RagExternalDocument,
+  RagExternalDocumentImportResult,
   RagIndexingProgress,
   RagProjectIndex,
   RagRuntimeStatus,
@@ -61,6 +63,20 @@ export type RouterDependencies = {
   getRagRuntimeStatus: () => RagRuntimeStatus;
   stopRag: () => void;
   listRagProjects: () => RagProjectIndex[];
+  listExternalRagDocuments: () => RagExternalDocument[];
+  addExternalRagDocuments: (
+    uris: vscode.Uri[],
+    onProgress?: (progress: {
+      processedFiles: number;
+      totalFiles: number;
+      currentFile?: string;
+    }) => void | Promise<void>,
+    signal?: AbortSignal,
+  ) => Promise<RagExternalDocumentImportResult>;
+  deleteExternalRagDocument: (
+    sourceId: string,
+  ) => Promise<RagExternalDocument[]>;
+  clearExternalRagDocuments: () => Promise<RagExternalDocument[]>;
   indexCurrentWorkspace: (
     onProgress?: (progress: RagIndexingProgress) => void | Promise<void>,
     signal?: AbortSignal,

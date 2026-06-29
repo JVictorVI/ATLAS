@@ -8,6 +8,7 @@ import * as path from "path";
 import * as vscode from "vscode";
 import {
   RagChunkRecord,
+  RagExternalDocument,
   RagIndexManifest,
   RagIndexedSource,
   RagProjectIndex,
@@ -47,6 +48,39 @@ export class AtlasRagRepository {
 
   public listProjects(): RagProjectIndex[] {
     return this.loadManifest().projects;
+  }
+
+  public listExternalDocuments(projectId?: string): RagExternalDocument[] {
+    return this.loadManifest().sources
+      .filter(
+        (source) =>
+          source.externalDocument === true &&
+          (!projectId || source.projectId === projectId),
+      )
+      .map((source) => ({
+        sourceId: source.sourceId,
+        projectId: source.projectId,
+        name: source.displayName || path.basename(source.relativePath),
+        relativePath: source.relativePath,
+        absolutePath: source.absolutePath ?? "",
+        fileType: source.fileType ?? source.language ?? "document",
+        sizeBytes: source.sizeBytes,
+        modifiedAt: source.modifiedAt,
+        chunkCount: source.chunkIds.length,
+      }))
+      .sort((left, right) => right.modifiedAt.localeCompare(left.modifiedAt));
+  }
+
+  public hasExternalDocuments(
+    projectId: string,
+    embeddingModel?: string,
+  ): boolean {
+    return this.loadManifest().sources.some(
+      (source) =>
+        source.projectId === projectId &&
+        source.externalDocument === true &&
+        (!embeddingModel || source.embeddingModel === embeddingModel),
+    );
   }
 
   public normalizeInterruptedIndexes(): void {
@@ -95,6 +129,13 @@ export class AtlasRagRepository {
     );
   }
 
+  public getSource(sourceId: string): RagIndexedSource | null {
+    return (
+      this.loadManifest().sources.find((source) => source.sourceId === sourceId) ??
+      null
+    );
+  }
+
   public saveProject(project: RagProjectIndex): void {
     const manifest = this.loadManifest();
     const index = manifest.projects.findIndex(
@@ -138,11 +179,72 @@ export class AtlasRagRepository {
   ): void {
     const manifest = this.loadManifest();
     manifest.sources = [
-      ...manifest.sources.filter((source) => source.projectId !== projectId),
+      ...manifest.sources.filter(
+        (source) =>
+          source.projectId !== projectId || source.externalDocument === true,
+      ),
       ...sources,
     ];
     manifest.updatedAt = new Date().toISOString();
     this.saveManifest(manifest);
+  }
+
+  public saveSources(sources: RagIndexedSource[]): void {
+    if (sources.length === 0) {
+      return;
+    }
+
+    const manifest = this.loadManifest();
+    const byId = new Map(
+      manifest.sources.map((source) => [source.sourceId, source]),
+    );
+
+    for (const source of sources) {
+      byId.set(source.sourceId, source);
+    }
+
+    manifest.sources = Array.from(byId.values());
+    manifest.updatedAt = new Date().toISOString();
+    this.saveManifest(manifest);
+  }
+
+  public deleteSourceFromManifest(sourceId: string): RagIndexedSource | null {
+    const manifest = this.loadManifest();
+    const source =
+      manifest.sources.find((item) => item.sourceId === sourceId) ?? null;
+
+    if (!source) {
+      return null;
+    }
+
+    manifest.sources = manifest.sources.filter(
+      (item) => item.sourceId !== sourceId,
+    );
+    manifest.updatedAt = new Date().toISOString();
+    this.saveManifest(manifest);
+    return source;
+  }
+
+  public deleteExternalSourcesFromManifest(
+    projectId: string,
+  ): RagIndexedSource[] {
+    const manifest = this.loadManifest();
+    const deleted = manifest.sources.filter(
+      (source) =>
+        source.projectId === projectId && source.externalDocument === true,
+    );
+
+    if (deleted.length === 0) {
+      return [];
+    }
+
+    manifest.sources = manifest.sources.filter(
+      (source) =>
+        source.projectId !== projectId || source.externalDocument !== true,
+    );
+    manifest.updatedAt = new Date().toISOString();
+    this.saveManifest(manifest);
+    return deleted;
   }
 
   public async upsertChunks(
@@ -239,7 +341,22 @@ export class AtlasRagRepository {
     );
 
     if (project) {
+      const externalCollections = new Set(
+        manifest.sources
+          .filter(
+            (source) =>
+              source.projectId === projectId &&
+              source.externalDocument === true &&
+              source.collectionName,
+          )
+          .map((source) => source.collectionName!),
+      );
       await this.deleteCollection(project.collectionName);
+      await this.deleteCollection(`${project.collectionName}_external`);
+
+      for (const collectionName of externalCollections) {
+        await this.deleteCollection(collectionName);
+      }
     }
 
     manifest.projects = manifest.projects.filter(

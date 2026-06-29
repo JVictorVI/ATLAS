@@ -26,11 +26,38 @@ export interface RagIndexedSource {
   projectId: string;
   type: "code" | "document";
   relativePath: string;
+  externalDocument?: boolean;
+  absolutePath?: string;
+  displayName?: string;
+  fileType?: string;
+  collectionName?: string;
+  embeddingModel?: string;
   language?: string;
   contentHash: string;
   sizeBytes: number;
   modifiedAt: string;
   chunkIds: string[];
+}
+
+export interface RagExternalDocument {
+  sourceId: string;
+  projectId: string;
+  name: string;
+  relativePath: string;
+  absolutePath: string;
+  fileType: string;
+  sizeBytes: number;
+  modifiedAt: string;
+  chunkCount: number;
+}
+
+export interface RagExternalDocumentImportResult {
+  documents: RagExternalDocument[];
+  imported: RagExternalDocument[];
+  skipped: Array<{
+    path: string;
+    reason: string;
+  }>;
 }
 
 export interface RagChunkRecord {

@@ -4,6 +4,16 @@ const ragLoading = document.getElementById("rag-loading");
 const projectsTable = document.getElementById("projects-table");
 const addProjectButton = document.getElementById("add-project");
 const selectFolderButton = document.getElementById("select-folder");
+const addFileButton = document.getElementById("add-file");
+const clearExternalDocumentsButton = document.getElementById(
+  "clear-external-documents",
+);
+const externalDocumentsList = document.getElementById(
+  "external-documents-list",
+);
+const externalMaxFileSizeInput = document.getElementById(
+  "rag-external-max-file-size",
+);
 const cancelIndexingButton = document.getElementById("cancel-indexing");
 const indexingProgress = document.getElementById("indexing-progress");
 const indexingProgressLabel = document.getElementById(
@@ -19,9 +29,7 @@ const indexingProgressBar = document.getElementById("indexing-progress-bar");
 const indexingProgressCount = document.getElementById(
   "indexing-progress-count",
 );
-const indexingProgressFile = document.getElementById(
-  "indexing-progress-file",
-);
+const indexingProgressFile = document.getElementById("indexing-progress-file");
 const topKInput = document.getElementById("rag-top-k");
 const contextLimitInput = document.getElementById("rag-context-limit");
 const ignoredPathsInput = document.getElementById("rag-ignored-paths");
@@ -31,9 +39,7 @@ const maxFileSizeInput = document.getElementById("rag-max-file-size");
 const allowedExtensionsInput = document.getElementById(
   "rag-allowed-extensions",
 );
-const respectGitIgnoreInput = document.getElementById(
-  "rag-respect-gitignore",
-);
+const respectGitIgnoreInput = document.getElementById("rag-respect-gitignore");
 const markdownFilesInput = document.getElementById("rag-markdown-files");
 const configFilesInput = document.getElementById("rag-config-files");
 const indexOnAddInput = document.getElementById("rag-index-on-add");
@@ -42,9 +48,7 @@ const relevanceModeInput = document.getElementById("rag-relevance-mode");
 const relevanceThresholdInput = document.getElementById(
   "rag-relevance-threshold",
 );
-const maxChunksPerFileInput = document.getElementById(
-  "rag-max-chunks-file",
-);
+const maxChunksPerFileInput = document.getElementById("rag-max-chunks-file");
 const sourcePriorityInput = document.getElementById("rag-source-priority");
 const languageFiltersInput = document.getElementById("rag-language-filters");
 const directoryFiltersInput = document.getElementById("rag-directory-filters");
@@ -75,6 +79,8 @@ const embeddingModelGrid = document.getElementById("embedding-model-grid");
 const embeddingModelSelect = document.getElementById("rag-embedding-model");
 const embeddingModelStatus = document.getElementById("embedding-model-status");
 let indexingInProgress = false;
+let externalDocumentsInProgress = false;
+let externalDocumentsCount = 0;
 let embeddingModelsRefreshInProgress = false;
 let initialRagStateLoaded = false;
 let initialRagStateTimeout = undefined;
@@ -100,10 +106,11 @@ function saveRagSettings(options = {}) {
   const chunkSize = Number.parseInt(chunkSizeInput?.value ?? "", 10);
   const chunkOverlap = Number.parseInt(chunkOverlapInput?.value ?? "", 10);
   const maxFileSizeMb = Number.parseInt(maxFileSizeInput?.value ?? "", 10);
-  const autoIndexDebounceMs = Number.parseInt(
-    debounceInput?.value ?? "",
+  const externalMaxFileSizeMb = Number.parseInt(
+    externalMaxFileSizeInput?.value ?? "",
     10,
   );
+  const autoIndexDebounceMs = Number.parseInt(debounceInput?.value ?? "", 10);
   const relevanceThreshold = Number.parseFloat(
     relevanceThresholdInput?.value ?? "",
   );
@@ -167,14 +174,24 @@ function saveRagSettings(options = {}) {
   }
 
   if (
+    !Number.isInteger(externalMaxFileSizeMb) ||
+    externalMaxFileSizeMb < 1 ||
+    externalMaxFileSizeMb > 250
+  ) {
+    showFeedback(
+      "O tamanho máximo por documento externo deve ficar entre 1 e 250 MB.",
+      "warning",
+    );
+    externalMaxFileSizeInput?.focus();
+    return;
+  }
+
+  if (
     !Number.isInteger(autoIndexDebounceMs) ||
     autoIndexDebounceMs < 500 ||
     autoIndexDebounceMs > 60000
   ) {
-    showFeedback(
-      "O debounce deve ficar entre 500 e 60.000 ms.",
-      "warning",
-    );
+    showFeedback("O debounce deve ficar entre 500 e 60.000 ms.", "warning");
     debounceInput?.focus();
     return;
   }
@@ -235,6 +252,7 @@ function saveRagSettings(options = {}) {
       chunkSize,
       chunkOverlap,
       maxFileSizeBytes: maxFileSizeMb * 1024 * 1024,
+      externalDocumentMaxFileSizeBytes: externalMaxFileSizeMb * 1024 * 1024,
       allowedExtensions,
       respectGitIgnore: respectGitIgnoreInput?.checked === true,
       includeMarkdownFiles: markdownFilesInput?.checked === true,
@@ -253,24 +271,29 @@ function saveRagSettings(options = {}) {
       showSources: showSourcesInput?.checked === true,
     },
   });
-
 }
 
 document.getElementById("rag-enabled")?.addEventListener("change", () => {
   saveRagSettings();
 });
 
-document
-  .getElementById("cloud-rag-enabled")
-  ?.addEventListener("change", () => {
-    saveRagSettings();
-  });
+document.getElementById("cloud-rag-enabled")?.addEventListener("change", () => {
+  saveRagSettings();
+});
 
 document
   .getElementById("auto-index-enabled")
   ?.addEventListener("change", () => {
     saveRagSettings();
   });
+
+externalDocumentsInput?.addEventListener("change", () => {
+  saveRagSettings();
+});
+
+externalMaxFileSizeInput?.addEventListener("change", () => {
+  saveRagSettings();
+});
 
 document.getElementById("save-rag-settings")?.addEventListener("click", () => {
   saveRagSettings({ notify: true });
@@ -336,8 +359,14 @@ embeddingModelSelect?.addEventListener("change", () => {
   });
 });
 
-document.getElementById("add-file")?.addEventListener("click", () => {
-  showFeedback("O envio de documentos será implementado em uma próxima etapa.");
+addFileButton?.addEventListener("click", () => {
+  setExternalDocumentsState(true);
+  vscode.postMessage({ type: "adicionarDocumentoExternoRag" });
+});
+
+clearExternalDocumentsButton?.addEventListener("click", () => {
+  setExternalDocumentsState(true);
+  vscode.postMessage({ type: "removerTodosDocumentosExternosRag" });
 });
 
 document.querySelectorAll(".more-button").forEach((button) => {
@@ -351,6 +380,7 @@ window.addEventListener("message", (event) => {
 
   if (message.type === "erro") {
     setIndexingState(false);
+    setExternalDocumentsState(false);
     setEmbeddingDownloadState(false);
     embeddingModelsRefreshInProgress = false;
 
@@ -387,7 +417,9 @@ window.addEventListener("message", (event) => {
   if (message.type === "projetoRagAdicionado") {
     setIndexingState(false);
     renderProjects(message.value?.projects ?? []);
-    showFeedback("Projeto adicionado. Use Reindexar para criar a base vetorial.");
+    showFeedback(
+      "Projeto adicionado. Use Reindexar para criar a base vetorial.",
+    );
     return;
   }
 
@@ -406,6 +438,50 @@ window.addEventListener("message", (event) => {
 
   if (message.type === "projetosRagAtualizados") {
     renderProjects(message.value?.projects ?? []);
+    return;
+  }
+
+  if (message.type === "documentosExternosRagAtualizados") {
+    setExternalDocumentsState(false);
+    renderExternalDocuments(message.value?.documents ?? []);
+
+    if (message.value?.cancelled === true) {
+      return;
+    }
+
+    if (message.value?.deleted === true) {
+      showFeedback("Documento externo removido do RAG.");
+      return;
+    }
+
+    if (message.value?.deletedAll === true) {
+      showFeedback("Todos os documentos externos foram removidos do RAG.");
+      return;
+    }
+
+    const importedCount = Number(message.value?.importedCount) || 0;
+    const skipped = Array.isArray(message.value?.skipped)
+      ? message.value.skipped
+      : [];
+
+    if (importedCount > 0) {
+      showFeedback(
+        `${importedCount} ${importedCount === 1 ? "documento externo adicionado" : "documentos externos adicionados"} ao RAG.`,
+      );
+    }
+
+    if (skipped.length > 0) {
+      const firstReason = skipped[0]?.reason ? `: ${skipped[0].reason}` : "";
+      showFeedback(
+        `${skipped.length} ${skipped.length === 1 ? "arquivo foi ignorado" : "arquivos foram ignorados"}${firstReason}`,
+        "warning",
+      );
+    }
+
+    if (importedCount === 0 && skipped.length === 0) {
+      showFeedback("Nenhum documento externo foi adicionado.", "warning");
+    }
+
     return;
   }
 
@@ -465,9 +541,7 @@ window.addEventListener("message", (event) => {
   }
 
   if (contextLimitInput) {
-    contextLimitInput.value = String(
-      settings.maxContextCharacters ?? 12000,
-    );
+    contextLimitInput.value = String(settings.maxContextCharacters ?? 12000);
   }
 
   if (ignoredPathsInput) {
@@ -487,6 +561,17 @@ window.addEventListener("message", (event) => {
   if (maxFileSizeInput) {
     maxFileSizeInput.value = String(
       Math.max(1, Math.round((settings.maxFileSizeBytes ?? 2097152) / 1048576)),
+    );
+  }
+
+  if (externalMaxFileSizeInput) {
+    externalMaxFileSizeInput.value = String(
+      Math.max(
+        1,
+        Math.round(
+          (settings.externalDocumentMaxFileSizeBytes ?? 26214400) / 1048576,
+        ),
+      ),
     );
   }
 
@@ -521,9 +606,7 @@ window.addEventListener("message", (event) => {
   }
 
   if (relevanceThresholdInput) {
-    relevanceThresholdInput.value = String(
-      settings.relevanceThreshold ?? 0.9,
-    );
+    relevanceThresholdInput.value = String(settings.relevanceThreshold ?? 0.9);
   }
 
   if (maxChunksPerFileInput) {
@@ -580,6 +663,7 @@ window.addEventListener("message", (event) => {
   }
 
   renderProjects(message.value?.projects ?? []);
+  renderExternalDocuments(message.value?.externalDocuments ?? []);
   initialRagStateLoaded = true;
   window.clearTimeout(initialRagStateTimeout);
   setRagLoading(false);
@@ -647,7 +731,9 @@ function renderEmbeddingModels(models, selectedModelId, modelsDir) {
   }
 
   embeddingModelSelect.disabled = false;
-  const selectedExists = safeModels.some((model) => model.id === selectedModelId);
+  const selectedExists = safeModels.some(
+    (model) => model.id === selectedModelId,
+  );
 
   if (selectedModelId && !selectedExists) {
     const missingOption = document.createElement("option");
@@ -659,7 +745,10 @@ function renderEmbeddingModels(models, selectedModelId, modelsDir) {
   safeModels.forEach((model) => {
     const option = document.createElement("option");
     const sourceLabel = model.source === "bundled" ? "empacotado" : "pasta";
-    const details = [model.dimensions ? `${model.dimensions}d` : "", sourceLabel]
+    const details = [
+      model.dimensions ? `${model.dimensions}d` : "",
+      sourceLabel,
+    ]
       .filter(Boolean)
       .join(" • ");
 
@@ -749,6 +838,33 @@ function setIndexingState(indexing) {
   if (cancelIndexingButton) {
     cancelIndexingButton.hidden = !indexing;
   }
+}
+
+function setExternalDocumentsState(loading) {
+  externalDocumentsInProgress = loading;
+
+  if (!addFileButton) {
+    if (clearExternalDocumentsButton) {
+      clearExternalDocumentsButton.disabled =
+        loading || externalDocumentsCount === 0;
+    }
+
+    document.querySelectorAll(".document-delete-button").forEach((button) => {
+      button.disabled = loading;
+    });
+    return;
+  }
+
+  addFileButton.disabled = loading;
+  addFileButton.textContent = loading ? "Adicionando..." : "Adicionar arquivos";
+  if (clearExternalDocumentsButton) {
+    clearExternalDocumentsButton.disabled =
+      loading || externalDocumentsCount === 0;
+  }
+
+  document.querySelectorAll(".document-delete-button").forEach((button) => {
+    button.disabled = loading;
+  });
 }
 
 function resetIndexingProgress() {
@@ -853,6 +969,104 @@ function calculatePercentage(processed, total) {
   return Math.min(100, Math.max(0, Math.round((processed / total) * 100)));
 }
 
+function renderExternalDocuments(documents) {
+  if (!externalDocumentsList) {
+    return;
+  }
+
+  externalDocumentsList.innerHTML = "";
+  const safeDocuments = Array.isArray(documents) ? documents : [];
+  externalDocumentsCount = safeDocuments.length;
+
+  if (clearExternalDocumentsButton) {
+    clearExternalDocumentsButton.disabled =
+      externalDocumentsInProgress || externalDocumentsCount === 0;
+  }
+
+  if (!safeDocuments.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+    empty.textContent = "Nenhum documento externo adicionado.";
+    externalDocumentsList.appendChild(empty);
+    return;
+  }
+
+  safeDocuments.forEach((documentInfo) => {
+    externalDocumentsList.appendChild(createExternalDocumentItem(documentInfo));
+  });
+}
+
+function createExternalDocumentItem(documentInfo) {
+  const item = document.createElement("article");
+  item.className = "document-item";
+
+  const icon = document.createElement("div");
+  icon.className = "document-icon";
+  icon.textContent = getDocumentTypeLabel(documentInfo.fileType);
+
+  const copy = document.createElement("div");
+  copy.className = "document-copy";
+
+  const title = document.createElement("strong");
+  title.textContent = documentInfo.name || "Documento externo";
+  title.title = documentInfo.absolutePath || documentInfo.relativePath || "";
+
+  const details = document.createElement("span");
+  details.textContent = [
+    documentInfo.fileType || "Documento",
+    formatBytes(Number(documentInfo.sizeBytes) || 0),
+    `${Number(documentInfo.chunkCount) || 0} chunks`,
+    formatDate(documentInfo.modifiedAt),
+  ]
+    .filter(Boolean)
+    .join(" - ");
+
+  copy.append(title, details);
+
+  const deleteButton = document.createElement("button");
+  deleteButton.className = "btn btn-danger document-delete-button";
+  deleteButton.type = "button";
+  deleteButton.textContent = "Excluir";
+  deleteButton.disabled = externalDocumentsInProgress;
+  deleteButton.addEventListener("click", () => {
+    if (!documentInfo.sourceId) {
+      return;
+    }
+
+    setExternalDocumentsState(true);
+    vscode.postMessage({
+      type: "excluirDocumentoExternoRag",
+      sourceId: documentInfo.sourceId,
+    });
+  });
+
+  item.append(icon, copy, deleteButton);
+  return item;
+}
+
+function getDocumentTypeLabel(fileType) {
+  const label = String(fileType || "DOC")
+    .replace(/[^a-z0-9]+/gi, "")
+    .slice(0, 4)
+    .toUpperCase();
+
+  return label || "DOC";
+}
+
+function formatDate(value) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return date.toLocaleDateString("pt-BR");
+}
+
 function renderProjects(projects) {
   if (!projectsTable) {
     return;
@@ -891,9 +1105,7 @@ function createProjectRow(project) {
   row.appendChild(
     createCell("N.º de Arquivos", `${project.sourceCount ?? 0} arquivos`),
   );
-  row.appendChild(
-    createCell("Tamanho", formatBytes(project.sizeBytes ?? 0)),
-  );
+  row.appendChild(createCell("Tamanho", formatBytes(project.sizeBytes ?? 0)));
 
   const statusCell = createCell("Status", "");
   const status = document.createElement("strong");
@@ -991,7 +1203,9 @@ function abbreviateProjectPath(value) {
   const visibleParts = parts.slice(-4);
   const suffix = visibleParts.join(separator);
 
-  return parts.length > visibleParts.length ? `...${separator}${suffix}` : suffix;
+  return parts.length > visibleParts.length
+    ? `...${separator}${suffix}`
+    : suffix;
 }
 
 function parseIgnoredPaths(value) {

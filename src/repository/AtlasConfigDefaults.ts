@@ -35,6 +35,7 @@ export class AtlasConfigDefaults {
         topK: 6,
         maxContextCharacters: 12000,
         maxFileSizeBytes: 2 * 1024 * 1024,
+        externalDocumentMaxFileSizeBytes: 25 * 1024 * 1024,
         allowedExtensions: [
           ".ts",
           ".tsx",

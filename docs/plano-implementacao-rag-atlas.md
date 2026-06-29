@@ -14,7 +14,7 @@ O RAG do ATLAS fornece recuperação semântica local para:
 - controlar explicitamente o envio desse contexto para modelos cloud;
 - exibir projetos, status, tamanho, progresso e ações de manutenção na tela RAG.
 
-O fluxo principal já está implementado. As evoluções restantes concentram-se em atualização incremental por arquivo, ingestão real de documentos externos e melhorias de qualidade.
+O fluxo principal já está implementado. As evoluções restantes concentram-se em atualização incremental por arquivo, chunking mais inteligente e melhorias de qualidade.
 
 ## 2. Estado atual
 
@@ -34,7 +34,7 @@ O fluxo principal já está implementado. As evoluções restantes concentram-se
 | Configurações de indexação e recuperação | Implementadas |
 | Watcher e debounce | Implementados |
 | Atualização incremental por arquivo | Pendente; a atualização automática atual reindexa o projeto completo |
-| Documentos externos | Interface preparada; ingestão pendente |
+| Documentos externos | Implementados para PDF, Office moderno, texto, Markdown, CSV/TSV, HTML e arquivos de configuracao textuais |
 | Chunking orientado a símbolos | Pendente |
 
 ## 3. Arquitetura implementada
@@ -384,7 +384,7 @@ Alterações que mudam o formato do índice marcam projetos prontos como `outdat
 ### Próximas evoluções
 
 1. atualização incremental somente das fontes alteradas;
-2. ingestão real de documentos externos, incluindo PDF;
+2. suporte opcional a formatos Office binarios legados (`.doc`, `.xls`, `.ppt`);
 3. chunking orientado a símbolos;
 4. avaliação automatizada com `recall@k`, precisão, latência e diversidade;
 5. suporte e empacotamento validados para outras plataformas;

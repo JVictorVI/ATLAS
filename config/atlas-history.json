@@ -1,7 +1,327 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-06-29T16:59:31.188Z",
+  "updatedAt": "2026-06-29T22:04:14.393Z",
   "sessions": [
+    {
+      "id": "4d0ab033-3e82-4c95-87b7-1ff8c65ee9b0",
+      "title": "Do que se trata o jogo feito no pdf?",
+      "architecturalSummary": "",
+      "messages": [
+        {
+          "role": "user",
+          "content": "do que se trata o jogo feito no pdf?"
+        },
+        {
+          "role": "assistant",
+          "content": "Doutor, com base no trecho extraído do PDF **“Making – O Segredo da Biblioteca”**, o jogo parece ser um projeto de ação/aventura que enfatiza **tensão e sensação de recompensa à medida que o jogador avança**.  \n\n### Principais características apontadas no documento\n1. **Cut‑scenes estruturadas** – há uma linha do tempo que lista todos os comandos necessários (câmera, personagens, animações, movimentação da câmera, balões de diálogo e falas).  \n2. **Progressão baseada em recompensas** – o design procura aumentar a tensão e dar ao jogador uma sensação de conquista a cada etapa concluída.  \n3. **Inteligência artificial (IA) do inimigo** – ainda há trabalho a ser feito na IA, incluindo:\n   - Concluir o cenário (nível ou ambiente);\n   - Melhorar a IA dos inimigos;\n   - Integrar o modelo do inimigo ao sistema de IA geral.  \n4. **Integração final** – o objetivo final é reunir todas as partes (cenas, IA, cut‑scenes) em um único projeto completo.\n\nEm resumo, trata‑se de um **jogo em desenvolvimento** que foca em narrativa visual (cut‑scenes) e gameplay desafiador, com ênfase em refinar a IA dos adversários e consolidar todos os módulos em um produto final jogável.",
+          "metadata": {
+            "ragSources": [
+              {
+                "chunkId": "1d4dc12d4e90f3311a724142543ac2001019ab61",
+                "relativePath": "Documentos externos/Making - Of  O Segredo da Biblioteca.pdf",
+                "sourceType": "document",
+                "externalDocument": true,
+                "distance": 0.42399722,
+                "relevance": 0.57600278,
+                "language": "pdf",
+                "startLine": 177,
+                "endLine": 202
+              },
+              {
+                "chunkId": "8780574c8e603172199306c6d979d1a0a8d9b8af",
+                "relativePath": "synken-frontend/index.html",
+                "sourceType": "code",
+                "externalDocument": false,
+                "distance": 0.7072705,
+                "relevance": 0.2927295,
+                "language": "html",
+                "startLine": 1,
+                "endLine": 14
+              },
+              {
+                "chunkId": "615e7e9fb19339aab71f9b1af4f99368d55a23ef",
+                "relativePath": "synken-frontend/src/pages/Home/Home.module.css",
+                "sourceType": "code",
+                "externalDocument": false,
+                "distance": 0.74847347,
+                "relevance": 0.25152653,
+                "language": "css",
+                "startLine": 1,
+                "endLine": 13
+              },
+              {
+                "chunkId": "e38437e05885d9f627a63e2d110e3294ddc4a10f",
+                "relativePath": "synken-frontend/src/components/Feed/Feed.module.css",
+                "sourceType": "code",
+                "externalDocument": false,
+                "distance": 0.783561,
+                "relevance": 0.21643900000000005,
+                "language": "css",
+                "startLine": 1,
+                "endLine": 7
+              },
+              {
+                "chunkId": "32cfe91c86be9cc1e4314a67ed2ef237c920f319",
+                "relativePath": "synken-frontend/src/App.css",
+                "sourceType": "code",
+                "externalDocument": false,
+                "distance": 0.7840855,
+                "relevance": 0.2159145,
+                "language": "css",
+                "startLine": 1,
+                "endLine": 8
+              },
+              {
+                "chunkId": "9760102e45980d1f5f3f3eace39549d486eeb621",
+                "relativePath": "synken-frontend/src/components/Loader/Loader.module.css",
+                "sourceType": "code",
+                "externalDocument": false,
+                "distance": 0.7984165,
+                "relevance": 0.20158350000000003,
+                "language": "css",
+                "startLine": 1,
+                "endLine": 27
+              }
+            ]
+          }
+        }
+      ],
+      "lastSummarizedIndex": 0,
+      "createdAt": "2026-06-29T22:04:12.917Z",
+      "updatedAt": "2026-06-29T22:04:14.392Z"
+    },
+    {
+      "id": "f33accc0-0b4e-470c-aaa1-084294e3f9f8",
+      "title": "O que diz o documento do cebas?",
+      "architecturalSummary": "",
+      "messages": [
+        {
+          "role": "user",
+          "content": "o que diz o documento do cebas?"
+        },
+        {
+          "role": "assistant",
+          "content": "**Doutor, o trecho extraído do edital CEBAS (arquivo edital_CEBAS_01_2026.pdf, linhas 68‑83) traz as seguintes orientações:**\n\n| Item | Conteúdo resumido |\n|------|-------------------|\n| **4.2** | Não serão aceitas fichas socioeconômicas ou documentos enviados por meios que não sejam eletrônicos. |\n| **4.3** | A entrega da documentação comprobatória deve ocorrer, obrigatoriamente, dentro do período especificado no cronograma (Anexo I). |\n| **4.4** | O candidato é o único responsável por acompanhar o status da sua inscrição e garantir que cumpriu todos os procedimentos necessários para a efetivação. |\n| **4.5** | É obrigatório cadastrar um endereço de e‑mail válido para receber comunicações relativas ao processo seletivo. O acompanhamento das informações (resultado, avisos, etc.) é de inteira e exclusiva responsabilidade do candidato, que deve verificar e‑mail, o sistema de inscrição e o site da Universidade (https://www.unifor.br/cebas). |\n\n**Observação:** O trecho acima cobre apenas as seções 4.2 a 4.5 do edital. Caso precise de informações de outras partes do documento, será necessário consultar o arquivo completo.",
+          "metadata": {
+            "ragSources": [
+              {
+                "chunkId": "bc78363481521ac9b9621cc575da40eca1fa233a",
+                "relativePath": "Documentos externos/edital_CEBAS_01_2026.pdf",
+                "sourceType": "document",
+                "externalDocument": true,
+                "distance": 0.5072677,
+                "relevance": 0.4927323,
+                "language": "pdf",
+                "startLine": 68,
+                "endLine": 83
+              },
+              {
+                "chunkId": "83deb849f6ee585ba268bc802b2ad360c658d356",
+                "relativePath": "Documentos externos/Termo_Responsabilidade.pdf",
+                "sourceType": "document",
+                "externalDocument": true,
+                "distance": 0.5372817,
+                "relevance": 0.4627183,
+                "language": "pdf",
+                "startLine": 82,
+                "endLine": 88
+              },
+              {
+                "chunkId": "32cfe91c86be9cc1e4314a67ed2ef237c920f319",
+                "relativePath": "synken-frontend/src/App.css",
+                "sourceType": "code",
+                "externalDocument": false,
+                "distance": 0.7532953,
+                "relevance": 0.2467047,
+                "language": "css",
+                "startLine": 1,
+                "endLine": 8
+              },
+              {
+                "chunkId": "8780574c8e603172199306c6d979d1a0a8d9b8af",
+                "relativePath": "synken-frontend/index.html",
+                "sourceType": "code",
+                "externalDocument": false,
+                "distance": 0.7627506,
+                "relevance": 0.23724940000000005,
+                "language": "html",
+                "startLine": 1,
+                "endLine": 14
+              },
+              {
+                "chunkId": "26318c953d285261c077d058f60412fc83204ecc",
+                "relativePath": "synken-frontend/src/components/NewPostModal/NewPostModal.jsx",
+                "sourceType": "code",
+                "externalDocument": false,
+                "distance": 0.8104167,
+                "relevance": 0.1895833,
+                "language": "javascriptreact",
+                "startLine": 103,
+                "endLine": 119
+              },
+              {
+                "chunkId": "cfd11e1bfe857fb4eb557913b6c352731c6191b4",
+                "relativePath": "synken-backend/src/main/java/com/faden/synken_backend/infra/security/SecurityConfig.java",
+                "sourceType": "code",
+                "externalDocument": false,
+                "distance": 0.8120607,
+                "relevance": 0.18793930000000003,
+                "language": "java",
+                "startLine": 35,
+                "endLine": 55
+              }
+            ]
+          }
+        },
+        {
+          "role": "user",
+          "content": "o que é cebas unifor?"
+        },
+        {
+          "role": "assistant",
+          "content": "**Doutor, o CEBAS da UNIFOR** (Centro de Estudos e Bolsas de Apoio ao estudante da Universidade de Fortaleza) é um programa institucional que oferece **auxílio financeiro e/ou vagas reservadas** a estudantes que atendam a critérios socioeconômicos definidos em edital.  \n\n### Principais características do CEBAS UNIFOR  \n\n| Aspecto | Descrição |\n|---------|-----------|\n| **Objetivo** | Garantir acesso ao ensino superior a estudantes de baixa renda ou em situação de vulnerabilidade, mediante concessão de bolsas, descontos em mensalidades ou vagas específicas. |\n| **Regulamentação** | Cada edição é regida por um *edital* (por exemplo, *edital_CEBAS_01_2026.pdf*), que traz o cronograma, requisitos, documentação necessária e critérios de seleção. |\n| **Público‑alvo** | - Estudantes de graduação ou pós‑graduação da UNIFOR;<br>- Pessoas com renda familiar per‑capita abaixo do limite estabelecido;<br>- Pessoas com deficiência (PcD) quando cabível (exigindo laudo médico). |\n| **Processo de inscrição** | 1. **Cadastro** no portal da UNIFOR (geralmente via sistema de inscrições on‑line).<br>2. **Envio da documentação** exigida (comprovantes de renda, declaração de residência, laudo médico, etc.).<br>3. **Análise** da documentação pela comissão do CEBAS.<br>4. **Divulgação** dos resultados por e‑mail e no portal institucional. |\n| **Documentação típica** | • Declaração de renda familiar;<br>• Comprovantes de residência (conta de luz, água, etc.);<br>• Laudo médico (para PcD);<br>• Documento de identidade e CPF;<br>• Formulário de inscrição preenchido. |\n| **Critérios de seleção** | – **Renda per‑capita** (geralmente até 1,5 ou 2 salários‑mínimos, conforme edital).<br>– **Situação de vulnerabilidade** (desemprego, deficiência, etc.).<br>– **Desempenho acadêmico** pode ser considerado como critério de desempate. |\n| **Benefícios concedidos** | • **Bolsas integrais ou parciais** (desconto na mensalidade);<br>• **Auxílio‑moradia ou transporte** (em alguns editais);<br>• **Acesso a programas de apoio** (tutoria, acompanhamento psicossocial). |\n| **Responsabilidades do candidato** | • Manter um e‑mail válido e acompanhar as comunicações oficiais;<br>• Cumprir os prazos de envio e renovação da bolsa;<br>• Informar alterações de renda ou situação familiar durante a vigência da bolsa. |\n\n### Como consultar o edital atual\n1. Acesse o site institucional da UNIFOR (ex.: `https://www.unifor.br/cebas`).  \n2. Navegue até a seção **“Processos Seletivos – CEBAS”** e baixe o edital correspondente ao semestre/ano de interesse.  \n3. Leia atentamente as **seções 4.2 a 4.5** (conforme o trecho que você trouxe), que tratam da forma de entrega da documentação, prazos, responsabilidade do candidato e necessidade de e‑mail válido.\n\n> **Importante:** Cada edição pode trazer variações nos requisitos e nos benefícios oferecidos. Sempre verifique o edital específico antes de iniciar a inscrição.",
+          "metadata": {
+            "ragSources": [
+              {
+                "chunkId": "25e947820370d7fcc8063e542639335371a1b84d",
+                "relativePath": "Documentos externos/edital_CEBAS_01_2026.pdf",
+                "sourceType": "document",
+                "externalDocument": true,
+                "distance": 0.72731996,
+                "relevance": 0.27268004,
+                "language": "pdf",
+                "startLine": 620,
+                "endLine": 633
+              },
+              {
+                "chunkId": "83deb849f6ee585ba268bc802b2ad360c658d356",
+                "relativePath": "Documentos externos/Termo_Responsabilidade.pdf",
+                "sourceType": "document",
+                "externalDocument": true,
+                "distance": 0.81550276,
+                "relevance": 0.18449724,
+                "language": "pdf",
+                "startLine": 82,
+                "endLine": 88
+              },
+              {
+                "chunkId": "32cfe91c86be9cc1e4314a67ed2ef237c920f319",
+                "relativePath": "synken-frontend/src/App.css",
+                "sourceType": "code",
+                "externalDocument": false,
+                "distance": 0.65490645,
+                "relevance": 0.34509354999999997,
+                "language": "css",
+                "startLine": 1,
+                "endLine": 8
+              },
+              {
+                "chunkId": "e38437e05885d9f627a63e2d110e3294ddc4a10f",
+                "relativePath": "synken-frontend/src/components/Feed/Feed.module.css",
+                "sourceType": "code",
+                "externalDocument": false,
+                "distance": 0.7661539,
+                "relevance": 0.23384609999999995,
+                "language": "css",
+                "startLine": 1,
+                "endLine": 7
+              },
+              {
+                "chunkId": "615e7e9fb19339aab71f9b1af4f99368d55a23ef",
+                "relativePath": "synken-frontend/src/pages/Home/Home.module.css",
+                "sourceType": "code",
+                "externalDocument": false,
+                "distance": 0.7867765,
+                "relevance": 0.2132235,
+                "language": "css",
+                "startLine": 1,
+                "endLine": 13
+              },
+              {
+                "chunkId": "d799e863037456589004cbf4cc94797fcd034ca9",
+                "relativePath": "synken-frontend/src/pages/Friends/Friends.module.css",
+                "sourceType": "code",
+                "externalDocument": false,
+                "distance": 0.79141396,
+                "relevance": 0.20858604000000003,
+                "language": "css",
+                "startLine": 1,
+                "endLine": 8
+              }
+            ]
+          }
+        }
+      ],
+      "lastSummarizedIndex": 0,
+      "createdAt": "2026-06-29T21:58:14.409Z",
+      "updatedAt": "2026-06-29T21:59:10.269Z"
+    },
+    {
+      "id": "eeec03e6-6fbc-421d-adb0-b6946749e6d2",
+      "title": "O que tem no termo de responsabilidade?",
+      "architecturalSummary": "",
+      "messages": [
+        {
+          "role": "user",
+          "content": "o que tem no termo de responsabilidade?"
+        },
+        {
+          "role": "assistant",
+          "content": "```json\n{\n  \"6.1.3\": \"revogar o Certificado, caso o pagamento não se confirme\",\n  \"7.1\": \"disponibilizamos a Política de Privacidade contendo a POLÍTICA MÍNIMA DE COLETA E TRATAMENTO DE DADOS PESSOAIS DOSentes da ICP-BRASIL, no endereço eletrônico: https://repositorio.serpro.gov.br/docs/politicaprivacidade.pdf.\",\n  \"Número de Referência\": \"174098608\",\n  \"Data/Hora do Pedido\": \"22/06/2026 17:07:07\",\n  \"Página 1\": \"_________________________________________________________________\"\n}\n```\n\n**Explicação:**\n\n*   **6.1.3:** A frase \"revogar o Certificado, caso o pagamento não se confirme\" indica que a AC tem o direito de revogar o certificado digital caso o pagamento não seja confirmado.\n*   **7.1:** A frase \"disponibilizamos a Política de Privacidade contendo a POLÍTICA MÍNIMA DE COLETA E TRATAMENTO DE DADOS PESSOAIS DOSentes da ICP-BRASIL, no endereço eletrônico: https://repositorio.serpro.gov.br/docs/politicaprivacidade.pdf.\" informa que a AC disponibiliza uma política de privacidade que detalha como os dados pessoais dos titulares da ICP-Brasil são coletados e tratados.\n\n**Observações:**\n\n*   A resposta se concentra nas informações fornecidas no texto.\n*   Não há necessidade de inferir informações adicionais ou realizar análises arquiteturais complexas.\n*   A estrutura Markdown foi preservada para facilitar a leitura.",
+          "metadata": {
+            "ragSources": [
+              {
+                "chunkId": "83deb849f6ee585ba268bc802b2ad360c658d356",
+                "relativePath": "Documentos externos/Termo_Responsabilidade.pdf",
+                "sourceType": "document",
+                "externalDocument": true,
+                "distance": 0.6252504,
+                "relevance": 0.3747496,
+                "language": "pdf",
+                "startLine": 82,
+                "endLine": 88
+              },
+              {
+                "chunkId": "9f2ab7f57d2b77ab9e992a35cf8834c72295399b",
+                "relativePath": "synken-backend/src/main/java/com/faden/synken_backend/controllers/AuthController.java",
+                "sourceType": "code",
+                "externalDocument": false,
+                "distance": 0.86266476,
+                "relevance": 0.13733523999999997,
+                "language": "java",
+                "startLine": 24,
+                "endLine": 36
+              },
+              {
+                "chunkId": "8ed995f71c9a0bf67e64c5e5369067333a8454e0",
+                "relativePath": "synken-backend/src/main/java/com/faden/synken_backend/controllers/PostController.java",
+                "sourceType": "code",
+                "externalDocument": false,
+                "distance": 0.89597195,
+                "relevance": 0.10402805000000004,
+                "language": "java",
+                "startLine": 39,
+                "endLine": 54
+              },
+              {
+                "chunkId": "d1b8990394c530f80bb50c2bf97bb0ca11e059ef",
+                "relativePath": "Documentos externos/Termo_Responsabilidade.pdf",
+                "sourceType": "document",
+                "externalDocument": true,
+                "distance": 0.714257,
+                "relevance": 0.28574299999999997,
+                "language": "pdf",
+                "startLine": 56,
+                "endLine": 67
+              }
+            ]
+          }
+        }
+      ],
+      "lastSummarizedIndex": 0,
+      "createdAt": "2026-06-29T21:54:25.350Z",
+      "updatedAt": "2026-06-29T21:54:46.955Z"
+    },
     {
       "id": "f4469a69-d98d-4234-8516-355d9551d30e",
       "title": "Quais o metodos de criptografia utilizado...",

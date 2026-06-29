@@ -7,6 +7,8 @@ import {
   RagChunkRecord,
   RagContextResult,
   RagContextSource,
+  RagExternalDocument,
+  RagExternalDocumentImportResult,
   RagIndexedSource,
   RagIndexingProgress,
   RagProjectIndex,
@@ -16,11 +18,13 @@ import {
 import { AtlasRagRepository } from "../repository/AtlasRagRepository";
 import { AtlasChromaService } from "./AtlasChromaService";
 import { AtlasEmbeddingService } from "./AtlasEmbeddingService";
+import { AtlasExternalDocumentParser } from "./AtlasExternalDocumentParser";
 
 export class AtlasRagService {
   private readonly watchers = new Map<string, vscode.FileSystemWatcher>();
   private readonly autoIndexTimers = new Map<string, NodeJS.Timeout>();
   private readonly indexingProjects = new Set<string>();
+  private readonly externalDocumentParser = new AtlasExternalDocumentParser();
   private projectsChangedListener?: (projects: RagProjectIndex[]) => void;
 
   constructor(
@@ -50,6 +54,182 @@ export class AtlasRagService {
 
   public listProjects(): RagProjectIndex[] {
     return this.repository.listProjects();
+  }
+
+  public listExternalDocuments(): RagExternalDocument[] {
+    const workspaceFolder = this.resolveCurrentWorkspaceFolder();
+
+    if (!workspaceFolder) {
+      return this.repository.listExternalDocuments();
+    }
+
+    return this.repository.listExternalDocuments(
+      this.getProjectId(workspaceFolder.uri.fsPath),
+    );
+  }
+
+  public async addExternalDocuments(
+    uris: vscode.Uri[],
+    onProgress?: (progress: {
+      processedFiles: number;
+      totalFiles: number;
+      currentFile?: string;
+    }) => void | Promise<void>,
+    signal?: AbortSignal,
+  ): Promise<RagExternalDocumentImportResult> {
+    if (uris.length === 0) {
+      return {
+        documents: this.listExternalDocuments(),
+        imported: [],
+        skipped: [],
+      };
+    }
+
+    const workspaceFolder = this.resolveCurrentWorkspaceFolder();
+
+    if (!workspaceFolder) {
+      throw new Error(
+        "Abra uma pasta ou workspace antes de adicionar documentos externos ao RAG.",
+      );
+    }
+
+    await this.initialize();
+
+    const projectId = this.getProjectId(workspaceFolder.uri.fsPath);
+    const imported: RagExternalDocument[] = [];
+    const skipped: Array<{ path: string; reason: string }> = [];
+
+    for (let index = 0; index < uris.length; index += 1) {
+      this.throwIfAborted(signal);
+      const uri = uris[index];
+      await onProgress?.({
+        processedFiles: index,
+        totalFiles: uris.length,
+        currentFile: path.basename(uri.fsPath),
+      });
+
+      try {
+        const prepared = await this.prepareExternalDocument(projectId, uri);
+        const collectionName =
+          prepared.source.collectionName ??
+          this.getExternalCollectionName(projectId);
+        const previousSource = this.repository.getSource(
+          prepared.source.sourceId,
+        );
+        const previousCollectionName = previousSource
+          ? previousSource.collectionName ??
+            this.getExternalCollectionName(
+              previousSource.projectId,
+              previousSource.embeddingModel,
+            )
+          : undefined;
+        const embeddings = await this.embeddingService.embedDocuments(
+          prepared.chunks.map((chunk) => chunk.content),
+          signal,
+        );
+
+        if (!previousSource || previousCollectionName === collectionName) {
+          await this.repository
+            .deleteSource(collectionName, prepared.source.sourceId)
+            .catch(() => undefined);
+        }
+
+        await this.repository.upsertChunks(
+          collectionName,
+          prepared.chunks.map((chunk, chunkIndex) => ({
+            ...chunk,
+            embedding: embeddings[chunkIndex],
+          })),
+        );
+
+        if (
+          previousSource &&
+          previousCollectionName &&
+          previousCollectionName !== collectionName
+        ) {
+          await this.repository
+            .deleteSource(previousCollectionName, previousSource.sourceId)
+            .catch(() => undefined);
+        }
+
+        this.repository.saveSources([prepared.source]);
+        imported.push(this.toExternalDocument(prepared.source));
+      } catch (error) {
+        if (signal?.aborted) {
+          throw error;
+        }
+
+        skipped.push({
+          path: uri.fsPath,
+          reason:
+            error instanceof Error
+              ? error.message
+              : "Falha ao processar o documento.",
+        });
+      }
+
+      await onProgress?.({
+        processedFiles: index + 1,
+        totalFiles: uris.length,
+        currentFile: path.basename(uri.fsPath),
+      });
+    }
+
+    return {
+      documents: this.repository.listExternalDocuments(projectId),
+      imported,
+      skipped,
+    };
+  }
+
+  public async deleteExternalDocument(
+    sourceId: string,
+  ): Promise<RagExternalDocument[]> {
+    const source = this.repository.getSource(sourceId);
+
+    if (!source || source.externalDocument !== true) {
+      throw new Error("Documento externo RAG nao encontrado.");
+    }
+
+    await this.repository.deleteSource(
+      source.collectionName ??
+        this.getExternalCollectionName(source.projectId, source.embeddingModel),
+      source.sourceId,
+    );
+    this.repository.deleteSourceFromManifest(source.sourceId);
+    return this.listExternalDocuments();
+  }
+
+  public async deleteAllExternalDocuments(): Promise<RagExternalDocument[]> {
+    const workspaceFolder = this.resolveCurrentWorkspaceFolder();
+
+    if (!workspaceFolder) {
+      throw new Error(
+        "Abra uma pasta ou workspace antes de remover documentos externos do RAG.",
+      );
+    }
+
+    await this.initialize();
+
+    const projectId = this.getProjectId(workspaceFolder.uri.fsPath);
+    const deletedSources =
+      this.repository.deleteExternalSourcesFromManifest(projectId);
+    const collectionNames = new Set<string>([
+      `atlas_${projectId}_external`,
+    ]);
+
+    for (const source of deletedSources) {
+      collectionNames.add(
+        source.collectionName ??
+          this.getExternalCollectionName(source.projectId, source.embeddingModel),
+      );
+    }
+
+    for (const collectionName of collectionNames) {
+      await this.repository.deleteCollection(collectionName);
+    }
+
+    return this.repository.listExternalDocuments(projectId);
   }
 
   public markAllProjectsOutdated(reason: string): void {
@@ -429,24 +609,33 @@ export class AtlasRagService {
     const rootPath = workspaceFolder.uri.fsPath;
     const projectId = this.getProjectId(rootPath);
     const project = this.repository.getProject(projectId);
+    const canSearchProject = project?.status === "ready";
+    const canSearchExternal =
+      settings.includeExternalDocuments &&
+      this.repository.hasExternalDocuments(projectId, settings.embeddingModel);
 
-    if (!project || project.status !== "ready") {
+    if (!canSearchProject && !canSearchExternal) {
       console.log("Busca ignorada: índice não está pronto.", {
         projectId,
         projectFound: Boolean(project),
         status: project?.status ?? "not-indexed",
+        externalDocuments: canSearchExternal,
       });
       console.groupEnd();
       return { context: [], sources: [] };
     }
 
     console.log("Índice selecionado:", {
-      projectId: project.projectId,
-      projectName: project.name,
-      collectionName: project.collectionName,
-      sources: project.sourceCount,
-      chunks: project.chunkCount,
-      embeddingDimensions: project.embeddingDimensions,
+      projectId,
+      projectIndexReady: canSearchProject,
+      projectName: project?.name,
+      collectionName: project?.collectionName,
+      externalCollectionName: canSearchExternal
+        ? this.getExternalCollectionName(projectId)
+        : undefined,
+      sources: project?.sourceCount ?? 0,
+      chunks: project?.chunkCount ?? 0,
+      embeddingDimensions: project?.embeddingDimensions ?? 0,
     });
 
     try {
@@ -465,16 +654,43 @@ export class AtlasRagService {
       });
 
       const queryStartedAt = Date.now();
+      const candidateCount = Math.max(settings.topK * 5, settings.topK);
       console.log("Consultando ChromaDB...", {
-        collectionName: project.collectionName,
+        collectionName: canSearchProject ? project?.collectionName : undefined,
+        externalCollectionName: canSearchExternal
+          ? this.getExternalCollectionName(projectId)
+          : undefined,
         topK: settings.topK,
-        candidateCount: Math.max(settings.topK * 5, settings.topK),
+        candidateCount,
       });
-      const candidates = await this.repository.search(
-        project.collectionName,
-        queryEmbedding,
-        Math.max(settings.topK * 5, settings.topK),
-      );
+      const candidates = (
+        await Promise.all([
+          canSearchProject && project
+            ? this.repository.search(
+                project.collectionName,
+                queryEmbedding,
+                candidateCount,
+              )
+            : Promise.resolve([]),
+          canSearchExternal
+            ? this.repository
+                .search(
+                  this.getExternalCollectionName(projectId),
+                  queryEmbedding,
+                  candidateCount,
+                )
+                .catch((error) => {
+                  console.warn(
+                    "[ATLAS RAG] Falha ao consultar documentos externos:",
+                    error,
+                  );
+                  return [];
+                })
+            : Promise.resolve([]),
+        ])
+      )
+        .flat()
+        .sort((left, right) => left.distance - right.distance);
       const results = this.selectRetrievalResults(
         candidates,
         settings,
@@ -1123,6 +1339,127 @@ export class AtlasRagService {
       },
       chunks,
     };
+  }
+
+  private async prepareExternalDocument(
+    projectId: string,
+    uri: vscode.Uri,
+  ): Promise<{
+    source: RagIndexedSource;
+    chunks: Array<Omit<RagChunkRecord, "embedding">>;
+  }> {
+    const stat = await vscode.workspace.fs.stat(uri);
+    const maxFileSize = this.getExternalDocumentMaxFileSizeBytes();
+
+    if (stat.size === 0) {
+      throw new Error("Arquivo vazio.");
+    }
+
+    if (stat.size > maxFileSize) {
+      throw new Error(
+        `Arquivo maior que o limite de ${Math.round(maxFileSize / 1048576)} MB.`,
+      );
+    }
+
+    if (!this.externalDocumentParser.canParse(uri)) {
+      throw new Error("Tipo de arquivo nao suportado para documentos externos.");
+    }
+
+    const bytes = await vscode.workspace.fs.readFile(uri);
+    const parsed = await this.externalDocumentParser.parse(uri, bytes);
+    const normalizedPath =
+      process.platform === "win32" ? uri.fsPath.toLowerCase() : uri.fsPath;
+    const sourceId = this.hashText(
+      `${projectId}:external:${normalizedPath}`,
+    ).slice(0, 32);
+    const contentHash = this.hashText(parsed.content);
+    const embeddingModel = this.embeddingService.getModelId();
+    const collectionName = this.getExternalCollectionName(
+      projectId,
+      embeddingModel,
+    );
+    const relativePath = `Documentos externos/${parsed.displayName}`;
+    const chunks = this.chunkContent(
+      parsed.content,
+      this.configManager.getConfig().rag.chunkSize,
+      this.configManager.getConfig().rag.chunkOverlap,
+    ).map((chunk, chunkIndex) => {
+      const chunkHash = this.hashText(chunk.content);
+
+      return {
+        chunkId: this.hashText(
+          `${sourceId}:${chunkIndex}:${chunkHash}`,
+        ).slice(0, 40),
+        projectId,
+        sourceId,
+        content: [
+          `Documento externo: ${parsed.displayName}`,
+          `Tipo: ${parsed.fileType}`,
+          `Trecho: ${chunk.startLine}-${chunk.endLine}`,
+          "",
+          chunk.content,
+        ].join("\n"),
+        relativePath,
+        sourceType: "document" as const,
+        externalDocument: true,
+        language: parsed.language,
+        startLine: chunk.startLine,
+        endLine: chunk.endLine,
+        chunkIndex,
+        contentHash: chunkHash,
+      };
+    });
+
+    if (chunks.length === 0) {
+      throw new Error("Nenhum chunk foi gerado para o documento.");
+    }
+
+    return {
+      source: {
+        sourceId,
+        projectId,
+        type: "document",
+        relativePath,
+        externalDocument: true,
+        absolutePath: uri.fsPath,
+        displayName: parsed.displayName,
+        fileType: parsed.fileType,
+        collectionName,
+        embeddingModel,
+        language: parsed.language,
+        contentHash,
+        sizeBytes: stat.size,
+        modifiedAt: new Date(stat.mtime).toISOString(),
+        chunkIds: chunks.map((chunk) => chunk.chunkId),
+      },
+      chunks,
+    };
+  }
+
+  private toExternalDocument(source: RagIndexedSource): RagExternalDocument {
+    return {
+      sourceId: source.sourceId,
+      projectId: source.projectId,
+      name: source.displayName || path.basename(source.relativePath),
+      relativePath: source.relativePath,
+      absolutePath: source.absolutePath ?? "",
+      fileType: source.fileType ?? source.language ?? "document",
+      sizeBytes: source.sizeBytes,
+      modifiedAt: source.modifiedAt,
+      chunkCount: source.chunkIds.length,
+    };
+  }
+
+  private getExternalCollectionName(
+    projectId: string,
+    embeddingModel = this.embeddingService.getModelId(),
+  ): string {
+    return `atlas_${projectId}_external_${this.hashText(embeddingModel).slice(0, 12)}`;
+  }
+
+  private getExternalDocumentMaxFileSizeBytes(): number {
+    const settings = this.configManager.getConfig().rag;
+    return settings.externalDocumentMaxFileSizeBytes ?? 25 * 1024 * 1024;
   }
 
   private chunkContent(

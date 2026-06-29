@@ -162,49 +162,40 @@
         </div>
 
         <div class="documents-card">
-          <article class="document-item">
-            <div class="document-icon">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M6 2.5h8l4 4v15H6z" />
-                <path d="M14 2.5v5h4M8.5 13h7M8.5 16h7" />
-              </svg>
-            </div>
-            <div class="document-copy">
-              <strong>Documentação - ATLAS</strong>
-              <span>3MB - 21/02/2026</span>
-            </div>
-            <button
-              class="more-button"
-              type="button"
-              aria-label="Mais opções para Documentação - ATLAS"
-            >
-              •••
-            </button>
-          </article>
-
-          <article class="document-item">
-            <div class="document-icon">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M6 2.5h8l4 4v15H6z" />
-                <path d="M14 2.5v5h4M8.5 13h7M8.5 16h7" />
-              </svg>
-            </div>
-            <div class="document-copy">
-              <strong>Padrões de Projeto - Facade</strong>
-              <span>22MB - 11/03/2026</span>
-            </div>
-            <button
-              class="more-button"
-              type="button"
-              aria-label="Mais opções para Padrões de Projeto - Facade"
-            >
-              •••
-            </button>
-          </article>
-
+          <div
+            id="external-documents-list"
+            class="documents-list"
+            aria-live="polite"
+          >
+            <div class="empty-state">Nenhum documento externo adicionado.</div>
+          </div>
+          <p class="supported-files">
+            Arquivos suportados: PDF, DOCX, PPTX, XLSX, TXT, Markdown, CSV/TSV,
+            HTML, JSON, YAML e XML.
+          </p>
+          <div class="external-document-controls">
+            <label class="field">
+              <span>Tamanho máximo de arquivo</span>
+              <input
+                id="rag-external-max-file-size"
+                type="number"
+                min="1"
+                max="250"
+                step="1"
+              />
+              <small>Valor em MB por arquivo</small>
+            </label>
+          </div>
           <div class="card-actions">
+            <button
+              id="clear-external-documents"
+              class="btn btn-danger"
+              type="button"
+            >
+              Remover todos
+            </button>
             <button id="add-file" class="btn btn-primary" type="button">
-              Adicionar novo arquivo
+              Adicionar arquivos
             </button>
           </div>
         </div>

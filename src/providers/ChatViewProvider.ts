@@ -353,6 +353,22 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         return this.ragService.listProjects();
       },
 
+      listExternalRagDocuments: () => {
+        return this.ragService.listExternalDocuments();
+      },
+
+      addExternalRagDocuments: async (uris, onProgress, signal) => {
+        return this.ragService.addExternalDocuments(uris, onProgress, signal);
+      },
+
+      deleteExternalRagDocument: async (sourceId) => {
+        return this.ragService.deleteExternalDocument(sourceId);
+      },
+
+      clearExternalRagDocuments: async () => {
+        return this.ragService.deleteAllExternalDocuments();
+      },
+
       indexCurrentWorkspace: async (onProgress, signal) => {
         return this.ragService.indexCurrentWorkspace(onProgress, signal);
       },

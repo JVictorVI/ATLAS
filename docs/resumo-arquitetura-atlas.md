@@ -1,6 +1,6 @@
 # Resumo de Status Arquitetural
 
-Atualizado em 26 de junho de 2026 com base na implementação presente no repositório.
+Atualizado em 29 de junho de 2026 com base na implementação presente no repositório.
 
 | Componente | Status atual |
 | --- | --- |
@@ -45,12 +45,12 @@ Atualizado em 26 de junho de 2026 com base na implementação presente no reposi
 | Indexação do workspace atual | Implementada |
 | Indexação de pasta escolhida | Implementada |
 | Progresso da indexação | Implementado por etapa, arquivos e chunks, com cancelamento |
-| Tela RAG | Implementada com status da base vetorial no topo, projetos indexados em destaque, documentos externos preparados e loading inicial não bloqueante |
+| Tela RAG | Implementada com status da base vetorial no topo, projetos indexados em destaque, documentos externos funcionais e loading inicial não bloqueante |
 | Atualização automática | Implementada por watcher e debounce; atualmente reindexa o projeto completo |
 | Recuperação semântica no chat | Implementada com fontes, relevância, filtros e limite de contexto |
 | Configurações de indexação | Implementadas, incluindo Markdown e JSON/configuração como opções independentes |
 | Configurações de recuperação | Implementadas: distância/relevância, diversidade, limite por arquivo, linguagem, diretório e prioridade |
-| Documentos externos no RAG | Interface e filtro preparados; ingestão de arquivos externos ainda não implementada |
+| Documentos externos no RAG | Implementados com ingestao, listagem, exclusao e recuperacao semantica em colecao externa por workspace |
 | Hugging Face API para busca de modelos | Planejada |
 | Download automatizado de modelos de chat | Planejado |
 | Backend Python | Não corresponde à implementação atual |
@@ -68,6 +68,6 @@ Atualizado em 26 de junho de 2026 com base na implementação presente no reposi
 ## Limitações atuais
 
 - Alterações em arquivos são detectadas, mas a atualização automática ainda reconstrói todo o índice do projeto.
-- A ingestão real de PDFs e outros documentos externos ainda não está disponível.
+- Formatos legados binarios do Office (`.doc`, `.xls`, `.ppt`) ainda nao possuem extrator dedicado; use `.docx`, `.xlsx` e `.pptx`.
 - O empacotamento validado atualmente tem como alvo `win32-x64`.
 - O chunking é textual por caracteres e linhas; chunking orientado a símbolos permanece como evolução.
