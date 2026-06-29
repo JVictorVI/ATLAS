@@ -19,23 +19,19 @@
       </div>
     </div>
 
-    <main id="library-page" class="content" aria-busy="true" aria-hidden="true">
-      <section class="library-page-heading">
-        <span class="library-page-icon">
-          <span aria-hidden="true">▦</span>
-        </span>
-        <div class="library-page-copy">
-          <h1>Biblioteca</h1>
-          <p>
-            Gerencie modelos locais, parâmetros de execução e diretivas de
-            comportamento
-          </p>
-          <p>
-            Configure a pasta de modelos nas "Configurações Gerais" e adicione
-            arquivos locais em formato GGUF para serem reconhecidos
-          </p>
+    <main
+      id="library-page"
+      class="library-page"
+      aria-busy="true"
+      aria-hidden="true"
+    >
+      <header class="page-heading">
+        <h1>Biblioteca</h1>
+        <div class="subtitle">
+          Gerencie modelos locais, parâmetros de execução e diretivas de
+          comportamento
         </div>
-      </section>
+      </header>
 
       <div id="empty-state" class="empty-state">
         Nenhum modelo encontrado. Configure uma pasta de modelos nas
@@ -44,8 +40,11 @@
       </div>
 
       <div id="model-details" class="hidden">
-        <div class="header-actions">
-          <span class="detail-kicker">Modelo selecionado</span>
+        <section class="content-section header-actions">
+          <div class="section-heading">
+            <h2>Modelo Selecionado</h2>
+            <p>Escolha o modelo local que será configurado nesta biblioteca</p>
+          </div>
           <div class="model-action-row">
             <div class="model-picker" id="model-picker">
               <button class="model-dropdown" id="model-select-button">
@@ -66,10 +65,12 @@
               </button>
             </div>
           </div>
-        </div>
+        </section>
 
-        <div class="card">
-          <div class="section-title">Informações do modelo</div>
+        <section class="content-section card model-info-section">
+          <div class="section-heading">
+            <h2>Informações do Modelo</h2>
+          </div>
           <div class="inline-fields">
             <div class="field gpu-field">
               <label>Modelo</label>
@@ -96,12 +97,12 @@
               <span class="readonly-value" id="info-size">-</span>
             </div>
           </div>
-        </div>
+        </section>
 
-        <div class="card">
-          <div class="section-title">Parâmetros de execução do modelo</div>
-          <div class="subtitle">
-            Ajuste como o modelo será executado na sua máquina
+        <section class="content-section card model-params-section">
+          <div class="section-heading">
+            <h2>Parâmetros de Execução do Modelo</h2>
+            <p>Ajuste como o modelo será executado na sua máquina</p>
           </div>
 
           <div class="inline-fields">
@@ -152,20 +153,23 @@
           <div class="row-end">
             <button class="btn-primary" id="btn-save-params">Salvar</button>
           </div>
-        </div>
+        </section>
 
-        <div class="card">
-          <div class="section-title">Comportamento do modelo</div>
-          <div class="subtitle">
-            Personalize parcialmente o comportamento base do modelo
+        <section class="content-section card model-behavior-section">
+          <div class="section-heading">
+            <h2>Comportamento do Modelo</h2>
+            <p>
+              Configure diretrizes complementares para as respostas, preservando
+              as políticas centrais do sistema
+            </p>
           </div>
 
           <div class="checkbox-group row-checkbox">
-            <label class="checkBoxSection">
+            <label class="checkBoxPromptSection">
               <input type="radio" name="behavior" id="toggle-default" checked />
               Comportamento padrão
             </label>
-            <label class="checkBoxSection">
+            <label class="checkBoxPromptSection">
               <input type="radio" name="behavior" id="toggle-custom" />
               Comportamento personalizado
             </label>
@@ -183,7 +187,7 @@
           <div class="row-end">
             <button class="btn-primary" id="btn-save-behavior">Salvar</button>
           </div>
-        </div>
+        </section>
       </div>
     </main>
     <script src="{{scriptUri}}"></script>

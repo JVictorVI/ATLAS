@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-06-26T18:30:24.993Z",
+  "updatedAt": "2026-06-29T15:15:34.808Z",
   "general": {
     "theme": "system",
     "language": "pt-BR",
@@ -85,7 +85,7 @@
     "selection": {
       "mode": "cloud",
       "local": {
-        "activeModelId": "local/Qwen3.5-4B-UD-Q8_K_XL"
+        "activeModelId": "local/gemma-3-1b-it-UD-Q5_K_XL"
       },
       "cloud": {
         "providerId": "Groq",
@@ -259,8 +259,8 @@
           "temperature": 0.7,
           "maxTokens": 4096,
           "topP": 0.95,
-          "gpuLayers": 0,
-          "contextWindow": 8192
+          "gpuLayers": 32,
+          "contextWindow": 4096
         },
         "metadata": {
           "source": "models-folder",
@@ -270,18 +270,50 @@
           "quantization": "Q8_K_XL",
           "size": "771.6 MB",
           "installedAt": "2026-06-23T20:38:09.267Z",
-          "updatedAt": "2026-06-26T18:30:24.993Z"
+          "updatedAt": "2026-06-29T15:15:30.791Z"
         },
         "custom": {
           "baseUrl": "http://127.0.0.1:8080/v1",
-          "engine": "llama.cpp"
+          "engine": "llama.cpp",
+          "tokensRes": 2048
+        }
+      },
+      "local/gemma-3-1b-it-UD-Q5_K_XL": {
+        "id": "local/gemma-3-1b-it-UD-Q5_K_XL",
+        "name": "gemma-3-1b-it-UD-Q5_K_XL",
+        "provider": "Google",
+        "enabled": true,
+        "source": "local",
+        "path": "c:\\Users\\jvict\\Downloads\\modelos\\gemma-3-1b-it-UD-Q5_K_XL.gguf",
+        "apiModelName": "gemma-3-1b-it-UD-Q5_K_XL",
+        "parameters": {
+          "temperature": 0.7,
+          "maxTokens": 4096,
+          "topP": 0.95,
+          "gpuLayers": 26,
+          "contextWindow": 4096
+        },
+        "metadata": {
+          "source": "models-folder",
+          "tags": [
+            "1B"
+          ],
+          "quantization": "Q5_K_XL",
+          "size": "833.8 MB",
+          "installedAt": "2026-06-29T11:57:17.922Z",
+          "updatedAt": "2026-06-29T15:15:30.778Z"
+        },
+        "custom": {
+          "baseUrl": "http://127.0.0.1:8080/v1",
+          "engine": "llama.cpp",
+          "tokensRes": 2048
         }
       }
     }
   },
   "custom": {
     "staticAnalysis": {
-      "enabled": true,
+      "enabled": false,
       "useInQuickAnalysis": true,
       "useInArchitecturalAnalysis": true,
       "includeDiagnostics": false,
@@ -296,7 +328,7 @@
       "enabled": false
     },
     "localEngine": {
-      "engineType": "cuda",
+      "engineType": "vulkan",
       "startOnAtlasOpen": true,
       "enginesDir": "c:\\Users\\jvict\\OneDrive\\Documentos\\Projetos\\ATLAS\\engine"
     },

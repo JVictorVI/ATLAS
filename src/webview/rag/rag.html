@@ -35,6 +35,25 @@
         </div>
       </header>
 
+      <section class="toggle-section" aria-labelledby="rag-use-title">
+        <h2 id="rag-use-title">Utilização de RAG</h2>
+        <label class="toggle-option">
+          <input id="rag-enabled" type="checkbox" checked />
+          <span class="checkbox" aria-hidden="true"></span>
+          <span>
+            Habilita o uso de recuperação semântica para enriquecer as análises
+            com contexto do projeto
+          </span>
+        </label>
+        <label class="toggle-option">
+          <input id="cloud-rag-enabled" type="checkbox" />
+          <span class="checkbox" aria-hidden="true"></span>
+          <span
+            >Permite o envio de contexto recuperado para modelos em nuvem</span
+          >
+        </label>
+      </section>
+
       <section class="runtime-section" aria-live="polite">
         <strong>Base vetorial:</strong>
         <span id="rag-runtime-status">Verificando ChromaDB...</span>
@@ -118,12 +137,24 @@
         </div>
       </section>
 
+      <section class="toggle-section" aria-labelledby="auto-index-title">
+        <h2 id="auto-index-title">Atualização Automática de Índices</h2>
+        <label class="toggle-option">
+          <input id="auto-index-enabled" type="checkbox" />
+          <span class="checkbox" aria-hidden="true"></span>
+          <span
+            >Reindexa automaticamente após alterações nos arquivos do
+            projeto</span
+          >
+        </label>
+      </section>
+
       <section
         class="content-section external-section"
         aria-labelledby="external-documents-title"
       >
         <div class="section-heading">
-          <h2 id="external-documents-title">Documentos Externos no RAG</h2>
+          <h2 id="external-documents-title">Documentos Externos</h2>
           <p>
             Adicione materiais complementares para enriquecer o contexto das
             respostas
@@ -177,41 +208,6 @@
             </button>
           </div>
         </div>
-      </section>
-
-      <section class="toggle-section" aria-labelledby="rag-use-title">
-        <h2 id="rag-use-title">Utilização de RAG</h2>
-        <label class="toggle-option">
-          <input id="rag-enabled" type="checkbox" checked />
-          <span class="checkbox" aria-hidden="true"></span>
-          <span>
-            Habilita o uso de recuperação semântica para enriquecer as análises
-            com contexto do projeto
-          </span>
-        </label>
-      </section>
-
-      <section class="toggle-section" aria-labelledby="cloud-use-title">
-        <h2 id="cloud-use-title">Uso do RAG em Nuvem</h2>
-        <label class="toggle-option">
-          <input id="cloud-rag-enabled" type="checkbox" />
-          <span class="checkbox" aria-hidden="true"></span>
-          <span
-            >Permite o envio de contexto recuperado para modelos em nuvem</span
-          >
-        </label>
-      </section>
-
-      <section class="toggle-section" aria-labelledby="auto-index-title">
-        <h2 id="auto-index-title">Atualização Automática</h2>
-        <label class="toggle-option">
-          <input id="auto-index-enabled" type="checkbox" />
-          <span class="checkbox" aria-hidden="true"></span>
-          <span
-            >Reindexa automaticamente após alterações nos arquivos do
-            projeto</span
-          >
-        </label>
       </section>
 
       <section
@@ -287,58 +283,6 @@
           Ao trocar o modelo de embeddings, os projetos já indexados serão
           marcados como desatualizados. Reindexe o projeto para gerar novos
           vetores compatíveis com o modelo selecionado.
-        </div>
-      </section>
-
-      <section
-        class="content-section"
-        aria-labelledby="retrieval-settings-title"
-      >
-        <div class="section-heading">
-          <h2 id="retrieval-settings-title">Configurações de Recuperação</h2>
-          <p>
-            Controle quantos trechos são recuperados e quanto contexto pode ser
-            enviado ao modelo
-          </p>
-        </div>
-
-        <div class="settings-grid">
-          <label class="field">
-            <span>Quantidade máxima de resultados (topK)</span>
-            <input id="rag-top-k" type="number" min="1" max="30" step="1" />
-            <small>Entre 1 e 30 chunks por consulta</small>
-          </label>
-
-          <label class="field">
-            <span>Limite de contexto enviado ao modelo</span>
-            <input
-              id="rag-context-limit"
-              type="number"
-              min="1000"
-              max="100000"
-              step="1000"
-            />
-            <small
-              >Quantidade máxima aproximada de caracteres recuperados</small
-            >
-          </label>
-        </div>
-
-        <label class="field field-full">
-          <span>Pastas e padrões ignorados</span>
-          <textarea
-            id="rag-ignored-paths"
-            rows="5"
-            spellcheck="false"
-            placeholder="node_modules&#10;dist&#10;.git&#10;**/*.generated.ts"
-          ></textarea>
-          <small>Informe um caminho ou padrão glob por linha</small>
-        </label>
-
-        <div class="settings-actions">
-          <button id="save-rag-settings" class="btn btn-primary" type="button">
-            Salvar configurações
-          </button>
         </div>
       </section>
 
@@ -570,6 +514,58 @@
             type="button"
           >
             Salvar recuperação
+          </button>
+        </div>
+      </section>
+
+      <section
+        class="content-section"
+        aria-labelledby="retrieval-settings-title"
+      >
+        <div class="section-heading">
+          <h2 id="retrieval-settings-title">Configurações de Recuperação</h2>
+          <p>
+            Controle quantos trechos são recuperados e quanto contexto pode ser
+            enviado ao modelo
+          </p>
+        </div>
+
+        <div class="settings-grid">
+          <label class="field">
+            <span>Quantidade máxima de resultados (topK)</span>
+            <input id="rag-top-k" type="number" min="1" max="30" step="1" />
+            <small>Entre 1 e 30 chunks por consulta</small>
+          </label>
+
+          <label class="field">
+            <span>Limite de contexto enviado ao modelo</span>
+            <input
+              id="rag-context-limit"
+              type="number"
+              min="1000"
+              max="100000"
+              step="1000"
+            />
+            <small
+              >Quantidade máxima aproximada de caracteres recuperados</small
+            >
+          </label>
+        </div>
+
+        <label class="field field-full">
+          <span>Pastas e padrões ignorados</span>
+          <textarea
+            id="rag-ignored-paths"
+            rows="5"
+            spellcheck="false"
+            placeholder="node_modules&#10;dist&#10;.git&#10;**/*.generated.ts"
+          ></textarea>
+          <small>Informe um caminho ou padrão glob por linha</small>
+        </label>
+
+        <div class="settings-actions">
+          <button id="save-rag-settings" class="btn btn-primary" type="button">
+            Salvar configurações
           </button>
         </div>
       </section>

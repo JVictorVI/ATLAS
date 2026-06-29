@@ -243,6 +243,10 @@ body.rag-loading-active .rag-page {
   border-color: var(--vscode-focusBorder);
 }
 
+.toggle-option + .toggle-option {
+  margin-top: 10px;
+}
+
 .toggle-option input {
   appearance: none;
   position: relative;

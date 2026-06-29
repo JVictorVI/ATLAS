@@ -45,6 +45,9 @@ let selectedModel = null;
 let libraryHealth = null;
 let libraryModels = [];
 let isLocalEngineActionRunning = false;
+let isLocalHealthLoading = false;
+let localHealthLoadError = null;
+let localHealthLoadingTimeout = undefined;
 
 function notifyCurrentView() {
   vscode.postMessage({ type: "atualizarViewAtual", view: currentView });
@@ -1057,7 +1060,7 @@ function renderLibraryView() {
   currentView = "library";
   notifyCurrentView();
   contentContainer.innerHTML = `
-    <section class="local-health-view">
+    <section class="local-health-view local-health-loading-active" aria-busy="true">
       <div class="local-health-header">
         <div class="local-health-icon" aria-hidden="true">
           <i class="codicon codicon-pulse"></i>
@@ -1068,7 +1071,18 @@ function renderLibraryView() {
         </div>
       </div>
 
-      <div class="local-health-status">
+      <div
+        id="local-health-loading"
+        class="local-health-loading"
+        role="status"
+        aria-live="polite"
+        aria-label="Carregando ambiente local"
+      >
+        <span class="spinner" aria-hidden="true"></span>
+      </div>
+
+      <div id="local-health-content" class="local-health-content" aria-hidden="true">
+        <div class="local-health-status">
         <span class="local-health-dot"></span>
         <span id="local-health-engine">Engine: -</span>
       </div>
@@ -1111,12 +1125,54 @@ function renderLibraryView() {
         <i class="codicon codicon-folder-opened"></i>
         <span>Abrir pasta</span>
       </button>
+      </div>
     </section>
   `;
   bindLocalHealthEvents();
-  renderLocalHealthPanel();
-  vscode.postMessage({ type: "requestModels" });
   vscode.postMessage({ type: "abrirPainelConfig", selectedView: "library" });
+  requestLocalHealthModels();
+}
+
+function requestLocalHealthModels() {
+  localHealthLoadError = null;
+  setLocalHealthLoading(true);
+  window.clearTimeout(localHealthLoadingTimeout);
+  localHealthLoadingTimeout = window.setTimeout(() => {
+    if (!isLocalHealthLoading) {
+      return;
+    }
+
+    localHealthLoadError =
+      "O ambiente local demorou mais que o esperado para responder.";
+    setLocalHealthLoading(false);
+    renderLocalHealthPanel();
+  }, 10000);
+
+  vscode.postMessage({ type: "requestModels" });
+}
+
+function setLocalHealthLoading(loading) {
+  isLocalHealthLoading = loading;
+
+  const view = document.querySelector(".local-health-view");
+  const loadingElement = document.getElementById("local-health-loading");
+  const content = document.getElementById("local-health-content");
+
+  view?.classList.toggle("local-health-loading-active", loading);
+  view?.setAttribute("aria-busy", loading ? "true" : "false");
+
+  if (loadingElement) {
+    loadingElement.hidden = !loading;
+  }
+
+  if (content) {
+    content.setAttribute("aria-hidden", loading ? "true" : "false");
+  }
+}
+
+function releaseLocalHealthLoading() {
+  window.clearTimeout(localHealthLoadingTimeout);
+  setLocalHealthLoading(false);
 }
 
 function bindLocalHealthEvents() {
@@ -1153,6 +1209,24 @@ function renderLocalHealthPanel() {
     totalBytes > 0
       ? Math.max(0, Math.min(100, (usedBytes / totalBytes) * 100))
       : 0;
+
+  if (localHealthLoadError) {
+    setLocalHealthText("local-health-engine", localHealthLoadError);
+    setLocalHealthText("local-health-vram-summary", "-");
+    setLocalHealthText("local-health-vram-used", "Usada: -");
+    setLocalHealthText("local-health-vram-free", "Livre: -");
+    setLocalHealthText("local-health-model-count", "-");
+    setLocalHealthText("local-health-model-size", "-");
+    setLocalHealthText("local-health-model-folder", "-");
+
+    const bar = document.getElementById("local-health-vram-bar");
+    if (bar) {
+      bar.style.width = "0%";
+    }
+
+    renderLocalEngineToggle();
+    return;
+  }
 
   setLocalHealthText(
     "local-health-engine",
@@ -1672,6 +1746,13 @@ window.addEventListener("message", (event) => {
     case "erro": {
       clearGenerationForMessage(message);
 
+      if (currentView === "library" && isLocalHealthLoading) {
+        localHealthLoadError =
+          message.value || "Não foi possível carregar o ambiente local.";
+        releaseLocalHealthLoading();
+        renderLocalHealthPanel();
+      }
+
       if (!isMessageForActiveSession(message)) {
         break;
       }
@@ -1747,6 +1828,8 @@ window.addEventListener("message", (event) => {
     case "updateModelsList": {
       libraryModels = message.models || [];
       libraryHealth = message.health || null;
+      localHealthLoadError = null;
+      releaseLocalHealthLoading();
 
       if (currentView === "library") {
         renderLocalHealthPanel();
