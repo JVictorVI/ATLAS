@@ -35,7 +35,7 @@ export class AtlasModelRegistryService {
       metadata: {
         ...(existing?.metadata ?? {}),
         ...(model.metadata ?? {}),
-        updatedAt: new Date().toISOString(),
+        updatedAt: model.metadata?.updatedAt ?? new Date().toISOString(),
       },
       custom: {
         ...(existing?.custom ?? {}),

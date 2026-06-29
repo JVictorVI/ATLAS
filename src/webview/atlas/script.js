@@ -4,6 +4,8 @@ const atlasLanguage = document.getElementById("atlas-language");
 const engineCpu = document.getElementById("engine-cpu");
 const engineCuda = document.getElementById("engine-cuda");
 const engineVulkan = document.getElementById("engine-vulkan");
+const contextWindowDynamic = document.getElementById("context-window-dynamic");
+const contextWindowFixed = document.getElementById("context-window-fixed");
 const engineStartOnOpen = document.getElementById("engine-start-on-open");
 const staticAnalysisEnabled = document.getElementById(
   "static-analysis-enabled",
@@ -81,6 +83,16 @@ function applyAtlasSettings(value) {
     engineVulkan.checked = engineType === "vulkan";
   }
 
+  const dynamicContextWindow = value?.dynamicContextWindow !== false;
+
+  if (contextWindowDynamic) {
+    contextWindowDynamic.checked = dynamicContextWindow;
+  }
+
+  if (contextWindowFixed) {
+    contextWindowFixed.checked = !dynamicContextWindow;
+  }
+
   if (engineStartOnOpen) {
     engineStartOnOpen.checked = value?.startOnAtlasOpen === true;
   }
@@ -127,6 +139,7 @@ function saveAtlasSettings() {
     payload: {
       language: atlasLanguage?.value === "en-US" ? "en-US" : "pt-BR",
       engineType: getSelectedEngineType(),
+      dynamicContextWindow: contextWindowFixed?.checked !== true,
       startOnAtlasOpen: engineStartOnOpen?.checked === true,
       modelsDir: modelsFolderPath?.value || "",
       enginesDir: enginesFolderPath?.value || "",

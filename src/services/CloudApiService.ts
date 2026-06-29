@@ -21,6 +21,8 @@ import {
 } from "../managers/AtlasConfigManager";
 
 export class CloudApiService {
+  private readonly cloudMaxTokensCache = new Map<string, number | null>();
+
   constructor(
     private readonly configManager: AtlasConfigManager,
     private readonly apiKeyManager: ApiKeyManager,
@@ -57,6 +59,12 @@ export class CloudApiService {
     }
 
     const providerKind = this.getProviderKind(provider);
+    const maxTokens = await this.resolveCloudMaxTokens(
+      provider,
+      modelId,
+      apiKey,
+      config.llms.defaults.maxTokens,
+    );
 
     switch (providerKind) {
       case "claude":
@@ -65,6 +73,8 @@ export class CloudApiService {
           modelId,
           apiKey,
           messages,
+          maxTokens,
+          config.llms.defaults.temperature,
           onChunk,
           options?.signal,
         );
@@ -75,6 +85,9 @@ export class CloudApiService {
           modelId,
           apiKey,
           messages,
+          maxTokens,
+          config.llms.defaults.temperature,
+          config.llms.defaults.topP,
           onChunk,
           options?.signal,
         );
@@ -87,7 +100,7 @@ export class CloudApiService {
           apiKey,
           messages,
           config.llms.defaults.temperature,
-          config.llms.defaults.maxTokens,
+          maxTokens,
           config.llms.defaults.topP,
           onChunk,
           options?.signal,
@@ -377,11 +390,59 @@ export class CloudApiService {
     }));
   }
 
+  private async resolveCloudMaxTokens(
+    provider: ProviderConfig,
+    modelId: string,
+    apiKey: string,
+    configuredMaxTokens: number,
+  ): Promise<number> {
+    const fallback = this.normalizePositiveInteger(configuredMaxTokens, 2048);
+
+    if (this.configManager.getConfig().cloudSecurity?.dynamicMaxTokens !== true) {
+      return fallback;
+    }
+
+    const cacheKey = `${provider.id}::${modelId}`;
+
+    if (!this.cloudMaxTokensCache.has(cacheKey)) {
+      try {
+        const models = await this.getModelsForProvider(provider, apiKey);
+        const selectedModel = models.find(
+          (model) => model.id === modelId || model.label === modelId,
+        );
+        const maxTokens =
+          typeof selectedModel?.maxTokens === "number" &&
+          Number.isFinite(selectedModel.maxTokens) &&
+          selectedModel.maxTokens > 0
+            ? Math.floor(selectedModel.maxTokens)
+            : null;
+
+        this.cloudMaxTokensCache.set(cacheKey, maxTokens);
+      } catch {
+        this.cloudMaxTokensCache.set(cacheKey, null);
+      }
+    }
+
+    return this.cloudMaxTokensCache.get(cacheKey) ?? fallback;
+  }
+
+  private normalizePositiveInteger(value: unknown, fallback: number): number {
+    const normalized = Number(value);
+
+    if (!Number.isFinite(normalized) || normalized <= 0) {
+      return fallback;
+    }
+
+    return Math.floor(normalized);
+  }
+
   private async sendClaudeChat(
     provider: ProviderConfig,
     modelId: string,
     apiKey: string,
     messages: ChatMessage[],
+    maxTokens: number,
+    temperature: number,
     onChunk?: (chunk: string) => void,
     signal?: AbortSignal,
   ): Promise<AtlasCloudChatResponse> {
@@ -410,8 +471,8 @@ export class CloudApiService {
       },
       body: JSON.stringify({
         model: modelId,
-        max_tokens: this.configManager.getConfig().llms.defaults.maxTokens,
-        temperature: this.configManager.getConfig().llms.defaults.temperature,
+        max_tokens: maxTokens,
+        temperature,
         system: systemMessages || undefined,
         messages: nonSystemMessages,
       }),
@@ -443,6 +504,9 @@ export class CloudApiService {
     modelId: string,
     apiKey: string,
     messages: ChatMessage[],
+    maxTokens: number,
+    temperature: number,
+    topP: number,
     onChunk?: (chunk: string) => void,
     signal?: AbortSignal,
   ): Promise<AtlasCloudChatResponse> {
@@ -478,10 +542,9 @@ export class CloudApiService {
           : undefined,
         contents,
         generationConfig: {
-          temperature: this.configManager.getConfig().llms.defaults.temperature,
-          topP: this.configManager.getConfig().llms.defaults.topP,
-          maxOutputTokens:
-            this.configManager.getConfig().llms.defaults.maxTokens,
+          temperature,
+          topP,
+          maxOutputTokens: maxTokens,
         },
       }),
       signal,
@@ -638,6 +701,13 @@ export class CloudApiService {
       throw new Error(`API key não encontrada para "${provider.label}".`);
     }
 
+    return this.getModelsForProvider(provider, apiKey);
+  }
+
+  private async getModelsForProvider(
+    provider: ProviderConfig,
+    apiKey: string,
+  ): Promise<AtlasModelSummary[]> {
     const providerKind = this.getProviderKind(provider);
 
     switch (providerKind) {

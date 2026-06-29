@@ -97,12 +97,6 @@ function setLibraryLoading(loading) {
 
   if (libraryPage) {
     libraryPage.setAttribute("aria-busy", loading ? "true" : "false");
-
-    if (loading) {
-      libraryPage.setAttribute("aria-hidden", "true");
-    } else {
-      libraryPage.removeAttribute("aria-hidden");
-    }
   }
 }
 

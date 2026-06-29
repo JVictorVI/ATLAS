@@ -22,10 +22,22 @@ export class ChatResponseController {
     data: any,
     webview: vscode.Webview,
   ): Promise<void> {
+    const previousUsesLocalEngine =
+      this.activeResponseSnapshot?.usesLocalEngine === true;
+
     this.activeResponseController?.abort();
+    if (previousUsesLocalEngine) {
+      this.forceStopLocalEngineForCancellation();
+    }
+
     const responseController = new AbortController();
     this.activeResponseController = responseController;
     let responseSessionId: string | undefined;
+    const generationId =
+      typeof data.generationId === "string" && data.generationId.trim()
+        ? data.generationId.trim()
+        : undefined;
+    const usesLocalEngine = this.deps.configManager.isLocalMode();
 
     try {
       const session = this.deps.sessionService.ensureActiveSession();
@@ -42,6 +54,8 @@ export class ChatResponseController {
         userContent: data.value,
         partialContent: "",
         isStreaming: shouldStream,
+        generationId,
+        usesLocalEngine,
       };
 
       this.activeResponseSnapshot = responseSnapshot;
@@ -152,10 +166,15 @@ export class ChatResponseController {
         ? await this.deps.inferenceService.sendChat(
             promptResult.messages,
             async (chunk: string) => {
+              if (responseController.signal.aborted) {
+                return;
+              }
+
               responseSnapshot.partialContent += chunk;
               await webview.postMessage({
                 type: "respostaParcial",
                 sessionId: session.id,
+                generationId,
                 value: chunk,
               });
             },
@@ -166,6 +185,8 @@ export class ChatResponseController {
             undefined,
             { signal: responseController.signal },
           );
+
+      this.throwIfAborted(responseController);
 
       await this.deps.sessionService.appendMessage(session.id, {
         role: "user",
@@ -190,6 +211,7 @@ export class ChatResponseController {
         await webview.postMessage({
           type: "novaResposta",
           sessionId: session.id,
+          generationId,
           value: response.content,
           metadata: {
             ...this.buildResponseMetadata(promptResult.mode, response),
@@ -203,6 +225,7 @@ export class ChatResponseController {
         await webview.postMessage({
           type: "fimResposta",
           sessionId: session.id,
+          generationId,
           metadata: {
             ...this.buildResponseMetadata(promptResult.mode, response),
             sessionId: session.id,
@@ -227,6 +250,7 @@ export class ChatResponseController {
         await webview.postMessage({
           type: "geracaoCancelada",
           sessionId: responseSessionId,
+          generationId,
         });
         return;
       }
@@ -237,6 +261,7 @@ export class ChatResponseController {
       await webview.postMessage({
         type: "erro",
         sessionId: this.activeResponseSnapshot?.sessionId,
+        generationId,
         value: message,
       });
     } finally {
@@ -251,14 +276,35 @@ export class ChatResponseController {
   }
 
   public async handleCancelGeneration(webview: vscode.Webview): Promise<void> {
-    if (!this.activeResponseController) {
+    const responseController = this.activeResponseController;
+    const snapshot = this.activeResponseSnapshot;
+
+    if (!responseController) {
       await webview.postMessage({
         type: "geracaoCancelada",
       });
       return;
     }
 
-    this.activeResponseController.abort();
+    responseController.abort();
+
+    if (snapshot?.usesLocalEngine || this.deps.configManager.isLocalMode()) {
+      this.forceStopLocalEngineForCancellation();
+    }
+
+    if (this.activeResponseController === responseController) {
+      this.activeResponseController = null;
+    }
+
+    if (this.activeResponseSnapshot === snapshot) {
+      this.activeResponseSnapshot = null;
+    }
+
+    await webview.postMessage({
+      type: "geracaoCancelada",
+      sessionId: snapshot?.sessionId,
+      generationId: snapshot?.generationId,
+    });
   }
 
   private async handleQuickAnalysisFromChat(
@@ -292,6 +338,7 @@ export class ChatResponseController {
       userContent: this.activeResponseSnapshot.userContent,
       partialContent: this.activeResponseSnapshot.partialContent,
       isStreaming: this.activeResponseSnapshot.isStreaming,
+      generationId: this.activeResponseSnapshot.generationId,
     };
   }
 
@@ -326,6 +373,24 @@ export class ChatResponseController {
       usage: response.usage,
       createdAt: response.createdAt,
     };
+  }
+
+  private throwIfAborted(responseController: AbortController): void {
+    if (!responseController.signal.aborted) {
+      return;
+    }
+
+    const error = new Error("Geração cancelada pelo usuário.");
+    error.name = "AbortError";
+    throw error;
+  }
+
+  private forceStopLocalEngineForCancellation(): void {
+    try {
+      this.deps.stopLocalEngine({ force: true });
+    } catch (error) {
+      console.warn("[ATLAS] Falha ao forcar parada da engine local:", error);
+    }
   }
 
   private getErrorMessage(error: unknown, fallback: string): string {

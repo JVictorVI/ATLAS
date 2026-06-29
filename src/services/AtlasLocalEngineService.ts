@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
-import { ChildProcessWithoutNullStreams, spawn } from "child_process";
+import { ChildProcessWithoutNullStreams, spawn, spawnSync } from "child_process";
 import { AtlasConfigManager } from "../managers/AtlasConfigManager";
 import { AtlasModelConfig } from "../interfaces/AtlasConfigTypes";
 
@@ -104,16 +104,25 @@ export class AtlasLocalEngineService {
     await this.emitStatus(`Engine local pronta: ${model.name}.`);
   }
 
-  public stopEngine(): void {
-    if (!this.process) {
+  public stopEngine(options: { force?: boolean } = {}): void {
+    const runningProcess = this.process;
+
+    if (!runningProcess) {
       return;
     }
 
-    this.process.kill();
+    const pid = runningProcess.pid;
     this.process = null;
     this.runningModelId = null;
     this.runningEngineType = null;
     this.runningExecutablePath = null;
+
+    if (options.force) {
+      this.forceKillProcess(runningProcess, pid);
+      return;
+    }
+
+    runningProcess.kill();
   }
 
   public async restartEngine(model: AtlasModelConfig): Promise<void> {
@@ -308,5 +317,29 @@ export class AtlasLocalEngineService {
 
   private async waitAfterStop(): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, 700));
+  }
+
+  private forceKillProcess(
+    runningProcess: ChildProcessWithoutNullStreams,
+    pid?: number,
+  ): void {
+    if (process.platform === "win32" && pid) {
+      const result = spawnSync("taskkill", ["/PID", String(pid), "/T", "/F"], {
+        windowsHide: true,
+      });
+
+      if (!result.error && result.status === 0) {
+        return;
+      }
+
+      const detail =
+        result.error?.message || result.stderr.toString().trim() || "sem detalhes";
+
+      console.warn(
+        `[ATLAS local engine] Falha ao forcar encerramento com taskkill: ${detail}`,
+      );
+    }
+
+    runningProcess.kill("SIGKILL");
   }
 }

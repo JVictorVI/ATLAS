@@ -21,7 +21,11 @@ export class AtlasLocalModelDiscoveryService {
       .map((entry) => this.createModelConfig(entry.name));
 
     for (const model of discoveredModels) {
-      this.configManager.upsertModel(model);
+      const existing = this.configManager.getLocalModel(model.id);
+
+      if (!existing || this.shouldUpsertDiscoveredModel(existing, model)) {
+        this.configManager.upsertModel(model);
+      }
     }
 
     const discoveredIds = new Set(discoveredModels.map((model) => model.id));
@@ -95,6 +99,42 @@ export class AtlasLocalModelDiscoveryService {
         ...(existing?.custom ?? {}),
       },
     };
+  }
+
+  private shouldUpsertDiscoveredModel(
+    existing: AtlasModelConfig,
+    discovered: AtlasModelConfig,
+  ): boolean {
+    const existingMetadata = existing.metadata ?? {};
+    const discoveredMetadata = discovered.metadata ?? {};
+    const existingCustom = existing.custom ?? {};
+    const discoveredCustom = discovered.custom ?? {};
+
+    return (
+      existing.source !== discovered.source ||
+      existing.path !== discovered.path ||
+      existing.apiModelName !== discovered.apiModelName ||
+      existingMetadata.source !== discoveredMetadata.source ||
+      existingMetadata.quantization !== discoveredMetadata.quantization ||
+      existingMetadata.size !== discoveredMetadata.size ||
+      !this.areStringArraysEqual(
+        existingMetadata.tags,
+        discoveredMetadata.tags,
+      ) ||
+      existingCustom.baseUrl !== discoveredCustom.baseUrl ||
+      existingCustom.engine !== discoveredCustom.engine
+    );
+  }
+
+  private areStringArraysEqual(left: unknown, right: unknown): boolean {
+    const leftValues = Array.isArray(left) ? left : [];
+    const rightValues = Array.isArray(right) ? right : [];
+
+    if (leftValues.length !== rightValues.length) {
+      return false;
+    }
+
+    return leftValues.every((value, index) => value === rightValues[index]);
   }
 
   private inferTag(modelName: string): string {

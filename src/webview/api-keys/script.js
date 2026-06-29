@@ -9,6 +9,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const addKeyBtn = document.getElementById("add-key-btn");
   const saveSecurityBtn = document.getElementById("save-security-btn");
   const limitPayload = document.getElementById("limitPayload");
+  const dynamicMaxTokens = document.getElementById("dynamicMaxTokens");
 
   if (addKeyBtn) {
     addKeyBtn.addEventListener("click", () => {
@@ -34,6 +35,10 @@ window.addEventListener("DOMContentLoaded", () => {
 
   if (limitPayload) {
     limitPayload.addEventListener("change", deactivateInputs);
+  }
+
+  if (dynamicMaxTokens) {
+    dynamicMaxTokens.addEventListener("change", deactivateInputs);
   }
 
   vscode.postMessage({ type: "listarChaves" });
@@ -196,8 +201,12 @@ function fillCloudSecuritySettings(settings) {
   const temperature = document.getElementById("temperature");
   const topP = document.getElementById("topP");
   const stream = document.getElementById("stream");
+  const dynamicMaxTokens = document.getElementById("dynamicMaxTokens");
 
   if (limitPayload) limitPayload.checked = Boolean(settings.limitPayload);
+  if (dynamicMaxTokens) {
+    dynamicMaxTokens.checked = settings.dynamicMaxTokens === true;
+  }
   if (stream) stream.checked = Boolean(settings.stream);
 
   if (maxTokens && settings.maxTokens !== undefined) {
@@ -224,11 +233,13 @@ function saveCloudSecuritySettings() {
   const temperature = document.getElementById("temperature");
   const topP = document.getElementById("topP");
   const stream = document.getElementById("stream");
+  const dynamicMaxTokens = document.getElementById("dynamicMaxTokens");
 
   vscode.postMessage({
     type: "salvarConfiguracoesSeguranca",
     payload: {
       limitPayload: Boolean(limitPayload?.checked),
+      dynamicMaxTokens: Boolean(dynamicMaxTokens?.checked),
       maxTokens: maxTokens?.value ? Number(maxTokens.value) : undefined,
       timeout: timeout?.value ? Number(timeout.value) : undefined,
       temperature: temperature?.value ? Number(temperature.value) : undefined,
@@ -248,16 +259,21 @@ function escapeHtml(value) {
 }
 
 function deactivateInputs() {
-  const inputs = document.querySelectorAll(
-    "#timeout, #maxTokens, #temperature, #topP",
-  );
+  const inputs = document.querySelectorAll("#timeout, #temperature, #topP");
+  const maxTokens = document.getElementById("maxTokens");
   const limitPayload = document.getElementById("limitPayload");
+  const dynamicMaxTokens = document.getElementById("dynamicMaxTokens");
 
   const enabled = Boolean(limitPayload?.checked);
+  const usesDynamicMaxTokens = Boolean(dynamicMaxTokens?.checked);
 
   inputs.forEach((input) => {
     input.disabled = !enabled;
   });
+
+  if (maxTokens) {
+    maxTokens.disabled = !enabled || usesDynamicMaxTokens;
+  }
 }
 
 function updateBehaviorState() {

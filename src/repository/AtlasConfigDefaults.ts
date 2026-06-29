@@ -1,5 +1,6 @@
 import {
   AtlasConfigSchema,
+  AtlasLocalEngineCustomConfig,
   AtlasRagSettings,
   ProviderConfig,
 } from "../interfaces/AtlasConfigTypes";
@@ -17,6 +18,7 @@ export class AtlasConfigDefaults {
       },
       cloudSecurity: {
         limitPayload: true,
+        dynamicMaxTokens: false,
         maxTokens: 2048,
         timeout: 30,
       },
@@ -103,6 +105,9 @@ export class AtlasConfigDefaults {
         localModels: {},
       },
       custom: {
+        localEngine: {
+          dynamicContextWindow: true,
+        },
         staticAnalysis: {
           enabled: true,
           useInQuickAnalysis: true,
@@ -130,6 +135,10 @@ export class AtlasConfigDefaults {
       ragPartial.includeMarkdownFiles ?? legacyIncludeSupportFiles;
     const includeConfigFiles =
       ragPartial.includeConfigFiles ?? legacyIncludeSupportFiles;
+    const defaultLocalEngine = (defaults.custom?.localEngine ??
+      {}) as AtlasLocalEngineCustomConfig;
+    const partialLocalEngine = (partial.custom?.localEngine ??
+      {}) as AtlasLocalEngineCustomConfig;
 
     return {
       ...defaults,
@@ -181,6 +190,14 @@ export class AtlasConfigDefaults {
       custom: {
         ...(defaults.custom ?? {}),
         ...(partial.custom ?? {}),
+        localEngine: {
+          ...defaultLocalEngine,
+          ...partialLocalEngine,
+          dynamicContextWindow:
+            partialLocalEngine.dynamicContextWindow ??
+            defaultLocalEngine.dynamicContextWindow ??
+            true,
+        },
         staticAnalysis: {
           enabled:
             partial.custom?.staticAnalysis?.enabled ??

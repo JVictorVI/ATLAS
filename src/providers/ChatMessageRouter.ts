@@ -37,6 +37,16 @@ export class ChatMessageRouter {
   }
 
   public async handle(data: any, webview: vscode.Webview): Promise<void> {
+    if (data.type === "requestModels") {
+      this.deps.sendModelsToWebview(webview);
+      return;
+    }
+
+    if (data.type === "carregarLLMs") {
+      await this.handleLoadLlms(webview);
+      return;
+    }
+
     const handledByApiKeyManager = await this.deps.apiKeyManager.handleMessage(
       data,
       webview,
@@ -47,9 +57,6 @@ export class ChatMessageRouter {
     }
 
     switch (data.type) {
-      case "carregarLLMs":
-        await this.handleLoadLlms(webview);
-        return;
       case "atualizarViewAtual":
         this.handleUpdateCurrentView(data);
         return;
@@ -146,9 +153,6 @@ export class ChatMessageRouter {
         return;
       case "selecionarProviderCloud":
         await this.handleSelectCloudProvider(data, webview);
-        return;
-      case "requestModels":
-        this.deps.sendModelsToWebview(webview);
         return;
       case "saveModelParams":
         await this.handleSaveModelParams(data, webview);
@@ -1004,6 +1008,7 @@ export class ChatMessageRouter {
     try {
       const {
         limitPayload,
+        dynamicMaxTokens,
         maxTokens,
         timeout,
         temperature,
@@ -1013,6 +1018,7 @@ export class ChatMessageRouter {
 
       this.deps.configManager.updateSecuritySettings({
         limitPayload,
+        dynamicMaxTokens,
         maxTokens,
         timeout,
       });
@@ -1187,6 +1193,7 @@ export class ChatMessageRouter {
           : {};
       const engineType = this.normalizeLocalEngineType(payload.engineType);
       const startOnAtlasOpen = payload.startOnAtlasOpen === true;
+      const dynamicContextWindow = payload.dynamicContextWindow !== false;
       const localModels =
         typeof currentCustom.localModels === "object" &&
         currentCustom.localModels !== null
@@ -1225,6 +1232,7 @@ export class ChatMessageRouter {
           ...currentLocalEngine,
           engineType,
           startOnAtlasOpen,
+          dynamicContextWindow,
           enginesDir: enginesDir || this.deps.getLocalEnginesDir(),
         },
       });
@@ -1698,6 +1706,7 @@ export class ChatMessageRouter {
       language: this.normalizeResponseLanguage(config.general.language),
       engineType: this.normalizeLocalEngineType(value.engineType),
       startOnAtlasOpen: value.startOnAtlasOpen === true,
+      dynamicContextWindow: value.dynamicContextWindow !== false,
       modelsDir: this.deps.getLocalModelsDir(),
       enginesDir: this.deps.getLocalEnginesDir(),
       staticAnalysisEnabled: staticAnalysis.enabled,

@@ -16,7 +16,19 @@ type GpuMemoryInfo = {
   freeLabel: string;
 };
 
+type LayerCountCacheEntry = {
+  size: number;
+  mtimeMs: number;
+  value: number | null;
+};
+
 export class ChatModelWebviewService {
+  private readonly layerCountCache = new Map<string, LayerCountCacheEntry>();
+  private gpuMemoryCache: {
+    expiresAt: number;
+    value: GpuMemoryInfo | null;
+  } | null = null;
+
   constructor(
     private readonly localModelDiscoveryService: AtlasLocalModelDiscoveryService,
     private readonly configManager: AtlasConfigManager,
@@ -25,13 +37,40 @@ export class ChatModelWebviewService {
 
   public sendModelsToWebview(webview: vscode.Webview): void {
     const localModels = this.localModelDiscoveryService.refreshLocalModels();
-    const gpuMemory = this.getGpuMemoryInfo();
     const totalSizeBytes = localModels.reduce(
       (sum, model) =>
         sum + (model.path ? this.getFileSizeBytes(model.path) : 0),
       0,
     );
 
+    this.postModelsToWebview(webview, {
+      localModels,
+      totalSizeBytes,
+      gpuMemory: null,
+      includeLayerInfo: false,
+    });
+
+    setTimeout(() => {
+      this.postModelsToWebview(webview, {
+        localModels,
+        totalSizeBytes,
+        gpuMemory: this.getCachedGpuMemoryInfo(),
+        includeLayerInfo: true,
+      });
+    }, 250);
+  }
+
+  private postModelsToWebview(
+    webview: vscode.Webview,
+    options: {
+      localModels: ReturnType<AtlasConfigManager["getLocalModels"]>;
+      totalSizeBytes: number;
+      gpuMemory: GpuMemoryInfo | null;
+      includeLayerInfo: boolean;
+    },
+  ): void {
+    const { localModels, totalSizeBytes, gpuMemory, includeLayerInfo } =
+      options;
     const modelsList = localModels.map((model) => ({
       id: model.id,
       name: model.name || model.id,
@@ -45,7 +84,10 @@ export class ChatModelWebviewService {
       size: model.metadata?.size || "-",
       sizeBytes: model.path ? this.getFileSizeBytes(model.path) : 0,
       layerInfo: {
-        totalLayers: model.path ? this.getGgufLayerCount(model.path) : null,
+        totalLayers:
+          includeLayerInfo && model.path
+            ? this.getCachedGgufLayerCount(model.path)
+            : null,
       },
       hardware: {
         gpuMemory,
@@ -62,19 +104,21 @@ export class ChatModelWebviewService {
       systemPrompt: model.custom?.systemPrompt || "",
     }));
 
-    webview.postMessage({
-      type: "updateModelsList",
-      models: modelsList,
-      health: {
-        engineType: this.getConfiguredEngineType(),
-        engineRunning: this.isLocalEngineRunning(),
-        gpuMemory,
-        modelsDir: this.localModelDiscoveryService.getModelsDir(),
-        modelsCount: localModels.length,
-        totalSizeBytes,
-        totalSizeLabel: this.formatBytes(totalSizeBytes),
-      },
-    });
+    void webview
+      .postMessage({
+        type: "updateModelsList",
+        models: modelsList,
+        health: {
+          engineType: this.getConfiguredEngineType(),
+          engineRunning: this.isLocalEngineRunning(),
+          gpuMemory,
+          modelsDir: this.localModelDiscoveryService.getModelsDir(),
+          modelsCount: localModels.length,
+          totalSizeBytes,
+          totalSizeLabel: this.formatBytes(totalSizeBytes),
+        },
+      })
+      .then(undefined, () => undefined);
   }
 
   private getFileSizeBytes(filePath: string): number {
@@ -83,6 +127,22 @@ export class ChatModelWebviewService {
     } catch {
       return 0;
     }
+  }
+
+  private getCachedGpuMemoryInfo(): GpuMemoryInfo | null {
+    const now = Date.now();
+
+    if (this.gpuMemoryCache && this.gpuMemoryCache.expiresAt > now) {
+      return this.gpuMemoryCache.value;
+    }
+
+    const value = this.getGpuMemoryInfo();
+    this.gpuMemoryCache = {
+      value,
+      expiresAt: now + 10000,
+    };
+
+    return value;
   }
 
   private getGpuMemoryInfo(): GpuMemoryInfo | null {
@@ -188,6 +248,32 @@ export class ChatModelWebviewService {
     }
 
     return "cpu";
+  }
+
+  private getCachedGgufLayerCount(filePath: string): number | null {
+    try {
+      const stat = fs.statSync(filePath);
+      const cached = this.layerCountCache.get(filePath);
+
+      if (
+        cached &&
+        cached.size === stat.size &&
+        cached.mtimeMs === stat.mtimeMs
+      ) {
+        return cached.value;
+      }
+
+      const value = this.getGgufLayerCount(filePath);
+      this.layerCountCache.set(filePath, {
+        size: stat.size,
+        mtimeMs: stat.mtimeMs,
+        value,
+      });
+
+      return value;
+    } catch {
+      return null;
+    }
   }
 
   private getGgufLayerCount(filePath: string): number | null {

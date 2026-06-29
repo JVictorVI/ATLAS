@@ -62,7 +62,11 @@ function requestLatestLlmState() {
 let activeSessions = []; // AtlasSessionSummary[]
 let activeSessionId = null; // string | null
 let editingSessionId = null; // string | null (for inline rename)
+let pendingSessionId = null;
 let activeGenerationSessionId = null;
+let activeGenerationId = null;
+let generationSequence = 0;
+const cancelledGenerationIds = new Set();
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 
@@ -139,8 +143,9 @@ function renderSessionList() {
 
   activeSessions.forEach((session) => {
     const isGenerating = session.id === activeGenerationSessionId;
+    const isPending = session.id === pendingSessionId;
     const li = document.createElement("li");
-    li.className = `session-item${session.id === activeSessionId ? " active" : ""}${isGenerating ? " generating" : ""}`;
+    li.className = `session-item${session.id === activeSessionId ? " active" : ""}${isGenerating ? " generating" : ""}${isPending ? " loading-session" : ""}`;
     li.dataset.id = session.id;
 
     const icon = session.hasArchitecturalSummary
@@ -154,10 +159,16 @@ function renderSessionList() {
       ? `<span class="session-loading" title="Resposta em geração"><span class="spinner small"></span></span>`
       : "";
 
+    const pendingIndicator =
+      isPending && !isGenerating
+        ? `<span class="session-loading" title="Carregando sessao"><span class="spinner small"></span></span>`
+        : "";
+
     li.innerHTML = `
       <i class="codicon ${icon} session-icon"></i>
       <span class="session-label" title="${escapeHtml(session.title)}">${escapeHtml(session.title)}</span>
       ${generationIndicator}
+      ${pendingIndicator}
       ${msgCount}
       <div class="session-actions">
         <button class="session-action-btn rename-btn" title="Renomear" data-id="${session.id}">
@@ -172,6 +183,9 @@ function renderSessionList() {
     li.addEventListener("click", (e) => {
       if (e.target.closest(".session-action-btn")) return;
       if (session.id !== activeSessionId) {
+        pendingSessionId = session.id;
+        renderSessionList();
+        showSessionSwitchLoading();
         vscode.postMessage({ type: "trocarSessao", sessionId: session.id });
       }
     });
@@ -283,12 +297,34 @@ function loadChatMessages(session, activeGeneration = null) {
   scrollChatToBottom(true);
 }
 
+function showSessionSwitchLoading() {
+  const chatContainer = getChatContainer();
+  if (!chatContainer) {
+    return;
+  }
+
+  chatContainer.innerHTML = `
+    <div
+      class="chat-session-loading"
+      role="status"
+      aria-live="polite"
+      aria-label="Carregando conversa"
+    >
+      <span class="spinner"></span>
+    </div>
+  `;
+  loadingElement = null;
+  mensagemAtualBot = null;
+  bufferResposta = "";
+}
+
 function renderPendingGeneration(activeGeneration) {
   if (!activeGeneration) {
     setGenerationState(false);
     return;
   }
 
+  activeGenerationId = activeGeneration.generationId || activeGenerationId;
   addMessage(activeGeneration.userContent, "user");
 
   const partialContent = String(activeGeneration.partialContent || "");
@@ -717,6 +753,35 @@ function updateMainButton() {
 
 // ── Chat events ───────────────────────────────────────────────────────────────
 
+function createGenerationId() {
+  generationSequence += 1;
+  return `generation-${Date.now()}-${generationSequence}`;
+}
+
+function beginGeneration(sessionId = activeSessionId) {
+  activeGenerationId = createGenerationId();
+  activeGenerationSessionId = sessionId || null;
+
+  if (activeGenerationSessionId) {
+    renderSessionList();
+  }
+
+  return activeGenerationId;
+}
+
+function rememberCancelledGeneration(generationId) {
+  if (!generationId) {
+    return;
+  }
+
+  cancelledGenerationIds.add(generationId);
+
+  if (cancelledGenerationIds.size > 20) {
+    const oldestGenerationId = cancelledGenerationIds.values().next().value;
+    cancelledGenerationIds.delete(oldestGenerationId);
+  }
+}
+
 function setupChatEvents() {
   const input = document.getElementById("pergunta");
   const btn = document.getElementById("send-btn");
@@ -768,10 +833,12 @@ function setupChatEvents() {
 
       shortcutLoadingState.architectureAnalysis = true;
       setShortcutLoading("architecture-analysis", true);
+      const generationId = beginGeneration();
       showLoading();
 
       vscode.postMessage({
         type: "enviarPergunta",
+        generationId,
         forcedMode: "architectural-analysis",
         value: "Realize uma análise arquitetural deste código.",
         selectedView: currentView,
@@ -801,13 +868,13 @@ function setupChatEvents() {
 
     const texto = input.value.trim();
     if (!texto) return;
+    const generationId = beginGeneration();
     addMessage(texto, "user");
     showLoading();
-    activeGenerationSessionId = activeSessionId;
-    renderSessionList();
 
     vscode.postMessage({
       type: "enviarPergunta",
+      generationId,
       value: texto,
       selectedView: currentView,
       agentId: selectedModel ? selectedModel.id : null,
@@ -833,9 +900,26 @@ function setupChatEvents() {
 function cancelarGeracao() {
   if (!isGeneratingResponse) return;
 
+  const generationId = activeGenerationId;
+  const sessionId = activeGenerationSessionId;
+
+  rememberCancelledGeneration(generationId);
+
   vscode.postMessage({
     type: "cancelarGeracao",
+    sessionId,
+    generationId,
   });
+
+  activeGenerationId = null;
+  activeGenerationSessionId = null;
+  renderSessionList();
+  removeLoading();
+  finishCurrentBotMessage(true);
+  shortcutLoadingState.quickAnalysis = false;
+  shortcutLoadingState.architectureAnalysis = false;
+  setShortcutLoading("quick-analysis", false);
+  setShortcutLoading("architecture-analysis", false);
 }
 
 function shouldUseWideMessage(content) {
@@ -1577,8 +1661,23 @@ function isMessageForActiveSession(message) {
   return !sessionId || !activeSessionId || sessionId === activeSessionId;
 }
 
+function getMessageGenerationId(message) {
+  return message.generationId || message.metadata?.generationId || null;
+}
+
+function shouldIgnoreGenerationMessage(message) {
+  const generationId = getMessageGenerationId(message);
+
+  return generationId ? cancelledGenerationIds.has(generationId) : false;
+}
+
 function clearGenerationForMessage(message) {
   const sessionId = message.sessionId || message.metadata?.sessionId;
+  const generationId = getMessageGenerationId(message);
+
+  if (generationId && generationId === activeGenerationId) {
+    activeGenerationId = null;
+  }
 
   if (sessionId && sessionId === activeGenerationSessionId) {
     activeGenerationSessionId = null;
@@ -1611,6 +1710,10 @@ window.addEventListener("message", (event) => {
     case "novaResposta": {
       clearGenerationForMessage(message);
 
+      if (shouldIgnoreGenerationMessage(message)) {
+        break;
+      }
+
       if (!isMessageForActiveSession(message)) {
         break;
       }
@@ -1625,6 +1728,16 @@ window.addEventListener("message", (event) => {
     }
 
     case "respostaParcial": {
+      if (shouldIgnoreGenerationMessage(message)) {
+        break;
+      }
+
+      const generationId = getMessageGenerationId(message);
+
+      if (generationId) {
+        activeGenerationId = generationId;
+      }
+
       if (
         message.sessionId &&
         message.sessionId !== activeGenerationSessionId
@@ -1694,6 +1807,8 @@ window.addEventListener("message", (event) => {
       };
 
       if (currentView === "library") {
+        localHealthLoadError = null;
+        releaseLocalHealthLoading();
         renderLocalHealthPanel();
       }
       break;
@@ -1701,6 +1816,10 @@ window.addEventListener("message", (event) => {
 
     case "fimResposta": {
       clearGenerationForMessage(message);
+
+      if (shouldIgnoreGenerationMessage(message)) {
+        break;
+      }
 
       if (!isMessageForActiveSession(message)) {
         break;
@@ -1731,6 +1850,10 @@ window.addEventListener("message", (event) => {
     case "geracaoCancelada": {
       clearGenerationForMessage(message);
 
+      if (shouldIgnoreGenerationMessage(message)) {
+        break;
+      }
+
       if (!isMessageForActiveSession(message)) {
         break;
       }
@@ -1744,7 +1867,12 @@ window.addEventListener("message", (event) => {
     }
 
     case "erro": {
+      pendingSessionId = null;
       clearGenerationForMessage(message);
+
+      if (shouldIgnoreGenerationMessage(message)) {
+        break;
+      }
 
       if (currentView === "library" && isLocalHealthLoading) {
         localHealthLoadError =
@@ -1873,6 +2001,7 @@ window.addEventListener("message", (event) => {
     // ── Session messages ────────────────────────────────────────────────────
 
     case "sessoesListadas": {
+      pendingSessionId = null;
       activeSessions = message.value.sessions || [];
       activeSessionId = message.value.activeSessionId;
       activeGenerationSessionId =
@@ -1900,6 +2029,7 @@ window.addEventListener("message", (event) => {
     }
 
     case "sessaoCriada": {
+      pendingSessionId = null;
       activeSessions = message.value.sessions || [];
       activeSessionId = message.value.session.id;
       activeGenerationSessionId =
@@ -1910,6 +2040,15 @@ window.addEventListener("message", (event) => {
     }
 
     case "sessaoTrocada": {
+      if (
+        pendingSessionId &&
+        message.value?.session?.id &&
+        message.value.session.id !== pendingSessionId
+      ) {
+        break;
+      }
+
+      pendingSessionId = null;
       activeSessions = message.value.sessions || [];
       activeSessionId = message.value.session.id;
       activeGenerationSessionId =
@@ -1920,6 +2059,7 @@ window.addEventListener("message", (event) => {
     }
 
     case "sessaoExcluida": {
+      pendingSessionId = null;
       activeSessions = message.value.sessions || [];
       activeSessionId = message.value.activeSession?.id || null;
       activeGenerationSessionId =

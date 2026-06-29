@@ -36,7 +36,7 @@ export type RouterDependencies = {
   refreshLocalModels: () => ReturnType<AtlasConfigManager["getLocalModels"]>;
   startLocalEngine: () => Promise<void>;
   promptStopLocalEngine: () => Promise<void>;
-  stopLocalEngine: () => void;
+  stopLocalEngine: (options?: { force?: boolean }) => void;
   getLocalModelsDir: () => string;
   getLocalEnginesDir: () => string;
   refreshRagEmbeddingModels: () => RagEmbeddingModelInfo[];
@@ -90,6 +90,8 @@ export type ActiveResponseSnapshot = {
   userContent: string;
   partialContent: string;
   isStreaming: boolean;
+  generationId?: string;
+  usesLocalEngine: boolean;
 };
 
 export type ActiveGenerationPayload = {
@@ -97,4 +99,5 @@ export type ActiveGenerationPayload = {
   userContent: string;
   partialContent: string;
   isStreaming: boolean;
+  generationId?: string;
 } | null;

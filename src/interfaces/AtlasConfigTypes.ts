@@ -11,6 +11,7 @@ export interface AtlasGeneralSettings {
 
 export interface AtlasSecuritySettings {
   limitPayload: boolean;
+  dynamicMaxTokens?: boolean;
   maxTokens?: number;
   timeout?: number;
 }
@@ -137,9 +138,19 @@ export interface AtlasStaticAnalysisConfig {
   includeSymbolRelations: boolean;
 }
 
+export interface AtlasLocalEngineCustomConfig {
+  engineType?: "cpu" | "cuda" | "vulkan";
+  startOnAtlasOpen?: boolean;
+  enginesDir?: string;
+  llamaServerPath?: string;
+  dynamicContextWindow?: boolean;
+  [key: string]: unknown;
+}
+
 export interface AtlasCustomSettings {
   studyMode?: AtlasStudyModeConfig;
   staticAnalysis?: AtlasStaticAnalysisConfig;
+  localEngine?: AtlasLocalEngineCustomConfig;
 
   // mantém flexível para futuras extensões
   [key: string]: unknown;

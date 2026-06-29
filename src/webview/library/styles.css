@@ -64,15 +64,15 @@ textarea {
   max-width: 1100px;
 }
 
-body.library-loading-active .library-page {
-  display: none;
-}
-
 .library-loading-overlay {
-  display: grid;
-  min-height: calc(100vh - 32px);
-  place-items: center;
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: var(--vscode-foreground);
+  pointer-events: none;
 }
 
 .library-loading-card {

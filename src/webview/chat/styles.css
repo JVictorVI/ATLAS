@@ -291,6 +291,15 @@ body {
   opacity: 1;
 }
 
+.session-item.loading-session {
+  opacity: 0.92;
+}
+
+.session-item.loading-session .session-icon {
+  color: var(--atlas-accent-bg);
+  opacity: 1;
+}
+
 .session-icon {
   font-size: 13px;
   flex-shrink: 0;
@@ -418,6 +427,22 @@ body {
   flex-direction: column;
   gap: 12px;
   min-width: 0;
+}
+
+.chat-session-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex: 1;
+  min-height: 180px;
+  color: var(--atlas-muted-fg);
+  font-size: 13px;
+}
+
+.chat-session-loading .spinner {
+  width: 16px;
+  height: 16px;
 }
 
 .message {
@@ -633,50 +658,16 @@ textarea {
 }
 
 #send-btn.stop {
-  background-color: var(--atlas-danger-bg);
-}
-
-#send-btn.stop:hover {
   background-color: var(
     --vscode-inputValidation-errorBorder,
     var(--atlas-danger-fg)
   );
-}
-
-#send-btn.stop i {
-  font-size: 15px;
-}
-
-#send-btn.stop i {
-  font-size: 15px;
-}
-
-#send-btn.stop i {
-  font-size: 15px;
-}
-
-#pergunta:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
-}
-
-#send-btn.stop {
-  background-color: var(--atlas-danger-bg);
+  color: var(--vscode-button-foreground, var(--atlas-accent-fg));
 }
 
 #send-btn.stop:hover {
-  background-color: var(
-    --vscode-inputValidation-errorBorder,
-    var(--atlas-danger-fg)
-  );
-}
-
-#send-btn.stop i {
-  font-size: 15px;
-}
-
-#send-btn.stop i {
-  font-size: 15px;
+  background-color: var(--atlas-danger-bg);
+  color: var(--atlas-danger-fg);
 }
 
 #send-btn.stop i {
@@ -690,14 +681,6 @@ textarea {
 
 #send-btn i {
   font-size: 18px;
-}
-
-#send-btn.stop i {
-  font-size: 15px;
-}
-
-#send-btn.stop i {
-  font-size: 15px;
 }
 
 /* ── Agent popover ─────────────────────────────────────────────────────────── */

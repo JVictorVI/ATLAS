@@ -263,8 +263,15 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         await this.promptStopLocalEngine();
       },
 
-      stopLocalEngine: () => {
-        this.localEngineService.stopEngine();
+      stopLocalEngine: (options?: { force?: boolean }) => {
+        this.localEngineService.stopEngine(options);
+        this.broadcastEngineControlStatus({
+          loading: false,
+          running: false,
+          message: options?.force
+            ? "Geracao local interrompida. Engine parada."
+            : "Engine parada.",
+        });
       },
 
       getLocalModelsDir: () => this.localModelDiscoveryService.getModelsDir(),
@@ -380,8 +387,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     });
 
     // Connect router → panel manager
-    this.panelManager.setMessageHandler(async (data, webview) => {
-      await this.messageRouter.handle(data, webview);
+    this.panelManager.setMessageHandler((data, webview) => {
+      this.handleWebviewMessage(data, webview);
     });
   }
 
@@ -401,8 +408,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     void this.sendAvailableLlmsToWebview(webviewView.webview);
     void this.startEngineOnAtlasOpenIfEnabled();
 
-    webviewView.webview.onDidReceiveMessage(async (data) => {
-      await this.messageRouter.handle(data, webviewView.webview);
+    webviewView.webview.onDidReceiveMessage((data) => {
+      this.handleWebviewMessage(data, webviewView.webview);
     });
 
     webviewView.onDidChangeVisibility(() => {
@@ -453,6 +460,26 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
     void this._view?.webview.postMessage(message);
     this.panelManager.postMessage(message);
+  }
+
+  private broadcastEngineControlStatus(value: {
+    loading: boolean;
+    running: boolean;
+    message: string;
+  }): void {
+    const message = {
+      type: "engineControlStatus",
+      value,
+    };
+
+    void this._view?.webview.postMessage(message);
+    this.panelManager.postMessage(message);
+  }
+
+  private handleWebviewMessage(data: unknown, webview: vscode.Webview): void {
+    void this.messageRouter.handle(data, webview).catch((error) => {
+      console.error("[ATLAS] Erro ao processar mensagem do webview:", error);
+    });
   }
 
   private async startEngineOnAtlasOpenIfEnabled(): Promise<void> {

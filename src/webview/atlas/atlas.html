@@ -146,6 +146,50 @@
           </div>
         </div>
 
+        <div class="settings-section">
+          <div class="settings-section-heading">
+            <h2>Tamanho de contexto</h2>
+            <p>
+              Escolha se o ATLAS pode aumentar o contexto local quando a engine
+              indicar que o limite atual não comporta a requisição
+            </p>
+          </div>
+
+          <div class="engine-options context-window-options">
+            <label class="engine-option">
+              <input
+                type="radio"
+                name="context-window-mode"
+                id="context-window-dynamic"
+                value="dynamic"
+              />
+              <span>
+                <strong>Automático</strong>
+                <small>
+                  Aumenta e salva o tamanho de contexto do modelo quando
+                  necessário
+                </small>
+              </span>
+            </label>
+
+            <label class="engine-option">
+              <input
+                type="radio"
+                name="context-window-mode"
+                id="context-window-fixed"
+                value="fixed"
+              />
+              <span>
+                <strong>Fixo</strong>
+                <small>
+                  Usa apenas o tamanho definido na Biblioteca para o modelo
+                  selecionado
+                </small>
+              </span>
+            </label>
+          </div>
+        </div>
+
         <div class="note">
           Para instalar uma engine, baixe uma versão do llama.cpp, extraia os
           arquivos dentro da pasta de engines e mantenha os nomes das pastas

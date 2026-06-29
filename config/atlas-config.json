@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-06-29T15:15:34.808Z",
+  "updatedAt": "2026-06-29T16:32:25.468Z",
   "general": {
     "theme": "system",
     "language": "pt-BR",
@@ -9,6 +9,7 @@
   },
   "cloudSecurity": {
     "limitPayload": true,
+    "dynamicMaxTokens": false,
     "maxTokens": 4096,
     "timeout": 60,
     "temperature": 0.2,
@@ -83,7 +84,7 @@
   },
   "llms": {
     "selection": {
-      "mode": "cloud",
+      "mode": "local",
       "local": {
         "activeModelId": "local/gemma-3-1b-it-UD-Q5_K_XL"
       },
@@ -270,7 +271,7 @@
           "quantization": "Q8_K_XL",
           "size": "771.6 MB",
           "installedAt": "2026-06-23T20:38:09.267Z",
-          "updatedAt": "2026-06-29T15:15:30.791Z"
+          "updatedAt": "2026-06-29T16:32:25.468Z"
         },
         "custom": {
           "baseUrl": "http://127.0.0.1:8080/v1",
@@ -291,7 +292,7 @@
           "maxTokens": 4096,
           "topP": 0.95,
           "gpuLayers": 26,
-          "contextWindow": 4096
+          "contextWindow": 8192
         },
         "metadata": {
           "source": "models-folder",
@@ -301,7 +302,7 @@
           "quantization": "Q5_K_XL",
           "size": "833.8 MB",
           "installedAt": "2026-06-29T11:57:17.922Z",
-          "updatedAt": "2026-06-29T15:15:30.778Z"
+          "updatedAt": "2026-06-29T16:32:25.441Z"
         },
         "custom": {
           "baseUrl": "http://127.0.0.1:8080/v1",
@@ -312,6 +313,12 @@
     }
   },
   "custom": {
+    "localEngine": {
+      "dynamicContextWindow": false,
+      "engineType": "vulkan",
+      "startOnAtlasOpen": true,
+      "enginesDir": "c:\\Users\\jvict\\OneDrive\\Documentos\\Projetos\\ATLAS\\engine"
+    },
     "staticAnalysis": {
       "enabled": false,
       "useInQuickAnalysis": true,
@@ -326,11 +333,6 @@
     },
     "studyMode": {
       "enabled": false
-    },
-    "localEngine": {
-      "engineType": "vulkan",
-      "startOnAtlasOpen": true,
-      "enginesDir": "c:\\Users\\jvict\\OneDrive\\Documentos\\Projetos\\ATLAS\\engine"
     },
     "localModels": {
       "modelsDir": "c:\\Users\\jvict\\Downloads\\modelos"

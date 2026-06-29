@@ -104,8 +104,8 @@ export class ChatPanelManager {
 
     panel.webview.html = this.getHtmlForWebview(panel.webview, normalizedView);
 
-    panel.webview.onDidReceiveMessage(async (data) => {
-      await this.onMessage?.(data, panel.webview);
+    panel.webview.onDidReceiveMessage((data) => {
+      this.handleMessage(data, panel.webview);
     });
 
     panel.onDidDispose(() => {
@@ -154,6 +154,16 @@ export class ChatPanelManager {
     }
 
     return "chat";
+  }
+
+  private handleMessage(data: unknown, webview: vscode.Webview): void {
+    try {
+      void Promise.resolve(this.onMessage?.(data, webview)).catch((error) => {
+        console.error("[ATLAS] Erro ao processar mensagem do painel:", error);
+      });
+    } catch (error) {
+      console.error("[ATLAS] Erro ao processar mensagem do painel:", error);
+    }
   }
 
   public getPanelGroup(selectedView?: string): AtlasPanelGroup {
