@@ -23,13 +23,7 @@ export class ChatResponseController {
     data: any,
     webview: vscode.Webview,
   ): Promise<void> {
-    const previousUsesLocalEngine =
-      this.activeResponseSnapshot?.usesLocalEngine === true;
-
     this.activeResponseController?.abort();
-    if (previousUsesLocalEngine) {
-      this.forceStopLocalEngineForCancellation();
-    }
 
     const responseController = new AbortController();
     this.activeResponseController = responseController;
@@ -335,10 +329,6 @@ export class ChatResponseController {
 
     responseController.abort();
 
-    if (snapshot?.usesLocalEngine || this.deps.configManager.isLocalMode()) {
-      this.forceStopLocalEngineForCancellation();
-    }
-
     if (this.activeResponseController === responseController) {
       this.activeResponseController = null;
     }
@@ -469,14 +459,6 @@ export class ChatResponseController {
     const error = new Error("Geração cancelada pelo usuário.");
     error.name = "AbortError";
     throw error;
-  }
-
-  private forceStopLocalEngineForCancellation(): void {
-    try {
-      this.deps.stopLocalEngine({ force: true });
-    } catch (error) {
-      console.warn("[ATLAS] Falha ao forcar parada da engine local:", error);
-    }
   }
 
   private getErrorMessage(error: unknown, fallback: string): string {

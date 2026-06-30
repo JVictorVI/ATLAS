@@ -22,101 +22,91 @@ export class LocalApiService {
     options?: { signal?: AbortSignal },
   ): Promise<AtlasCloudChatResponse> {
     const signal = options?.signal;
-    const forceStopOnAbort = () => {
-      this.localEngineService.stopEngine({ force: true });
-    };
 
     if (signal?.aborted) {
-      forceStopOnAbort();
       throw this.createAbortError();
     }
 
-    signal?.addEventListener("abort", forceStopOnAbort, { once: true });
+    const resolved = this.configManager.getResolvedLocalSelection();
 
-    try {
-      const resolved = this.configManager.getResolvedLocalSelection();
-
-      if (!resolved) {
-        throw new Error(
-          "A selecao local esta incompleta. Defina um modelo local ativo antes de enviar a mensagem.",
-        );
-      }
-
-      const model = resolved.model;
-      await this.localEngineService.ensureEngine(model);
-
-      if (signal?.aborted) {
-        throw this.createAbortError();
-      }
-
-      const baseUrl = this.resolveBaseUrl(model);
-      const endpoint = `${baseUrl}/chat/completions`;
-      const defaults = this.configManager.getConfig().llms.defaults;
-      const isStreaming = typeof onChunk === "function";
-      let activeModel = model;
-      let response = await this.sendLocalRequest(
-        baseUrl,
-        endpoint,
-        activeModel,
-        messages,
-        defaults,
-        isStreaming,
-        signal,
+    if (!resolved) {
+      throw new Error(
+        "A selecao local esta incompleta. Defina um modelo local ativo antes de enviar a mensagem.",
       );
-
-      if (!response.ok) {
-        const errorData = await this.safeReadJson(response);
-        const contextOverflow = this.getContextOverflow(errorData);
-
-        if (contextOverflow) {
-          if (!this.isDynamicContextWindowEnabled()) {
-            this.handleFixedContextOverflow(contextOverflow, errorData);
-          }
-
-          activeModel = await this.increaseContextWindow(
-            activeModel,
-            contextOverflow,
-          );
-          await this.localEngineService.restartEngine(activeModel);
-
-          if (signal?.aborted) {
-            throw this.createAbortError();
-          }
-
-          response = await this.sendLocalRequest(
-            baseUrl,
-            endpoint,
-            activeModel,
-            messages,
-            defaults,
-            isStreaming,
-            signal,
-          );
-
-          if (!response.ok) {
-            this.handleLocalApiError(response, await this.safeReadJson(response));
-          }
-        } else {
-          this.handleLocalApiError(response, errorData);
-        }
-      }
-
-      if (isStreaming) {
-        return this.readStreamingResponse(
-          response,
-          activeModel,
-          onChunk,
-          options?.signal,
-        );
-      }
-
-      const data = (await this.safeReadJson(
-        response,
-      )) as OpenAiCompatibleResponse;
-      return this.normalizeLocalResponse(activeModel, data);
-    } finally {
-      signal?.removeEventListener("abort", forceStopOnAbort);
     }
+
+    const model = resolved.model;
+    await this.localEngineService.ensureEngine(model);
+
+    if (signal?.aborted) {
+      throw this.createAbortError();
+    }
+
+    const baseUrl = this.resolveBaseUrl(model);
+    const endpoint = `${baseUrl}/chat/completions`;
+    const defaults = this.configManager.getConfig().llms.defaults;
+    const isStreaming = typeof onChunk === "function";
+    let activeModel = model;
+    let response = await this.sendLocalRequest(
+      baseUrl,
+      endpoint,
+      activeModel,
+      messages,
+      defaults,
+      isStreaming,
+      signal,
+    );
+
+    if (!response.ok) {
+      const errorData = await this.safeReadJson(response);
+      const contextOverflow = this.getContextOverflow(errorData);
+
+      if (contextOverflow) {
+        if (!this.isDynamicContextWindowEnabled()) {
+          this.handleFixedContextOverflow(contextOverflow, errorData);
+        }
+
+        activeModel = await this.increaseContextWindow(
+          activeModel,
+          contextOverflow,
+        );
+        await this.localEngineService.restartEngine(activeModel);
+
+        if (signal?.aborted) {
+          throw this.createAbortError();
+        }
+
+        response = await this.sendLocalRequest(
+          baseUrl,
+          endpoint,
+          activeModel,
+          messages,
+          defaults,
+          isStreaming,
+          signal,
+        );
+
+        if (!response.ok) {
+          this.handleLocalApiError(response, await this.safeReadJson(response));
+        }
+      } else {
+        this.handleLocalApiError(response, errorData);
+      }
+    }
+
+    if (isStreaming) {
+      return this.readStreamingResponse(
+        response,
+        activeModel,
+        onChunk,
+        options?.signal,
+      );
+    }
+
+    const data = (await this.safeReadJson(
+      response,
+    )) as OpenAiCompatibleResponse;
+    return this.normalizeLocalResponse(activeModel, data);
   }
 
   private resolveBaseUrl(model: AtlasModelConfig): string {
