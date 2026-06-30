@@ -233,9 +233,17 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
       executeQuickAnalysis: async (
         webview?: vscode.Webview,
-        options?: { source?: "button" | "chat"; sessionId?: string },
+        options?: {
+          source?: "button" | "chat";
+          sessionId?: string;
+          signal?: AbortSignal;
+        },
       ) => {
         await this.quickAnalysisController.execute(webview, options);
+      },
+
+      cancelQuickAnalysis: () => {
+        this.quickAnalysisController.cancelActiveAnalysis();
       },
 
       clearQuickAnalysisDecorations: () => {
@@ -243,12 +251,25 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       },
 
       sendQuickAnalysisAvailability: async (webview: vscode.Webview) => {
+        const activeAnalysis = this.quickAnalysisController.getActiveAnalysis();
+
         await webview.postMessage({
           type: "disponibilidadeMarcacoesAnaliseRapida",
           value: {
             available: this.quickAnalysisController.hasActiveDecorations(),
           },
         });
+
+        if (activeAnalysis) {
+          await webview.postMessage({
+            type: "analiseRapidaStatus",
+            sessionId: activeAnalysis.sessionId,
+            value: {
+              loading: true,
+              source: activeAnalysis.source,
+            },
+          });
+        }
       },
 
       refreshLocalModels: () => {

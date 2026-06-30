@@ -55,6 +55,7 @@ export class LocalApiService {
       const isStreaming = typeof onChunk === "function";
       let activeModel = model;
       let response = await this.sendLocalRequest(
+        baseUrl,
         endpoint,
         activeModel,
         messages,
@@ -83,6 +84,7 @@ export class LocalApiService {
           }
 
           response = await this.sendLocalRequest(
+            baseUrl,
             endpoint,
             activeModel,
             messages,
@@ -161,6 +163,7 @@ export class LocalApiService {
   }
 
   private async sendLocalRequest(
+    baseUrl: string,
     endpoint: string,
     model: AtlasModelConfig,
     messages: ChatMessage[],
@@ -168,7 +171,7 @@ export class LocalApiService {
     isStreaming: boolean,
     signal?: AbortSignal,
   ): Promise<Response> {
-    return this.fetchWithTimeout(endpoint, {
+    const requestOptions: RequestInit & { signal?: AbortSignal } = {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -184,7 +187,14 @@ export class LocalApiService {
         stream: isStreaming,
       }),
       signal,
-    });
+    };
+
+    if (isStreaming) {
+      return this.fetchWithTimeout(endpoint, requestOptions);
+    }
+
+    await this.ensureBackendResponding(baseUrl, signal);
+    return this.fetchWithoutTimeout(endpoint, requestOptions);
   }
 
   private async increaseContextWindow(
@@ -361,9 +371,7 @@ export class LocalApiService {
     resource: string,
     options: RequestInit & { signal?: AbortSignal },
   ): Promise<Response> {
-    const timeoutSetting =
-      this.configManager.getConfig().cloudSecurity?.timeout;
-    const timeout = (timeoutSetting ? timeoutSetting : 30) * 1000;
+    const timeout = this.getLocalResponseTimeoutMs();
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeout);
     const abortFromCaller = () => controller.abort();
@@ -402,6 +410,130 @@ export class LocalApiService {
       clearTimeout(id);
       options.signal?.removeEventListener("abort", abortFromCaller);
     }
+  }
+
+  private async fetchWithoutTimeout(
+    resource: string,
+    options: RequestInit & { signal?: AbortSignal },
+  ): Promise<Response> {
+    try {
+      return await fetch(resource, options);
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        throw error;
+      }
+
+      throw new Error(
+        `Falha ao conectar à engine local. Verifique se ela está ativa e expondo uma API OpenAI-compatible. Detalhes: ${
+          error instanceof Error ? error.message : "erro desconhecido"
+        }`,
+      );
+    }
+  }
+
+  private async ensureBackendResponding(
+    baseUrl: string,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const serverBaseUrl = baseUrl.replace(/\/v1\/?$/i, "");
+    const probes = [`${serverBaseUrl}/health`, `${baseUrl}/models`];
+
+    if (await this.anyProbeResponds(probes, signal)) {
+      return;
+    }
+
+    throw new Error(
+      `Timeout da execução local: a engine não respondeu em ${this.getLocalResponseTimeoutMs() / 1000} segundos.`,
+    );
+  }
+
+  private async anyProbeResponds(
+    probes: string[],
+    signal?: AbortSignal,
+  ): Promise<boolean> {
+    return new Promise((resolve, reject) => {
+      let pending = probes.length;
+      let settled = false;
+
+      const finish = (value: boolean) => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        resolve(value);
+      };
+
+      for (const probe of probes) {
+        void this.canFetchWithTimeout(probe, signal)
+          .then((ok) => {
+            if (ok) {
+              finish(true);
+            }
+          })
+          .catch((error) => {
+            if (signal?.aborted && !settled) {
+              settled = true;
+              reject(error);
+            }
+          })
+          .finally(() => {
+            pending -= 1;
+
+            if (pending === 0) {
+              finish(false);
+            }
+          });
+      }
+    });
+  }
+
+  private async canFetchWithTimeout(
+    resource: string,
+    signal?: AbortSignal,
+  ): Promise<boolean> {
+    const timeout = this.getLocalResponseTimeoutMs();
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    const abortFromCaller = () => controller.abort();
+
+    if (signal?.aborted) {
+      controller.abort();
+    } else {
+      signal?.addEventListener("abort", abortFromCaller, { once: true });
+    }
+
+    try {
+      const response = await fetch(resource, {
+        method: "GET",
+        signal: controller.signal,
+      });
+      return response.ok;
+    } catch (error) {
+      if (signal?.aborted) {
+        throw error;
+      }
+
+      return false;
+    } finally {
+      clearTimeout(id);
+      signal?.removeEventListener("abort", abortFromCaller);
+    }
+  }
+
+  private getLocalResponseTimeoutMs(): number {
+    const config = this.configManager.getConfig();
+    const localEngine = config.custom?.localEngine;
+    const timeoutSetting =
+      typeof localEngine === "object" && localEngine !== null
+        ? localEngine.timeout
+        : undefined;
+    const timeout =
+      typeof timeoutSetting === "number" && timeoutSetting > 0
+        ? timeoutSetting
+        : 30;
+
+    return timeout * 1000;
   }
 
   private async safeReadJson(response: Response): Promise<any> {

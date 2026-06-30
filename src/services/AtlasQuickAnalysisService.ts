@@ -22,6 +22,7 @@ export class AtlasQuickAnalysisService {
     code: string,
     languageId?: string,
     fileName?: string,
+    signal?: AbortSignal,
   ): Promise<AtlasQuickIssue[]> {
     const structureSummary =
       await this.buildOptionalStructureSummary(document);
@@ -40,7 +41,11 @@ export class AtlasQuickAnalysisService {
       hasCodeContext: true,
     });
 
-    const response = await this.inferenceService.sendChat(promptResult.messages);
+    const response = await this.inferenceService.sendChat(
+      promptResult.messages,
+      undefined,
+      { signal },
+    );
     return this.parseIssues(response.content);
   }
 

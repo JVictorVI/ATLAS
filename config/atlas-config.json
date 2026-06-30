@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-06-30T14:54:00.476Z",
+  "updatedAt": "2026-06-30T17:37:49.738Z",
   "general": {
     "theme": "system",
     "language": "pt-BR",
@@ -16,7 +16,7 @@
     "topP": 0.95
   },
   "rag": {
-    "enabled": true,
+    "enabled": false,
     "autoIndex": false,
     "allowCloudContext": true,
     "offlineOnly": false,
@@ -316,13 +316,14 @@
   "custom": {
     "localEngine": {
       "dynamicContextWindow": true,
-      "stream": false,
+      "stream": true,
+      "timeout": 60,
       "engineType": "vulkan",
       "startOnAtlasOpen": true,
       "enginesDir": "c:\\Users\\jvict\\OneDrive\\Documentos\\Projetos\\ATLAS\\engine"
     },
     "staticAnalysis": {
-      "enabled": true,
+      "enabled": false,
       "useInQuickAnalysis": true,
       "useInArchitecturalAnalysis": true,
       "includeDiagnostics": false,

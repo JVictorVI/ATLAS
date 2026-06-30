@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { AtlasQuickAnalysisService } from "../services/AtlasQuickAnalysisService";
+import { AtlasInferenceService } from "../services/AtlasInferenceService";
 import { AtlasEditorContextService } from "./AtlasEditorContextService";
 import {
   AtlasQuickIssue,
@@ -10,6 +11,12 @@ import {
 type AtlasQuickAnalysisExecutionOptions = {
   source?: "button" | "chat";
   sessionId?: string;
+  signal?: AbortSignal;
+};
+
+type ActiveQuickAnalysis = {
+  source: "button" | "chat";
+  sessionId?: string;
 };
 
 export class AtlasQuickAnalysisController {
@@ -18,6 +25,8 @@ export class AtlasQuickAnalysisController {
   private readonly highIssueDecoration: vscode.TextEditorDecorationType;
   private readonly issuesByDocument = new Map<string, AtlasQuickIssue[]>();
   private readonly disposables: vscode.Disposable[] = [];
+  private activeController: AbortController | null = null;
+  private activeAnalysis: ActiveQuickAnalysis | null = null;
 
   constructor(
     private readonly quickAnalysisService: AtlasQuickAnalysisService,
@@ -133,6 +142,20 @@ export class AtlasQuickAnalysisController {
       return;
     }
 
+    const controller = options.signal ? null : new AbortController();
+    const signal = options.signal ?? controller?.signal;
+    const activeAnalysis: ActiveQuickAnalysis = {
+      source,
+      sessionId: options.sessionId,
+    };
+
+    if (controller) {
+      this.activeController?.abort();
+      this.activeController = controller;
+    }
+
+    this.activeAnalysis = activeAnalysis;
+
     try {
       await webview?.postMessage({
         type: "analiseRapidaStatus",
@@ -145,6 +168,7 @@ export class AtlasQuickAnalysisController {
         editorContext.code,
         editorContext.languageId,
         editorContext.fileName,
+        signal,
       );
 
       const sanitizedIssues = this.sanitizeIssues(
@@ -193,6 +217,14 @@ export class AtlasQuickAnalysisController {
         `ATLAS: ${sanitizedIssues.length} problema(s) arquitetural(is) destacado(s) no editor.`,
       );
     } catch (error) {
+      if (AtlasInferenceService.isAbortError(error) || signal?.aborted) {
+        await webview?.postMessage({
+          type: "geracaoCancelada",
+          sessionId: options.sessionId,
+        });
+        return;
+      }
+
       const message =
         error instanceof Error
           ? error.message
@@ -206,12 +238,30 @@ export class AtlasQuickAnalysisController {
 
       vscode.window.showErrorMessage(`ATLAS: ${message}`);
     } finally {
+      if (this.activeController === controller) {
+        this.activeController = null;
+      }
+
+      if (this.activeAnalysis === activeAnalysis) {
+        this.activeAnalysis = null;
+      }
+
       await webview?.postMessage({
         type: "analiseRapidaStatus",
         sessionId: options.sessionId,
         value: { loading: false, source },
       });
     }
+  }
+
+  public cancelActiveAnalysis(): void {
+    this.activeController?.abort();
+    this.activeController = null;
+    this.activeAnalysis = null;
+  }
+
+  public getActiveAnalysis(): ActiveQuickAnalysis | null {
+    return this.activeAnalysis;
   }
 
   public clearDecorations(editor?: vscode.TextEditor): void {

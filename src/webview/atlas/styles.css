@@ -114,6 +114,25 @@ h1 {
   font-size: 13px;
 }
 
+.select-setting input {
+  border: 1px solid var(--vscode-input-border, var(--vscode-widget-border));
+  border-radius: 5px;
+  padding: 7px 9px;
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  font-size: 13px;
+}
+
+.select-setting small {
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.local-timeout-setting {
+  margin-top: 12px;
+}
+
 .folder-control {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;

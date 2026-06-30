@@ -31,8 +31,13 @@ export type RouterDependencies = {
   sendModelsToWebview: (webview: vscode.Webview) => void;
   executeQuickAnalysis: (
     webview?: vscode.Webview,
-    options?: { source?: "button" | "chat"; sessionId?: string },
+    options?: {
+      source?: "button" | "chat";
+      sessionId?: string;
+      signal?: AbortSignal;
+    },
   ) => Promise<void>;
+  cancelQuickAnalysis: () => void;
   clearQuickAnalysisDecorations: () => void;
   sendQuickAnalysisAvailability: (webview: vscode.Webview) => Promise<void>;
   refreshLocalModels: () => ReturnType<AtlasConfigManager["getLocalModels"]>;
@@ -108,6 +113,7 @@ export type ActiveResponseSnapshot = {
   isStreaming: boolean;
   generationId?: string;
   usesLocalEngine: boolean;
+  forcedMode?: string;
 };
 
 export type ActiveGenerationPayload = {
@@ -116,4 +122,5 @@ export type ActiveGenerationPayload = {
   partialContent: string;
   isStreaming: boolean;
   generationId?: string;
+  forcedMode?: string;
 } | null;

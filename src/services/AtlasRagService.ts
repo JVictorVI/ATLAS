@@ -990,7 +990,8 @@ export class AtlasRagService {
       return;
     }
 
-    const autoIndex = this.configManager.getConfig().rag.autoIndex;
+    const settings = this.configManager.getConfig().rag;
+    const autoIndex = settings.enabled && settings.autoIndex;
 
     if (
       currentProject.status === "not-indexed" ||
@@ -1048,6 +1049,12 @@ export class AtlasRagService {
   }
 
   private scheduleAutomaticIndex(project: RagProjectIndex): void {
+    const settings = this.configManager.getConfig().rag;
+
+    if (!settings.enabled || !settings.autoIndex) {
+      return;
+    }
+
     const currentTimer = this.autoIndexTimers.get(project.projectId);
 
     if (currentTimer) {
@@ -1056,6 +1063,12 @@ export class AtlasRagService {
 
     const timer = setTimeout(() => {
       this.autoIndexTimers.delete(project.projectId);
+      const currentSettings = this.configManager.getConfig().rag;
+
+      if (!currentSettings.enabled || !currentSettings.autoIndex) {
+        return;
+      }
+
       void this.indexSelectedFolder(
         vscode.Uri.file(project.rootPath),
       ).catch((error) => {
@@ -1064,7 +1077,7 @@ export class AtlasRagService {
           error,
         );
       });
-    }, this.configManager.getConfig().rag.autoIndexDebounceMs);
+    }, settings.autoIndexDebounceMs);
 
     this.autoIndexTimers.set(project.projectId, timer);
   }

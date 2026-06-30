@@ -109,6 +109,7 @@ export class AtlasConfigDefaults {
         localEngine: {
           dynamicContextWindow: true,
           stream: true,
+          timeout: 30,
         },
         staticAnalysis: {
           enabled: true,

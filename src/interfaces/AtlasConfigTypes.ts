@@ -146,6 +146,7 @@ export interface AtlasLocalEngineCustomConfig {
   llamaServerPath?: string;
   dynamicContextWindow?: boolean;
   stream?: boolean;
+  timeout?: number;
   [key: string]: unknown;
 }
 

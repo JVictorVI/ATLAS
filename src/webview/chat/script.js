@@ -320,11 +320,16 @@ function showSessionSwitchLoading() {
 
 function renderPendingGeneration(activeGeneration) {
   if (!activeGeneration) {
-    setGenerationState(false);
+    setGenerationState(shortcutLoadingState.quickAnalysis);
+    hydrateChatControlState();
     return;
   }
 
   activeGenerationId = activeGeneration.generationId || activeGenerationId;
+  activeGenerationSessionId =
+    activeGeneration.sessionId || activeGenerationSessionId;
+  shortcutLoadingState.architectureAnalysis =
+    activeGeneration.forcedMode === "architectural-analysis";
   addMessage(activeGeneration.userContent, "user");
 
   const partialContent = String(activeGeneration.partialContent || "");
@@ -344,6 +349,7 @@ function renderPendingGeneration(activeGeneration) {
   }
 
   setGenerationState(true);
+  hydrateChatControlState();
 }
 
 // ── Navbar & routing ──────────────────────────────────────────────────────────
@@ -492,6 +498,7 @@ function renderChatView() {
     `;
 
   setupChatEvents();
+  hydrateChatControlState();
   requestLatestLlmState();
 
   // Request sessions from backend on first render
@@ -815,9 +822,9 @@ function setupChatEvents() {
   }
 
   quickAnalysisBtn?.addEventListener("click", () => {
-    if (shortcutLoadingState.quickAnalysis) return;
+    if (hasActiveShortcutLoading() || isGeneratingResponse) return;
     shortcutLoadingState.quickAnalysis = true;
-    setShortcutLoading("quick-analysis", true);
+    hydrateChatControlState();
     vscode.postMessage({ type: "executarAnaliseRapida" });
   });
 
@@ -827,7 +834,7 @@ function setupChatEvents() {
 
   if (architetureAnalysisBtn) {
     architetureAnalysisBtn.addEventListener("click", () => {
-      if (shortcutLoadingState.architectureAnalysis || isGeneratingResponse) {
+      if (hasActiveShortcutLoading() || isGeneratingResponse) {
         return;
       }
 
@@ -895,6 +902,7 @@ function setupChatEvents() {
     }
   });
   resizeChatInput(input);
+  hydrateChatControlState();
 }
 
 function cancelarGeracao() {
@@ -916,10 +924,7 @@ function cancelarGeracao() {
   renderSessionList();
   removeLoading();
   finishCurrentBotMessage(true);
-  shortcutLoadingState.quickAnalysis = false;
-  shortcutLoadingState.architectureAnalysis = false;
-  setShortcutLoading("quick-analysis", false);
-  setShortcutLoading("architecture-analysis", false);
+  clearShortcutLoadingStates();
 }
 
 function shouldUseWideMessage(content) {
@@ -1081,6 +1086,53 @@ function setGenerationState(isGenerating) {
   if (input) {
     input.disabled = isGenerating;
   }
+
+  renderShortcutButtons();
+}
+
+function hasActiveShortcutLoading() {
+  return (
+    shortcutLoadingState.quickAnalysis ||
+    shortcutLoadingState.architectureAnalysis
+  );
+}
+
+function hydrateChatControlState() {
+  if (currentView !== "chat") {
+    return;
+  }
+
+  const hasShortcutLoading = hasActiveShortcutLoading();
+
+  if (shortcutLoadingState.quickAnalysis && !loadingElement) {
+    showLoading("Analisando e marcando no editor");
+  }
+
+  setGenerationState(isGeneratingResponse || hasShortcutLoading);
+  setShortcutLoading("quick-analysis", shortcutLoadingState.quickAnalysis);
+  setShortcutLoading(
+    "architecture-analysis",
+    shortcutLoadingState.architectureAnalysis,
+  );
+  applyStudyModeState(isStudyModeEnabled);
+}
+
+function clearShortcutLoadingStates() {
+  shortcutLoadingState.quickAnalysis = false;
+  shortcutLoadingState.architectureAnalysis = false;
+  hydrateChatControlState();
+}
+
+function clearShortcutLoadingState(action) {
+  if (action === "quick-analysis") {
+    shortcutLoadingState.quickAnalysis = false;
+  }
+
+  if (action === "architecture-analysis") {
+    shortcutLoadingState.architectureAnalysis = false;
+  }
+
+  hydrateChatControlState();
 }
 
 function finishCurrentBotMessage(cancelled = false) {
@@ -1720,8 +1772,7 @@ window.addEventListener("message", (event) => {
 
       removeLoading();
       setGenerationState(false);
-      shortcutLoadingState.architectureAnalysis = false;
-      setShortcutLoading("architecture-analysis", false);
+      clearShortcutLoadingState("architecture-analysis");
       const responseElement = addMessage(message.value, "bot", true, false);
       appendRagSources(responseElement, message.metadata?.ragSources);
       break;
@@ -1840,9 +1891,7 @@ window.addEventListener("message", (event) => {
 
       scrollChatToBottom();
       setGenerationState(false);
-
-      shortcutLoadingState.architectureAnalysis = false;
-      setShortcutLoading("architecture-analysis", false);
+      clearShortcutLoadingState("architecture-analysis");
 
       break;
     }
@@ -1860,9 +1909,7 @@ window.addEventListener("message", (event) => {
 
       removeLoading();
       finishCurrentBotMessage(true);
-
-      shortcutLoadingState.architectureAnalysis = false;
-      setShortcutLoading("architecture-analysis", false);
+      clearShortcutLoadingStates();
       break;
     }
 
@@ -1892,32 +1939,32 @@ window.addEventListener("message", (event) => {
       cloudModelLoadError = null;
       setGenerationState(false);
       fadeFramePending = false;
-      shortcutLoadingState.quickAnalysis = false;
-      shortcutLoadingState.architectureAnalysis = false;
-      setShortcutLoading("quick-analysis", false);
-      setShortcutLoading("architecture-analysis", false);
+      clearShortcutLoadingStates();
       //addMessage(message.value || "Ocorreu um erro.", "bot");
       break;
     }
     case "analiseRapidaStatus": {
       const isLoading = !!message.value?.loading;
-      const isQuickAnalysisFromChat = message.value?.source === "chat";
+      const isQuickAnalysisFromChat =
+        message.value?.source === "chat" || message.value?.source === "button";
       shortcutLoadingState.quickAnalysis = isLoading;
       setShortcutLoading("quick-analysis", isLoading);
 
       if (isQuickAnalysisFromChat && isLoading) {
-        setLoadingDefaultMessage("Analisando e marcando no editor");
-      }
+        if (!loadingElement) {
+          showLoading("Analisando e marcando no editor");
+        }
 
-      const quickAnalysisBtn = document.getElementById("quick-analysis-btn");
-      if (quickAnalysisBtn) {
-        quickAnalysisBtn.disabled = isLoading;
-        quickAnalysisBtn.classList.toggle("loading", isLoading);
+        setGenerationState(true);
+        setLoadingDefaultMessage("Analisando e marcando no editor");
+      } else if (!isLoading && !hasActiveShortcutLoading()) {
+        setGenerationState(false);
       }
       break;
     }
     case "analiseRapidaConcluida": {
-      const isQuickAnalysisFromChat = message.value?.source === "chat";
+      const isQuickAnalysisFromChat =
+        message.value?.source === "chat" || message.value?.source === "button";
 
       if (isQuickAnalysisFromChat) {
         clearGenerationForMessage(message);
@@ -1933,8 +1980,7 @@ window.addEventListener("message", (event) => {
         setGenerationState(false);
       }
 
-      shortcutLoadingState.quickAnalysis = false;
-      setShortcutLoading("quick-analysis", false);
+      clearShortcutLoadingState("quick-analysis");
       break;
     }
     case "disponibilidadeMarcacoesAnaliseRapida": {
@@ -2107,20 +2153,46 @@ function getShortcutButton(action) {
   return null;
 }
 
-function setShortcutLoading(action, isLoading) {
+function getShortcutLoadingState(action) {
+  if (action === "quick-analysis") {
+    return shortcutLoadingState.quickAnalysis;
+  }
+
+  if (action === "architecture-analysis") {
+    return shortcutLoadingState.architectureAnalysis;
+  }
+
+  return false;
+}
+
+function renderShortcutButton(action) {
   const button = getShortcutButton(action);
   if (!button) return;
   const originalLabel =
     button.dataset.originalLabel?.trim() || button.textContent.trim();
   if (!button.dataset.originalLabel)
     button.dataset.originalLabel = originalLabel;
-  button.disabled = isLoading;
+
+  const isLoading = getShortcutLoadingState(action);
+  const isBlocked =
+    isLoading || hasActiveShortcutLoading() || isGeneratingResponse;
+
+  button.disabled = isBlocked;
   button.classList.toggle("loading", isLoading);
   if (isLoading) {
     button.innerHTML = `<span class="btn-spinner" aria-hidden="true"></span><span>${originalLabel}</span>`;
   } else {
     button.textContent = button.dataset.originalLabel;
   }
+}
+
+function renderShortcutButtons() {
+  renderShortcutButton("quick-analysis");
+  renderShortcutButton("architecture-analysis");
+}
+
+function setShortcutLoading() {
+  renderShortcutButtons();
 }
 
 function applyStudyModeState(enabled) {

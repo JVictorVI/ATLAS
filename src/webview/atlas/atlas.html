@@ -60,11 +60,29 @@
             <span>
               <strong>Responder em tempo real (streaming)</strong>
               <small>
-                Mostra a resposta local enquanto ela e gerada. Ao desativar, o
-                ATLAS exibe a resposta apenas quando a geracao terminar
+                Mostra a resposta local enquanto ela é gerada. Ao desativar, o
+                ATLAS exibe a resposta apenas quando a geração terminar
               </small>
             </span>
           </label>
+
+          <div class="select-setting local-timeout-setting">
+            <label for="local-engine-timeout">
+              Timeout da execução local (segundos)
+            </label>
+            <input
+              id="local-engine-timeout"
+              type="number"
+              min="5"
+              max="600"
+              step="1"
+              value="30"
+            />
+            <small>
+              Tempo máximo para a engine local responder antes de cancelar a
+              requisição
+            </small>
+          </div>
         </div>
 
         <div class="settings-section">

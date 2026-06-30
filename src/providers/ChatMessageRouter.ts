@@ -65,6 +65,7 @@ export class ChatMessageRouter {
         await this.responseController.handleSendQuestion(data, webview);
         return;
       case "cancelarGeracao":
+        this.deps.cancelQuickAnalysis();
         await this.responseController.handleCancelGeneration(webview);
         return;
       case "abrirPainelConfig":
@@ -1390,6 +1391,12 @@ export class ChatMessageRouter {
       const payload = data.payload ?? {};
       const language = this.normalizeResponseLanguage(payload.language);
       const localStream = payload.localStream !== false;
+      const localTimeout = this.normalizeInteger(
+        payload.localTimeout,
+        5,
+        600,
+        30,
+      );
       const currentCustom = this.deps.configManager.getConfig().custom ?? {};
       const currentLocalEngine =
         typeof currentCustom.localEngine === "object" &&
@@ -1439,6 +1446,7 @@ export class ChatMessageRouter {
           startOnAtlasOpen,
           dynamicContextWindow,
           stream: localStream,
+          timeout: localTimeout,
           enginesDir: enginesDir || this.deps.getLocalEnginesDir(),
         },
       });
@@ -1911,6 +1919,12 @@ export class ChatMessageRouter {
     return {
       language: this.normalizeResponseLanguage(config.general.language),
       localStream: value.stream !== false,
+      localTimeout: this.normalizeInteger(
+        value.timeout,
+        5,
+        600,
+        config.cloudSecurity?.timeout ?? 30,
+      ),
       engineType: this.normalizeLocalEngineType(value.engineType),
       startOnAtlasOpen: value.startOnAtlasOpen === true,
       dynamicContextWindow: value.dynamicContextWindow !== false,

@@ -63,6 +63,8 @@ export class ChatResponseController {
         isStreaming: shouldStream,
         generationId,
         usesLocalEngine,
+        forcedMode:
+          typeof data.forcedMode === "string" ? data.forcedMode : undefined,
       };
 
       this.activeResponseSnapshot = responseSnapshot;
@@ -83,7 +85,10 @@ export class ChatResponseController {
       let ragContext: string[] = [];
       let ragSources: RagContextSource[] = [];
 
-      if (promptResult.mode !== "quick-analysis") {
+      if (
+        promptResult.mode !== "quick-analysis" &&
+        config.rag.enabled === true
+      ) {
         try {
           const retrieval = await this.deps.getRagContext(
             String(data.value ?? ""),
@@ -165,6 +170,7 @@ export class ChatResponseController {
           session.id,
           String(data.value ?? ""),
           webview,
+          responseController.signal,
         );
         return;
       }
@@ -318,6 +324,7 @@ export class ChatResponseController {
     sessionId: string,
     userContent: string,
     webview: vscode.Webview,
+    signal: AbortSignal,
   ): Promise<void> {
     await this.deps.sessionService.appendMessage(sessionId, {
       role: "user",
@@ -327,6 +334,7 @@ export class ChatResponseController {
     await this.deps.executeQuickAnalysis(webview, {
       source: "chat",
       sessionId,
+      signal,
     });
 
     await webview.postMessage({
@@ -346,6 +354,7 @@ export class ChatResponseController {
       partialContent: this.activeResponseSnapshot.partialContent,
       isStreaming: this.activeResponseSnapshot.isStreaming,
       generationId: this.activeResponseSnapshot.generationId,
+      forcedMode: this.activeResponseSnapshot.forcedMode,
     };
   }
 
