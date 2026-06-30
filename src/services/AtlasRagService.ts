@@ -600,26 +600,33 @@ export class AtlasRagService {
 
     const workspaceFolder = this.resolveCurrentWorkspaceFolder();
 
-    if (!workspaceFolder) {
-      console.log("Busca ignorada: nenhum workspace ativo.");
-      console.groupEnd();
-      return { context: [], sources: [] };
-    }
-
-    const rootPath = workspaceFolder.uri.fsPath;
-    const projectId = this.getProjectId(rootPath);
-    const project = this.repository.getProject(projectId);
+    const rootPath = workspaceFolder?.uri.fsPath;
+    const projectId = rootPath ? this.getProjectId(rootPath) : undefined;
+    const project = projectId ? this.repository.getProject(projectId) : undefined;
     const canSearchProject = project?.status === "ready";
-    const canSearchExternal =
-      settings.includeExternalDocuments &&
-      this.repository.hasExternalDocuments(projectId, settings.embeddingModel);
+    const externalSources = settings.includeExternalDocuments
+      ? this.repository.listExternalSources(undefined, settings.embeddingModel)
+      : [];
+    const externalCollectionNames = Array.from(
+      new Set(
+        externalSources.map(
+          (source) =>
+            source.collectionName ??
+            this.getExternalCollectionName(
+              source.projectId,
+              source.embeddingModel,
+            ),
+        ),
+      ),
+    );
+    const canSearchExternal = externalCollectionNames.length > 0;
 
     if (!canSearchProject && !canSearchExternal) {
       console.log("Busca ignorada: índice não está pronto.", {
         projectId,
         projectFound: Boolean(project),
         status: project?.status ?? "not-indexed",
-        externalDocuments: canSearchExternal,
+        externalDocuments: externalSources.length,
       });
       console.groupEnd();
       return { context: [], sources: [] };
@@ -630,9 +637,7 @@ export class AtlasRagService {
       projectIndexReady: canSearchProject,
       projectName: project?.name,
       collectionName: project?.collectionName,
-      externalCollectionName: canSearchExternal
-        ? this.getExternalCollectionName(projectId)
-        : undefined,
+      externalCollectionNames,
       sources: project?.sourceCount ?? 0,
       chunks: project?.chunkCount ?? 0,
       embeddingDimensions: project?.embeddingDimensions ?? 0,
@@ -657,9 +662,7 @@ export class AtlasRagService {
       const candidateCount = Math.max(settings.topK * 5, settings.topK);
       console.log("Consultando ChromaDB...", {
         collectionName: canSearchProject ? project?.collectionName : undefined,
-        externalCollectionName: canSearchExternal
-          ? this.getExternalCollectionName(projectId)
-          : undefined,
+        externalCollectionNames,
         topK: settings.topK,
         candidateCount,
       });
@@ -672,21 +675,17 @@ export class AtlasRagService {
                 candidateCount,
               )
             : Promise.resolve([]),
-          canSearchExternal
-            ? this.repository
-                .search(
-                  this.getExternalCollectionName(projectId),
-                  queryEmbedding,
-                  candidateCount,
-                )
-                .catch((error) => {
-                  console.warn(
-                    "[ATLAS RAG] Falha ao consultar documentos externos:",
-                    error,
-                  );
-                  return [];
-                })
-            : Promise.resolve([]),
+          ...externalCollectionNames.map((collectionName) =>
+            this.repository
+              .search(collectionName, queryEmbedding, candidateCount)
+              .catch((error) => {
+                console.warn(
+                  "[ATLAS RAG] Falha ao consultar documentos externos:",
+                  error,
+                );
+                return [];
+              }),
+          ),
         ])
       )
         .flat()
@@ -694,7 +693,7 @@ export class AtlasRagService {
       const results = this.selectRetrievalResults(
         candidates,
         settings,
-        workspaceFolder,
+        workspaceFolder ?? undefined,
       );
       console.log("Resultados retornados:", {
         candidates: candidates.length,
@@ -781,10 +780,11 @@ export class AtlasRagService {
   private selectRetrievalResults(
     candidates: RagSearchResult[],
     settings: ReturnType<AtlasConfigManager["getConfig"]>["rag"],
-    workspaceFolder: vscode.WorkspaceFolder,
+    workspaceFolder?: vscode.WorkspaceFolder,
   ): RagSearchResult[] {
     const activeDocument = vscode.window.activeTextEditor?.document;
     const activeFile =
+      workspaceFolder &&
       activeDocument &&
       vscode.workspace.getWorkspaceFolder(activeDocument.uri)?.uri.toString() ===
         workspaceFolder.uri.toString()

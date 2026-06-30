@@ -16,6 +16,8 @@ type FeatureExtractionPipeline = (
   },
 ) => Promise<FeatureExtractionOutput>;
 
+type EmbeddingDtype = "q8" | "fp32";
+
 export class AtlasEmbeddingService {
   private pipelinePromise: Promise<FeatureExtractionPipeline> | null = null;
   private pipelineModelPath: string | null = null;
@@ -102,6 +104,8 @@ export class AtlasEmbeddingService {
       );
     }
 
+    const dtype = this.resolveEmbeddingDtype(modelPath);
+
     this.configureBundledRuntimePath();
     const transformers = await import("@huggingface/transformers");
     transformers.env.allowRemoteModels = false;
@@ -113,11 +117,28 @@ export class AtlasEmbeddingService {
       modelId,
       {
         local_files_only: true,
-        dtype: "q8",
+        dtype,
       },
     );
 
     return extractor as unknown as FeatureExtractionPipeline;
+  }
+
+  private resolveEmbeddingDtype(modelPath: string): EmbeddingDtype {
+    const onnxPath = path.join(modelPath, "onnx");
+
+    if (fs.existsSync(path.join(onnxPath, "model_quantized.onnx"))) {
+      return "q8";
+    }
+
+    if (fs.existsSync(path.join(onnxPath, "model.onnx"))) {
+      return "fp32";
+    }
+
+    throw new Error(
+      `Modelo de embeddings sem arquivo ONNX compatível: ${onnxPath}. ` +
+        "Esperado model_quantized.onnx ou model.onnx.",
+    );
   }
 
   private configureBundledRuntimePath(): void {

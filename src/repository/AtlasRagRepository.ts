@@ -71,6 +71,18 @@ export class AtlasRagRepository {
       .sort((left, right) => right.modifiedAt.localeCompare(left.modifiedAt));
   }
 
+  public listExternalSources(
+    projectId?: string,
+    embeddingModel?: string,
+  ): RagIndexedSource[] {
+    return this.loadManifest().sources.filter(
+      (source) =>
+        source.externalDocument === true &&
+        (!projectId || source.projectId === projectId) &&
+        (!embeddingModel || source.embeddingModel === embeddingModel),
+    );
+  }
+
   public hasExternalDocuments(
     projectId: string,
     embeddingModel?: string,
