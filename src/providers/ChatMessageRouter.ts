@@ -1389,6 +1389,7 @@ export class ChatMessageRouter {
     try {
       const payload = data.payload ?? {};
       const language = this.normalizeResponseLanguage(payload.language);
+      const localStream = payload.localStream !== false;
       const currentCustom = this.deps.configManager.getConfig().custom ?? {};
       const currentLocalEngine =
         typeof currentCustom.localEngine === "object" &&
@@ -1437,6 +1438,7 @@ export class ChatMessageRouter {
           engineType,
           startOnAtlasOpen,
           dynamicContextWindow,
+          stream: localStream,
           enginesDir: enginesDir || this.deps.getLocalEnginesDir(),
         },
       });
@@ -1908,6 +1910,7 @@ export class ChatMessageRouter {
 
     return {
       language: this.normalizeResponseLanguage(config.general.language),
+      localStream: value.stream !== false,
       engineType: this.normalizeLocalEngineType(value.engineType),
       startOnAtlasOpen: value.startOnAtlasOpen === true,
       dynamicContextWindow: value.dynamicContextWindow !== false,

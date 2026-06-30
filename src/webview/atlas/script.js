@@ -1,6 +1,7 @@
 const vscode = acquireVsCodeApi();
 
 const atlasLanguage = document.getElementById("atlas-language");
+const localStreamResponses = document.getElementById("local-stream-responses");
 const engineCpu = document.getElementById("engine-cpu");
 const engineCuda = document.getElementById("engine-cuda");
 const engineVulkan = document.getElementById("engine-vulkan");
@@ -65,6 +66,10 @@ window.addEventListener("message", (event) => {
 function applyAtlasSettings(value) {
   if (atlasLanguage) {
     atlasLanguage.value = value?.language === "en-US" ? "en-US" : "pt-BR";
+  }
+
+  if (localStreamResponses) {
+    localStreamResponses.checked = value?.localStream !== false;
   }
 
   const engineType = ["cuda", "vulkan"].includes(value?.engineType)
@@ -138,6 +143,7 @@ function saveAtlasSettings() {
     type: "salvarConfiguracoesAtlas",
     payload: {
       language: atlasLanguage?.value === "en-US" ? "en-US" : "pt-BR",
+      localStream: localStreamResponses?.checked !== false,
       engineType: getSelectedEngineType(),
       dynamicContextWindow: contextWindowFixed?.checked !== true,
       startOnAtlasOpen: engineStartOnOpen?.checked === true,

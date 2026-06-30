@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-06-30T13:53:29.641Z",
+  "updatedAt": "2026-06-30T14:54:00.476Z",
   "general": {
     "theme": "system",
     "language": "pt-BR",
@@ -27,7 +27,7 @@
       "dist",
       ".git"
     ],
-    "embeddingModel": "atlas-embedding",
+    "embeddingModel": "bge-m3",
     "embeddingModelsDir": "",
     "topK": 6,
     "maxContextCharacters": 12000,
@@ -85,7 +85,7 @@
   },
   "llms": {
     "selection": {
-      "mode": "cloud",
+      "mode": "local",
       "local": {
         "activeModelId": "local/gemma-3-1b-it-UD-Q5_K_XL"
       },
@@ -315,13 +315,14 @@
   },
   "custom": {
     "localEngine": {
-      "dynamicContextWindow": false,
+      "dynamicContextWindow": true,
+      "stream": false,
       "engineType": "vulkan",
       "startOnAtlasOpen": true,
       "enginesDir": "c:\\Users\\jvict\\OneDrive\\Documentos\\Projetos\\ATLAS\\engine"
     },
     "staticAnalysis": {
-      "enabled": false,
+      "enabled": true,
       "useInQuickAnalysis": true,
       "useInArchitecturalAnalysis": true,
       "includeDiagnostics": false,

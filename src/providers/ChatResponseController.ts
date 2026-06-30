@@ -45,8 +45,15 @@ export class ChatResponseController {
       const editorContext = this.deps.getChatEditorContext();
       const windowMessages =
         this.deps.sessionService.getWindowMessages(session);
-      const shouldStream =
-        this.deps.configManager.getConfig().llms.defaults.stream;
+      const config = this.deps.configManager.getConfig();
+      const localEngine = config.custom?.localEngine;
+      const shouldStream = usesLocalEngine
+        ? !(
+            typeof localEngine === "object" &&
+            localEngine !== null &&
+            localEngine.stream === false
+          )
+        : config.llms.defaults.stream;
 
       const responseSnapshot: ActiveResponseSnapshot = {
         controller: responseController,
