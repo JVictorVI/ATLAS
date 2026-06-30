@@ -7,16 +7,16 @@
       content="
         default-src 'none';
         img-src {{cspSource}} https:;
-        style-src {{cspSource}} 'unsafe-inline' https:;
-        font-src https: data:; 
-        script-src {{cspSource}} 'unsafe-inline' https://cdn.jsdelivr.net;
+        style-src {{cspSource}} 'unsafe-inline';
+        font-src {{cspSource}} data:;
+        script-src {{cspSource}} 'unsafe-inline';
       "
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ATLAS</title>
     <link
       rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/@vscode/codicons/dist/codicon.css"
+      href="{{codiconsUri}}"
     />
     <link rel="stylesheet" href="{{styleUri}}" />
   </head>
@@ -78,7 +78,7 @@
       <div id="content-container"></div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="{{markedUri}}"></script>
     <script src="{{scriptUri}}"></script>
   </body>
 </html>

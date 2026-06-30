@@ -8,10 +8,12 @@
       default-src 'none';
       img-src {{cspSource}} https:;
       style-src {{cspSource}};
+      font-src {{cspSource}} data:;
       script-src {{cspSource}};
     "
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="{{codiconsUri}}" />
     <link rel="stylesheet" href="{{styleUri}}" />
     <title>Provedores em Nuvem</title>
   </head>

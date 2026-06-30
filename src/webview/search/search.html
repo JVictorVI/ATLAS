@@ -6,8 +6,8 @@
       http-equiv="Content-Security-Policy"
       content="
         default-src 'none';
-        style-src {{cspSource}} 'unsafe-inline' https:;
-        font-src https: data:;
+        style-src {{cspSource}} 'unsafe-inline';
+        font-src {{cspSource}} data:;
         script-src {{cspSource}} 'unsafe-inline';
       "
     />
@@ -15,7 +15,7 @@
     <title>Repositório de Modelos</title>
     <link
       rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/@vscode/codicons/dist/codicon.css"
+      href="{{codiconsUri}}"
     />
     <link rel="stylesheet" href="{{styleUri}}" />
   </head>

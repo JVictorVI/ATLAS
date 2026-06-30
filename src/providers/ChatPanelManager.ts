@@ -55,6 +55,12 @@ export class ChatPanelManager {
         this.context.extensionUri,
         "src",
         "webview",
+        "vendor",
+      ),
+      vscode.Uri.joinPath(
+        this.context.extensionUri,
+        "src",
+        "webview",
         "search",
       ),
       vscode.Uri.joinPath(
@@ -231,6 +237,18 @@ export class ChatPanelManager {
     const scriptUri = webview.asWebviewUri(
       vscode.Uri.file(path.join(webviewPath, "script.js")),
     );
+    const codiconsUri = webview.asWebviewUri(
+      vscode.Uri.file(
+        path.join(
+          this.context.extensionUri.fsPath,
+          "src",
+          "webview",
+          "vendor",
+          "codicons",
+          "codicon.css",
+        ),
+      ),
+    );
 
     const markedUri = this.tryGetMarkedUri(webview);
     let html = fs.readFileSync(htmlPath, "utf8");
@@ -239,6 +257,7 @@ export class ChatPanelManager {
       .replace(/{{cspSource}}/g, webview.cspSource)
       .replace(/{{styleUri}}/g, styleUri.toString())
       .replace(/{{scriptUri}}/g, scriptUri.toString())
+      .replace(/{{codiconsUri}}/g, codiconsUri.toString())
       .replace(/{{markedUri}}/g, markedUri);
 
     return html;

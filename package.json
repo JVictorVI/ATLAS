@@ -71,9 +71,11 @@
   "dependencies": {
     "@hey-api/client-fetch": "^0.10.0",
     "@huggingface/transformers": "^3.8.1",
+    "@vscode/codicons": "^0.0.45",
     "axios": "^1.18.1",
     "chromadb": "^3.4.3",
     "jszip": "^3.10.1",
+    "marked": "^18.0.5",
     "minimatch": "^10.2.4",
     "pdf-parse": "^1.1.1",
     "uuid": "^14.0.0"
