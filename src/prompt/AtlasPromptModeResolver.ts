@@ -202,10 +202,6 @@ export class AtlasPromptModeResolver {
       return "quick-analysis";
     }
 
-    if (!hasCodeContext) {
-      return "developer-assistant";
-    }
-
     const hasExplicitArchitecturalIntent = this.hasAnyTerm(
       question,
       this.explicitArchitecturalPhrases,
@@ -213,6 +209,10 @@ export class AtlasPromptModeResolver {
 
     if (hasExplicitArchitecturalIntent) {
       return "architectural-analysis";
+    }
+
+    if (!hasCodeContext) {
+      return "developer-assistant";
     }
 
     const architecturalScore =

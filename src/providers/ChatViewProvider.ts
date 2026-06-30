@@ -198,8 +198,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this.quickAnalysisController = new AtlasQuickAnalysisController(
       this.quickAnalysisService,
       this.editorContextService,
-      (available) => {
-        this.broadcastQuickAnalysisAvailability(available);
+      (available, hasEditorContext) => {
+        this.broadcastQuickAnalysisAvailability(available, hasEditorContext);
       },
     );
 
@@ -257,6 +257,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           type: "disponibilidadeMarcacoesAnaliseRapida",
           value: {
             available: this.quickAnalysisController.hasActiveDecorations(),
+            hasEditorContext:
+              this.quickAnalysisController.hasAnalyzableEditor(),
           },
         });
 
@@ -489,10 +491,13 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     });
   }
 
-  private broadcastQuickAnalysisAvailability(available: boolean): void {
+  private broadcastQuickAnalysisAvailability(
+    available: boolean,
+    hasEditorContext = this.quickAnalysisController.hasAnalyzableEditor(),
+  ): void {
     const message = {
       type: "disponibilidadeMarcacoesAnaliseRapida",
-      value: { available },
+      value: { available, hasEditorContext },
     };
 
     void this._view?.webview.postMessage(message);

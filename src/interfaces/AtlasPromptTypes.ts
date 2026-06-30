@@ -1,4 +1,5 @@
 import { ChatMessage } from "./ApiTypes";
+import { AtlasContextProfileSettings } from "./AtlasConfigTypes";
 
 export type AtlasPromptAssemblyInput = {
   userQuestion: string;
@@ -9,6 +10,7 @@ export type AtlasPromptAssemblyInput = {
   forcedMode?: AtlasPromptMode;
   /** Long-term architectural memory injected from the active session */
   architecturalSummary?: string;
+  contextProfile?: AtlasContextProfileSettings;
 };
 
 export type AtlasPromptAssemblyResult = {

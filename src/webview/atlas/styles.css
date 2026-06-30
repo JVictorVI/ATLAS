@@ -11,6 +11,53 @@ body {
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
+.atlas-settings-page {
+  width: 100%;
+}
+
+body.atlas-loading-active .atlas-settings-page {
+  display: none;
+}
+
+.atlas-loading-overlay {
+  display: grid;
+  min-height: calc(100vh - 32px);
+  place-items: center;
+  color: var(--vscode-foreground);
+}
+
+.atlas-loading-card {
+  display: flex;
+  width: 72px;
+  height: 72px;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border: 1px solid var(--vscode-widget-border);
+  border-radius: 14px;
+  padding: 18px;
+  background: var(--atlas-card-background);
+}
+
+.atlas-loading-spinner {
+  width: 34px;
+  height: 34px;
+  border: 3px solid var(--vscode-progressBar-background, var(--vscode-widget-border));
+  border-top-color: var(--vscode-button-background);
+  border-radius: 50%;
+  animation: atlas-loading-spin 850ms linear infinite;
+}
+
+@keyframes atlas-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 h1 {
   font-size: 30px;
   line-height: 1.15;
@@ -83,6 +130,69 @@ h1 {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 12px;
+}
+
+.context-profile-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.context-profile-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid var(--vscode-widget-border);
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+}
+
+.context-profile-option:hover {
+  border-color: var(--vscode-focusBorder);
+}
+
+.context-profile-option span {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.context-profile-option small {
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.context-profile-summary {
+  border-top: 1px solid var(--atlas-muted-border);
+  display: grid;
+  gap: 0;
+  margin-top: 16px;
+  padding-top: 4px;
+}
+
+.context-profile-summary-item {
+  border-bottom: 1px solid var(--atlas-muted-border);
+  padding: 12px 0;
+}
+
+.context-profile-summary-item.is-active > strong {
+  color: var(--vscode-textLink-foreground);
+}
+
+.context-profile-summary-item ul {
+  color: var(--vscode-descriptionForeground);
+  display: grid;
+  gap: 3px;
+  list-style-position: outside;
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.context-profile-summary-item li {
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .folder-setting {

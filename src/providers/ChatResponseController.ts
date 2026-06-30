@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 
 import { AtlasSession } from "../interfaces/AtlasHistoryTypes";
+import { AtlasEditorContext } from "../interfaces/AtlasEditorTypes";
 import { RagContextSource } from "../interfaces/AtlasRagTypes";
 import { AtlasInferenceService } from "../services/AtlasInferenceService";
 import {
@@ -42,10 +43,30 @@ export class ChatResponseController {
     try {
       const session = this.deps.sessionService.ensureActiveSession();
       responseSessionId = session.id;
-      const editorContext = this.deps.getChatEditorContext();
-      const windowMessages =
-        this.deps.sessionService.getWindowMessages(session);
       const config = this.deps.configManager.getConfig();
+      const contextProfile = this.deps.configManager.getContextProfile();
+      const requiresEditorContext =
+        data.forcedMode === "architectural-analysis";
+      const rawEditorContext = this.deps.getChatEditorContext();
+
+      if (requiresEditorContext && !rawEditorContext) {
+        throw new Error(
+          "Abra um arquivo no editor antes de executar a análise arquitetural.",
+        );
+      }
+
+      const editorContext =
+        contextProfile.includeEditorContext || requiresEditorContext
+        ? this.limitEditorContext(
+            rawEditorContext,
+            contextProfile.maxEditorContextCharacters,
+          )
+        : null;
+      const windowMessages =
+        this.deps.sessionService.getWindowMessages(
+          session,
+          contextProfile.historyWindowSize,
+        );
       const localEngine = config.custom?.localEngine;
       const shouldStream = usesLocalEngine
         ? !(
@@ -81,13 +102,22 @@ export class ChatResponseController {
         hasCodeContext: Boolean(editorContext),
         forcedMode: data.forcedMode,
         architecturalSummary: session.architecturalSummary || undefined,
+        contextProfile,
       });
+
+      if (promptResult.mode === "architectural-analysis" && !rawEditorContext) {
+        throw new Error(
+          "Nenhum arquivo válido aberto no editor para análise arquitetural.",
+        );
+      }
+
       let ragContext: string[] = [];
       let ragSources: RagContextSource[] = [];
 
       if (
         promptResult.mode !== "quick-analysis" &&
-        config.rag.enabled === true
+        config.rag.enabled === true &&
+        contextProfile.includeRagContext
       ) {
         try {
           const retrieval = await this.deps.getRagContext(
@@ -128,6 +158,7 @@ export class ChatResponseController {
             hasCodeContext: Boolean(editorContext),
             forcedMode: data.forcedMode,
             architecturalSummary: session.architecturalSummary || undefined,
+            contextProfile,
           });
         } else {
           console.log(
@@ -162,6 +193,7 @@ export class ChatResponseController {
           hasCodeContext: true,
           forcedMode: data.forcedMode,
           architecturalSummary: session.architecturalSummary || undefined,
+          contextProfile,
         });
       }
 
@@ -216,9 +248,11 @@ export class ChatResponseController {
         },
       });
 
-      this.deps.sessionService.summarizeIfNeeded(session.id).catch((error) => {
-        console.warn("[ATLAS] Background summarization error:", error);
-      });
+      this.deps.sessionService
+        .summarizeIfNeeded(session.id, contextProfile.historyWindowSize)
+        .catch((error) => {
+          console.warn("[ATLAS] Background summarization error:", error);
+        });
 
       if (!shouldStream) {
         await webview.postMessage({
@@ -341,6 +375,42 @@ export class ChatResponseController {
       type: "sessoesAtualizadas",
       value: this.deps.sessionService.listSessions(),
     });
+  }
+
+  private limitEditorContext(
+    editorContext: AtlasEditorContext | null,
+    maxCharacters: number,
+  ): AtlasEditorContext | null {
+    if (!editorContext || editorContext.code.length <= maxCharacters) {
+      return editorContext;
+    }
+
+    return {
+      ...editorContext,
+      code: this.truncateCodeContext(editorContext.code, maxCharacters),
+      truncation: {
+        originalCharacters: editorContext.code.length,
+        maxCharacters,
+      },
+    };
+  }
+
+  private truncateCodeContext(code: string, maxCharacters: number): string {
+    const marker = "\n\n/* ... conteúdo omitido pelo perfil de contexto ... */\n\n";
+    const available = Math.max(0, maxCharacters - marker.length);
+
+    if (available <= 0) {
+      return code.slice(0, maxCharacters);
+    }
+
+    const headSize = Math.ceil(available * 0.65);
+    const tailSize = available - headSize;
+
+    return [
+      code.slice(0, headSize).trimEnd(),
+      marker.trimEnd(),
+      code.slice(-tailSize).trimStart(),
+    ].join("\n\n");
   }
 
   public serializeActiveGeneration(): ActiveGenerationPayload {

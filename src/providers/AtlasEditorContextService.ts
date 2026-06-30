@@ -71,6 +71,13 @@ export class AtlasEditorContextService {
   }
 
   public buildEditorAnalysisContext(editorContext: AtlasEditorContext): string {
+    const truncationNotice = editorContext.truncation
+      ? [
+          `Conteúdo limitado pelo perfil de contexto: ${editorContext.code.length} de ${editorContext.truncation.originalCharacters} caracteres enviados.`,
+          `Limite configurado: ${editorContext.truncation.maxCharacters} caracteres.`,
+        ]
+      : [];
+
     if (editorContext.source === "selection" && editorContext.selection) {
       return [
         `Arquivo aberto no editor: ${editorContext.fileName}`,
@@ -80,6 +87,7 @@ export class AtlasEditorContextService {
         "",
         "Trate este conteúdo como um trecho isolado para análise técnica focal, sem assumir visão completa do sistema.",
         "Considere prioritariamente o trecho selecionado abaixo como base da resposta:",
+        ...truncationNotice,
         "```",
         editorContext.code,
         "```",
@@ -93,6 +101,7 @@ export class AtlasEditorContextService {
       `Total de linhas: ${editorContext.lineCount}`,
       "",
       "Considere o código abaixo como base principal da análise:",
+      ...truncationNotice,
       "```",
       editorContext.code,
       "```",

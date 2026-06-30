@@ -11,10 +11,12 @@ import {
   RagRuntimeStatus,
 } from "../interfaces/AtlasRagTypes";
 import {
+  AtlasContextProfileSettings,
   AtlasRagSettings,
   AtlasResponseLanguage,
 } from "../interfaces/AtlasConfigTypes";
 import { AtlasExternalDocumentParser } from "../services/AtlasExternalDocumentParser";
+import { AtlasContextProfileService } from "../services/AtlasContextProfileService";
 
 export class ChatMessageRouter {
   private activeWebviewRoute = "chat";
@@ -1398,6 +1400,9 @@ export class ChatMessageRouter {
         30,
       );
       const currentCustom = this.deps.configManager.getConfig().custom ?? {};
+      const contextProfile = this.normalizeContextProfilePayload(payload);
+      const presetEffects =
+        AtlasContextProfileService.getPresetEffects(contextProfile.mode);
       const currentLocalEngine =
         typeof currentCustom.localEngine === "object" &&
         currentCustom.localEngine !== null
@@ -1405,7 +1410,9 @@ export class ChatMessageRouter {
           : {};
       const engineType = this.normalizeLocalEngineType(payload.engineType);
       const startOnAtlasOpen = payload.startOnAtlasOpen === true;
-      const dynamicContextWindow = payload.dynamicContextWindow !== false;
+      const dynamicContextWindow =
+        presetEffects?.localEngine.dynamicContextWindow ??
+        (payload.dynamicContextWindow !== false);
       const localModels =
         typeof currentCustom.localModels === "object" &&
         currentCustom.localModels !== null
@@ -1422,20 +1429,27 @@ export class ChatMessageRouter {
         payload.staticAnalysisDiagnostics === true;
       const staticAnalysisRelations =
         payload.staticAnalysisRelations === true;
+      const staticAnalysis = presetEffects?.staticAnalysis ?? {
+        enabled: staticAnalysisEnabled,
+        useInQuickAnalysis: staticAnalysisQuick,
+        useInArchitecturalAnalysis: staticAnalysisArchitectural,
+        includeDiagnostics: staticAnalysisDiagnostics,
+        includeSymbolRelations: staticAnalysisRelations,
+      };
 
       this.deps.configManager.updateGeneralSettings({
         language,
       });
 
+      this.deps.configManager.updateRagSettings({
+        topK: contextProfile.ragTopK,
+        maxContextCharacters: contextProfile.ragMaxContextCharacters,
+      });
+
       this.deps.configManager.updateCustomRoot({
         ...currentCustom,
-        staticAnalysis: {
-          enabled: staticAnalysisEnabled,
-          useInQuickAnalysis: staticAnalysisQuick,
-          useInArchitecturalAnalysis: staticAnalysisArchitectural,
-          includeDiagnostics: staticAnalysisDiagnostics,
-          includeSymbolRelations: staticAnalysisRelations,
-        },
+        contextProfile,
+        staticAnalysis,
         localModels: {
           ...localModels,
           modelsDir: modelsDir || this.deps.getLocalModelsDir(),
@@ -1906,6 +1920,51 @@ export class ChatMessageRouter {
     return error instanceof Error ? error.message : fallback;
   }
 
+  private normalizeContextProfilePayload(
+    payload: Record<string, unknown>,
+  ): AtlasContextProfileSettings {
+    const config = this.deps.configManager.getConfig();
+    const current = this.deps.configManager.getContextProfile();
+    const mode = AtlasContextProfileService.normalizeMode(
+      payload.contextProfileMode,
+      current.mode,
+    );
+
+    if (mode !== "custom") {
+      return AtlasContextProfileService.getPreset(mode);
+    }
+
+    return AtlasContextProfileService.normalize(
+      {
+        mode,
+        historyWindowSize:
+          payload.contextHistoryWindow ?? current.historyWindowSize,
+        includeArchitecturalMemory:
+          typeof payload.contextMemoryEnabled === "boolean"
+            ? payload.contextMemoryEnabled
+            : current.includeArchitecturalMemory,
+        includeRagContext:
+          typeof payload.contextRagEnabled === "boolean"
+            ? payload.contextRagEnabled
+            : current.includeRagContext,
+        includeEditorContext:
+          typeof payload.contextEditorEnabled === "boolean"
+            ? payload.contextEditorEnabled
+            : current.includeEditorContext,
+        maxEditorContextCharacters:
+          payload.contextEditorLimit ?? current.maxEditorContextCharacters,
+        includeStaticAnalysis:
+          typeof payload.staticAnalysisEnabled === "boolean"
+            ? payload.staticAnalysisEnabled
+            : current.includeStaticAnalysis,
+        ragTopK: payload.contextRagTopK ?? config.rag.topK,
+        ragMaxContextCharacters:
+          payload.contextRagLimit ?? config.rag.maxContextCharacters,
+      },
+      current,
+    );
+  }
+
   private getAtlasSettingsPayload() {
     const config = this.deps.configManager.getConfig();
     const localEngine = config.custom?.localEngine;
@@ -1915,9 +1974,20 @@ export class ChatMessageRouter {
         : {};
     const staticAnalysis =
       this.deps.configManager.getStaticAnalysisConfig();
+    const contextProfile = this.deps.configManager.getContextProfile();
 
     return {
       language: this.normalizeResponseLanguage(config.general.language),
+      contextProfileMode: contextProfile.mode,
+      contextHistoryWindow: contextProfile.historyWindowSize,
+      contextMemoryEnabled: contextProfile.includeArchitecturalMemory,
+      contextRagEnabled: contextProfile.includeRagContext,
+      contextEditorEnabled: contextProfile.includeEditorContext,
+      contextEditorLimit: contextProfile.maxEditorContextCharacters,
+      contextRagTopK: config.rag.topK ?? contextProfile.ragTopK,
+      contextRagLimit:
+        config.rag.maxContextCharacters ??
+        contextProfile.ragMaxContextCharacters,
       localStream: value.stream !== false,
       localTimeout: this.normalizeInteger(
         value.timeout,
@@ -1930,12 +2000,20 @@ export class ChatMessageRouter {
       dynamicContextWindow: value.dynamicContextWindow !== false,
       modelsDir: this.deps.getLocalModelsDir(),
       enginesDir: this.deps.getLocalEnginesDir(),
-      staticAnalysisEnabled: staticAnalysis.enabled,
-      staticAnalysisQuick: staticAnalysis.useInQuickAnalysis,
+      staticAnalysisEnabled:
+        staticAnalysis.enabled && contextProfile.includeStaticAnalysis,
+      staticAnalysisQuick:
+        staticAnalysis.useInQuickAnalysis &&
+        contextProfile.includeStaticAnalysis,
       staticAnalysisArchitectural:
-        staticAnalysis.useInArchitecturalAnalysis,
-      staticAnalysisDiagnostics: staticAnalysis.includeDiagnostics,
-      staticAnalysisRelations: staticAnalysis.includeSymbolRelations,
+        staticAnalysis.useInArchitecturalAnalysis &&
+        contextProfile.includeStaticAnalysis,
+      staticAnalysisDiagnostics:
+        staticAnalysis.includeDiagnostics &&
+        contextProfile.includeStaticAnalysis,
+      staticAnalysisRelations:
+        staticAnalysis.includeSymbolRelations &&
+        contextProfile.includeStaticAnalysis,
     };
   }
 

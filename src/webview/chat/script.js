@@ -27,6 +27,7 @@ let shortcutLoadingState = {
   quickAnalysis: false,
   architectureAnalysis: false,
 };
+let hasEditorContextForAnalysis = false;
 
 if (typeof marked !== "undefined") {
   marked.setOptions({
@@ -823,6 +824,9 @@ function setupChatEvents() {
 
   quickAnalysisBtn?.addEventListener("click", () => {
     if (hasActiveShortcutLoading() || isGeneratingResponse) return;
+    if (!hasEditorContextForAnalysis) {
+      return;
+    }
     shortcutLoadingState.quickAnalysis = true;
     hydrateChatControlState();
     vscode.postMessage({ type: "executarAnaliseRapida" });
@@ -835,6 +839,10 @@ function setupChatEvents() {
   if (architetureAnalysisBtn) {
     architetureAnalysisBtn.addEventListener("click", () => {
       if (hasActiveShortcutLoading() || isGeneratingResponse) {
+        return;
+      }
+
+      if (!hasEditorContextForAnalysis) {
         return;
       }
 
@@ -1984,6 +1992,7 @@ window.addEventListener("message", (event) => {
       break;
     }
     case "disponibilidadeMarcacoesAnaliseRapida": {
+      hasEditorContextForAnalysis = message.value?.hasEditorContext === true;
       const clearQuickAnalysisBtn = document.getElementById(
         "clear-quick-analysis-btn",
       );
@@ -1992,6 +2001,7 @@ window.addEventListener("message", (event) => {
         "hidden",
         message.value?.available !== true,
       );
+      hydrateChatControlState();
       break;
     }
     case "informarLLMsCarregados": {
@@ -2172,13 +2182,25 @@ function renderShortcutButton(action) {
     button.dataset.originalLabel?.trim() || button.textContent.trim();
   if (!button.dataset.originalLabel)
     button.dataset.originalLabel = originalLabel;
+  if (!button.dataset.originalTitle) {
+    button.dataset.originalTitle = button.getAttribute("title") || "";
+  }
 
   const isLoading = getShortcutLoadingState(action);
+  const requiresEditorContext =
+    action === "quick-analysis" || action === "architecture-analysis";
+  const isUnavailable = requiresEditorContext && !hasEditorContextForAnalysis;
   const isBlocked =
-    isLoading || hasActiveShortcutLoading() || isGeneratingResponse;
+    isUnavailable ||
+    isLoading ||
+    hasActiveShortcutLoading() ||
+    isGeneratingResponse;
 
   button.disabled = isBlocked;
   button.classList.toggle("loading", isLoading);
+  button.title = isUnavailable
+    ? "Abra um arquivo no editor para executar esta análise."
+    : button.dataset.originalTitle;
   if (isLoading) {
     button.innerHTML = `<span class="btn-spinner" aria-hidden="true"></span><span>${originalLabel}</span>`;
   } else {

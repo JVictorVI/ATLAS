@@ -139,6 +139,24 @@ export interface AtlasStaticAnalysisConfig {
   includeSymbolRelations: boolean;
 }
 
+export type AtlasContextProfileMode =
+  | "light"
+  | "balanced"
+  | "advanced"
+  | "custom";
+
+export interface AtlasContextProfileSettings {
+  mode: AtlasContextProfileMode;
+  historyWindowSize: number;
+  includeArchitecturalMemory: boolean;
+  includeRagContext: boolean;
+  includeEditorContext: boolean;
+  maxEditorContextCharacters: number;
+  includeStaticAnalysis: boolean;
+  ragTopK: number;
+  ragMaxContextCharacters: number;
+}
+
 export interface AtlasLocalEngineCustomConfig {
   engineType?: "cpu" | "cuda" | "vulkan";
   startOnAtlasOpen?: boolean;
@@ -153,6 +171,7 @@ export interface AtlasLocalEngineCustomConfig {
 export interface AtlasCustomSettings {
   studyMode?: AtlasStudyModeConfig;
   staticAnalysis?: AtlasStaticAnalysisConfig;
+  contextProfile?: AtlasContextProfileSettings;
   localEngine?: AtlasLocalEngineCustomConfig;
 
   // mantém flexível para futuras extensões

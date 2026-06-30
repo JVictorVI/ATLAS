@@ -6,8 +6,7 @@ import {
   AtlasPromptAssemblyInput,
   AtlasPromptAssemblyResult,
 } from "../interfaces/AtlasPromptTypes";
-
-const WINDOW_SIZE = 10;
+import { AtlasContextProfileService } from "../services/AtlasContextProfileService";
 
 export class AtlasPromptAssemblyService {
   constructor(
@@ -19,11 +18,18 @@ export class AtlasPromptAssemblyService {
   public buildMessages(
     input: AtlasPromptAssemblyInput,
   ): AtlasPromptAssemblyResult {
+    const contextProfile = input.contextProfile
+      ? AtlasContextProfileService.normalize(input.contextProfile)
+      : AtlasContextProfileService.getDefaultProfile();
     const mode = this.modeResolver.resolve({
       userQuestion: input.userQuestion,
-      hasCodeContext: input.hasCodeContext,
-      hasAnalysisContext: Boolean(input.analysisContext?.length),
-      hasRagContext: Boolean(input.ragContext?.length),
+      hasCodeContext:
+        contextProfile.includeEditorContext && input.hasCodeContext,
+      hasAnalysisContext:
+        contextProfile.includeEditorContext &&
+        Boolean(input.analysisContext?.length),
+      hasRagContext:
+        contextProfile.includeRagContext && Boolean(input.ragContext?.length),
       forcedMode: input.forcedMode,
     });
 
@@ -34,7 +40,11 @@ export class AtlasPromptAssemblyService {
     messages.push({ role: "system", content: baseSystemMessage });
 
     // 2. Architectural summary from long-term memory (injected before customization)
-    if (input.architecturalSummary && mode !== "quick-analysis") {
+    if (
+      contextProfile.includeArchitecturalMemory &&
+      input.architecturalSummary &&
+      mode !== "quick-analysis"
+    ) {
       messages.push({
         role: "system",
         content: [
@@ -53,7 +63,7 @@ export class AtlasPromptAssemblyService {
     }
 
     // 4. Code/analysis context from editor
-    if (input.analysisContext?.length) {
+    if (contextProfile.includeEditorContext && input.analysisContext?.length) {
       messages.push({
         role: "system",
         content: [
@@ -64,7 +74,11 @@ export class AtlasPromptAssemblyService {
     }
 
     // 5. RAG context
-    if (mode !== "quick-analysis" && input.ragContext?.length) {
+    if (
+      contextProfile.includeRagContext &&
+      mode !== "quick-analysis" &&
+      input.ragContext?.length
+    ) {
       messages.push({
         role: "system",
         content: [
@@ -74,13 +88,16 @@ export class AtlasPromptAssemblyService {
       });
     }
 
-    // 6. Sliding window: last WINDOW_SIZE messages from conversation history
+    // 6. Sliding window: last configured messages from conversation history
     if (input.history?.length && mode !== "quick-analysis") {
-      const windowedHistory = this.applyWindow(input.history);
+      const windowedHistory = this.applyWindow(
+        input.history,
+        contextProfile.historyWindowSize,
+      );
 
       // Debug log for token monitoring validation
       console.log(
-        `[ATLAS] Context window: total=${input.history.length}, sending=${windowedHistory.length}/${WINDOW_SIZE} messages`,
+        `[ATLAS] Context window: total=${input.history.length}, sending=${windowedHistory.length}/${contextProfile.historyWindowSize} messages`,
       );
 
       messages.push(...windowedHistory);
@@ -93,12 +110,19 @@ export class AtlasPromptAssemblyService {
   }
 
   /**
-   * Applies the sliding window: only keeps the last WINDOW_SIZE
+   * Applies the sliding window: only keeps the last configured number of
    * non-system messages (preserving role pairs when possible).
    */
-  private applyWindow(history: ChatMessage[]): ChatMessage[] {
+  private applyWindow(
+    history: ChatMessage[],
+    windowSize: number,
+  ): ChatMessage[] {
+    if (windowSize <= 0) {
+      return [];
+    }
+
     const nonSystem = history.filter((m) => m.role !== "system");
-    return nonSystem.slice(-WINDOW_SIZE).map((message) => ({
+    return nonSystem.slice(-windowSize).map((message) => ({
       role: message.role,
       content: message.content,
     }));

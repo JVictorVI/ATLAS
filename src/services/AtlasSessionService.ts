@@ -125,20 +125,26 @@ export class AtlasSessionService {
 
   /**
    * Returns the sliding-window messages to send to the API.
-   * Always returns the last WINDOW_SIZE messages.
+   * Always returns the last configured number of messages.
    */
-  public getWindowMessages(session: AtlasSession): ChatMessage[] {
+  public getWindowMessages(
+    session: AtlasSession,
+    windowSize: number = WINDOW_SIZE,
+  ): ChatMessage[] {
     const nonSystem = session.messages.filter((m) => m.role !== "system");
-    return nonSystem.slice(-WINDOW_SIZE);
+    return windowSize <= 0 ? [] : nonSystem.slice(-windowSize);
   }
 
   /**
    * Returns messages that are outside the current window and
    * have not yet been summarized (index > lastSummarizedIndex).
    */
-  public getMessagesToSummarize(session: AtlasSession): ChatMessage[] {
+  public getMessagesToSummarize(
+    session: AtlasSession,
+    windowSize: number = WINDOW_SIZE,
+  ): ChatMessage[] {
     const nonSystem = session.messages.filter((m) => m.role !== "system");
-    const archiveCutoff = Math.max(0, nonSystem.length - WINDOW_SIZE);
+    const archiveCutoff = Math.max(0, nonSystem.length - windowSize);
 
     if (archiveCutoff <= session.lastSummarizedIndex) {
       return [];
@@ -151,11 +157,14 @@ export class AtlasSessionService {
    * Triggers summarization if there are archived messages waiting.
    * Updates architecturalSummary and lastSummarizedIndex in the session.
    */
-  public async summarizeIfNeeded(sessionId: string): Promise<AtlasSession> {
+  public async summarizeIfNeeded(
+    sessionId: string,
+    windowSize: number = WINDOW_SIZE,
+  ): Promise<AtlasSession> {
     const session = this.historyRepository.getSession(sessionId);
     if (!session) throw new Error(`Sessão "${sessionId}" não encontrada.`);
 
-    const toSummarize = this.getMessagesToSummarize(session);
+    const toSummarize = this.getMessagesToSummarize(session, windowSize);
     if (toSummarize.length === 0) return session;
 
     try {
@@ -180,7 +189,7 @@ export class AtlasSessionService {
       const response = await this.inferenceService.sendChat(summaryMessages);
 
       const nonSystem = session.messages.filter((m) => m.role !== "system");
-      const archiveCutoff = Math.max(0, nonSystem.length - WINDOW_SIZE);
+      const archiveCutoff = Math.max(0, nonSystem.length - windowSize);
 
       session.architecturalSummary = response.content.trim();
       session.lastSummarizedIndex = archiveCutoff;

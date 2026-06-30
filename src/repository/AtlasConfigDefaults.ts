@@ -4,6 +4,7 @@ import {
   AtlasRagSettings,
   ProviderConfig,
 } from "../interfaces/AtlasConfigTypes";
+import { AtlasContextProfileService } from "../services/AtlasContextProfileService";
 
 export class AtlasConfigDefaults {
   public createDefaultConfig(): AtlasConfigSchema {
@@ -106,6 +107,7 @@ export class AtlasConfigDefaults {
         localModels: {},
       },
       custom: {
+        contextProfile: AtlasContextProfileService.getDefaultProfile(),
         localEngine: {
           dynamicContextWindow: true,
           stream: true,
@@ -142,6 +144,11 @@ export class AtlasConfigDefaults {
       {}) as AtlasLocalEngineCustomConfig;
     const partialLocalEngine = (partial.custom?.localEngine ??
       {}) as AtlasLocalEngineCustomConfig;
+    const contextProfile = AtlasContextProfileService.normalize(
+      partial.custom?.contextProfile,
+      defaults.custom?.contextProfile ??
+        AtlasContextProfileService.getDefaultProfile(),
+    );
 
     return {
       ...defaults,
@@ -193,6 +200,7 @@ export class AtlasConfigDefaults {
       custom: {
         ...(defaults.custom ?? {}),
         ...(partial.custom ?? {}),
+        contextProfile,
         localEngine: {
           ...defaultLocalEngine,
           ...partialLocalEngine,

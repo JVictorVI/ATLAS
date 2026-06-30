@@ -16,7 +16,24 @@
     <link rel="stylesheet" href="{{styleUri}}" />
     <title>Configurações Gerais</title>
   </head>
-  <body>
+  <body class="atlas-loading-active">
+    <div
+      id="atlas-loading"
+      class="atlas-loading-overlay"
+      role="status"
+      aria-live="polite"
+    >
+      <div class="atlas-loading-card">
+        <span class="atlas-loading-spinner" aria-hidden="true"></span>
+      </div>
+    </div>
+
+    <div
+      id="atlas-settings-page"
+      class="atlas-settings-page"
+      aria-busy="true"
+      aria-hidden="true"
+    >
     <header class="page-heading">
       <h1>Configurações Gerais</h1>
       <div class="subtitle">Ajuste preferências gerais do ATLAS</div>
@@ -37,6 +54,138 @@
             <option value="pt-BR">Português do Brasil</option>
             <option value="en-US">Inglês</option>
           </select>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-title">Perfil de Contexto</div>
+        <div class="section-description">
+          Escolha quanto contexto o ATLAS envia automaticamente junto com cada
+          pergunta. Perfis mais leves reduzem histórico, RAG, código aberto e
+          coleta estática para economizar CPU, memória e janela de contexto.
+        </div>
+
+        <div class="context-profile-options">
+          <label class="context-profile-option">
+            <input
+              type="radio"
+              name="context-profile"
+              id="context-profile-light"
+              value="light"
+            />
+            <span>
+              <strong>Leve</strong>
+              <small>
+                Para PCs fracos: histórico curto, sem RAG no prompt e sem
+                coleta estática automática
+              </small>
+            </span>
+          </label>
+
+          <label class="context-profile-option">
+            <input
+              type="radio"
+              name="context-profile"
+              id="context-profile-balanced"
+              value="balanced"
+            />
+            <span>
+              <strong>Médio</strong>
+              <small>
+                Equilíbrio entre contexto e desempenho para uso local diário
+              </small>
+            </span>
+          </label>
+
+          <label class="context-profile-option">
+            <input
+              type="radio"
+              name="context-profile"
+              id="context-profile-advanced"
+              value="advanced"
+            />
+            <span>
+              <strong>Avançado</strong>
+              <small>
+                Mais histórico, RAG mais amplo e análise estrutural completa
+              </small>
+            </span>
+          </label>
+
+          <label class="context-profile-option">
+            <input
+              type="radio"
+              name="context-profile"
+              id="context-profile-custom"
+              value="custom"
+            />
+            <span>
+              <strong>Personalizado</strong>
+              <small>Mantém ajustes finos definidos nas telas específicas</small>
+            </span>
+          </label>
+        </div>
+
+        <div class="context-profile-summary">
+          <div
+            class="context-profile-summary-item"
+            data-context-profile-summary="light"
+          >
+            <strong>Leve</strong>
+            <ul>
+              <li>Histórico: 5 mensagens recentes</li>
+              <li>Memória resumida: desativada</li>
+              <li>RAG no prompt: desativado</li>
+              <li>Código aberto: até 6.000 caracteres</li>
+              <li>Análise estática: desativada</li>
+              <li>Contexto local dinâmico: desativado</li>
+            </ul>
+          </div>
+
+          <div
+            class="context-profile-summary-item"
+            data-context-profile-summary="balanced"
+          >
+            <strong>Médio</strong>
+            <ul>
+              <li>Histórico: 8 mensagens recentes</li>
+              <li>Memória resumida: ativada</li>
+              <li>RAG no prompt: 5 resultados, até 10.000 caracteres</li>
+              <li>Código aberto: até 14.000 caracteres</li>
+              <li>Análise estática: básica</li>
+              <li>Contexto local dinâmico: ativado</li>
+            </ul>
+          </div>
+
+          <div
+            class="context-profile-summary-item"
+            data-context-profile-summary="advanced"
+          >
+            <strong>Avançado</strong>
+            <ul>
+              <li>Histórico: 12 mensagens recentes</li>
+              <li>Memória resumida: ativada</li>
+              <li>RAG no prompt: 10 resultados, até 24.000 caracteres</li>
+              <li>Código aberto: até 40.000 caracteres</li>
+              <li>Análise estática: completa, com diagnósticos e relações</li>
+              <li>Contexto local dinâmico: ativado</li>
+            </ul>
+          </div>
+
+          <div
+            class="context-profile-summary-item"
+            data-context-profile-summary="custom"
+          >
+            <strong>Personalizado</strong>
+            <ul>
+              <li>Histórico: <span id="custom-profile-history">valor atual</span></li>
+              <li>Memória resumida: <span id="custom-profile-memory">valor atual</span></li>
+              <li>RAG no prompt: <span id="custom-profile-rag">valores atuais</span></li>
+              <li>Código aberto: <span id="custom-profile-editor">valor atual</span></li>
+              <li>Análise estática: <span id="custom-profile-static">valor atual</span></li>
+              <li>Contexto local dinâmico: <span id="custom-profile-dynamic">valor atual</span></li>
+            </ul>
+          </div>
         </div>
       </section>
 
@@ -334,6 +483,7 @@
         <button id="save-atlas-settings" class="btn-primary">Salvar</button>
       </div>
     </main>
+    </div>
 
     <script src="{{scriptUri}}"></script>
   </body>

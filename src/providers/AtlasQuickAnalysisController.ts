@@ -31,7 +31,10 @@ export class AtlasQuickAnalysisController {
   constructor(
     private readonly quickAnalysisService: AtlasQuickAnalysisService,
     private readonly editorContextService: AtlasEditorContextService,
-    private readonly onAvailabilityChanged?: (available: boolean) => void,
+    private readonly onAvailabilityChanged?: (
+      available: boolean,
+      hasEditorContext: boolean,
+    ) => void,
   ) {
     this.lowIssueDecoration = vscode.window.createTextEditorDecorationType({
       isWholeLine: false,
@@ -78,8 +81,13 @@ export class AtlasQuickAnalysisController {
       }),
       vscode.workspace.onDidChangeTextDocument((event) => {
         const documentKey = event.document.uri.toString();
+        const activeEditor = vscode.window.activeTextEditor;
 
         if (!this.issuesByDocument.delete(documentKey)) {
+          if (activeEditor?.document.uri.toString() === documentKey) {
+            this.notifyAvailability(activeEditor);
+          }
+
           return;
         }
 
@@ -90,10 +98,9 @@ export class AtlasQuickAnalysisController {
         }
 
         if (
-          vscode.window.activeTextEditor?.document.uri.toString() ===
-          documentKey
+          activeEditor?.document.uri.toString() === documentKey
         ) {
-          this.notifyAvailability(vscode.window.activeTextEditor);
+          this.notifyAvailability(activeEditor);
         }
       }),
       vscode.workspace.onDidCloseTextDocument((document) => {
@@ -287,6 +294,10 @@ export class AtlasQuickAnalysisController {
     );
   }
 
+  public hasAnalyzableEditor(): boolean {
+    return this.editorContextService.getFullDocumentContext() !== null;
+  }
+
   public clearActiveDecorations(): void {
     const editor = vscode.window.activeTextEditor;
 
@@ -335,7 +346,7 @@ export class AtlasQuickAnalysisController {
     const available =
       !!editor && this.issuesByDocument.has(editor.document.uri.toString());
 
-    this.onAvailabilityChanged?.(available);
+    this.onAvailabilityChanged?.(available, this.hasAnalyzableEditor());
   }
 
   private clearEditorDecorations(editor: vscode.TextEditor): void {

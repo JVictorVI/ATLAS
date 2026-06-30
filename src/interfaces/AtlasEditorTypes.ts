@@ -11,4 +11,8 @@ export type AtlasEditorContext = {
     startLine: number;
     endLine: number;
   };
+  truncation?: {
+    originalCharacters: number;
+    maxCharacters: number;
+  };
 };

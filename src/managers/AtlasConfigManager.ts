@@ -1,11 +1,16 @@
 import * as vscode from "vscode";
-import { AtlasStaticAnalysisConfig } from "../interfaces/AtlasConfigTypes";
+import {
+  AtlasContextProfileMode,
+  AtlasContextProfileSettings,
+  AtlasStaticAnalysisConfig,
+} from "../interfaces/AtlasConfigTypes";
 import { AtlasConfigDefaults } from "../repository/AtlasConfigDefaults";
 import { AtlasConfigRepository } from "../repository/AtlasConfigRepository";
 import { AtlasSettingsService } from "../services/AtlasSettingsService";
 import { AtlasProviderService } from "../services/AtlasProviderService";
 import { AtlasModelRegistryService } from "../services/AtlasModelRegistryService";
 import { AtlasSelectionService } from "../services/AtlasSelectionService";
+import { AtlasContextProfileService } from "../services/AtlasContextProfileService";
 
 export {
   JsonMap,
@@ -21,6 +26,8 @@ export {
   AtlasModelConfig,
   AtlasLlmSelection,
   AtlasLlmSettings,
+  AtlasContextProfileMode,
+  AtlasContextProfileSettings,
   AtlasStaticAnalysisConfig,
   ProviderConfig,
   AtlasConfigSchema,
@@ -94,6 +101,31 @@ export class AtlasConfigManager {
 
   public updateCustomRoot(customData: any) {
     return this.settingsService.updateCustomRoot(customData);
+  }
+
+  public getContextProfile(): AtlasContextProfileSettings {
+    return AtlasContextProfileService.resolve(this.getConfig());
+  }
+
+  public setContextProfile(
+    profile: Partial<AtlasContextProfileSettings> & {
+      mode?: AtlasContextProfileMode;
+    },
+  ) {
+    const config = this.getConfig();
+    const normalized = AtlasContextProfileService.normalize(
+      profile,
+      this.getContextProfile(),
+    );
+
+    config.custom = {
+      ...(config.custom ?? {}),
+      contextProfile: normalized,
+    };
+
+    config.updatedAt = new Date().toISOString();
+    this.saveConfig(config);
+    return config;
   }
 
   // MODE / SELECTION
@@ -244,8 +276,9 @@ export class AtlasConfigManager {
     mode: "quick-analysis" | "architectural-analysis",
   ): boolean {
     const config = this.getStaticAnalysisConfig();
+    const contextProfile = this.getContextProfile();
 
-    if (!config.enabled) {
+    if (!config.enabled || !contextProfile.includeStaticAnalysis) {
       return false;
     }
 
