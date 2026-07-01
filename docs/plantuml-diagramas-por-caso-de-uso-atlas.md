@@ -3,8 +3,14 @@
 Este arquivo contém diagramas de classe e de sequência em PlantUML para cada caso de uso atualizado do ATLAS.
 Os blocos podem ser copiados diretamente para o PlantText.
 
-> **Nota de atualização:** os diagramas abaixo representam o ATLAS atual como extensão VS Code em TypeScript. Além dos fluxos de inferência local/cloud, sessões, análise rápida e contexto estrutural, o RAG local está implementado com `AtlasRagService`, embeddings locais, ChromaDB empacotado, indexação por projeto e recuperação integrada ao chat.
-> Busca real em Hugging Face, download automatizado de modelos de chat e ingestão de documentos externos continuam marcados como futuro.
+> **Nota de atualização:** os diagramas abaixo representam o ATLAS atual como extensão VS Code em TypeScript. Além dos fluxos de inferência local/cloud, sessões, análise rápida e contexto estrutural, o RAG local está implementado com `AtlasRagService`, embeddings locais, ChromaDB empacotado, indexação por projeto, documentos externos e recuperação integrada ao chat.
+> Busca real em Hugging Face e download automatizado de modelos de chat continuam marcados como futuro. A ingestão de documentos externos foi atualizada para o estado implementado.
+
+## Mapa de defasagens corrigidas nesta atualização
+
+- UC014 agora mostra o ajuste automático de `contextWindow` e `maxTokens`, a persistência dos novos parâmetros e o reinício da engine para aplicá-los.
+- UC019 deixou de ser futuro e passou a apontar para `AtlasRagService`, `AtlasExternalDocumentParser`, `AtlasEmbeddingService` e `AtlasRagRepository`.
+- As assinaturas de `LocalApiService` e `AtlasLocalEngineService` foram ajustadas para representar o código atual, incluindo `restartEngine(model, options)`.
 
 ## UC001 - Perguntar sobre o código pelo chat
 
@@ -940,12 +946,15 @@ skinparam classAttributeIconSize 0
 class AtlasInferenceService
 class LocalApiService {
   +sendChat(messages, onChunk, options)
-  +isAbortError(error)
+  -sendLocalRequest(...)
+  -adjustDynamicTokenBudget(...)
+  -getContextOverflow(data)
+  -readStreamingResponse(...)
 }
 class AtlasLocalEngineService {
-  +ensureEngine(model)
+  +ensureEngine(model, options)
   +stopEngine()
-  +restartEngine(model)
+  +restartEngine(model, options)
   +isRunning()
   +getEnginesDir()
   -waitUntilReady()
@@ -958,7 +967,6 @@ database "llama-server\n127.0.0.1:8080" as Llama
 AtlasInferenceService --> LocalApiService : modo local
 LocalApiService --> AtlasLocalEngineService
 LocalApiService --> AtlasConfigManager
-LocalApiService --> AtlasLocalModelDiscoveryService
 AtlasLocalModelDiscoveryService --> AtlasModelRegistryService
 AtlasLocalEngineService --> Llama
 @enduml
@@ -975,6 +983,7 @@ participant ChatMessageRouter as Router
 participant ChatResponseController as Response
 participant AtlasInferenceService as Inference
 participant LocalApiService as LocalApi
+participant AtlasConfigManager as Config
 participant AtlasLocalEngineService as Engine
 participant "llama-server" as Llama
 
@@ -990,6 +999,17 @@ alt engine parada
   Llama --> Engine : pronto
 end
 LocalApi -> Llama : POST /v1/chat/completions
+alt contexto insuficiente e ajuste automático habilitado
+  Llama --> LocalApi : erro de context size/window/length
+  LocalApi -> LocalApi : getContextOverflow(error)
+  LocalApi -> Config : updateModel(contextWindow, maxTokens)
+  LocalApi -> Engine : restartEngine(model, reason="parameter-update")
+  Engine -> Llama : parar processo anterior
+  Engine -> Llama : spawn llama-server com novo --ctx-size
+  Engine -> Webview : status "aplicando novos parâmetros"
+  Engine --> LocalApi : engine pronta
+  LocalApi -> Llama : reenvia POST /v1/chat/completions
+end
 Llama --> LocalApi : chunks ou resposta completa
 LocalApi --> Inference : resposta normalizada
 Inference --> Response : resposta
@@ -1354,7 +1374,7 @@ UI --> Usuário : modelo disponível
 @enduml
 ```
 
-## UC019 - Adicionar documentos externos ao RAG (futuro)
+## UC019 - Adicionar documentos externos ao RAG
 
 ### Diagrama de Classes
 
@@ -1363,21 +1383,38 @@ UI --> Usuário : modelo disponível
 skinparam shadowing false
 skinparam classAttributeIconSize 0
 
-class RagDocumentsUI <<future>>
-class ExternalDocumentIngestionService <<future>> {
-  +addDocument(file)
+class ChatMessageRouter {
+  -handleAddExternalRagDocuments(webview)
+  -handleDeleteExternalRagDocument(data, webview)
+  -handleClearExternalRagDocuments(webview)
 }
-class DocumentParser <<future>> {
-  +parse(file)
+class AtlasRagService {
+  +addExternalDocuments(uris, onProgress, signal)
+  +listExternalDocuments()
+  +deleteExternalDocument(sourceId)
+  +deleteAllExternalDocuments()
+  -prepareExternalDocument(projectId, uri)
 }
-class AtlasEmbeddingService <<implemented>>
-class AtlasRagRepository <<implemented>>
-database "ChromaDB local" as ChromaDB <<implemented>>
+class AtlasExternalDocumentParser {
+  +canParse(uri)
+  +parse(uri, bytes)
+  +getSupportedExtensions()
+}
+class AtlasEmbeddingService {
+  +embedDocuments(texts, signal)
+}
+class AtlasRagRepository {
+  +saveSources(sources)
+  +upsertChunks(collectionName, chunks)
+  +listExternalDocuments(projectId)
+  +deleteExternalSourcesFromManifest(projectId)
+}
+database "ChromaDB local" as ChromaDB
 
-RagDocumentsUI --> ExternalDocumentIngestionService
-ExternalDocumentIngestionService --> DocumentParser
-ExternalDocumentIngestionService --> AtlasEmbeddingService
-ExternalDocumentIngestionService --> AtlasRagRepository
+ChatMessageRouter --> AtlasRagService
+AtlasRagService --> AtlasExternalDocumentParser
+AtlasRagService --> AtlasEmbeddingService
+AtlasRagService --> AtlasRagRepository
 AtlasRagRepository --> ChromaDB
 @enduml
 ```
@@ -1388,23 +1425,28 @@ AtlasRagRepository --> ChromaDB
 @startuml
 skinparam shadowing false
 actor Usuário
-participant "RagDocumentsUI\n(futuro)" as UI
-participant "ExternalDocumentIngestionService\n(futuro)" as Ingestion
-participant "DocumentParser\n(futuro)" as Parser
+participant "Webview RAG" as UI
+participant ChatMessageRouter as Router
+participant AtlasRagService as RAG
+participant AtlasExternalDocumentParser as Parser
 participant AtlasEmbeddingService as Embeddings
 participant AtlasRagRepository as Repository
 database "ChromaDB local" as Chroma
 
 Usuário -> UI : adiciona documento externo
-UI -> Ingestion : addDocument(file)
-Ingestion -> Parser : parse(file)
-Parser --> Ingestion : texto/chunks
-Ingestion -> Embeddings : generateEmbeddings(chunks)
-Embeddings --> Ingestion : vetores
-Ingestion -> Repository : upsertExternalDocumentChunks(vectors)
+UI -> Router : adicionarDocumentoExternoRag
+Router -> RAG : addExternalDocuments(uris, progress, signal)
+RAG -> Parser : canParse(uri) / parse(uri, bytes)
+Parser --> RAG : texto extraído + tipo + linguagem
+RAG -> RAG : chunkContent(...)
+RAG -> Embeddings : embedDocuments(chunks)
+Embeddings --> RAG : vetores
+RAG -> Repository : saveSources(source)
+RAG -> Repository : upsertChunks(collectionName, chunks)
 Repository -> Chroma : persistir vetores
-Repository --> Ingestion : concluído
-Ingestion --> UI : documento indexado
+Repository --> RAG : concluído
+RAG --> Router : documentos importados / ignorados
+Router --> UI : documentosExternosRagAtualizados
 UI --> Usuário : confirma inclusão
 @enduml
 ```

@@ -21,10 +21,10 @@ O projeto também busca apoiar estudo e evolução técnica, oferecendo modos di
 - Normalização de achados da análise rápida, com categorias arquiteturais, severidade (`low`, `medium`, `high`), sanitização de linhas e hover explicativo no editor.
 - Modo de análise arquitetural com foco em decisões de design, trade-offs, evolução do risco, testabilidade e custo de mudança.
 - Modo estudo para explicações mais didáticas, com pistas progressivas e botão dedicado no chat.
-- RAG local com ChromaDB gerenciado pela extensão, embeddings locais, indexação do workspace atual ou de uma pasta escolhida e recuperação semântica integrada ao chat.
-- Tela RAG com projetos indexados, status da base vetorial, progresso por arquivos/chunks, cancelamento, seleção de modelo de embeddings e carregamento inicial não bloqueante.
-- Configurações de execução, como temperatura, top-p, limite de tokens, timeout e streaming.
-- Biblioteca de modelos locais para visualizar e ajustar parâmetros registrados.
+- RAG local com ChromaDB gerenciado pela extensão, embeddings locais, indexação do workspace atual ou de uma pasta escolhida, documentos externos e recuperação semântica integrada ao chat.
+- Tela RAG com projetos indexados, documentos externos, status da base vetorial, progresso por arquivos/chunks, cancelamento, seleção de modelo de embeddings e carregamento inicial não bloqueante.
+- Configurações de execução, como temperatura, top-p, limite de tokens, timeout, streaming e ajuste automático de contexto/tokens gerados para modelos locais.
+- Biblioteca de modelos locais para visualizar e ajustar parâmetros registrados, incluindo contexto, tokens gerados, GPU, temperatura e comportamento do modelo.
 
 ## Estrutura do projeto
 
@@ -39,6 +39,22 @@ O projeto também busca apoiar estudo e evolução técnica, oferecendo modos di
 - `config`: arquivos locais de configuração e histórico usados em desenvolvimento.
 - `docs`: documentação e materiais de modelagem do projeto.
 - `resources`: runtimes e artefatos empacotáveis, incluindo ChromaDB, engines locais e modelos de embeddings quando preparados para distribuição.
+
+## Documentação técnica
+
+- [Resumo arquitetural](docs/resumo-arquitetura-atlas.md)
+- [Fluxo completo de geração de resposta](docs/processo-geracao-resposta-atlas.md)
+- [Montagem de prompt e resolução de modo](docs/processo-prompts-modos-atlas.md)
+- [Sistema de configuração](docs/processo-configuracao-atlas.md)
+- [Análise rápida](docs/processo-analise-rapida-atlas.md)
+- [Execução local e lifecycle da engine](docs/processo-engine-local-atlas.md)
+- [Integração cloud](docs/processo-integracao-cloud-atlas.md)
+- [Sessões, histórico e resumo](docs/processo-sessoes-historico-resumo-atlas.md)
+- [Build, empacotamento e distribuição](docs/processo-build-empacotamento-distribuicao-atlas.md)
+- [Processos de contexto, janela local e RAG](docs/processos-contexto-rag-atlas.md)
+- [Plano e estado do RAG](docs/plano-implementacao-rag-atlas.md)
+- [Diagramas gerais](docs/plantuml-diagramas-gerais-atlas.md)
+- [Diagramas por caso de uso](docs/plantuml-diagramas-por-caso-de-uso-atlas.md)
 
 ## Comandos úteis
 

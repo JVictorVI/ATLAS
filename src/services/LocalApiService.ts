@@ -10,6 +10,13 @@ import { AtlasLocalEngineService } from "./AtlasLocalEngineService";
 const LOCAL_CONTEXT_GROWTH_CAP = 32768;
 const LOCAL_CONTEXT_GROWTH_PADDING = 512;
 
+type LocalContextOverflow = {
+  requestedTokens: number;
+  availableTokens: number;
+  promptTokens?: number;
+  completionTokens?: number;
+};
+
 export class LocalApiService {
   constructor(
     private readonly configManager: AtlasConfigManager,
@@ -66,11 +73,23 @@ export class LocalApiService {
           this.handleFixedContextOverflow(contextOverflow, errorData);
         }
 
-        activeModel = await this.increaseContextWindow(
+        activeModel = await this.adjustDynamicTokenBudget(
           activeModel,
           contextOverflow,
+          defaults,
         );
-        await this.localEngineService.restartEngine(activeModel);
+        console.info(
+          "[ATLAS local] Reiniciando engine local para aplicar parâmetros dinâmicos.",
+          {
+            modelId: activeModel.id,
+            modelName: activeModel.name,
+            contextWindow: activeModel.parameters.contextWindow,
+            maxTokens: activeModel.parameters.maxTokens,
+          },
+        );
+        await this.localEngineService.restartEngine(activeModel, {
+          reason: "parameter-update",
+        });
 
         if (signal?.aborted) {
           throw this.createAbortError();
@@ -172,7 +191,7 @@ export class LocalApiService {
           this.applyModelBehavior(messages, model),
         ),
         temperature: model.parameters.temperature ?? defaults.temperature,
-        max_tokens: model.parameters.maxTokens ?? defaults.maxTokens,
+        max_tokens: this.resolveMaxTokens(model, defaults.maxTokens),
         top_p: model.parameters.topP ?? defaults.topP,
         stream: isStreaming,
       }),
@@ -187,24 +206,46 @@ export class LocalApiService {
     return this.fetchWithoutTimeout(endpoint, requestOptions);
   }
 
-  private async increaseContextWindow(
+  private async adjustDynamicTokenBudget(
     model: AtlasModelConfig,
-    overflow: { requestedTokens: number; availableTokens: number },
+    overflow: LocalContextOverflow,
+    defaults: { maxTokens: number },
   ): Promise<AtlasModelConfig> {
     const currentContext = this.normalizePositiveInteger(
       model.parameters.contextWindow,
       overflow.availableTokens || 4096,
     );
+    const currentMaxTokens = this.resolveMaxTokens(
+      model,
+      defaults.maxTokens,
+    );
+    const promptTokens = this.resolvePromptTokens(
+      overflow,
+      currentMaxTokens,
+    );
     const minimumContext = Math.max(
-      overflow.requestedTokens + LOCAL_CONTEXT_GROWTH_PADDING,
+      overflow.requestedTokens > 0
+        ? overflow.requestedTokens + LOCAL_CONTEXT_GROWTH_PADDING
+        : 0,
+      promptTokens > 0
+        ? promptTokens + currentMaxTokens + LOCAL_CONTEXT_GROWTH_PADDING
+        : 0,
       currentContext + 1,
     );
     const nextContext = Math.min(
       LOCAL_CONTEXT_GROWTH_CAP,
       this.nextPowerOfTwo(minimumContext),
     );
+    const nextMaxTokens = this.resolveAdjustedMaxTokens(
+      nextContext,
+      promptTokens,
+      currentMaxTokens,
+    );
 
-    if (nextContext <= currentContext) {
+    if (
+      nextContext <= currentContext &&
+      nextMaxTokens >= currentMaxTokens
+    ) {
       throw new Error(
         `A mensagem exige ${overflow.requestedTokens} tokens, mas o limite dinamico de contexto (${LOCAL_CONTEXT_GROWTH_CAP}) ja foi atingido.`,
       );
@@ -213,6 +254,7 @@ export class LocalApiService {
     const updatedConfig = this.configManager.updateModel(model.id, {
       parameters: {
         contextWindow: nextContext,
+        maxTokens: nextMaxTokens,
       },
     });
     const updatedModel = updatedConfig.llms.localModels[model.id];
@@ -224,10 +266,65 @@ export class LocalApiService {
     }
 
     console.warn(
-      `[ATLAS local] Contexto insuficiente (${overflow.requestedTokens}/${overflow.availableTokens}). Aumentando ctx-size de ${currentContext} para ${nextContext}.`,
+      `[ATLAS local] Contexto insuficiente (${overflow.requestedTokens}/${overflow.availableTokens}). Ajustando ctx-size de ${currentContext} para ${nextContext} e max_tokens de ${currentMaxTokens} para ${nextMaxTokens}.`,
     );
+    console.info("[ATLAS local] Parâmetros dinâmicos salvos no modelo.", {
+      modelId: model.id,
+      modelName: model.name,
+      requestedTokens: overflow.requestedTokens,
+      availableTokens: overflow.availableTokens,
+      promptTokens,
+      previousContextWindow: currentContext,
+      nextContextWindow: nextContext,
+      previousMaxTokens: currentMaxTokens,
+      nextMaxTokens,
+    });
 
     return updatedModel;
+  }
+
+  private resolvePromptTokens(
+    overflow: LocalContextOverflow,
+    requestedMaxTokens: number,
+  ): number {
+    if (
+      typeof overflow.promptTokens === "number" &&
+      Number.isFinite(overflow.promptTokens) &&
+      overflow.promptTokens > 0
+    ) {
+      return Math.floor(overflow.promptTokens);
+    }
+
+    if (
+      overflow.requestedTokens > 0 &&
+      requestedMaxTokens > 0 &&
+      overflow.requestedTokens > requestedMaxTokens
+    ) {
+      return Math.floor(overflow.requestedTokens - requestedMaxTokens);
+    }
+
+    return 0;
+  }
+
+  private resolveAdjustedMaxTokens(
+    contextWindow: number,
+    promptTokens: number,
+    currentMaxTokens: number,
+  ): number {
+    if (promptTokens <= 0) {
+      return currentMaxTokens;
+    }
+
+    const availableForGeneration =
+      contextWindow - promptTokens - LOCAL_CONTEXT_GROWTH_PADDING;
+
+    if (availableForGeneration <= 0) {
+      throw new Error(
+        `A mensagem exige ${promptTokens} tokens de entrada, mas o limite dinamico de contexto (${LOCAL_CONTEXT_GROWTH_CAP}) nao deixa espaco para gerar resposta.`,
+      );
+    }
+
+    return Math.max(1, Math.floor(availableForGeneration));
   }
 
   private nextPowerOfTwo(value: number): number {
@@ -247,6 +344,13 @@ export class LocalApiService {
     }
 
     return Math.floor(normalized);
+  }
+
+  private resolveMaxTokens(
+    model: AtlasModelConfig,
+    fallback: number,
+  ): number {
+    return this.normalizePositiveInteger(model.parameters.maxTokens, fallback);
   }
 
   private isDynamicContextWindowEnabled(): boolean {
@@ -569,7 +673,7 @@ export class LocalApiService {
 
   private getContextOverflow(
     data?: any,
-  ): { requestedTokens: number; availableTokens: number } | null {
+  ): LocalContextOverflow | null {
     const message = String(
       data?.error?.message || data?.error?.details || data?.message || "",
     );
@@ -577,6 +681,7 @@ export class LocalApiService {
     const isOverflow =
       normalizedMessage.includes("exceeds the available context size") ||
       normalizedMessage.includes("context size") ||
+      normalizedMessage.includes("context length") ||
       normalizedMessage.includes("context window");
 
     if (!isOverflow) {
@@ -586,6 +691,25 @@ export class LocalApiService {
     const match = message.match(
       /request\s*\((\d+)\s+tokens?\).*?context size\s*\((\d+)\s+tokens?\)/i,
     );
+    const openAiStyleMatch = message.match(
+      /requested\s+(\d+)\s+tokens?.*?\((\d+)\s+in\s+the\s+messages?,\s*(\d+)\s+in\s+the\s+completion\)/i,
+    );
+    const maxContextMatch = message.match(
+      /maximum\s+context\s+length\s+is\s+(\d+)\s+tokens?/i,
+    );
+
+    if (openAiStyleMatch) {
+      return {
+        requestedTokens: Number(openAiStyleMatch[1]),
+        availableTokens: match
+          ? Number(match[2])
+          : maxContextMatch
+            ? Number(maxContextMatch[1])
+            : 0,
+        promptTokens: Number(openAiStyleMatch[2]),
+        completionTokens: Number(openAiStyleMatch[3]),
+      };
+    }
 
     return {
       requestedTokens: match ? Number(match[1]) : 0,

@@ -1,6 +1,12 @@
 # Plano e Estado da Implementação do RAG no ATLAS
 
-Atualizado em 26 de junho de 2026.
+Atualizado em 1 de julho de 2026.
+
+> **Nota de sincronização:** a documentação geral e os diagramas foram alinhados para tratar documentos externos como funcionalidade implementada. As evoluções pendentes do RAG continuam sendo atualização incremental por arquivo, chunking orientado a símbolos e melhorias de qualidade da recuperação.
+
+Para o fluxo operacional de scanner, chunks, embeddings, persistência e recuperação, consulte [Processos de contexto, janela local e RAG](processos-contexto-rag-atlas.md).
+
+Para o preparo dos artefatos distribuíveis do RAG, incluindo ChromaDB, runtime ONNX, modelo padrão de embeddings e VSIX, consulte [Build, empacotamento e distribuição](processo-build-empacotamento-distribuicao-atlas.md).
 
 ## 1. Objetivo
 

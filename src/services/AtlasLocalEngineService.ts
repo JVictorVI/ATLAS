@@ -9,6 +9,10 @@ import {
 import { AtlasConfigManager } from "../managers/AtlasConfigManager";
 import { AtlasModelConfig } from "../interfaces/AtlasConfigTypes";
 
+type LocalEngineStartOptions = {
+  reason?: "parameter-update";
+};
+
 export class AtlasLocalEngineService {
   private process: ChildProcessWithoutNullStreams | null = null;
   private runningModelId: string | null = null;
@@ -32,7 +36,10 @@ export class AtlasLocalEngineService {
     return this.process !== null;
   }
 
-  public async ensureEngine(model: AtlasModelConfig): Promise<void> {
+  public async ensureEngine(
+    model: AtlasModelConfig,
+    options: LocalEngineStartOptions = {},
+  ): Promise<void> {
     if (!model.path || !fs.existsSync(model.path)) {
       throw new Error(
         `Arquivo GGUF não encontrado para o modelo local "${model.name}".`,
@@ -59,14 +66,34 @@ export class AtlasLocalEngineService {
       await this.waitAfterStop();
     }
 
+    const isParameterUpdate = options.reason === "parameter-update";
+
+    if (isParameterUpdate) {
+      console.info(
+        "[ATLAS local engine] Reinício solicitado para aplicar novos parâmetros.",
+        {
+          modelId: model.id,
+          modelName: model.name,
+          contextWindow: model.parameters.contextWindow,
+          maxTokens: model.parameters.maxTokens,
+          engineType: engineSettings.engineType,
+          executable,
+        },
+      );
+    }
+
     await this.emitStatus(
-      `Inicializando a engine local para ${model.name}. Isso pode levar alguns segundos.`,
+      isParameterUpdate
+        ? `Reiniciando a engine local para aplicar os novos parâmetros de ${model.name}. Isso pode levar alguns segundos.`
+        : `Inicializando a engine local para ${model.name}. Isso pode levar alguns segundos.`,
     );
 
     const args = this.buildLlamaServerArgs(model);
 
     await this.emitStatus(
-      `Inicializando a engine ${engineSettings.engineType.toUpperCase()}`,
+      isParameterUpdate
+        ? `Aplicando novos parâmetros na engine ${engineSettings.engineType.toUpperCase()}`
+        : `Inicializando a engine ${engineSettings.engineType.toUpperCase()}`,
     );
 
     this.process = spawn(executable, args, {
@@ -102,6 +129,18 @@ export class AtlasLocalEngineService {
     });
 
     await this.waitUntilReady();
+    if (isParameterUpdate) {
+      console.info(
+        "[ATLAS local engine] Novos parâmetros aplicados; engine local pronta.",
+        {
+          modelId: model.id,
+          modelName: model.name,
+          contextWindow: model.parameters.contextWindow,
+          maxTokens: model.parameters.maxTokens,
+          engineType: engineSettings.engineType,
+        },
+      );
+    }
     await this.emitStatus(`Engine local pronta: ${model.name}.`);
   }
 
@@ -126,10 +165,13 @@ export class AtlasLocalEngineService {
     runningProcess.kill();
   }
 
-  public async restartEngine(model: AtlasModelConfig): Promise<void> {
+  public async restartEngine(
+    model: AtlasModelConfig,
+    options: LocalEngineStartOptions = {},
+  ): Promise<void> {
     this.stopEngine();
     await this.waitAfterStop();
-    await this.ensureEngine(model);
+    await this.ensureEngine(model, options);
   }
 
   private resolveLlamaServerExecutable(
