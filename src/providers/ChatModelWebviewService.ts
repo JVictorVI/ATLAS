@@ -94,7 +94,6 @@ export class ChatModelWebviewService {
       },
       params: {
         gpu: model.parameters?.gpuLayers ?? 40,
-        tokensRes: model.custom?.tokensRes ?? 2048,
         temp: model.parameters?.temperature ?? 0.7,
         topP: model.parameters?.topP ?? 0.95,
         context: model.parameters?.contextWindow ?? 8192,

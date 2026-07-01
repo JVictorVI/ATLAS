@@ -324,28 +324,23 @@ textarea {
   padding: 6px 8px;
 }
 
-.field:has(#param-tokens-res) {
-  grid-column: 1;
-  grid-row: 1;
-}
-
 .field:has(#param-context) {
-  grid-column: 2;
+  grid-column: 1;
   grid-row: 1;
 }
 
 .field:has(#param-max-tokens) {
-  grid-column: 3;
+  grid-column: 2;
   grid-row: 1;
 }
 
 .field:has(#param-temp) {
-  grid-column: 1;
-  grid-row: 2;
+  grid-column: 3;
+  grid-row: 1;
 }
 
 .field:has(#param-top-p) {
-  grid-column: 2;
+  grid-column: 1;
   grid-row: 2;
 }
 
@@ -631,7 +626,6 @@ button:focus-visible {
     max-width: none;
   }
 
-  .field:has(#param-tokens-res),
   .field:has(#param-context),
   .field:has(#param-max-tokens),
   .field:has(#param-temp),
@@ -641,28 +635,24 @@ button:focus-visible {
     grid-row: auto;
   }
 
-  .field:has(#param-tokens-res) {
+  .field:has(#param-context) {
     order: 1;
   }
 
-  .field:has(#param-context) {
+  .field:has(#param-max-tokens) {
     order: 2;
   }
 
-  .field:has(#param-max-tokens) {
+  .field:has(#param-temp) {
     order: 3;
   }
 
-  .field:has(#param-temp) {
+  .field:has(#param-top-p) {
     order: 4;
   }
 
-  .field:has(#param-top-p) {
-    order: 5;
-  }
-
   .field:has(#param-gpu) {
-    order: 6;
+    order: 5;
   }
 }
 

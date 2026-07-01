@@ -1343,13 +1343,9 @@ export class ChatMessageRouter {
         data.params && typeof data.params === "object"
           ? (data.params as Record<string, unknown>)
           : {};
-      const { tokensRes, ...modelParameters } = params;
 
       this.deps.configManager.updateModel(modelId, {
-        parameters: modelParameters,
-        custom: {
-          tokensRes: typeof tokensRes === "number" ? tokensRes : undefined,
-        },
+        parameters: params,
       });
 
       if (this.deps.configManager.getActiveLocalModel()?.id === modelId) {
