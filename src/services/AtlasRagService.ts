@@ -572,6 +572,7 @@ export class AtlasRagService {
       enabled: settings.enabled,
       mode: this.configManager.getCurrentMode(),
       offlineOnly: settings.offlineOnly,
+      allowLocalContext: settings.allowLocalContext,
       allowCloudContext: settings.allowCloudContext,
       embeddingModel: settings.embeddingModel,
       topK: settings.topK,
@@ -598,12 +599,24 @@ export class AtlasRagService {
       return { context: [], sources: [] };
     }
 
+    if (
+      this.configManager.isLocalMode() &&
+      settings.allowLocalContext === false
+    ) {
+      console.log(
+        "Busca bloqueada: contexto RAG nÃ£o autorizado para o modo local.",
+      );
+      console.groupEnd();
+      return { context: [], sources: [] };
+    }
+
     const workspaceFolder = this.resolveCurrentWorkspaceFolder();
 
     const rootPath = workspaceFolder?.uri.fsPath;
     const projectId = rootPath ? this.getProjectId(rootPath) : undefined;
     const project = projectId ? this.repository.getProject(projectId) : undefined;
-    const canSearchProject = project?.status === "ready";
+    const canSearchProject =
+      project?.status === "ready" || project?.status === "outdated";
     const externalSources = settings.includeExternalDocuments
       ? this.repository.listExternalSources(undefined, settings.embeddingModel)
       : [];
@@ -622,7 +635,7 @@ export class AtlasRagService {
     const canSearchExternal = externalCollectionNames.length > 0;
 
     if (!canSearchProject && !canSearchExternal) {
-      console.log("Busca ignorada: índice não está pronto.", {
+      console.log("Busca ignorada: não há índice pesquisável.", {
         projectId,
         projectFound: Boolean(project),
         status: project?.status ?? "not-indexed",
@@ -634,7 +647,8 @@ export class AtlasRagService {
 
     console.log("Índice selecionado:", {
       projectId,
-      projectIndexReady: canSearchProject,
+      projectIndexSearchable: canSearchProject,
+      projectStatus: project?.status,
       projectName: project?.name,
       collectionName: project?.collectionName,
       externalCollectionNames,

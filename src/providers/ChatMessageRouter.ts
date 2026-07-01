@@ -403,6 +403,10 @@ export class ChatMessageRouter {
       const config = this.deps.configManager.updateRagSettings({
         enabled: payload.enabled === true,
         autoIndex: payload.autoIndex === true,
+        allowLocalContext:
+          typeof payload.allowLocalContext === "boolean"
+            ? payload.allowLocalContext
+            : current.allowLocalContext !== false,
         allowCloudContext: payload.allowCloudContext === true,
         offlineOnly: payload.allowCloudContext !== true,
         topK,

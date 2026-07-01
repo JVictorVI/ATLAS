@@ -5,6 +5,10 @@ import { AtlasEditorContext } from "../interfaces/AtlasEditorTypes";
 import { RagContextSource } from "../interfaces/AtlasRagTypes";
 import { AtlasInferenceService } from "../services/AtlasInferenceService";
 import {
+  AtlasContextProfileSettings,
+  AtlasRagSettings,
+} from "../interfaces/AtlasConfigTypes";
+import {
   ActiveGenerationPayload,
   ActiveResponseSnapshot,
   RouterDependencies,
@@ -39,6 +43,15 @@ export class ChatResponseController {
       responseSessionId = session.id;
       const config = this.deps.configManager.getConfig();
       const contextProfile = this.deps.configManager.getContextProfile();
+      const ragDestinationAllowed = this.isRagDestinationAllowed(
+        config.rag,
+        usesLocalEngine,
+      );
+      const promptContextProfile = this.getPromptContextProfile(
+        contextProfile,
+        config.rag,
+        ragDestinationAllowed,
+      );
       const requiresEditorContext =
         data.forcedMode === "architectural-analysis";
       const rawEditorContext = this.deps.getChatEditorContext();
@@ -50,16 +63,16 @@ export class ChatResponseController {
       }
 
       const editorContext =
-        contextProfile.includeEditorContext || requiresEditorContext
+        promptContextProfile.includeEditorContext || requiresEditorContext
         ? this.limitEditorContext(
             rawEditorContext,
-            contextProfile.maxEditorContextCharacters,
+            promptContextProfile.maxEditorContextCharacters,
           )
         : null;
       const windowMessages =
         this.deps.sessionService.getWindowMessages(
           session,
-          contextProfile.historyWindowSize,
+          promptContextProfile.historyWindowSize,
         );
       const localEngine = config.custom?.localEngine;
       const shouldStream = usesLocalEngine
@@ -96,7 +109,7 @@ export class ChatResponseController {
         hasCodeContext: Boolean(editorContext),
         forcedMode: data.forcedMode,
         architecturalSummary: session.architecturalSummary || undefined,
-        contextProfile,
+        contextProfile: promptContextProfile,
       });
 
       if (promptResult.mode === "architectural-analysis" && !rawEditorContext) {
@@ -110,12 +123,14 @@ export class ChatResponseController {
       const ragBlockedInCloudMode =
         this.deps.configManager.isCloudMode() &&
         (config.rag.offlineOnly || !config.rag.allowCloudContext);
+      const ragBlockedInLocalMode =
+        usesLocalEngine && config.rag.allowLocalContext === false;
 
       if (
         promptResult.mode !== "quick-analysis" &&
         config.rag.enabled === true &&
-        contextProfile.includeRagContext &&
-        !ragBlockedInCloudMode
+        promptContextProfile.includeRagContext &&
+        ragDestinationAllowed
       ) {
         try {
           const retrieval = await this.deps.getRagContext(
@@ -156,7 +171,7 @@ export class ChatResponseController {
             hasCodeContext: Boolean(editorContext),
             forcedMode: data.forcedMode,
             architecturalSummary: session.architecturalSummary || undefined,
-            contextProfile,
+            contextProfile: promptContextProfile,
           });
         } else {
           console.log(
@@ -166,6 +181,10 @@ export class ChatResponseController {
       } else if (ragBlockedInCloudMode) {
         console.log(
           "[ATLAS RAG] Recuperacao ignorada: contexto RAG nao autorizado para o modo cloud.",
+        );
+      } else if (ragBlockedInLocalMode) {
+        console.log(
+          "[ATLAS RAG] Recuperacao ignorada: contexto RAG nao autorizado para o modo local.",
         );
       }
 
@@ -195,7 +214,7 @@ export class ChatResponseController {
           hasCodeContext: true,
           forcedMode: data.forcedMode,
           architecturalSummary: session.architecturalSummary || undefined,
-          contextProfile,
+          contextProfile: promptContextProfile,
         });
       }
 
@@ -251,7 +270,7 @@ export class ChatResponseController {
       });
 
       this.deps.sessionService
-        .summarizeIfNeeded(session.id, contextProfile.historyWindowSize)
+        .summarizeIfNeeded(session.id, promptContextProfile.historyWindowSize)
         .catch((error) => {
           console.warn("[ATLAS] Background summarization error:", error);
         });
@@ -456,6 +475,36 @@ export class ChatResponseController {
       finishReason: response.finishReason,
       usage: response.usage,
       createdAt: response.createdAt,
+    };
+  }
+
+  private isRagDestinationAllowed(
+    settings: AtlasRagSettings,
+    usesLocalEngine: boolean,
+  ): boolean {
+    if (usesLocalEngine) {
+      return settings.allowLocalContext !== false;
+    }
+
+    return settings.offlineOnly !== true && settings.allowCloudContext === true;
+  }
+
+  private getPromptContextProfile(
+    contextProfile: AtlasContextProfileSettings,
+    settings: AtlasRagSettings,
+    ragDestinationAllowed: boolean,
+  ): AtlasContextProfileSettings {
+    if (
+      !ragDestinationAllowed ||
+      contextProfile.includeRagContext ||
+      contextProfile.mode !== "custom"
+    ) {
+      return contextProfile;
+    }
+
+    return {
+      ...contextProfile,
+      includeRagContext: settings.enabled === true,
     };
   }
 

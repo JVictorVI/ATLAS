@@ -21,7 +21,7 @@ Para o fluxo detalhado de ajuste automático da janela local, indexação RAG e 
 | Extensão VS Code | Implementada |
 | Webview de chat | Implementada, incluindo input com autosize e botão de modo estudante com estado visual ativo |
 | Painel de provedores em nuvem | Implementado |
-| Painel de configurações gerais | Implementado, incluindo perfis de contexto, execução local, análise estática e ajuste automático de contexto/tokens gerados |
+| Painel de configurações gerais | Implementado, incluindo perfis de contexto, execução local, análise estática e ajuste automático de contexto |
 | Biblioteca local de modelos | Implementada para descoberta, seleção, parâmetros, comportamento, metadados, exclusão e controles de engine; busca/download de modelos de chat seguem planejados |
 | Repositório visual de modelos | Implementado com dados estáticos |
 | Integração cloud | Implementada |
@@ -29,7 +29,7 @@ Para o fluxo detalhado de ajuste automático da janela local, indexação RAG e 
 | Secret Storage | Implementado |
 | `AtlasInferenceService` | Implementado |
 | `CloudApiService` | Implementado |
-| `LocalApiService` | Implementado com chamadas locais OpenAI-compatible, streaming, timeout, tratamento de overflow de contexto e ajuste dinâmico de `contextWindow`/`maxTokens` |
+| `LocalApiService` | Implementado com chamadas locais OpenAI-compatible, streaming, timeout, tratamento de overflow de contexto e ajuste dinâmico de `contextWindow` |
 | `AtlasLocalEngineService` | Implementado com seleção de engine CPU/CUDA/Vulkan, `llama-server`, reinício para aplicar novos parâmetros, status na Webview e logs operacionais |
 | `AtlasLocalModelDiscoveryService` | Implementado |
 | Execução local `llama.cpp` | Implementada |
@@ -73,17 +73,17 @@ Para o fluxo detalhado de ajuste automático da janela local, indexação RAG e 
 
 | Área documentada | Situação anterior na documentação | Estado atual mapeado |
 | --- | --- | --- |
-| Contexto local automático | A documentação descrevia apenas aumento do tamanho de contexto quando a engine rejeitava a requisição. | A opção automática em Configurações Gerais agora ajusta e salva `contextWindow` e `maxTokens` do modelo local para comportar o contexto enviado e reservar espaço de geração. |
-| Reinício da engine local | O fluxo de reinício era tratado como inicialização genérica. | Quando parâmetros dinâmicos são salvos, a engine é reiniciada com motivo explícito de atualização de parâmetros, mensagens próprias na UI e logs com modelo, engine, contexto e tokens. |
-| Diagramas de inferência local | `LocalApiService` aparecia com responsabilidades antigas e sem o retry por overflow. | Os diagramas passam a representar detecção de overflow, persistência dos novos parâmetros e reinício do `llama-server` antes do reenvio da requisição. |
+| Contexto local automático | A documentação descrevia apenas aumento do tamanho de contexto quando a engine rejeitava a requisição. | A opção automática em Configurações Gerais ajusta e salva apenas o `contextWindow` do modelo local para comportar o contexto enviado. |
+| Reinício da engine local | O fluxo de reinício era tratado como inicialização genérica. | Quando o contexto dinâmico é salvo, a engine é reiniciada com motivo explícito de atualização de parâmetros, mensagens próprias na UI e logs com modelo, engine e contexto. |
+| Diagramas de inferência local | `LocalApiService` aparecia com responsabilidades antigas e sem o retry por overflow. | Os diagramas passam a representar detecção de overflow, persistência do novo `contextWindow` e reinício do `llama-server` antes do reenvio da requisição. |
 | Documentos externos no RAG | Parte dos diagramas ainda marcava ingestão de documentos externos como futuro. | Documentos externos estão implementados via `AtlasExternalDocumentParser`, `AtlasRagService` e `AtlasRagRepository`, com suporte a PDF, Office moderno e formatos textuais. |
 | Biblioteca local | O resumo usava "parcial" sem delimitar o que faltava. | A biblioteca local está descrita como funcional para modelos GGUF locais; o que permanece planejado é busca real em Hugging Face e download automatizado de modelos de chat. |
 
 ## Execução local e ajuste dinâmico
 
 - A execução local usa `AtlasLocalEngineService` para iniciar o `llama-server` com `--ctx-size` derivado de `model.parameters.contextWindow`.
-- Em modo automático, quando o backend retorna overflow de contexto, `LocalApiService` calcula a janela necessária considerando tokens de entrada e `maxTokens`, limita o crescimento ao teto local e salva os novos parâmetros no modelo.
-- Após salvar parâmetros dinâmicos, a engine local é reiniciada com o motivo `parameter-update`; as mensagens exibidas deixam claro que o reinício está aplicando novos parâmetros.
+- Em modo automático, quando o backend retorna overflow de contexto, `LocalApiService` calcula a janela necessária, limita o crescimento ao teto local e salva o novo `contextWindow` no modelo.
+- Após salvar contexto dinâmico, a engine local é reiniciada com o motivo `parameter-update`; as mensagens exibidas deixam claro que o reinício está aplicando o novo contexto.
 - Os logs registram o cálculo, a persistência, o início do reinício e a engine pronta com os novos valores.
 
 ## Persistência do RAG

@@ -4,7 +4,7 @@ Atualizado em 1 de julho de 2026.
 
 Este documento descreve a execução local com `llama-server`, incluindo seleção de modelo, lifecycle da engine, health check, troca de parâmetros e relação com a Biblioteca.
 
-Para o ajuste automático específico de janela e tokens, consulte também [Processos de contexto, janela local e RAG](processos-contexto-rag-atlas.md).
+Para o ajuste automático específico de janela de contexto, consulte também [Processos de contexto, janela local e RAG](processos-contexto-rag-atlas.md).
 
 ## Componentes
 
@@ -53,10 +53,10 @@ Defaults do modelo:
 
 ```text
 temperature: 0.4
-maxTokens: 32768
+maxTokens: 8192
 topP: 0.95
 gpuLayers: 0
-contextWindow: 65536
+contextWindow: 8192
 baseUrl: http://127.0.0.1:8080/v1
 engine: llama.cpp
 ```
@@ -148,14 +148,16 @@ Argumentos atuais:
 --host 127.0.0.1
 --port 8080
 --model <model.path>
---ctx-size <model.parameters.contextWindow || 65536>
+--ctx-size <model.parameters.contextWindow || 8192>
 ```
 
-Se `gpuLayers > 0`, adiciona:
+Se `gpuLayers >= 0`, adiciona:
 
 ```text
 --n-gpu-layers <gpuLayers>
 ```
+
+O valor `0` é tratado como automático: o ATLAS envia `--n-gpu-layers 0` para permitir que a engine aplique o comportamento de auto-fit em vez de omitir o argumento.
 
 ## Health check
 
@@ -209,7 +211,7 @@ Payload:
   "model": "apiModelName ou id",
   "messages": [],
   "temperature": 0.4,
-  "max_tokens": 32768,
+  "max_tokens": 8192,
   "top_p": 0.95,
   "stream": true
 }
@@ -266,7 +268,7 @@ Se a resposta final ficar vazia, lança erro.
 Quando a engine retorna erro de contexto, `LocalApiService` pode:
 
 1. detectar overflow;
-2. calcular novo `contextWindow` e `maxTokens`;
+2. calcular novo `contextWindow`;
 3. salvar no modelo;
 4. chamar:
 

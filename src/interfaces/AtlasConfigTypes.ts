@@ -22,6 +22,7 @@ export interface AtlasCloudConfigs {
 export interface AtlasRagSettings {
   enabled: boolean;
   autoIndex: boolean;
+  allowLocalContext: boolean;
   allowCloudContext: boolean;
   offlineOnly: boolean;
   chunkSize: number;

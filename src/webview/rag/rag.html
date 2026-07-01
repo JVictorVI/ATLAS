@@ -47,13 +47,26 @@
             com contexto do projeto
           </span>
         </label>
-        <label class="toggle-option">
-          <input id="cloud-rag-enabled" type="checkbox" />
-          <span class="checkbox" aria-hidden="true"></span>
-          <span
-            >Permite o envio de contexto recuperado para modelos em nuvem</span
-          >
-        </label>
+        <div
+          class="toggle-suboptions"
+          role="group"
+          aria-label="Destinos do contexto recuperado"
+        >
+          <label class="toggle-option toggle-suboption">
+            <input id="local-rag-enabled" type="checkbox" checked />
+            <span class="checkbox" aria-hidden="true"></span>
+            <span
+              >Permite o envio de contexto recuperado para modelos locais</span
+            >
+          </label>
+          <label class="toggle-option toggle-suboption">
+            <input id="cloud-rag-enabled" type="checkbox" />
+            <span class="checkbox" aria-hidden="true"></span>
+            <span
+              >Permite o envio de contexto recuperado para modelos em nuvem</span
+            >
+          </label>
+        </div>
       </section>
 
       <section class="runtime-section" aria-live="polite">

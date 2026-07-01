@@ -288,7 +288,9 @@ function updateGpuSliderLabels(model) {
 
   setText(
     "gpu-layer-value",
-    `${value} de ${totalLayers} camadas na GPU`,
+    value === 0
+      ? `Automático (0 de ${totalLayers})`
+      : `${value} de ${totalLayers} camadas na GPU`,
   );
   setText(
     "gpu-layer-recommendation",
@@ -298,7 +300,9 @@ function updateGpuSliderLabels(model) {
   );
   setText(
     "gpu-layer-size",
-    layerBytes > 0
+    value === 0
+      ? "0 usa ajuste automático da engine"
+      : layerBytes > 0
       ? `Camada estimada: ${formatBytes(layerBytes)}`
       : "Camada: -",
   );

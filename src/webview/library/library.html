@@ -110,12 +110,12 @@
               <label for="param-gpu">N.º de camadas na GPU</label>
               <div class="gpu-slider-control">
                 <div class="gpu-slider-header">
-                  <span id="gpu-layer-value">0 camadas</span>
+                  <span id="gpu-layer-value">Automático (0)</span>
                   <span id="gpu-layer-recommendation">Calculando...</span>
                 </div>
                 <input type="range" id="param-gpu" min="0" max="0" value="0" />
                 <div class="gpu-slider-meta">
-                  <span id="gpu-layer-size">Camada: -</span>
+                  <span id="gpu-layer-size">0 usa ajuste automático da engine</span>
                   <span id="gpu-vram-total">VRAM: -</span>
                 </div>
               </div>
@@ -137,11 +137,11 @@
             </div>
             <div class="field">
               <label for="param-context">Tamanho do contexto</label>
-              <input type="number" id="param-context" value="65536" />
+              <input type="number" id="param-context" value="8192" />
             </div>
             <div class="field">
               <label for="param-max-tokens">N.º máximo de tokens gerados</label>
-              <input type="number" id="param-max-tokens" value="32768" />
+              <input type="number" id="param-max-tokens" value="8192" />
             </div>
           </div>
           <div class="row-end">

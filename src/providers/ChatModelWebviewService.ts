@@ -94,7 +94,8 @@ export class ChatModelWebviewService {
         gpuMemory,
       },
       params: {
-        gpu: model.parameters?.gpuLayers ?? 40,
+        gpu:
+          model.parameters?.gpuLayers ?? ATLAS_LOCAL_MODEL_DEFAULTS.gpuLayers,
         temp:
           model.parameters?.temperature ??
           ATLAS_LOCAL_MODEL_DEFAULTS.temperature,

@@ -253,6 +253,25 @@ body.rag-loading-active .rag-page {
   margin-top: 10px;
 }
 
+.toggle-suboptions {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  margin-left: 26px;
+  padding-left: 14px;
+  border-left: 1px solid var(--atlas-border);
+}
+
+.toggle-suboption {
+  max-width: 720px;
+  padding: 10px 12px;
+  font-size: 12px;
+}
+
+.toggle-suboption + .toggle-suboption {
+  margin-top: 0;
+}
+
 .toggle-option input {
   appearance: none;
   position: relative;
@@ -762,6 +781,11 @@ body.rag-loading-active .rag-page {
 
   .toggle-option {
     max-width: none;
+  }
+
+  .toggle-suboptions {
+    margin-left: 0;
+    padding-left: 10px;
   }
 
   .settings-grid {

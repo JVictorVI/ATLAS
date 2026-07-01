@@ -30,6 +30,7 @@ export class AtlasConfigDefaults {
       rag: {
         enabled: true,
         autoIndex: false,
+        allowLocalContext: true,
         allowCloudContext: false,
         offlineOnly: true,
         chunkSize: 1000,

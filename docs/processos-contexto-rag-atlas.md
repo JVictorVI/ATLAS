@@ -4,7 +4,7 @@ Atualizado em 1 de julho de 2026.
 
 Este documento descreve três fluxos operacionais do ATLAS:
 
-- ajuste automático da janela de contexto local e dos tokens gerados;
+- ajuste automático da janela de contexto local;
 - indexação de arquivos e projetos no RAG;
 - funcionamento dos embeddings locais usados na indexação e na busca.
 
@@ -45,17 +45,17 @@ O limite de tokens gerados é enviado para a API local como:
 
 Esse valor reserva espaço para a resposta. Se o contexto enviado for grande e `max_tokens` também for grande, a soma pode exceder a janela disponível.
 
-## 2. Ajuste automático da janela e dos tokens
+## 2. Ajuste automático da janela
 
 ### Onde é configurado
 
-Na tela **Configurações Gerais**, a seção **Contexto e tokens gerados** controla:
+Na tela **Configurações Gerais**, a seção **Contexto local** controla:
 
 ```text
 custom.localEngine.dynamicContextWindow
 ```
 
-Quando o modo está como **Automático**, o ATLAS pode ajustar e salvar os parâmetros do modelo local. Quando está como **Fixo**, o ATLAS apenas informa o erro e orienta o usuário a aumentar o contexto na Biblioteca ou ativar o ajuste automático.
+Quando o modo está como **Automático**, o ATLAS pode ajustar e salvar o `contextWindow` do modelo local. O `maxTokens` não é alterado por esse fluxo. Quando está como **Fixo**, o ATLAS apenas informa o erro e orienta o usuário a aumentar o contexto na Biblioteca ou ativar o ajuste automático.
 
 ### Fluxo normal
 
@@ -85,9 +85,9 @@ Também são extraídos, quando disponíveis:
 
 O ATLAS não faz uma pré-tokenização própria perfeita antes da chamada. O ajuste automático reage à resposta de overflow da engine, porque a tokenização efetiva depende do modelo e do backend local.
 
-### Cálculo do novo orçamento
+### Cálculo da nova janela
 
-O ajuste é feito em `LocalApiService.adjustDynamicTokenBudget`.
+O ajuste é feito em `LocalApiService.adjustDynamicContextWindow`.
 
 Constantes atuais:
 
@@ -100,21 +100,12 @@ Valores de entrada:
 
 ```text
 currentContext = model.parameters.contextWindow ou contexto reportado pela engine
-currentMaxTokens = model.parameters.maxTokens ou llms.defaults.maxTokens
-promptTokens = tokens das mensagens, quando reportado
 ```
 
-Quando a engine não informa `promptTokens`, o ATLAS tenta inferir:
-
-```text
-promptTokens = requestedTokens - currentMaxTokens
-```
-
-O contexto mínimo necessário considera três coisas:
+O contexto mínimo necessário considera:
 
 ```text
 requestedTokens + padding
-promptTokens + currentMaxTokens + padding
 currentContext + 1
 ```
 
@@ -124,23 +115,16 @@ O próximo contexto é a próxima potência de 2, limitado pelo teto local:
 nextContext = min(65536, nextPowerOfTwo(minimumContext))
 ```
 
-Quando há estimativa de `promptTokens`, o novo limite de geração é o espaço restante dentro da nova janela:
-
-```text
-nextMaxTokens = nextContext - promptTokens - 512
-```
-
-Se não houver estimativa confiável de `promptTokens`, o ATLAS mantém o `maxTokens` atual e ajusta apenas a janela.
+O limite de `maxTokens` permanece o valor configurado no modelo ou nos defaults globais.
 
 ### Persistência dos novos valores
 
-Os novos parâmetros são salvos no modelo local ativo por:
+O novo contexto é salvo no modelo local ativo por:
 
 ```text
 AtlasConfigManager.updateModel(model.id, {
   parameters: {
-    contextWindow: nextContext,
-    maxTokens: nextMaxTokens
+    contextWindow: nextContext
   }
 })
 ```
@@ -149,7 +133,7 @@ Ou seja, o ajuste não vale apenas para a requisição atual. Ele fica registrad
 
 ### Reinício da engine
 
-Depois de salvar os parâmetros, o ATLAS precisa reiniciar a engine para aplicar o novo `--ctx-size`.
+Depois de salvar o contexto, o ATLAS precisa reiniciar a engine para aplicar o novo `--ctx-size`.
 
 Fluxo:
 
@@ -173,20 +157,20 @@ O fluxo registra logs com estes prefixos:
 
 ```text
 [ATLAS local] Contexto insuficiente (...)
-[ATLAS local] Parâmetros dinâmicos salvos no modelo.
-[ATLAS local] Reiniciando engine local para aplicar parâmetros dinâmicos.
+[ATLAS local] Contexto dinâmico salvo no modelo.
+[ATLAS local] Reiniciando engine local para aplicar contexto dinâmico.
 [ATLAS local engine] Reinício solicitado para aplicar novos parâmetros.
 [ATLAS local engine] Novos parâmetros aplicados; engine local pronta.
 ```
 
-Os logs incluem modelo, contexto anterior, novo contexto, `maxTokens` anterior, novo `maxTokens`, tokens solicitados e tipo de engine.
+Os logs incluem modelo, contexto anterior, novo contexto, tokens solicitados e tipo de engine.
 
 ### Limitações do ajuste automático
 
 - O teto atual é `65536` tokens.
 - O ajuste depende do erro retornado pela engine local; se a engine não retornar uma mensagem reconhecível, o ATLAS trata como erro local comum.
 - O modo automático não escolhe quais trechos de contexto entram no prompt. Essa seleção é feita antes, pelos perfis de contexto, RAG, histórico e contexto do editor.
-- Em modo fixo, o ATLAS não altera nem salva `contextWindow` ou `maxTokens`.
+- Em modo fixo, o ATLAS não altera nem salva `contextWindow`.
 
 ## 3. Indexação de projetos e arquivos no RAG
 
@@ -397,6 +381,8 @@ error
 ```
 
 Se a indexação é cancelada, o projeto volta ao estado anterior, quando existia. Se falha e havia índice pronto anterior, o status vira `outdated`; caso contrário, vira `error`.
+
+Projetos com status `outdated` continuam pesquisáveis. O ATLAS usa a última coleção indexada disponível como melhor esforço até que uma nova indexação conclua.
 
 ### Atualização automática
 
@@ -623,7 +609,7 @@ Cada fonte retornada ao chat inclui distância, relevância, tipo, caminho e lin
 
 | Configuração | Uso |
 | --- | --- |
-| `custom.localEngine.dynamicContextWindow` | Permite ou bloqueia ajuste automático da janela local e tokens gerados. |
+| `custom.localEngine.dynamicContextWindow` | Permite ou bloqueia ajuste automático da janela local. |
 | `model.parameters.contextWindow` | Define `--ctx-size` usado pelo `llama-server`. |
 | `model.parameters.maxTokens` | Define `max_tokens` enviado à geração local. |
 | `rag.enabled` | Liga ou desliga recuperação RAG. |

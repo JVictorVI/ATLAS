@@ -305,6 +305,8 @@ O padrão atual usa distância máxima `0.9`.
 
 A consulta usa somente a coleção do projeto correspondente ao workspace ativo. Projetos adicionados manualmente ficam disponíveis para gestão e indexação, mas não são misturados automaticamente em perguntas feitas em outro workspace.
 
+Projetos com status `ready` ou `outdated` são pesquisáveis. Quando o status é `outdated`, a recuperação usa a última coleção indexada disponível até que a reindexação termine.
+
 ### 8.4 Fontes
 
 Quando `showSources` está habilitado, a resposta apresenta:

@@ -8,7 +8,7 @@ Os blocos podem ser copiados diretamente para o PlantText.
 
 ## Mapa de defasagens corrigidas nesta atualização
 
-- UC014 agora mostra o ajuste automático de `contextWindow` e `maxTokens`, a persistência dos novos parâmetros e o reinício da engine para aplicá-los.
+- UC014 agora mostra o ajuste automático de `contextWindow`, a persistência do novo parâmetro e o reinício da engine para aplicá-lo.
 - UC019 deixou de ser futuro e passou a apontar para `AtlasRagService`, `AtlasExternalDocumentParser`, `AtlasEmbeddingService` e `AtlasRagRepository`.
 - As assinaturas de `LocalApiService` e `AtlasLocalEngineService` foram ajustadas para representar o código atual, incluindo `restartEngine(model, options)`.
 
@@ -947,7 +947,7 @@ class AtlasInferenceService
 class LocalApiService {
   +sendChat(messages, onChunk, options)
   -sendLocalRequest(...)
-  -adjustDynamicTokenBudget(...)
+  -adjustDynamicContextWindow(...)
   -getContextOverflow(data)
   -readStreamingResponse(...)
 }
@@ -1002,7 +1002,7 @@ LocalApi -> Llama : POST /v1/chat/completions
 alt contexto insuficiente e ajuste automático habilitado
   Llama --> LocalApi : erro de context size/window/length
   LocalApi -> LocalApi : getContextOverflow(error)
-  LocalApi -> Config : updateModel(contextWindow, maxTokens)
+  LocalApi -> Config : updateModel(contextWindow)
   LocalApi -> Engine : restartEngine(model, reason="parameter-update")
   Engine -> Llama : parar processo anterior
   Engine -> Llama : spawn llama-server com novo --ctx-size

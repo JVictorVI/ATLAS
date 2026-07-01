@@ -33,6 +33,9 @@ const indexingProgressFile = document.getElementById("indexing-progress-file");
 const topKInput = document.getElementById("rag-top-k");
 const contextLimitInput = document.getElementById("rag-context-limit");
 const ignoredPathsInput = document.getElementById("rag-ignored-paths");
+const ragEnabledInput = document.getElementById("rag-enabled");
+const localRagEnabledInput = document.getElementById("local-rag-enabled");
+const cloudRagEnabledInput = document.getElementById("cloud-rag-enabled");
 const chunkSizeInput = document.getElementById("rag-chunk-size");
 const chunkOverlapInput = document.getElementById("rag-chunk-overlap");
 const maxFileSizeInput = document.getElementById("rag-max-file-size");
@@ -240,9 +243,9 @@ function saveRagSettings(options = {}) {
   vscode.postMessage({
     type: "salvarConfiguracoesRag",
     payload: {
-      enabled: document.getElementById("rag-enabled")?.checked === true,
-      allowCloudContext:
-        document.getElementById("cloud-rag-enabled")?.checked === true,
+      enabled: ragEnabledInput?.checked === true,
+      allowLocalContext: localRagEnabledInput?.checked !== false,
+      allowCloudContext: cloudRagEnabledInput?.checked === true,
       autoIndex:
         document.getElementById("auto-index-enabled")?.checked === true,
       embeddingModel: embeddingModelSelect?.value || undefined,
@@ -273,11 +276,16 @@ function saveRagSettings(options = {}) {
   });
 }
 
-document.getElementById("rag-enabled")?.addEventListener("change", () => {
+ragEnabledInput?.addEventListener("change", () => {
+  updateRagDestinationAvailability();
   saveRagSettings();
 });
 
-document.getElementById("cloud-rag-enabled")?.addEventListener("change", () => {
+localRagEnabledInput?.addEventListener("change", () => {
+  saveRagSettings();
+});
+
+cloudRagEnabledInput?.addEventListener("change", () => {
   saveRagSettings();
 });
 
@@ -519,18 +527,22 @@ window.addEventListener("message", (event) => {
 
   const settings = message.value?.settings ?? {};
   const runtime = message.value?.runtime ?? {};
-  const ragEnabled = document.getElementById("rag-enabled");
-  const cloudEnabled = document.getElementById("cloud-rag-enabled");
   const autoIndexEnabled = document.getElementById("auto-index-enabled");
   const runtimeStatus = document.getElementById("rag-runtime-status");
 
-  if (ragEnabled) {
-    ragEnabled.checked = settings.enabled === true;
+  if (ragEnabledInput) {
+    ragEnabledInput.checked = settings.enabled === true;
   }
 
-  if (cloudEnabled) {
-    cloudEnabled.checked = settings.allowCloudContext === true;
+  if (localRagEnabledInput) {
+    localRagEnabledInput.checked = settings.allowLocalContext !== false;
   }
+
+  if (cloudRagEnabledInput) {
+    cloudRagEnabledInput.checked = settings.allowCloudContext === true;
+  }
+
+  updateRagDestinationAvailability();
 
   if (autoIndexEnabled) {
     autoIndexEnabled.checked = settings.autoIndex === true;
@@ -697,6 +709,18 @@ function releaseRagLoadingWithError(message) {
 
   if (runtimeStatus) {
     runtimeStatus.textContent = "Não foi possível verificar o ChromaDB.";
+  }
+}
+
+function updateRagDestinationAvailability() {
+  const enabled = ragEnabledInput?.checked === true;
+
+  if (localRagEnabledInput) {
+    localRagEnabledInput.disabled = !enabled;
+  }
+
+  if (cloudRagEnabledInput) {
+    cloudRagEnabledInput.disabled = !enabled;
   }
 }
 

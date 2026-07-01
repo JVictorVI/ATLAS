@@ -335,10 +335,10 @@ Defaults para modelo descoberto:
 
 ```text
 temperature: 0.4
-maxTokens: 32768
+maxTokens: 8192
 topP: 0.95
 gpuLayers: 0
-contextWindow: 65536
+contextWindow: 8192
 baseUrl: http://127.0.0.1:8080/v1
 engine: llama.cpp
 ```

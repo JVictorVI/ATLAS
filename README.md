@@ -23,7 +23,7 @@ O projeto também busca apoiar estudo e evolução técnica, oferecendo modos di
 - Modo estudo para explicações mais didáticas, com pistas progressivas e botão dedicado no chat.
 - RAG local com ChromaDB gerenciado pela extensão, embeddings locais, indexação do workspace atual ou de uma pasta escolhida, documentos externos e recuperação semântica integrada ao chat.
 - Tela RAG com projetos indexados, documentos externos, status da base vetorial, progresso por arquivos/chunks, cancelamento, seleção de modelo de embeddings e carregamento inicial não bloqueante.
-- Configurações de execução, como temperatura, top-p, limite de tokens, timeout, streaming e ajuste automático de contexto/tokens gerados para modelos locais.
+- Configurações de execução, como temperatura, top-p, limite de tokens, timeout, streaming e ajuste automático de contexto para modelos locais.
 - Biblioteca de modelos locais para visualizar e ajustar parâmetros registrados, incluindo contexto, tokens gerados, GPU, temperatura e comportamento do modelo.
 
 ## Estrutura do projeto
