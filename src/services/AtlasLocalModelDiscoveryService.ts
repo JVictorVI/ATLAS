@@ -3,6 +3,7 @@ import * as path from "path";
 import * as vscode from "vscode";
 import { AtlasConfigManager } from "../managers/AtlasConfigManager";
 import { AtlasModelConfig } from "../interfaces/AtlasConfigTypes";
+import { ATLAS_LOCAL_MODEL_DEFAULTS } from "./AtlasLocalModelDefaults";
 
 export class AtlasLocalModelDiscoveryService {
   constructor(
@@ -75,11 +76,7 @@ export class AtlasLocalModelDiscoveryService {
       path: filePath,
       apiModelName: existing?.apiModelName ?? modelName,
       parameters: {
-        temperature: 0.7,
-        maxTokens: 4096,
-        topP: 0.95,
-        gpuLayers: 0,
-        contextWindow: 8192,
+        ...ATLAS_LOCAL_MODEL_DEFAULTS,
         ...(existing?.parameters ?? {}),
       },
       metadata: {

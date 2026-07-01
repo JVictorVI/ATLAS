@@ -52,11 +52,11 @@ local/<nome-do-arquivo-sem-extensão>
 Defaults do modelo:
 
 ```text
-temperature: 0.7
-maxTokens: 4096
+temperature: 0.4
+maxTokens: 32768
 topP: 0.95
 gpuLayers: 0
-contextWindow: 8192
+contextWindow: 65536
 baseUrl: http://127.0.0.1:8080/v1
 engine: llama.cpp
 ```
@@ -148,7 +148,7 @@ Argumentos atuais:
 --host 127.0.0.1
 --port 8080
 --model <model.path>
---ctx-size <model.parameters.contextWindow || 4096>
+--ctx-size <model.parameters.contextWindow || 65536>
 ```
 
 Se `gpuLayers > 0`, adiciona:
@@ -208,8 +208,8 @@ Payload:
 {
   "model": "apiModelName ou id",
   "messages": [],
-  "temperature": 0.7,
-  "max_tokens": 4096,
+  "temperature": 0.4,
+  "max_tokens": 32768,
   "top_p": 0.95,
   "stream": true
 }

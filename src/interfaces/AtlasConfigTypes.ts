@@ -9,11 +9,14 @@ export interface AtlasGeneralSettings {
   logLevel: "debug" | "info" | "warn" | "error";
 }
 
-export interface AtlasSecuritySettings {
+export interface AtlasCloudConfigs {
   limitPayload: boolean;
   dynamicMaxTokens?: boolean;
-  maxTokens?: number;
-  timeout?: number;
+  maxTokens: number;
+  timeout: number;
+  temperature: number;
+  topP: number;
+  stream: boolean;
 }
 
 export interface AtlasRagSettings {
@@ -183,7 +186,7 @@ export interface AtlasConfigSchema {
   updatedAt: string;
 
   general: AtlasGeneralSettings;
-  cloudSecurity: AtlasSecuritySettings;
+  cloudConfigs: AtlasCloudConfigs;
   rag: AtlasRagSettings;
   ui: AtlasUiSettings;
 

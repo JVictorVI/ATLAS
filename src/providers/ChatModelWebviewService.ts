@@ -5,6 +5,7 @@ import { execFileSync } from "child_process";
 
 import { AtlasLocalModelDiscoveryService } from "../services/AtlasLocalModelDiscoveryService";
 import { AtlasConfigManager } from "../managers/AtlasConfigManager";
+import { ATLAS_LOCAL_MODEL_DEFAULTS } from "../services/AtlasLocalModelDefaults";
 
 type GpuMemoryInfo = {
   totalBytes: number;
@@ -94,10 +95,15 @@ export class ChatModelWebviewService {
       },
       params: {
         gpu: model.parameters?.gpuLayers ?? 40,
-        temp: model.parameters?.temperature ?? 0.7,
-        topP: model.parameters?.topP ?? 0.95,
-        context: model.parameters?.contextWindow ?? 8192,
-        maxTokens: model.parameters?.maxTokens ?? 4096,
+        temp:
+          model.parameters?.temperature ??
+          ATLAS_LOCAL_MODEL_DEFAULTS.temperature,
+        topP: model.parameters?.topP ?? ATLAS_LOCAL_MODEL_DEFAULTS.topP,
+        context:
+          model.parameters?.contextWindow ??
+          ATLAS_LOCAL_MODEL_DEFAULTS.contextWindow,
+        maxTokens:
+          model.parameters?.maxTokens ?? ATLAS_LOCAL_MODEL_DEFAULTS.maxTokens,
       },
       customPrompt: !!model.custom?.systemPrompt,
       systemPrompt: model.custom?.systemPrompt || "",

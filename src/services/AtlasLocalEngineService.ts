@@ -8,6 +8,7 @@ import {
 } from "child_process";
 import { AtlasConfigManager } from "../managers/AtlasConfigManager";
 import { AtlasModelConfig } from "../interfaces/AtlasConfigTypes";
+import { ATLAS_LOCAL_MODEL_DEFAULTS } from "./AtlasLocalModelDefaults";
 
 type LocalEngineStartOptions = {
   reason?: "parameter-update";
@@ -301,7 +302,10 @@ export class AtlasLocalEngineService {
       "--model",
       model.path!,
       "--ctx-size",
-      String(model.parameters.contextWindow ?? 4096),
+      String(
+        model.parameters.contextWindow ??
+          ATLAS_LOCAL_MODEL_DEFAULTS.contextWindow,
+      ),
     ];
 
     const gpuLayers = Number(model.parameters.gpuLayers ?? 0);

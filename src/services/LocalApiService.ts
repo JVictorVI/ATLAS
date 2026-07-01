@@ -6,8 +6,9 @@ import {
 import { AtlasModelConfig } from "../interfaces/AtlasConfigTypes";
 import { AtlasConfigManager } from "../managers/AtlasConfigManager";
 import { AtlasLocalEngineService } from "./AtlasLocalEngineService";
+import { ATLAS_LOCAL_MODEL_DEFAULTS } from "./AtlasLocalModelDefaults";
 
-const LOCAL_CONTEXT_GROWTH_CAP = 32768;
+const LOCAL_CONTEXT_GROWTH_CAP = ATLAS_LOCAL_MODEL_DEFAULTS.contextWindow;
 const LOCAL_CONTEXT_GROWTH_PADDING = 512;
 
 type LocalContextOverflow = {
@@ -213,7 +214,7 @@ export class LocalApiService {
   ): Promise<AtlasModelConfig> {
     const currentContext = this.normalizePositiveInteger(
       model.parameters.contextWindow,
-      overflow.availableTokens || 4096,
+      overflow.availableTokens || ATLAS_LOCAL_MODEL_DEFAULTS.contextWindow,
     );
     const currentMaxTokens = this.resolveMaxTokens(
       model,

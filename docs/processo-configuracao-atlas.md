@@ -40,7 +40,7 @@ Isso preserva compatibilidade quando campos novos são adicionados.
 version
 updatedAt
 general
-cloudSecurity
+cloudConfigs
 rag
 ui
 llms
@@ -67,12 +67,12 @@ logLevel
 
 A UI de Configurações Gerais altera `language` e também partes de `custom`, `rag` e análise estática.
 
-## Segurança e execução cloud
+## Configurações de execução cloud
 
 Seção:
 
 ```text
-cloudSecurity
+cloudConfigs
 ```
 
 Campos:
@@ -82,15 +82,9 @@ limitPayload
 dynamicMaxTokens
 maxTokens
 timeout
-```
-
-O formulário de execução também atualiza defaults de LLM:
-
-```text
-llms.defaults.temperature
-llms.defaults.topP
-llms.defaults.maxTokens
-llms.defaults.stream
+temperature
+topP
+stream
 ```
 
 `dynamicMaxTokens` permite ao `CloudApiService` tentar buscar o limite real do modelo na listagem do provedor.
@@ -274,7 +268,7 @@ Preserva ajustes finos vindos das telas específicas. Campos numéricos são nor
 
 | Mensagem Webview | Handler | O que altera |
 | --- | --- | --- |
-| `salvarConfiguracoesSeguranca` | `handleSaveSecuritySettings` | `cloudSecurity` e `llms.defaults`. |
+| `salvarConfiguracoesCloud` | `handleSaveCloudConfigs` | `cloudConfigs`. |
 | `salvarConfiguracoesAtlas` | `handleSaveAtlasSettings` | `general`, `custom.contextProfile`, `custom.localEngine`, `custom.staticAnalysis`, `rag.topK`, `rag.maxContextCharacters`. |
 | `salvarConfiguracoesRag` | `handleSaveRagSettings` | `rag`. |
 | `selecionarModo` | `handleSelectMode` | `llms.selection.mode`. |
@@ -340,11 +334,11 @@ atlas.apiKeyMetadata.<provider>
 Defaults para modelo descoberto:
 
 ```text
-temperature: 0.7
-maxTokens: 4096
+temperature: 0.4
+maxTokens: 32768
 topP: 0.95
 gpuLayers: 0
-contextWindow: 8192
+contextWindow: 65536
 baseUrl: http://127.0.0.1:8080/v1
 engine: llama.cpp
 ```

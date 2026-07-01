@@ -16,7 +16,7 @@ export {
   JsonMap,
   AtlasResponseLanguage,
   AtlasGeneralSettings,
-  AtlasSecuritySettings,
+  AtlasCloudConfigs,
   AtlasRagSettings,
   AtlasEngineSettings,
   AtlasUiSettings,
@@ -79,8 +79,8 @@ export class AtlasConfigManager {
     return this.settingsService.updateSection(section, partialData);
   }
 
-  public updateSecuritySettings(settings: any) {
-    return this.settingsService.updateSecuritySettings(settings);
+  public updateCloudConfigs(settings: any) {
+    return this.settingsService.updateCloudConfigs(settings);
   }
 
   public updateRagSettings(settings: any) {

@@ -68,7 +68,7 @@ export class ChatResponseController {
             localEngine !== null &&
             localEngine.stream === false
           )
-        : config.llms.defaults.stream;
+        : config.cloudConfigs.stream;
 
       const responseSnapshot: ActiveResponseSnapshot = {
         controller: responseController,

@@ -1,9 +1,9 @@
 import {
+  AtlasCloudConfigs,
   AtlasConfigSchema,
   AtlasGeneralSettings,
   AtlasLlmDefaults,
   AtlasRagSettings,
-  AtlasSecuritySettings,
   AtlasUiSettings,
   JsonMap,
 } from "../interfaces/AtlasConfigTypes";
@@ -65,10 +65,10 @@ export class AtlasSettingsService {
     return updated;
   }
 
-  public updateSecuritySettings(
-    settings: Partial<AtlasSecuritySettings>,
+  public updateCloudConfigs(
+    settings: Partial<AtlasCloudConfigs>,
   ): AtlasConfigSchema {
-    return this.updateSection("cloudSecurity", settings);
+    return this.updateSection("cloudConfigs", settings);
   }
 
   public updateRagSettings(

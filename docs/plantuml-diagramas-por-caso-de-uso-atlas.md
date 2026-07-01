@@ -602,7 +602,7 @@ skinparam classAttributeIconSize 0
 
 class ChatMessageRouter {
   -handleLoadSecuritySettings(webview)
-  -handleSaveSecuritySettings(data, webview)
+  -handleSaveCloudConfigs(data, webview)
   -handleLoadAtlasSettings(webview)
   -handleSaveAtlasSettings(data, webview)
 }
@@ -612,12 +612,12 @@ class AtlasConfigManager {
   +updateCustomRoot(customData)
 }
 class AtlasSettingsService {
-  +updateSecuritySettings(settings)
+  +updateCloudConfigs(settings)
   +updateLlmDefaults(defaults)
 }
 class AtlasConfigRepository
 class AtlasConfigDefaults
-interface AtlasSecuritySettings
+interface AtlasCloudConfigs
 interface AtlasLlmDefaults
 interface AtlasStaticAnalysisConfig
 
@@ -625,7 +625,7 @@ ChatMessageRouter --> AtlasConfigManager
 AtlasConfigManager --> AtlasSettingsService
 AtlasSettingsService --> AtlasConfigRepository
 AtlasConfigRepository --> AtlasConfigDefaults
-AtlasSettingsService ..> AtlasSecuritySettings
+AtlasSettingsService ..> AtlasCloudConfigs
 AtlasSettingsService ..> AtlasLlmDefaults
 AtlasConfigManager ..> AtlasStaticAnalysisConfig
 @enduml
@@ -645,11 +645,11 @@ participant AtlasConfigRepository as Repository
 
 Usuário -> Webview : altera parâmetros
 alt segurança e parâmetros de LLM
-  Webview -> Router : salvarConfiguracoesSeguranca(payload)
-  Router -> Config : updateSecuritySettings/updateLlmDefaults
+  Webview -> Router : salvarConfiguracoesCloud(payload)
+  Router -> Config : updateCloudConfigs
   Config -> Settings : atualiza seções
   Settings -> Repository : save(config)
-  Router --> Webview : configuracoesSegurancaSalvas
+  Router --> Webview : configuracoesCloudSalvas
 else execução local e análise estática
   Webview -> Router : salvarConfiguracoesAtlas(payload)
   Router -> Config : updateCustomRoot(...)

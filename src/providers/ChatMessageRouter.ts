@@ -79,11 +79,11 @@ export class ChatMessageRouter {
       case "selecionarModo":
         await this.handleSelectMode(data, webview);
         return;
-      case "salvarConfiguracoesSeguranca":
-        await this.handleSaveSecuritySettings(data, webview);
+      case "salvarConfiguracoesCloud":
+        await this.handleSaveCloudConfigs(data, webview);
         return;
-      case "carregarConfiguracoesSeguranca":
-        await this.handleLoadSecuritySettings(webview);
+      case "carregarConfiguracoesCloud":
+        await this.handleLoadCloudConfigs(webview);
         return;
       case "carregarConfiguracoesAtlas":
         await this.handleLoadAtlasSettings(webview);
@@ -1208,7 +1208,7 @@ export class ChatMessageRouter {
     }
   }
 
-  private async handleSaveSecuritySettings(
+  private async handleSaveCloudConfigs(
     data: any,
     webview: vscode.Webview,
   ): Promise<void> {
@@ -1223,33 +1223,19 @@ export class ChatMessageRouter {
         stream,
       } = data.payload ?? {};
 
-      this.deps.configManager.updateSecuritySettings({
+      const updatedConfig = this.deps.configManager.updateCloudConfigs({
         limitPayload,
         dynamicMaxTokens,
         maxTokens,
         timeout,
-      });
-
-      this.deps.configManager.updateLlmDefaults({
         temperature,
         topP,
-        maxTokens,
         stream,
       });
 
-      const securitySettings =
-        this.deps.configManager.getSection("cloudSecurity");
-      const llmDefaults = this.deps.configManager.getConfig().llms.defaults;
-
       await webview.postMessage({
-        type: "configuracoesSegurancaSalvas",
-        value: {
-          ...securitySettings,
-          temperature: llmDefaults.temperature,
-          topP: llmDefaults.topP,
-          maxTokens: llmDefaults.maxTokens,
-          stream: llmDefaults.stream,
-        },
+        type: "configuracoesCloudSalvas",
+        value: updatedConfig.cloudConfigs,
       });
 
       vscode.window.showInformationMessage("Configurações de execução salvas.");
@@ -1267,23 +1253,16 @@ export class ChatMessageRouter {
     }
   }
 
-  private async handleLoadSecuritySettings(
+  private async handleLoadCloudConfigs(
     webview: vscode.Webview,
   ): Promise<void> {
     try {
-      const securitySettings =
-        this.deps.configManager.getSection("cloudSecurity");
-      const llmDefaults = this.deps.configManager.getConfig().llms.defaults;
+      const cloudConfigs =
+        this.deps.configManager.getSection("cloudConfigs");
 
       await webview.postMessage({
-        type: "configuracoesSegurancaCarregadas",
-        value: {
-          ...securitySettings,
-          temperature: llmDefaults.temperature,
-          topP: llmDefaults.topP,
-          maxTokens: llmDefaults.maxTokens,
-          stream: llmDefaults.stream,
-        },
+        type: "configuracoesCloudCarregadas",
+        value: cloudConfigs,
       });
     } catch (error) {
       const message = this.getErrorMessage(error, "Erro desconhecido");
@@ -1990,7 +1969,7 @@ export class ChatMessageRouter {
         value.timeout,
         5,
         600,
-        config.cloudSecurity?.timeout ?? 30,
+        config.cloudConfigs.timeout,
       ),
       engineType: this.normalizeLocalEngineType(value.engineType),
       startOnAtlasOpen: value.startOnAtlasOpen === true,

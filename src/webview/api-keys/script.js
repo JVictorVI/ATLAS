@@ -18,7 +18,7 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   if (saveSecurityBtn) {
-    saveSecurityBtn.addEventListener("click", saveCloudSecuritySettings);
+    saveSecurityBtn.addEventListener("click", saveCloudConfigs);
   }
 
   if (toggleDefault) {
@@ -42,7 +42,7 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   vscode.postMessage({ type: "listarChaves" });
-  vscode.postMessage({ type: "carregarConfiguracoesSeguranca" });
+  vscode.postMessage({ type: "carregarConfiguracoesCloud" });
   vscode.postMessage({ type: "carregarComportamentoModelo" });
 
   updateBehaviorState();
@@ -55,13 +55,13 @@ window.addEventListener("message", (event) => {
     renderCredentials(message.value);
   }
 
-  if (message.type === "configuracoesSegurancaCarregadas") {
-    fillCloudSecuritySettings(message.value);
+  if (message.type === "configuracoesCloudCarregadas") {
+    fillCloudConfigs(message.value);
     deactivateInputs();
   }
 
-  if (message.type === "configuracoesSegurancaSalvas") {
-    fillCloudSecuritySettings(message.value);
+  if (message.type === "configuracoesCloudSalvas") {
+    fillCloudConfigs(message.value);
     deactivateInputs();
 
     const saveSecurityBtn = document.getElementById("save-security-btn");
@@ -192,7 +192,7 @@ function bindCredentialActions() {
   });
 }
 
-function fillCloudSecuritySettings(settings) {
+function fillCloudConfigs(settings) {
   if (!settings) return;
 
   const limitPayload = document.getElementById("limitPayload");
@@ -226,7 +226,7 @@ function fillCloudSecuritySettings(settings) {
   }
 }
 
-function saveCloudSecuritySettings() {
+function saveCloudConfigs() {
   const limitPayload = document.getElementById("limitPayload");
   const maxTokens = document.getElementById("maxTokens");
   const timeout = document.getElementById("timeout");
@@ -236,7 +236,7 @@ function saveCloudSecuritySettings() {
   const dynamicMaxTokens = document.getElementById("dynamicMaxTokens");
 
   vscode.postMessage({
-    type: "salvarConfiguracoesSeguranca",
+    type: "salvarConfiguracoesCloud",
     payload: {
       limitPayload: Boolean(limitPayload?.checked),
       dynamicMaxTokens: Boolean(dynamicMaxTokens?.checked),

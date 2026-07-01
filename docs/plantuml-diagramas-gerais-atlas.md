@@ -448,7 +448,7 @@ package "Gerência de Configuração" {
   }
 
   class AtlasSettingsService {
-    +updateSecuritySettings(settings)
+    +updateCloudConfigs(settings)
     +updateRagSettings(settings)
     +updateLlmDefaults(defaults)
     +updateCustomRoot(customData)

@@ -1,4 +1,5 @@
 import {
+  AtlasCloudConfigs,
   AtlasConfigSchema,
   AtlasLocalEngineCustomConfig,
   AtlasRagSettings,
@@ -17,11 +18,14 @@ export class AtlasConfigDefaults {
         autoSave: true,
         logLevel: "info",
       },
-      cloudSecurity: {
+      cloudConfigs: {
         limitPayload: true,
         dynamicMaxTokens: false,
-        maxTokens: 2048,
+        maxTokens: 8192,
         timeout: 30,
+        temperature: 0.4,
+        topP: 0.95,
+        stream: true,
       },
       rag: {
         enabled: true,
@@ -99,8 +103,8 @@ export class AtlasConfigDefaults {
           },
         },
         defaults: {
-          temperature: 0.2,
-          maxTokens: 2048,
+          temperature: 0.4,
+          maxTokens: 8192,
           topP: 0.95,
           stream: true,
         },
@@ -126,9 +130,16 @@ export class AtlasConfigDefaults {
   }
 
   public mergeWithDefaults(
-    partial: Partial<AtlasConfigSchema>,
+    partial: Partial<AtlasConfigSchema> & {
+      cloudSecurity?: Partial<AtlasCloudConfigs>;
+    },
   ): AtlasConfigSchema {
     const defaults = this.createDefaultConfig();
+    const {
+      cloudSecurity: legacyCloudSecurity,
+      cloudConfigs: partialCloudConfigs,
+      ...partialWithoutLegacyCloudSecurity
+    } = partial;
     const ragPartial = (partial.rag ?? {}) as Partial<AtlasRagSettings> & {
       includeSupportFiles?: boolean;
     };
@@ -149,17 +160,22 @@ export class AtlasConfigDefaults {
       defaults.custom?.contextProfile ??
         AtlasContextProfileService.getDefaultProfile(),
     );
+    const legacyLlmCloudDefaults = this.pickDefinedCloudRequestDefaults(
+      partial.llms?.defaults,
+    );
 
     return {
       ...defaults,
-      ...partial,
+      ...partialWithoutLegacyCloudSecurity,
       general: {
         ...defaults.general,
         ...(partial.general ?? {}),
       },
-      cloudSecurity: {
-        ...defaults.cloudSecurity,
-        ...(partial.cloudSecurity ?? {}),
+      cloudConfigs: {
+        ...defaults.cloudConfigs,
+        ...(legacyCloudSecurity ?? {}),
+        ...legacyLlmCloudDefaults,
+        ...(partialCloudConfigs ?? {}),
       },
       rag: {
         ...defaults.rag,
@@ -236,6 +252,30 @@ export class AtlasConfigDefaults {
       updatedAt: partial.updatedAt ?? defaults.updatedAt,
       version: partial.version ?? defaults.version,
     };
+  }
+
+  private pickDefinedCloudRequestDefaults(
+    defaults?: Partial<AtlasCloudConfigs>,
+  ): Partial<AtlasCloudConfigs> {
+    const picked: Partial<AtlasCloudConfigs> = {};
+
+    if (typeof defaults?.temperature === "number") {
+      picked.temperature = defaults.temperature;
+    }
+
+    if (typeof defaults?.maxTokens === "number") {
+      picked.maxTokens = defaults.maxTokens;
+    }
+
+    if (typeof defaults?.topP === "number") {
+      picked.topP = defaults.topP;
+    }
+
+    if (typeof defaults?.stream === "boolean") {
+      picked.stream = defaults.stream;
+    }
+
+    return picked;
   }
 
   private createDefaultProviders(): ProviderConfig[] {

@@ -103,7 +103,7 @@ Ao excluir uma chave, o provider também é removido da configuração.
 Vêm de:
 
 ```text
-llms.defaults
+cloudConfigs
 ```
 
 Campos:
@@ -113,12 +113,6 @@ temperature
 maxTokens
 topP
 stream
-```
-
-Timeout vem de:
-
-```text
-cloudSecurity.timeout
 ```
 
 Default efetivo quando ausente:
@@ -132,7 +126,7 @@ Default efetivo quando ausente:
 Se:
 
 ```text
-cloudSecurity.dynamicMaxTokens === true
+cloudConfigs.dynamicMaxTokens === true
 ```
 
 o ATLAS tenta listar modelos do provider e encontrar o modelo selecionado.
@@ -149,7 +143,7 @@ O valor é cacheado por:
 provider.id::modelId
 ```
 
-Se a consulta falhar ou não houver limite, usa `llms.defaults.maxTokens`.
+Se a consulta falhar ou não houver limite, usa `cloudConfigs.maxTokens`.
 
 ## OpenAI-compatible
 
@@ -172,8 +166,8 @@ Payload:
 {
   "model": "<modelId>",
   "messages": [],
-  "temperature": 0.2,
-  "max_tokens": 2048,
+  "temperature": 0.4,
+  "max_tokens": 8192,
   "top_p": 0.95,
   "stream": true
 }

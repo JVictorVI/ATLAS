@@ -92,7 +92,7 @@ O ajuste é feito em `LocalApiService.adjustDynamicTokenBudget`.
 Constantes atuais:
 
 ```text
-LOCAL_CONTEXT_GROWTH_CAP = 32768
+LOCAL_CONTEXT_GROWTH_CAP = 65536
 LOCAL_CONTEXT_GROWTH_PADDING = 512
 ```
 
@@ -121,7 +121,7 @@ currentContext + 1
 O próximo contexto é a próxima potência de 2, limitado pelo teto local:
 
 ```text
-nextContext = min(32768, nextPowerOfTwo(minimumContext))
+nextContext = min(65536, nextPowerOfTwo(minimumContext))
 ```
 
 Quando há estimativa de `promptTokens`, o novo limite de geração é o espaço restante dentro da nova janela:
@@ -183,7 +183,7 @@ Os logs incluem modelo, contexto anterior, novo contexto, `maxTokens` anterior, 
 
 ### Limitações do ajuste automático
 
-- O teto atual é `32768` tokens.
+- O teto atual é `65536` tokens.
 - O ajuste depende do erro retornado pela engine local; se a engine não retornar uma mensagem reconhecível, o ATLAS trata como erro local comum.
 - O modo automático não escolhe quais trechos de contexto entram no prompt. Essa seleção é feita antes, pelos perfis de contexto, RAG, histórico e contexto do editor.
 - Em modo fixo, o ATLAS não altera nem salva `contextWindow` ou `maxTokens`.

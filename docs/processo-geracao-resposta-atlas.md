@@ -172,7 +172,7 @@ Em modo cloud:
 O streaming é decidido antes da chamada:
 
 - local: `custom.localEngine.stream !== false`;
-- cloud: `llms.defaults.stream`.
+- cloud: `cloudConfigs.stream`.
 
 Quando há streaming:
 

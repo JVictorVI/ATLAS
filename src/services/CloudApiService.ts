@@ -59,11 +59,12 @@ export class CloudApiService {
     }
 
     const providerKind = this.getProviderKind(provider);
+    const cloudConfigs = config.cloudConfigs;
     const maxTokens = await this.resolveCloudMaxTokens(
       provider,
       modelId,
       apiKey,
-      config.llms.defaults.maxTokens,
+      cloudConfigs.maxTokens,
     );
 
     switch (providerKind) {
@@ -74,7 +75,7 @@ export class CloudApiService {
           apiKey,
           messages,
           maxTokens,
-          config.llms.defaults.temperature,
+          cloudConfigs.temperature,
           onChunk,
           options?.signal,
         );
@@ -86,8 +87,8 @@ export class CloudApiService {
           apiKey,
           messages,
           maxTokens,
-          config.llms.defaults.temperature,
-          config.llms.defaults.topP,
+          cloudConfigs.temperature,
+          cloudConfigs.topP,
           onChunk,
           options?.signal,
         );
@@ -99,9 +100,9 @@ export class CloudApiService {
           modelId,
           apiKey,
           messages,
-          config.llms.defaults.temperature,
+          cloudConfigs.temperature,
           maxTokens,
-          config.llms.defaults.topP,
+          cloudConfigs.topP,
           onChunk,
           options?.signal,
         );
@@ -168,7 +169,7 @@ export class CloudApiService {
     options: RequestInit & { timeout?: number; signal?: AbortSignal },
   ): Promise<Response> {
     const timeoutSetting =
-      this.configManager.getConfig().cloudSecurity?.timeout;
+      this.configManager.getConfig().cloudConfigs.timeout;
     const defaultTimeout = timeoutSetting ? timeoutSetting * 1000 : 30000;
     const timeout = options.timeout || defaultTimeout;
 
@@ -398,7 +399,7 @@ export class CloudApiService {
   ): Promise<number> {
     const fallback = this.normalizePositiveInteger(configuredMaxTokens, 2048);
 
-    if (this.configManager.getConfig().cloudSecurity?.dynamicMaxTokens !== true) {
+    if (this.configManager.getConfig().cloudConfigs.dynamicMaxTokens !== true) {
       return fallback;
     }
 
