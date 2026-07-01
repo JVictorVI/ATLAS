@@ -37,62 +37,7 @@ const saveButton = document.getElementById("save-atlas-settings");
 let initialAtlasSettingsLoaded = false;
 let initialAtlasSettingsTimeout = undefined;
 
-const CONTEXT_PROFILE_PRESETS = {
-  light: {
-    mode: "light",
-    historyWindowSize: 5,
-    includeArchitecturalMemory: false,
-    includeRagContext: false,
-    includeEditorContext: true,
-    maxEditorContextCharacters: 6000,
-    ragTopK: 2,
-    ragMaxContextCharacters: 4000,
-    dynamicContextWindow: false,
-    staticAnalysis: {
-      enabled: false,
-      quick: false,
-      architectural: false,
-      diagnostics: false,
-      relations: false,
-    },
-  },
-  balanced: {
-    mode: "balanced",
-    historyWindowSize: 8,
-    includeArchitecturalMemory: true,
-    includeRagContext: true,
-    includeEditorContext: true,
-    maxEditorContextCharacters: 14000,
-    ragTopK: 5,
-    ragMaxContextCharacters: 10000,
-    dynamicContextWindow: true,
-    staticAnalysis: {
-      enabled: true,
-      quick: true,
-      architectural: true,
-      diagnostics: false,
-      relations: false,
-    },
-  },
-  advanced: {
-    mode: "advanced",
-    historyWindowSize: 12,
-    includeArchitecturalMemory: true,
-    includeRagContext: true,
-    includeEditorContext: true,
-    maxEditorContextCharacters: 40000,
-    ragTopK: 10,
-    ragMaxContextCharacters: 24000,
-    dynamicContextWindow: true,
-    staticAnalysis: {
-      enabled: true,
-      quick: true,
-      architectural: true,
-      diagnostics: true,
-      relations: true,
-    },
-  },
-};
+let contextProfilePresets = {};
 
 window.addEventListener("DOMContentLoaded", () => {
   setAtlasLoading(true);
@@ -171,6 +116,8 @@ function releaseAtlasLoading() {
 }
 
 function applyAtlasSettings(value) {
+  applyContextProfilePresets(value?.contextProfilePresets);
+
   if (atlasLanguage) {
     atlasLanguage.value = value?.language === "en-US" ? "en-US" : "pt-BR";
   }
@@ -232,8 +179,7 @@ function applyAtlasSettings(value) {
   }
 
   if (staticAnalysisRelations) {
-    staticAnalysisRelations.checked =
-      value?.staticAnalysisRelations === true;
+    staticAnalysisRelations.checked = value?.staticAnalysisRelations === true;
   }
 
   applyContextProfileSettings(value);
@@ -283,8 +229,11 @@ function applyContextProfileSettings(value) {
   highlightContextProfileSummary(mode);
 
   if (mode !== "custom") {
-    const profile = CONTEXT_PROFILE_PRESETS[mode];
-    applyContextProfileSideEffects(profile);
+    const profile = contextProfilePresets[mode];
+
+    if (profile) {
+      applyContextProfileSideEffects(profile);
+    }
   }
 }
 
@@ -298,25 +247,26 @@ function applyContextProfileSideEffects(profile) {
   }
 
   if (staticAnalysisEnabled) {
-    staticAnalysisEnabled.checked = profile.staticAnalysis.enabled === true;
+    staticAnalysisEnabled.checked = profile.staticAnalysis?.enabled === true;
   }
 
   if (staticAnalysisQuick) {
-    staticAnalysisQuick.checked = profile.staticAnalysis.quick === true;
+    staticAnalysisQuick.checked = profile.staticAnalysis?.quick === true;
   }
 
   if (staticAnalysisArchitectural) {
     staticAnalysisArchitectural.checked =
-      profile.staticAnalysis.architectural === true;
+      profile.staticAnalysis?.architectural === true;
   }
 
   if (staticAnalysisDiagnostics) {
     staticAnalysisDiagnostics.checked =
-      profile.staticAnalysis.diagnostics === true;
+      profile.staticAnalysis?.diagnostics === true;
   }
 
   if (staticAnalysisRelations) {
-    staticAnalysisRelations.checked = profile.staticAnalysis.relations === true;
+    staticAnalysisRelations.checked =
+      profile.staticAnalysis?.relations === true;
   }
 }
 
@@ -324,12 +274,108 @@ function handleContextProfileChange() {
   const mode = getSelectedContextProfileMode();
 
   if (mode !== "custom") {
-    const profile = CONTEXT_PROFILE_PRESETS[mode];
-    applyContextProfileSideEffects(profile);
+    const profile = contextProfilePresets[mode];
+
+    if (profile) {
+      applyContextProfileSideEffects(profile);
+    }
   }
 
   highlightContextProfileSummary(mode);
   updateStaticAnalysisAvailability();
+}
+
+function applyContextProfilePresets(value) {
+  if (!value || typeof value !== "object") {
+    return;
+  }
+
+  const nextPresets = {};
+
+  for (const mode of ["light", "balanced", "advanced"]) {
+    const preset = value[mode];
+
+    if (preset && typeof preset === "object") {
+      nextPresets[mode] = preset;
+    }
+  }
+
+  contextProfilePresets = nextPresets;
+  renderPresetContextProfileSummaries();
+}
+
+function renderPresetContextProfileSummaries() {
+  for (const mode of ["light", "balanced", "advanced"]) {
+    const preset = contextProfilePresets[mode];
+    const summary = document.querySelector(
+      `[data-context-profile-summary="${mode}"]`,
+    );
+
+    if (!preset || !summary) {
+      continue;
+    }
+
+    setSummaryText(
+      summary,
+      "history",
+      `${formatNumber(preset.historyWindowSize)} mensagens recentes`,
+    );
+    setSummaryText(
+      summary,
+      "memory",
+      formatEnabled(preset.includeArchitecturalMemory === true),
+    );
+    setSummaryText(summary, "rag", describePresetRag(preset));
+    setSummaryText(summary, "editor", describePresetEditor(preset));
+    setSummaryText(summary, "static", describePresetStaticAnalysis(preset));
+    setSummaryText(
+      summary,
+      "dynamic",
+      formatEnabled(preset.dynamicContextWindow !== false),
+    );
+  }
+}
+
+function setSummaryText(summary, field, text) {
+  const element = summary.querySelector(`[data-context-profile-field="${field}"]`);
+
+  if (element) {
+    element.textContent = text;
+  }
+}
+
+function describePresetRag(preset) {
+  if (preset.includeRagContext !== true) {
+    return "desativado";
+  }
+
+  return `${formatNumber(preset.ragTopK)} resultados, até ${formatNumber(preset.ragMaxContextCharacters)} caracteres`;
+}
+
+function describePresetEditor(preset) {
+  if (preset.includeEditorContext === false) {
+    return "desativado";
+  }
+
+  return `até ${formatNumber(preset.maxEditorContextCharacters)} caracteres`;
+}
+
+function describePresetStaticAnalysis(preset) {
+  if (
+    preset.includeStaticAnalysis === false ||
+    preset.staticAnalysis?.enabled !== true
+  ) {
+    return "desativada";
+  }
+
+  if (
+    preset.staticAnalysis?.diagnostics === true ||
+    preset.staticAnalysis?.relations === true
+  ) {
+    return "completa";
+  }
+
+  return "básica";
 }
 
 function getSelectedContextProfileMode() {

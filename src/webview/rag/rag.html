@@ -116,7 +116,7 @@
               <span role="columnheader">Ações</span>
             </div>
             <div id="projects-empty" class="empty-state">
-              Nenhum projeto indexado.
+              Nenhum projeto indexado
             </div>
           </div>
 
@@ -169,7 +169,7 @@
             class="documents-list"
             aria-live="polite"
           >
-            <div class="empty-state">Nenhum documento externo adicionado.</div>
+            <div class="empty-state">Nenhum documento externo adicionado</div>
           </div>
           <p class="supported-files">
             Arquivos suportados: PDF, DOCX, PPTX, XLSX, TXT, Markdown, CSV/TSV,
@@ -211,24 +211,24 @@
           <h2 id="embedding-model-settings-title">Modelo de Embeddings</h2>
           <p>
             Escolha onde o ATLAS deve procurar modelos de embeddings locais e
-            qual deles será usado para indexar e consultar o RAG.
+            qual deles será usado para indexar e consultar o RAG
           </p>
         </div>
 
         <label class="field field-full">
           <span>Pasta dos modelos de embeddings</span>
-          <div class="folder-picker">
+          <div class="folder-picker folder-control">
             <input id="embedding-models-folder-path" type="text" readonly />
             <button
               id="choose-embedding-models-folder"
-              class="btn btn-outline"
+              class="btn btn-secondary"
               type="button"
             >
-              Escolher pasta
+              Alterar
             </button>
             <button
               id="open-embedding-models-folder"
-              class="btn btn-outline"
+              class="btn btn-secondary"
               type="button"
             >
               Abrir pasta
@@ -275,7 +275,7 @@
         <div class="inline-warning" role="note">
           Ao trocar o modelo de embeddings, os projetos já indexados serão
           marcados como desatualizados. Reindexe o projeto para gerar novos
-          vetores compatíveis com o modelo selecionado.
+          vetores compatíveis com o modelo selecionado
         </div>
       </section>
 

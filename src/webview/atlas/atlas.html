@@ -34,455 +34,526 @@
       aria-busy="true"
       aria-hidden="true"
     >
-    <header class="page-heading">
-      <h1>Configurações Gerais</h1>
-      <div class="subtitle">Ajuste preferências gerais do ATLAS</div>
-    </header>
+      <header class="page-heading">
+        <h1>Configurações Gerais</h1>
+        <div class="subtitle">Ajuste preferências gerais do ATLAS</div>
+      </header>
 
-    <main>
-      <section class="card">
-        <div class="section-title">Idioma</div>
-        <div class="section-description">
-          Escolha o idioma usado pelo ATLAS. Essa configuração não afeta o
-          idioma do VS Code, apenas o conteúdo textual gerado pelo ATLAS e a
-          interface da extensão
-        </div>
+      <main>
+        <section class="card">
+          <div class="section-title">Idioma</div>
+          <div class="section-description">
+            Escolha o idioma usado pelo ATLAS. Essa configuração não afeta o
+            idioma do VS Code, apenas o conteúdo textual gerado pelo ATLAS e a
+            interface da extensão
+          </div>
 
-        <div class="select-setting">
-          <label for="atlas-language">Idioma das respostas e interface</label>
-          <select id="atlas-language">
-            <option value="pt-BR">Português do Brasil</option>
-            <option value="en-US">Inglês</option>
-          </select>
-        </div>
-      </section>
+          <div class="select-setting">
+            <label for="atlas-language">Idioma das respostas e interface</label>
+            <select id="atlas-language">
+              <option value="pt-BR">Português do Brasil</option>
+              <option value="en-US">Inglês</option>
+            </select>
+          </div>
+        </section>
 
-      <section class="card">
-        <div class="section-title">Perfil de Contexto</div>
-        <div class="section-description">
-          Escolha quanto contexto o ATLAS envia automaticamente junto com cada
-          pergunta. Perfis mais leves reduzem histórico, RAG, código aberto e
-          coleta estática para economizar CPU, memória e janela de contexto.
-        </div>
+        <section class="card">
+          <div class="section-title">Perfil de Contexto</div>
+          <div class="section-description">
+            Escolha quanto contexto o ATLAS envia automaticamente junto com cada
+            pergunta, tanto no modo local quanto no modo em nuvem. Perfis mais
+            leves reduzem histórico, RAG, código aberto e coleta estática para
+            economizar CPU, memória e janela de contexto.
+          </div>
 
-        <div class="context-profile-options">
-          <label class="context-profile-option">
-            <input
-              type="radio"
-              name="context-profile"
-              id="context-profile-light"
-              value="light"
-            />
-            <span>
+          <div class="context-profile-options">
+            <label class="context-profile-option">
+              <input
+                type="radio"
+                name="context-profile"
+                id="context-profile-light"
+                value="light"
+              />
+              <span>
+                <strong>Leve</strong>
+                <small>
+                  Para PCs fracos: histórico curto, sem RAG no prompt e sem
+                  coleta estática automática
+                </small>
+              </span>
+            </label>
+
+            <label class="context-profile-option">
+              <input
+                type="radio"
+                name="context-profile"
+                id="context-profile-balanced"
+                value="balanced"
+              />
+              <span>
+                <strong>Médio</strong>
+                <small>
+                  Equilíbrio entre contexto e desempenho para uso local diário
+                </small>
+              </span>
+            </label>
+
+            <label class="context-profile-option">
+              <input
+                type="radio"
+                name="context-profile"
+                id="context-profile-advanced"
+                value="advanced"
+              />
+              <span>
+                <strong>Avançado</strong>
+                <small>
+                  Mais histórico, RAG mais amplo e análise estrutural completa
+                </small>
+              </span>
+            </label>
+
+            <label class="context-profile-option">
+              <input
+                type="radio"
+                name="context-profile"
+                id="context-profile-custom"
+                value="custom"
+              />
+              <span>
+                <strong>Personalizado</strong>
+                <small
+                  >Mantém ajustes finos definidos nas telas específicas</small
+                >
+              </span>
+            </label>
+          </div>
+
+          <div class="context-profile-summary">
+            <div
+              class="context-profile-summary-item"
+              data-context-profile-summary="light"
+            >
               <strong>Leve</strong>
-              <small>
-                Para PCs fracos: histórico curto, sem RAG no prompt e sem
-                coleta estática automática
-              </small>
-            </span>
-          </label>
+              <ul>
+                <li>
+                  Histórico: <span data-context-profile-field="history">-</span>
+                </li>
+                <li>
+                  Memória resumida:
+                  <span data-context-profile-field="memory">-</span>
+                </li>
+                <li>
+                  RAG no prompt: <span data-context-profile-field="rag">-</span>
+                </li>
+                <li>
+                  Código aberto:
+                  <span data-context-profile-field="editor">-</span>
+                </li>
+                <li>
+                  Análise estática:
+                  <span data-context-profile-field="static">-</span>
+                </li>
+                <li>
+                  Contexto local dinâmico:
+                  <span data-context-profile-field="dynamic">-</span>
+                </li>
+              </ul>
+            </div>
 
-          <label class="context-profile-option">
-            <input
-              type="radio"
-              name="context-profile"
-              id="context-profile-balanced"
-              value="balanced"
-            />
-            <span>
+            <div
+              class="context-profile-summary-item"
+              data-context-profile-summary="balanced"
+            >
               <strong>Médio</strong>
-              <small>
-                Equilíbrio entre contexto e desempenho para uso local diário
-              </small>
-            </span>
-          </label>
+              <ul>
+                <li>
+                  Histórico: <span data-context-profile-field="history">-</span>
+                </li>
+                <li>
+                  Memória resumida:
+                  <span data-context-profile-field="memory">-</span>
+                </li>
+                <li>
+                  RAG no prompt: <span data-context-profile-field="rag">-</span>
+                </li>
+                <li>
+                  Código aberto:
+                  <span data-context-profile-field="editor">-</span>
+                </li>
+                <li>
+                  Análise estática:
+                  <span data-context-profile-field="static">-</span>
+                </li>
+                <li>
+                  Contexto local dinâmico:
+                  <span data-context-profile-field="dynamic">-</span>
+                </li>
+              </ul>
+            </div>
 
-          <label class="context-profile-option">
-            <input
-              type="radio"
-              name="context-profile"
-              id="context-profile-advanced"
-              value="advanced"
-            />
-            <span>
+            <div
+              class="context-profile-summary-item"
+              data-context-profile-summary="advanced"
+            >
               <strong>Avançado</strong>
-              <small>
-                Mais histórico, RAG mais amplo e análise estrutural completa
-              </small>
-            </span>
-          </label>
+              <ul>
+                <li>
+                  Histórico: <span data-context-profile-field="history">-</span>
+                </li>
+                <li>
+                  Memória resumida:
+                  <span data-context-profile-field="memory">-</span>
+                </li>
+                <li>
+                  RAG no prompt: <span data-context-profile-field="rag">-</span>
+                </li>
+                <li>
+                  Código aberto:
+                  <span data-context-profile-field="editor">-</span>
+                </li>
+                <li>
+                  Análise estática:
+                  <span data-context-profile-field="static">-</span>
+                </li>
+                <li>
+                  Contexto local dinâmico:
+                  <span data-context-profile-field="dynamic">-</span>
+                </li>
+              </ul>
+            </div>
 
-          <label class="context-profile-option">
-            <input
-              type="radio"
-              name="context-profile"
-              id="context-profile-custom"
-              value="custom"
-            />
-            <span>
+            <div
+              class="context-profile-summary-item"
+              data-context-profile-summary="custom"
+            >
               <strong>Personalizado</strong>
-              <small>Mantém ajustes finos definidos nas telas específicas</small>
-            </span>
-          </label>
-        </div>
+              <ul>
+                <li>
+                  Histórico:
+                  <span id="custom-profile-history">valor atual</span>
+                </li>
+                <li>
+                  Memória resumida:
+                  <span id="custom-profile-memory">valor atual</span>
+                </li>
+                <li>
+                  RAG no prompt:
+                  <span id="custom-profile-rag">valores atuais</span>
+                </li>
+                <li>
+                  Código aberto:
+                  <span id="custom-profile-editor">valor atual</span>
+                </li>
+                <li>
+                  Análise estática:
+                  <span id="custom-profile-static">valor atual</span>
+                </li>
+                <li>
+                  Contexto local dinâmico:
+                  <span id="custom-profile-dynamic">valor atual</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
 
-        <div class="context-profile-summary">
-          <div
-            class="context-profile-summary-item"
-            data-context-profile-summary="light"
-          >
-            <strong>Leve</strong>
-            <ul>
-              <li>Histórico: 5 mensagens recentes</li>
-              <li>Memória resumida: desativada</li>
-              <li>RAG no prompt: desativado</li>
-              <li>Código aberto: até 6.000 caracteres</li>
-              <li>Análise estática: desativada</li>
-              <li>Contexto local dinâmico: desativado</li>
-            </ul>
+        <section class="card">
+          <div class="section-title">Modelos e Execução Local</div>
+          <div class="section-description">
+            Informe onde estão seus modelos e escolha a forma desejada de
+            rodá-los
           </div>
 
-          <div
-            class="context-profile-summary-item"
-            data-context-profile-summary="balanced"
-          >
-            <strong>Médio</strong>
-            <ul>
-              <li>Histórico: 8 mensagens recentes</li>
-              <li>Memória resumida: ativada</li>
-              <li>RAG no prompt: 5 resultados, até 10.000 caracteres</li>
-              <li>Código aberto: até 14.000 caracteres</li>
-              <li>Análise estática: básica</li>
-              <li>Contexto local dinâmico: ativado</li>
-            </ul>
+          <div class="settings-section settings-section-first">
+            <div class="settings-section-heading">
+              <h2>Respostas locais</h2>
+              <p>
+                Defina como o ATLAS deve exibir as respostas geradas pela engine
+                local
+              </p>
+            </div>
+
+            <label class="startup-option">
+              <input type="checkbox" id="local-stream-responses" />
+              <span>
+                <strong>Responder em tempo real (streaming)</strong>
+                <small>
+                  Mostra a resposta local enquanto ela é gerada. Ao desativar, o
+                  ATLAS exibe a resposta apenas quando a geração terminar
+                </small>
+              </span>
+            </label>
+
+            <div class="select-setting local-timeout-setting">
+              <label for="local-engine-timeout">
+                Timeout da execução local (segundos)
+              </label>
+              <input
+                id="local-engine-timeout"
+                type="number"
+                min="5"
+                max="600"
+                step="1"
+                value="30"
+              />
+              <small>
+                Tempo máximo para a engine local responder antes de cancelar a
+                requisição
+              </small>
+            </div>
           </div>
 
-          <div
-            class="context-profile-summary-item"
-            data-context-profile-summary="advanced"
-          >
-            <strong>Avançado</strong>
-            <ul>
-              <li>Histórico: 12 mensagens recentes</li>
-              <li>Memória resumida: ativada</li>
-              <li>RAG no prompt: 10 resultados, até 24.000 caracteres</li>
-              <li>Código aberto: até 40.000 caracteres</li>
-              <li>Análise estática: completa, com diagnósticos e relações</li>
-              <li>Contexto local dinâmico: ativado</li>
-            </ul>
+          <div class="settings-section">
+            <div class="settings-section-heading">
+              <h2>Pastas utilizadas pelo ATLAS</h2>
+              <p>
+                Essas pastas dizem ao ATLAS onde procurar os arquivos
+                necessários para executar modelos locais
+              </p>
+            </div>
+
+            <div class="folder-setting">
+              <label for="models-folder-path">Pasta de modelos</label>
+              <div class="folder-control">
+                <input id="models-folder-path" type="text" readonly />
+                <button id="choose-models-folder" class="btn-secondary">
+                  Alterar
+                </button>
+                <button id="open-models-folder" class="btn-secondary">
+                  Abrir pasta
+                </button>
+              </div>
+              <small>
+                Coloque aqui os arquivos de modelos no formato .gguf. Eles
+                aparecerão na Biblioteca
+              </small>
+            </div>
+
+            <div class="folder-setting">
+              <label for="engines-folder-path">Pasta das engines</label>
+              <div class="folder-control">
+                <input id="engines-folder-path" type="text" readonly />
+                <button id="choose-engines-folder" class="btn-secondary">
+                  Alterar
+                </button>
+                <button id="open-engines-folder" class="btn-secondary">
+                  Abrir pasta
+                </button>
+              </div>
+              <small>
+                Use esta pasta para armazenar as versões do llama.cpp utilizadas
+                para rodar os modelos locais
+              </small>
+            </div>
           </div>
 
-          <div
-            class="context-profile-summary-item"
-            data-context-profile-summary="custom"
-          >
-            <strong>Personalizado</strong>
-            <ul>
-              <li>Histórico: <span id="custom-profile-history">valor atual</span></li>
-              <li>Memória resumida: <span id="custom-profile-memory">valor atual</span></li>
-              <li>RAG no prompt: <span id="custom-profile-rag">valores atuais</span></li>
-              <li>Código aberto: <span id="custom-profile-editor">valor atual</span></li>
-              <li>Análise estática: <span id="custom-profile-static">valor atual</span></li>
-              <li>Contexto local dinâmico: <span id="custom-profile-dynamic">valor atual</span></li>
-            </ul>
+          <div class="settings-section">
+            <div class="settings-section-heading">
+              <h2>Forma de execução</h2>
+              <p>
+                Escolha se o modelo deve rodar apenas no processador ou usar a
+                placa de vídeo quando houver suporte
+              </p>
+            </div>
+
+            <div class="engine-options">
+              <label class="engine-option">
+                <input
+                  type="radio"
+                  name="engine-type"
+                  id="engine-cpu"
+                  value="cpu"
+                />
+                <span>
+                  <strong>CPU</strong>
+                  <small>
+                    Maior compatibilidade, porém com geração de respostas mais
+                    lenta
+                  </small>
+                </span>
+              </label>
+
+              <label class="engine-option">
+                <input
+                  type="radio"
+                  name="engine-type"
+                  id="engine-cuda"
+                  value="cuda"
+                />
+                <span>
+                  <strong>GPU NVIDIA CUDA</strong>
+                  <small>
+                    Melhor desempenho em placas NVIDIA com suporte a CUDA
+                  </small>
+                </span>
+              </label>
+
+              <label class="engine-option">
+                <input
+                  type="radio"
+                  name="engine-type"
+                  id="engine-vulkan"
+                  value="vulkan"
+                />
+                <span>
+                  <strong>GPU Vulkan</strong>
+                  <small>
+                    Alternativa multiplataforma para aceleração via GPU
+                  </small>
+                </span>
+              </label>
+            </div>
           </div>
-        </div>
-      </section>
 
-      <section class="card">
-        <div class="section-title">Modelos e Execução Local</div>
-        <div class="section-description">
-          Informe onde estão seus modelos e escolha a forma desejada de rodá-los
-        </div>
+          <div class="settings-section">
+            <div class="settings-section-heading">
+              <h2>Tamanho de contexto</h2>
+              <p>
+                Escolha se o ATLAS pode aumentar o contexto local quando a
+                engine indicar que o limite atual não comporta a requisição
+              </p>
+            </div>
 
-        <div class="settings-section settings-section-first">
-          <div class="settings-section-heading">
-            <h2>Respostas locais</h2>
-            <p>
-              Defina como o ATLAS deve exibir as respostas geradas pela engine
-              local
-            </p>
+            <div class="engine-options context-window-options">
+              <label class="engine-option">
+                <input
+                  type="radio"
+                  name="context-window-mode"
+                  id="context-window-dynamic"
+                  value="dynamic"
+                />
+                <span>
+                  <strong>Automático</strong>
+                  <small>
+                    Aumenta e salva o tamanho de contexto do modelo quando
+                    necessário
+                  </small>
+                </span>
+              </label>
+
+              <label class="engine-option">
+                <input
+                  type="radio"
+                  name="context-window-mode"
+                  id="context-window-fixed"
+                  value="fixed"
+                />
+                <span>
+                  <strong>Fixo</strong>
+                  <small>
+                    Usa apenas o tamanho definido na Biblioteca para o modelo
+                    selecionado
+                  </small>
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <div class="note">
+            Para instalar uma engine, baixe uma versão do llama.cpp, extraia os
+            arquivos dentro da pasta de engines e mantenha os nomes das pastas
+            como llama.cpp, llama.cpp-cuda ou llama.cpp-vulkan
+            <a
+              href="https://github.com/ggml-org/llama.cpp/releases"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Abrir página de downloads</a
+            >.
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="section-title">Inicialização</div>
+          <div class="section-description">
+            Defina se o ATLAS deve deixar a execução de modelos locais pronta
+            assim que a extensão for aberta
           </div>
 
           <label class="startup-option">
-            <input type="checkbox" id="local-stream-responses" />
+            <input type="checkbox" id="engine-start-on-open" />
             <span>
-              <strong>Responder em tempo real (streaming)</strong>
+              <strong>Iniciar engine automaticamente</strong>
               <small>
-                Mostra a resposta local enquanto ela é gerada. Ao desativar, o
-                ATLAS exibe a resposta apenas quando a geração terminar
+                O ATLAS inicia a engine local ao abrir, usando o modelo local
+                selecionado
               </small>
             </span>
           </label>
+        </section>
 
-          <div class="select-setting local-timeout-setting">
-            <label for="local-engine-timeout">
-              Timeout da execução local (segundos)
-            </label>
-            <input
-              id="local-engine-timeout"
-              type="number"
-              min="5"
-              max="600"
-              step="1"
-              value="30"
-            />
-            <small>
-              Tempo máximo para a engine local responder antes de cancelar a
-              requisição
-            </small>
-          </div>
-        </div>
-
-        <div class="settings-section">
-          <div class="settings-section-heading">
-            <h2>Pastas utilizadas pelo ATLAS</h2>
-            <p>
-              Essas pastas dizem ao ATLAS onde procurar os arquivos necessários
-              para executar modelos locais
-            </p>
+        <section class="card">
+          <div class="section-title">Análise Estática Estrutural</div>
+          <div class="section-description">
+            Use a estrutura fornecida pelas extensões de linguagem do VS Code
+            como contexto auxiliar para as análises do ATLAS
           </div>
 
-          <div class="folder-setting">
-            <label for="models-folder-path">Pasta de modelos</label>
-            <div class="folder-control">
-              <input id="models-folder-path" type="text" readonly />
-              <button id="choose-models-folder" class="btn-secondary">
-                Alterar
-              </button>
-              <button id="open-models-folder" class="btn-secondary">
-                Abrir pasta
-              </button>
-            </div>
-            <small>
-              Coloque aqui os arquivos de modelos no formato .gguf. Eles
-              aparecerão na Biblioteca
-            </small>
-          </div>
-
-          <div class="folder-setting">
-            <label for="engines-folder-path">Pasta das engines</label>
-            <div class="folder-control">
-              <input id="engines-folder-path" type="text" readonly />
-              <button id="choose-engines-folder" class="btn-secondary">
-                Alterar
-              </button>
-              <button id="open-engines-folder" class="btn-secondary">
-                Abrir pasta
-              </button>
-            </div>
-            <small>
-              Use esta pasta para armazenar as versões do llama.cpp utilizadas
-              para rodar os modelos locais
-            </small>
-          </div>
-        </div>
-
-        <div class="settings-section">
-          <div class="settings-section-heading">
-            <h2>Forma de execução</h2>
-            <p>
-              Escolha se o modelo deve rodar apenas no processador ou usar a
-              placa de vídeo quando houver suporte
-            </p>
-          </div>
-
-          <div class="engine-options">
-            <label class="engine-option">
-              <input
-                type="radio"
-                name="engine-type"
-                id="engine-cpu"
-                value="cpu"
-              />
+          <div class="static-analysis-options">
+            <label class="startup-option">
+              <input type="checkbox" id="static-analysis-enabled" />
               <span>
-                <strong>CPU</strong>
+                <strong>Ativar coleta estrutural</strong>
                 <small>
-                  Maior compatibilidade, porém com geração de respostas mais
-                  lenta
+                  Coleta símbolos como classes, métodos, funções, interfaces e
+                  intervalos de linhas. Quando a linguagem não fornece símbolos,
+                  o ATLAS continua usando apenas o conteúdo textual
                 </small>
               </span>
             </label>
 
-            <label class="engine-option">
-              <input
-                type="radio"
-                name="engine-type"
-                id="engine-cuda"
-                value="cuda"
-              />
+            <label class="startup-option static-analysis-dependent">
+              <input type="checkbox" id="static-analysis-quick" />
               <span>
-                <strong>GPU NVIDIA CUDA</strong>
+                <strong>Usar na Análise Rápida</strong>
                 <small>
-                  Melhor desempenho em placas NVIDIA com suporte a CUDA
+                  Inclui a estrutura coletada no contexto usado para gerar as
+                  marcações no editor
                 </small>
               </span>
             </label>
 
-            <label class="engine-option">
-              <input
-                type="radio"
-                name="engine-type"
-                id="engine-vulkan"
-                value="vulkan"
-              />
+            <label class="startup-option static-analysis-dependent">
+              <input type="checkbox" id="static-analysis-architectural" />
               <span>
-                <strong>GPU Vulkan</strong>
+                <strong>Usar na Análise Arquitetural</strong>
                 <small>
-                  Alternativa multiplataforma para aceleração via GPU
-                </small>
-              </span>
-            </label>
-          </div>
-        </div>
-
-        <div class="settings-section">
-          <div class="settings-section-heading">
-            <h2>Tamanho de contexto</h2>
-            <p>
-              Escolha se o ATLAS pode aumentar o contexto local quando a engine
-              indicar que o limite atual não comporta a requisição
-            </p>
-          </div>
-
-          <div class="engine-options context-window-options">
-            <label class="engine-option">
-              <input
-                type="radio"
-                name="context-window-mode"
-                id="context-window-dynamic"
-                value="dynamic"
-              />
-              <span>
-                <strong>Automático</strong>
-                <small>
-                  Aumenta e salva o tamanho de contexto do modelo quando
-                  necessário
+                  Inclui a estrutura coletada nas avaliações arquiteturais
+                  formais solicitadas pelo chat
                 </small>
               </span>
             </label>
 
-            <label class="engine-option">
-              <input
-                type="radio"
-                name="context-window-mode"
-                id="context-window-fixed"
-                value="fixed"
-              />
+            <label class="startup-option static-analysis-dependent">
+              <input type="checkbox" id="static-analysis-diagnostics" />
               <span>
-                <strong>Fixo</strong>
+                <strong>Incluir diagnósticos do VS Code</strong>
                 <small>
-                  Usa apenas o tamanho definido na Biblioteca para o modelo
-                  selecionado
+                  Acrescenta erros, avisos, informações e sugestões já
+                  publicados pela extensão da linguagem ou por ferramentas como
+                  linters
+                </small>
+              </span>
+            </label>
+
+            <label class="startup-option static-analysis-dependent">
+              <input type="checkbox" id="static-analysis-relations" />
+              <span>
+                <strong>Incluir relações entre arquivos e símbolos</strong>
+                <small>
+                  Consulta referências de classes, interfaces, funções, structs
+                  e enums para indicar quais arquivos utilizam os símbolos
+                  definidos no arquivo atual
                 </small>
               </span>
             </label>
           </div>
+        </section>
+
+        <div class="row-end settings-actions">
+          <button id="save-atlas-settings" class="btn-primary">Salvar</button>
         </div>
-
-        <div class="note">
-          Para instalar uma engine, baixe uma versão do llama.cpp, extraia os
-          arquivos dentro da pasta de engines e mantenha os nomes das pastas
-          como llama.cpp, llama.cpp-cuda ou llama.cpp-vulkan
-          <a
-            href="https://github.com/ggml-org/llama.cpp/releases"
-            target="_blank"
-            rel="noopener noreferrer"
-            >Abrir página de downloads</a
-          >.
-        </div>
-      </section>
-
-      <section class="card">
-        <div class="section-title">Inicialização</div>
-        <div class="section-description">
-          Defina se o ATLAS deve deixar a execução de modelos locais pronta
-          assim que a extensão for aberta
-        </div>
-
-        <label class="startup-option">
-          <input type="checkbox" id="engine-start-on-open" />
-          <span>
-            <strong>Iniciar engine automaticamente</strong>
-            <small>
-              O ATLAS inicia a engine local ao abrir, usando o modelo local
-              selecionado
-            </small>
-          </span>
-        </label>
-      </section>
-
-      <section class="card">
-        <div class="section-title">Análise Estática Estrutural</div>
-        <div class="section-description">
-          Use a estrutura fornecida pelas extensões de linguagem do VS Code como
-          contexto auxiliar para as análises do ATLAS
-        </div>
-
-        <div class="static-analysis-options">
-          <label class="startup-option">
-            <input type="checkbox" id="static-analysis-enabled" />
-            <span>
-              <strong>Ativar coleta estrutural</strong>
-              <small>
-                Coleta símbolos como classes, métodos, funções, interfaces e
-                intervalos de linhas. Quando a linguagem não fornece símbolos, o
-                ATLAS continua usando apenas o conteúdo textual
-              </small>
-            </span>
-          </label>
-
-          <label class="startup-option static-analysis-dependent">
-            <input type="checkbox" id="static-analysis-quick" />
-            <span>
-              <strong>Usar na Análise Rápida</strong>
-              <small>
-                Inclui a estrutura coletada no contexto usado para gerar as
-                marcações no editor
-              </small>
-            </span>
-          </label>
-
-          <label class="startup-option static-analysis-dependent">
-            <input type="checkbox" id="static-analysis-architectural" />
-            <span>
-              <strong>Usar na Análise Arquitetural</strong>
-              <small>
-                Inclui a estrutura coletada nas avaliações arquiteturais formais
-                solicitadas pelo chat
-              </small>
-            </span>
-          </label>
-
-          <label class="startup-option static-analysis-dependent">
-            <input type="checkbox" id="static-analysis-diagnostics" />
-            <span>
-              <strong>Incluir diagnósticos do VS Code</strong>
-              <small>
-                Acrescenta erros, avisos, informações e sugestões já publicados
-                pela extensão da linguagem ou por ferramentas como linters
-              </small>
-            </span>
-          </label>
-
-          <label class="startup-option static-analysis-dependent">
-            <input type="checkbox" id="static-analysis-relations" />
-            <span>
-              <strong>Incluir relações entre arquivos e símbolos</strong>
-              <small>
-                Consulta referências de classes, interfaces, funções, structs e
-                enums para indicar quais arquivos utilizam os símbolos definidos
-                no arquivo atual
-              </small>
-            </span>
-          </label>
-        </div>
-      </section>
-
-      <div class="row-end settings-actions">
-        <button id="save-atlas-settings" class="btn-primary">Salvar</button>
-      </div>
-    </main>
+      </main>
     </div>
 
     <script src="{{scriptUri}}"></script>

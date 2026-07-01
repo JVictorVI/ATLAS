@@ -986,7 +986,7 @@ function renderExternalDocuments(documents) {
   if (!safeDocuments.length) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
-    empty.textContent = "Nenhum documento externo adicionado.";
+    empty.textContent = "Nenhum documento externo adicionado";
     externalDocumentsList.appendChild(empty);
     return;
   }
@@ -1079,7 +1079,7 @@ function renderProjects(projects) {
   if (!projects.length) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
-    empty.textContent = "Nenhum projeto indexado.";
+    empty.textContent = "Nenhum projeto indexado";
     projectsTable.appendChild(empty);
     return;
   }

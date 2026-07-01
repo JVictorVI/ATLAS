@@ -9,18 +9,18 @@ export class AtlasSystemPromptPolicyService {
     const language = this.getConfiguredLanguage();
     const message = (() => {
       switch (mode) {
-      case "architectural-analysis":
-        return this.buildArchitecturalAnalysisMessage();
+        case "architectural-analysis":
+          return this.buildArchitecturalAnalysisMessage();
 
-      case "quick-analysis":
-        return this.buildQuickAnalysisMessage();
+        case "quick-analysis":
+          return this.buildQuickAnalysisMessage();
 
-      case "study-mode":
-        return this.buildStudyModeMessage();
+        case "study-mode":
+          return this.buildStudyModeMessage();
 
-      case "developer-assistant":
-      default:
-        return this.buildDeveloperAssistantMessage();
+        case "developer-assistant":
+        default:
+          return this.buildDeveloperAssistantMessage();
       }
     })();
 
@@ -38,7 +38,7 @@ export class AtlasSystemPromptPolicyService {
         "Response language policy:",
         "- Respond in English.",
         "- Keep machine-readable schemas, JSON keys and code identifiers unchanged.",
-        "- For required Markdown structures, preserve the numbering and structure, but translate human-readable headings and prose to English.",
+        "- For required Markdown structures, preserve the structure, but translate human-readable headings and prose to English.",
         "- For quick-analysis JSON, write the human-readable values in message, impact and suggestion in English.",
       ].join("\n");
     }
@@ -47,7 +47,7 @@ export class AtlasSystemPromptPolicyService {
       "Politica de idioma das respostas:",
       "- Responda em portugues do Brasil.",
       "- Mantenha schemas, chaves JSON e identificadores de codigo inalterados.",
-      "- Em estruturas Markdown obrigatorias, preserve a numeracao e a estrutura, usando titulos e texto em portugues do Brasil.",
+      "- Em estruturas Markdown obrigatorias, preserve a estrutura, usando titulos e texto em portugues do Brasil.",
       "- Na analise rapida em JSON, escreva os valores legiveis de message, impact e suggestion em portugues do Brasil.",
     ].join("\n");
   }
@@ -59,37 +59,37 @@ export class AtlasSystemPromptPolicyService {
       "Analise o código exclusivamente a partir das decisões de design observáveis, sem assumir boas práticas ideais por padrão.",
       "",
       "Estruture sua resposta obrigatoriamente nos tópicos abaixo, mantendo foco em trade-offs arquiteturais, e não apenas em violações de princípios.",
-      "Use cada título de tópico como cabeçalho Markdown de nível 3, exatamente no formato '### 1. ...', para melhorar a leitura no chat.",
+      "Use cada título de tópico como cabeçalho Markdown de nível 3, sem numeração, exatamente no formato '### Título do tópico', para melhorar a leitura no chat.",
       "",
-      "### 1. Decisão de design observável no código analisado",
+      "### Decisão de design observável no código analisado",
       "Descreva objetivamente a decisão tomada no código (ex: concentração de regras de negócio, acoplamento direto a serviços, ausência de abstrações). Evite julgamentos neste ponto.",
       "",
-      "### 2. Trade-offs arquiteturais explícitos da decisão",
+      "### Trade-offs arquiteturais explícitos da decisão",
       "Analise o que foi ganho e o que foi sacrificado com essa escolha.",
       "Evite termos genéricos; descreva impactos concretos em manutenção, testes, extensibilidade e custo de mudança.",
       "",
-      "### 3. Princípios, responsabilidades e fronteiras tensionadas",
+      "### Princípios, responsabilidades e fronteiras tensionadas",
       "Relacione princípios de engenharia de software somente se eles ajudarem a explicar os trade-offs, não como checklist.",
       "Explique como e em que ponto o princípio começa a deixar de ser atendido.",
       "",
-      "### 4. Evolução do risco conforme o sistema cresce",
+      "### Evolução do risco conforme o sistema cresce",
       "Analise como essa decisão se comporta em três estágios:",
       "- sistema pequeno",
       "- sistema em crescimento",
       "- sistema com regras de negócio complexas",
       "Indique o ponto de inflexão em que a decisão deixa de ser sustentável.",
       "",
-      "### 5. Cenários concretos que pressionam mudança arquitetural",
+      "### Cenários concretos que pressionam mudança arquitetural",
       "Descreva eventos concretos (ex: novos tipos de desconto, integrações externas, requisitos de auditoria, testes automatizados) que tornam a refatoração inevitável.",
       "",
-      "### 6. Grau de impacto arquitetural e custo de mudança",
+      "### Grau de impacto arquitetural e custo de mudança",
       "Classifique o impacto como baixo, médio ou alto, justificando tecnicamente a classificação e o custo provável de mudança.",
       "",
-      "### 7. Impacto em testes, isolamento e verificabilidade",
+      "### Impacto em testes, isolamento e verificabilidade",
       "Explique como a decisão afeta testes unitários, testes de integração, mocks/stubs, isolamento de dependências e facilidade de reproduzir cenários.",
       "Aponte quais partes ficam mais fáceis ou difíceis de testar e por quê.",
       "",
-      "### 8. Síntese crítica da decisão e prioridade de atenção",
+      "### Síntese crítica da decisão e prioridade de atenção",
       "Conclua avaliando se a decisão é:",
       "- estrategicamente adequada",
       "- taticamente aceitável",

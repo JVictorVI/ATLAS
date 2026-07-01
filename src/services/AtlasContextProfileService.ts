@@ -26,7 +26,7 @@ const PRESETS: Record<AtlasPresetMode, AtlasContextProfileSettings> = {
     includeArchitecturalMemory: false,
     includeRagContext: false,
     includeEditorContext: true,
-    maxEditorContextCharacters: 6000,
+    maxEditorContextCharacters: 10000,
     includeStaticAnalysis: false,
     ragTopK: 2,
     ragMaxContextCharacters: 4000,
@@ -37,7 +37,7 @@ const PRESETS: Record<AtlasPresetMode, AtlasContextProfileSettings> = {
     includeArchitecturalMemory: true,
     includeRagContext: true,
     includeEditorContext: true,
-    maxEditorContextCharacters: 14000,
+    maxEditorContextCharacters: 20000,
     includeStaticAnalysis: true,
     ragTopK: 5,
     ragMaxContextCharacters: 10000,
@@ -50,8 +50,8 @@ const PRESETS: Record<AtlasPresetMode, AtlasContextProfileSettings> = {
     includeEditorContext: true,
     maxEditorContextCharacters: 40000,
     includeStaticAnalysis: true,
-    ragTopK: 10,
-    ragMaxContextCharacters: 24000,
+    ragTopK: 8,
+    ragMaxContextCharacters: 20000,
   },
 };
 
@@ -123,8 +123,7 @@ export class AtlasContextProfileService {
         30,
         fallback.historyWindowSize,
       ),
-      includeArchitecturalMemory:
-        value.includeArchitecturalMemory === true,
+      includeArchitecturalMemory: value.includeArchitecturalMemory === true,
       includeRagContext: value.includeRagContext === true,
       includeEditorContext: value.includeEditorContext !== false,
       maxEditorContextCharacters: this.clampInteger(

@@ -107,11 +107,15 @@ export class ChatResponseController {
 
       let ragContext: string[] = [];
       let ragSources: RagContextSource[] = [];
+      const ragBlockedInCloudMode =
+        this.deps.configManager.isCloudMode() &&
+        (config.rag.offlineOnly || !config.rag.allowCloudContext);
 
       if (
         promptResult.mode !== "quick-analysis" &&
         config.rag.enabled === true &&
-        contextProfile.includeRagContext
+        contextProfile.includeRagContext &&
+        !ragBlockedInCloudMode
       ) {
         try {
           const retrieval = await this.deps.getRagContext(
@@ -159,6 +163,10 @@ export class ChatResponseController {
             "[ATLAS RAG] Nenhum contexto recuperado será injetado no prompt.",
           );
         }
+      } else if (ragBlockedInCloudMode) {
+        console.log(
+          "[ATLAS RAG] Recuperacao ignorada: contexto RAG nao autorizado para o modo cloud.",
+        );
       }
 
       if (

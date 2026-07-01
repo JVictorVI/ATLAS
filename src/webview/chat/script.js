@@ -1113,7 +1113,7 @@ function hydrateChatControlState() {
   const hasShortcutLoading = hasActiveShortcutLoading();
 
   if (shortcutLoadingState.quickAnalysis && !loadingElement) {
-    showLoading("Analisando e marcando no editor");
+    showLoading("Analisando");
   }
 
   setGenerationState(isGeneratingResponse || hasShortcutLoading);
@@ -1960,11 +1960,11 @@ window.addEventListener("message", (event) => {
 
       if (isQuickAnalysisFromChat && isLoading) {
         if (!loadingElement) {
-          showLoading("Analisando e marcando no editor");
+          showLoading("Analisando");
         }
 
         setGenerationState(true);
-        setLoadingDefaultMessage("Analisando e marcando no editor");
+        setLoadingDefaultMessage("Analisando");
       } else if (!isLoading && !hasActiveShortcutLoading()) {
         setGenerationState(false);
       }

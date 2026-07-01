@@ -162,10 +162,16 @@ body.rag-loading-active .rag-page {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 8px;
+  align-items: center;
 }
 
 .folder-picker input {
   min-width: 0;
+}
+
+.folder-control input {
+  padding: 7px 9px;
+  font-size: 12px;
 }
 
 .field-action {
@@ -561,6 +567,15 @@ body.rag-loading-active .rag-page {
 
 .btn-primary:hover {
   background: var(--vscode-button-hoverBackground);
+}
+
+.btn-secondary {
+  color: var(--vscode-button-secondaryForeground);
+  background: var(--vscode-button-secondaryBackground);
+}
+
+.btn-secondary:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
 }
 
 .btn:focus-visible,

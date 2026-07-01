@@ -1977,6 +1977,7 @@ export class ChatMessageRouter {
     const contextProfile = this.deps.configManager.getContextProfile();
 
     return {
+      contextProfilePresets: this.getContextProfilePresetsPayload(),
       language: this.normalizeResponseLanguage(config.general.language),
       contextProfileMode: contextProfile.mode,
       contextHistoryWindow: contextProfile.historyWindowSize,
@@ -2015,6 +2016,34 @@ export class ChatMessageRouter {
         staticAnalysis.includeSymbolRelations &&
         contextProfile.includeStaticAnalysis,
     };
+  }
+
+  private getContextProfilePresetsPayload() {
+    return Object.fromEntries(
+      (["light", "balanced", "advanced"] as const).map((mode) => {
+        const effects = AtlasContextProfileService.getPresetEffects(mode);
+        const profile =
+          effects?.contextProfile ?? AtlasContextProfileService.getPreset(mode);
+        const staticAnalysis = effects?.staticAnalysis;
+
+        return [
+          mode,
+          {
+            ...profile,
+            dynamicContextWindow:
+              effects?.localEngine.dynamicContextWindow ?? mode !== "light",
+            staticAnalysis: {
+              enabled: staticAnalysis?.enabled === true,
+              quick: staticAnalysis?.useInQuickAnalysis === true,
+              architectural:
+                staticAnalysis?.useInArchitecturalAnalysis === true,
+              diagnostics: staticAnalysis?.includeDiagnostics === true,
+              relations: staticAnalysis?.includeSymbolRelations === true,
+            },
+          },
+        ];
+      }),
+    );
   }
 
   private normalizeLocalEngineType(value: unknown): "cpu" | "cuda" | "vulkan" {
