@@ -139,6 +139,7 @@ export class ChatSessionController {
         .map((message) => ({
           role: message.role,
           content: message.content,
+          metadata: message.metadata,
         })),
       hasArchitecturalSummary: session.architecturalSummary.length > 0,
       createdAt: session.createdAt,

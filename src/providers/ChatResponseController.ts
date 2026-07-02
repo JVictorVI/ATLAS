@@ -32,6 +32,8 @@ export class ChatResponseController {
     const responseController = new AbortController();
     this.activeResponseController = responseController;
     let responseSessionId: string | undefined;
+    let responseSnapshot: ActiveResponseSnapshot | null = null;
+    let interruptedRagSources: RagContextSource[] = [];
     const generationId =
       typeof data.generationId === "string" && data.generationId.trim()
         ? data.generationId.trim()
@@ -83,12 +85,13 @@ export class ChatResponseController {
           )
         : config.cloudConfigs.stream;
 
-      const responseSnapshot: ActiveResponseSnapshot = {
+      responseSnapshot = {
         controller: responseController,
         sessionId: session.id,
         userContent: data.value,
         partialContent: "",
         isStreaming: shouldStream,
+        ragSources: [],
         generationId,
         usesLocalEngine,
         forcedMode:
@@ -139,6 +142,8 @@ export class ChatResponseController {
           );
           ragContext = retrieval.context;
           ragSources = retrieval.sources;
+          interruptedRagSources = ragSources;
+          responseSnapshot.ragSources = ragSources;
         } catch (error) {
           if (
             AtlasInferenceService.isAbortError(error) ||
@@ -228,6 +233,12 @@ export class ChatResponseController {
         return;
       }
 
+      const activeSnapshot = responseSnapshot;
+
+      if (!activeSnapshot) {
+        throw new Error("Estado interno da geração não foi inicializado.");
+      }
+
       const response = shouldStream
         ? await this.deps.inferenceService.sendChat(
             promptResult.messages,
@@ -236,7 +247,7 @@ export class ChatResponseController {
                 return;
               }
 
-              responseSnapshot.partialContent += chunk;
+              activeSnapshot.partialContent += chunk;
               await webview.postMessage({
                 type: "respostaParcial",
                 sessionId: session.id,
@@ -315,11 +326,25 @@ export class ChatResponseController {
         AtlasInferenceService.isAbortError(error) ||
         responseController.signal.aborted
       ) {
+        const savedInterruptedResponse =
+          await this.persistInterruptedResponseIfEnabled(
+            responseSnapshot,
+            interruptedRagSources,
+          );
+
         await webview.postMessage({
           type: "geracaoCancelada",
           sessionId: responseSessionId,
           generationId,
         });
+
+        if (savedInterruptedResponse) {
+          await webview.postMessage({
+            type: "sessoesAtualizadas",
+            value: this.deps.sessionService.listSessions(),
+          });
+        }
+
         return;
       }
 
@@ -355,6 +380,11 @@ export class ChatResponseController {
     }
 
     responseController.abort();
+    const savedInterruptedResponse =
+      await this.persistInterruptedResponseIfEnabled(
+        snapshot,
+        snapshot?.ragSources ?? [],
+      );
 
     if (this.activeResponseController === responseController) {
       this.activeResponseController = null;
@@ -369,6 +399,59 @@ export class ChatResponseController {
       sessionId: snapshot?.sessionId,
       generationId: snapshot?.generationId,
     });
+
+    if (savedInterruptedResponse) {
+      await webview.postMessage({
+        type: "sessoesAtualizadas",
+        value: this.deps.sessionService.listSessions(),
+      });
+    }
+  }
+
+  private async persistInterruptedResponseIfEnabled(
+    snapshot: ActiveResponseSnapshot | null,
+    ragSources: RagContextSource[],
+  ): Promise<boolean> {
+    if (!snapshot || !this.shouldSaveInterruptedResponses()) {
+      return false;
+    }
+
+    if (snapshot.interruptedSaved) {
+      return false;
+    }
+
+    const partialContent = snapshot.partialContent.trim();
+
+    if (!partialContent) {
+      return false;
+    }
+
+    snapshot.interruptedSaved = true;
+
+    await this.deps.sessionService.appendMessage(snapshot.sessionId, {
+      role: "user",
+      content: snapshot.userContent,
+    });
+
+    await this.deps.sessionService.appendMessage(snapshot.sessionId, {
+      role: "assistant",
+      content: partialContent,
+      metadata: {
+        interrupted: true,
+        ragSources: this.deps.configManager.getConfig().rag.showSources
+          ? ragSources
+          : [],
+      },
+    });
+
+    return true;
+  }
+
+  private shouldSaveInterruptedResponses(): boolean {
+    return (
+      this.deps.configManager.getConfig().custom?.saveInterruptedResponses !==
+      false
+    );
   }
 
   private async handleQuickAnalysisFromChat(

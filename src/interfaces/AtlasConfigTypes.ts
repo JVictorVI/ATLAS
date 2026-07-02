@@ -177,6 +177,7 @@ export interface AtlasCustomSettings {
   staticAnalysis?: AtlasStaticAnalysisConfig;
   contextProfile?: AtlasContextProfileSettings;
   localEngine?: AtlasLocalEngineCustomConfig;
+  saveInterruptedResponses?: boolean;
 
   // mantém flexível para futuras extensões
   [key: string]: unknown;

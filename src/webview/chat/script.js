@@ -290,6 +290,7 @@ function loadChatMessages(session, activeGeneration = null) {
       div.textContent = msg.content;
     }
     appendRagSources(div, msg.metadata?.ragSources);
+    appendInterruptedStatus(div, msg.metadata?.interrupted === true);
     chatContainer.appendChild(div);
   }
 
@@ -1016,6 +1017,19 @@ function appendRagSources(messageElement, sources) {
 
   details.appendChild(list);
   messageElement.appendChild(details);
+}
+
+function appendInterruptedStatus(messageElement, interrupted) {
+  if (!messageElement || interrupted !== true) {
+    return;
+  }
+
+  const status = document.createElement("div");
+
+  status.className = "message-status";
+  status.textContent = "Resposta interrompida.";
+
+  messageElement.appendChild(status);
 }
 
 function showLoading(message = "Pensando") {

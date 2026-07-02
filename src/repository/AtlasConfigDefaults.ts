@@ -113,6 +113,7 @@ export class AtlasConfigDefaults {
       },
       custom: {
         contextProfile: AtlasContextProfileService.getDefaultProfile(),
+        saveInterruptedResponses: true,
         localEngine: {
           dynamicContextWindow: true,
           stream: true,

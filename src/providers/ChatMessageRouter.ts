@@ -1389,6 +1389,8 @@ export class ChatMessageRouter {
           : {};
       const engineType = this.normalizeLocalEngineType(payload.engineType);
       const startOnAtlasOpen = payload.startOnAtlasOpen === true;
+      const saveInterruptedResponses =
+        payload.saveInterruptedResponses !== false;
       const dynamicContextWindow =
         presetEffects?.localEngine.dynamicContextWindow ??
         (payload.dynamicContextWindow !== false);
@@ -1428,6 +1430,7 @@ export class ChatMessageRouter {
       this.deps.configManager.updateCustomRoot({
         ...currentCustom,
         contextProfile,
+        saveInterruptedResponses,
         staticAnalysis,
         localModels: {
           ...localModels,
@@ -1969,6 +1972,8 @@ export class ChatMessageRouter {
         config.rag.maxContextCharacters ??
         contextProfile.ragMaxContextCharacters,
       localStream: value.stream !== false,
+      saveInterruptedResponses:
+        config.custom?.saveInterruptedResponses !== false,
       localTimeout: this.normalizeInteger(
         value.timeout,
         0,

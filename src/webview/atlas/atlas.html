@@ -300,7 +300,7 @@
               />
               <small>
                 Tempo máximo para a engine local responder antes de cancelar a
-                requisição
+                requisição. Use 0 para aguardar indefinidamente
               </small>
             </div>
           </div>
@@ -411,8 +411,8 @@
             <div class="settings-section-heading">
               <h2>Contexto local</h2>
               <p>
-                Escolha se o ATLAS pode ajustar automaticamente o contexto
-                local quando a engine indicar que a requisição não cabe na
+                Escolha se o ATLAS pode ajustar automaticamente o contexto local
+                quando a engine indicar que a requisição não cabe na
                 configuração atual
               </p>
             </div>
@@ -463,25 +463,6 @@
               >Abrir página de downloads</a
             >.
           </div>
-        </section>
-
-        <section class="card">
-          <div class="section-title">Inicialização</div>
-          <div class="section-description">
-            Defina se o ATLAS deve deixar a execução de modelos locais pronta
-            assim que a extensão for aberta
-          </div>
-
-          <label class="startup-option">
-            <input type="checkbox" id="engine-start-on-open" />
-            <span>
-              <strong>Iniciar engine automaticamente</strong>
-              <small>
-                O ATLAS inicia a engine local ao abrir, usando o modelo local
-                selecionado
-              </small>
-            </span>
-          </label>
         </section>
 
         <section class="card">
@@ -550,6 +531,44 @@
               </span>
             </label>
           </div>
+        </section>
+
+        <section class="card">
+          <div class="section-title">Inicialização</div>
+          <div class="section-description">
+            Defina se o ATLAS deve deixar a execução de modelos locais pronta
+            assim que a extensão for aberta
+          </div>
+
+          <label class="startup-option">
+            <input type="checkbox" id="engine-start-on-open" />
+            <span>
+              <strong>Iniciar engine automaticamente</strong>
+              <small>
+                O ATLAS inicia a engine local ao abrir, usando o modelo local
+                selecionado
+              </small>
+            </span>
+          </label>
+        </section>
+
+        <section class="card">
+          <div class="section-title">Histórico</div>
+          <div class="section-description">
+            Defina como o ATLAS registra conversas interrompidas, tanto em modo
+            local quanto em nuvem
+          </div>
+
+          <label class="startup-option">
+            <input type="checkbox" id="save-interrupted-responses" />
+            <span>
+              <strong>Salvar respostas interrompidas</strong>
+              <small>
+                Mantém no histórico a pergunta e o texto parcial já gerado
+                quando uma resposta é cancelada
+              </small>
+            </span>
+          </label>
         </section>
 
         <div class="row-end settings-actions">

@@ -5,6 +5,7 @@ export interface ChatMessage {
   content: string;
   metadata?: {
     ragSources?: RagContextSource[];
+    interrupted?: boolean;
   };
 }
 

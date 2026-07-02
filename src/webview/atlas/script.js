@@ -4,6 +4,9 @@ const atlasSettingsPage = document.getElementById("atlas-settings-page");
 const atlasLoading = document.getElementById("atlas-loading");
 const atlasLanguage = document.getElementById("atlas-language");
 const localStreamResponses = document.getElementById("local-stream-responses");
+const saveInterruptedResponses = document.getElementById(
+  "save-interrupted-responses",
+);
 const localEngineTimeout = document.getElementById("local-engine-timeout");
 const contextProfileInputs = Array.from(
   document.querySelectorAll('input[name="context-profile"]'),
@@ -126,6 +129,10 @@ function applyAtlasSettings(value) {
     localStreamResponses.checked = value?.localStream !== false;
   }
 
+  if (saveInterruptedResponses) {
+    saveInterruptedResponses.checked = value?.saveInterruptedResponses !== false;
+  }
+
   if (localEngineTimeout) {
     localEngineTimeout.value = String(value?.localTimeout ?? 30);
   }
@@ -203,6 +210,7 @@ function saveAtlasSettings() {
       language: atlasLanguage?.value === "en-US" ? "en-US" : "pt-BR",
       contextProfileMode: getSelectedContextProfileMode(),
       localStream: localStreamResponses?.checked !== false,
+      saveInterruptedResponses: saveInterruptedResponses?.checked !== false,
       localTimeout: localEngineTimeout?.value
         ? Number(localEngineTimeout.value)
         : undefined,

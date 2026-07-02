@@ -38,8 +38,8 @@ const PRESETS: Record<AtlasPresetMode, AtlasContextProfileSettings> = {
     includeRagContext: true,
     includeEditorContext: true,
     maxEditorContextCharacters: 20000,
-    includeStaticAnalysis: true,
-    ragTopK: 5,
+    includeStaticAnalysis: false,
+    ragTopK: 4,
     ragMaxContextCharacters: 10000,
   },
   advanced: {
@@ -50,7 +50,7 @@ const PRESETS: Record<AtlasPresetMode, AtlasContextProfileSettings> = {
     includeEditorContext: true,
     maxEditorContextCharacters: 40000,
     includeStaticAnalysis: true,
-    ragTopK: 8,
+    ragTopK: 6,
     ragMaxContextCharacters: 20000,
   },
 };

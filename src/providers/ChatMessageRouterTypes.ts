@@ -111,6 +111,8 @@ export type ActiveResponseSnapshot = {
   userContent: string;
   partialContent: string;
   isStreaming: boolean;
+  interruptedSaved?: boolean;
+  ragSources?: RagContextResult["sources"];
   generationId?: string;
   usesLocalEngine: boolean;
   forcedMode?: string;

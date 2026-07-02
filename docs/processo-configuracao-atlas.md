@@ -212,6 +212,7 @@ custom.localEngine.llamaServerPath
 custom.localEngine.dynamicContextWindow
 custom.localEngine.stream
 custom.localEngine.timeout
+custom.saveInterruptedResponses
 ```
 
 ### Local models
