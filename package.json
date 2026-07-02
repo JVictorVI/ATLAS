@@ -5,6 +5,10 @@
   "license": "UNLICENSED",
   "description": "Assistente Técnico, Lógico e Arquitetural de Software",
   "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JVictorVI/ATLAS.git"
+  },
   "engines": {
     "vscode": "^1.110.0"
   },

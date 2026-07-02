@@ -1374,7 +1374,7 @@ export class ChatMessageRouter {
       const localStream = payload.localStream !== false;
       const localTimeout = this.normalizeInteger(
         payload.localTimeout,
-        5,
+        0,
         600,
         30,
       );
@@ -1971,7 +1971,7 @@ export class ChatMessageRouter {
       localStream: value.stream !== false,
       localTimeout: this.normalizeInteger(
         value.timeout,
-        5,
+        0,
         600,
         config.cloudConfigs.timeout,
       ),

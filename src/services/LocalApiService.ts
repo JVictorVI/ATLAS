@@ -398,7 +398,8 @@ export class LocalApiService {
   ): Promise<Response> {
     const timeout = this.getLocalResponseTimeoutMs();
     const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeout);
+    const id =
+      timeout === 0 ? undefined : setTimeout(() => controller.abort(), timeout);
     const abortFromCaller = () => controller.abort();
 
     if (options.signal?.aborted) {
@@ -432,7 +433,9 @@ export class LocalApiService {
         }`,
       );
     } finally {
-      clearTimeout(id);
+      if (id !== undefined) {
+        clearTimeout(id);
+      }
       options.signal?.removeEventListener("abort", abortFromCaller);
     }
   }
@@ -519,7 +522,8 @@ export class LocalApiService {
   ): Promise<boolean> {
     const timeout = this.getLocalResponseTimeoutMs();
     const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeout);
+    const id =
+      timeout === 0 ? undefined : setTimeout(() => controller.abort(), timeout);
     const abortFromCaller = () => controller.abort();
 
     if (signal?.aborted) {
@@ -541,7 +545,9 @@ export class LocalApiService {
 
       return false;
     } finally {
-      clearTimeout(id);
+      if (id !== undefined) {
+        clearTimeout(id);
+      }
       signal?.removeEventListener("abort", abortFromCaller);
     }
   }
@@ -553,6 +559,11 @@ export class LocalApiService {
       typeof localEngine === "object" && localEngine !== null
         ? localEngine.timeout
         : undefined;
+
+    if (timeoutSetting === 0) {
+      return 0;
+    }
+
     const timeout =
       typeof timeoutSetting === "number" && timeoutSetting > 0
         ? timeoutSetting

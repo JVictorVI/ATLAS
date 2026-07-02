@@ -248,6 +248,12 @@ Default:
 30 segundos
 ```
 
+Valor especial:
+
+```text
+0 segundos = aguarda indefinidamente
+```
+
 Para streaming, a chamada usa timeout. Para não-streaming, o serviço verifica antes se backend responde e depois deixa a geração sem timeout rígido.
 
 ## Streaming local
