@@ -114,6 +114,8 @@ export class ChatModelWebviewService {
       .postMessage({
         type: "updateModelsList",
         models: modelsList,
+        selectedLocalModelId:
+          this.configManager.getActiveLocalModel()?.id ?? null,
         health: {
           engineType: this.getConfiguredEngineType(),
           engineRunning: this.isLocalEngineRunning(),

@@ -50,6 +50,14 @@ window.addEventListener("message", (event) => {
     loadedModels = Array.isArray(message.models) ? message.models : [];
     renderModelDropdown();
 
+    const activeLocalModelId =
+      typeof message.selectedLocalModelId === "string"
+        ? message.selectedLocalModelId
+        : null;
+    const activeLocalModelExists = loadedModels.some(
+      (model) => model.id === activeLocalModelId,
+    );
+
     // Se não houver seleção mas tivermos modelos, seleciona o primeiro
     const selectedModelStillExists = loadedModels.some(
       (model) => model.id === selectedModelId,
@@ -57,6 +65,8 @@ window.addEventListener("message", (event) => {
 
     if (loadedModels.length === 0) {
       selectedModelId = null;
+    } else if (!selectedModelId && activeLocalModelExists) {
+      selectedModelId = activeLocalModelId;
     } else if (!selectedModelId || !selectedModelStillExists) {
       selectedModelId = loadedModels[0].id;
     }
