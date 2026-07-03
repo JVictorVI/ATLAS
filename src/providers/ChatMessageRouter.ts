@@ -7,6 +7,7 @@ import { ChatSessionController } from "./ChatSessionController";
 import { RouterDependencies } from "./ChatMessageRouterTypes";
 import {
   RagEmbeddingModelInfo,
+  RagIndexingMode,
   RagIndexingProgress,
   RagRuntimeStatus,
 } from "../interfaces/AtlasRagTypes";
@@ -125,20 +126,31 @@ export class ChatMessageRouter {
         await this.handleClearExternalRagDocuments(webview);
         return;
       case "indexarWorkspaceRag":
-        await this.handleIndexWorkspaceRag(webview, "workspace");
+        await this.handleIndexWorkspaceRag(
+          webview,
+          "workspace",
+          undefined,
+          this.normalizeRagIndexingMode(data.indexingMode),
+        );
         return;
       case "selecionarPastaRag":
-        await this.handleIndexWorkspaceRag(webview, "folder");
+        await this.handleIndexWorkspaceRag(
+          webview,
+          "folder",
+          undefined,
+          this.normalizeRagIndexingMode(data.indexingMode),
+        );
         return;
       case "reindexarProjetoRag":
         await this.handleIndexWorkspaceRag(
           webview,
           "project",
           typeof data.projectId === "string" ? data.projectId : undefined,
+          this.normalizeRagIndexingMode(data.indexingMode),
         );
         return;
       case "cancelarIndexacaoRag":
-        this.ragIndexController?.abort();
+        await this.handleCancelRagIndexing(webview);
         return;
       case "excluirProjetoRag":
         await this.handleDeleteRagProject(data, webview);
@@ -350,6 +362,9 @@ export class ChatMessageRouter {
       const includeMarkdownFiles = payload.includeMarkdownFiles !== false;
       const includeConfigFiles = payload.includeConfigFiles !== false;
       const indexOnAdd = payload.indexOnAdd !== false;
+      const indexingMode = this.normalizeRagIndexingMode(
+        payload.indexingMode,
+      );
       const autoIndexDebounceMs = this.normalizeInteger(
         payload.autoIndexDebounceMs,
         500,
@@ -422,6 +437,7 @@ export class ChatMessageRouter {
         includeMarkdownFiles,
         includeConfigFiles,
         indexOnAdd,
+        indexingMode,
         autoIndexDebounceMs,
         relevanceMode,
         relevanceThreshold,
@@ -756,6 +772,16 @@ export class ChatMessageRouter {
       : fallback;
   }
 
+  private normalizeRagIndexingMode(value: unknown): RagIndexingMode {
+    if (value === "full" || value === "incremental") {
+      return value;
+    }
+
+    return this.deps.configManager.getSection("rag").indexingMode === "full"
+      ? "full"
+      : "incremental";
+  }
+
   private normalizeIgnoredPaths(
     value: unknown,
     fallback: string[],
@@ -1029,6 +1055,7 @@ export class ChatMessageRouter {
     webview: vscode.Webview,
     source: "workspace" | "folder" | "project",
     projectId?: string,
+    indexingMode?: RagIndexingMode,
   ): Promise<void> {
     if (this.ragIndexController) {
       await webview.postMessage({
@@ -1093,16 +1120,19 @@ export class ChatMessageRouter {
               projectId!,
               onProgress,
               controller.signal,
+              { mode: indexingMode },
             )
           : selectedFolder
             ? await this.deps.indexSelectedFolder(
                 selectedFolder,
                 onProgress,
                 controller.signal,
+                { mode: indexingMode },
               )
             : await this.deps.indexCurrentWorkspace(
                 onProgress,
                 controller.signal,
+                { mode: indexingMode },
               );
 
       await webview.postMessage({
@@ -1133,6 +1163,35 @@ export class ChatMessageRouter {
         this.ragIndexController = null;
       }
     }
+  }
+
+  private async handleCancelRagIndexing(webview: vscode.Webview): Promise<void> {
+    const controller = this.ragIndexController;
+
+    if (!controller || controller.signal.aborted) {
+      await webview.postMessage({
+        type: "cancelamentoIndexacaoRagIndisponivel",
+      });
+      return;
+    }
+
+    const answer = await vscode.window.showWarningMessage(
+      "Tem certeza que deseja cancelar a indexação em andamento?",
+      { modal: true },
+      "Cancelar indexação",
+    );
+
+    if (answer !== "Cancelar indexação") {
+      await webview.postMessage({
+        type: "cancelamentoIndexacaoRagRecusado",
+      });
+      return;
+    }
+
+    controller.abort();
+    await webview.postMessage({
+      type: "cancelamentoIndexacaoRagSolicitado",
+    });
   }
 
   private async handleDeleteRagProject(

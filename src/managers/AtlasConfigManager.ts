@@ -14,6 +14,7 @@ import { AtlasContextProfileService } from "../services/AtlasContextProfileServi
 
 export {
   JsonMap,
+  AtlasRagIndexingMode,
   AtlasResponseLanguage,
   AtlasGeneralSettings,
   AtlasCloudConfigs,

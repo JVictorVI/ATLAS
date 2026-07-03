@@ -5,6 +5,8 @@ export type RagIndexStatus =
   | "outdated"
   | "error";
 
+export type RagIndexingMode = "full" | "incremental";
+
 export interface RagProjectIndex {
   projectId: string;
   name: string;
@@ -18,6 +20,7 @@ export interface RagProjectIndex {
   sizeBytes: number;
   createdAt: string;
   updatedAt: string;
+  indexConfigHash?: string;
   errorMessage?: string;
 }
 
@@ -127,11 +130,19 @@ export interface RagIndexManifest {
 export interface RagIndexingProgress {
   projectId: string;
   phase: "scanning" | "chunking" | "embedding" | "saving" | "completed";
+  mode?: RagIndexingMode;
   processedFiles: number;
   totalFiles: number;
   processedChunks: number;
   totalChunks: number;
+  changedFiles?: number;
+  skippedFiles?: number;
+  deletedFiles?: number;
   currentFile?: string;
+}
+
+export interface RagIndexingOptions {
+  mode?: RagIndexingMode;
 }
 
 export interface RagEmbeddingModelInfo {

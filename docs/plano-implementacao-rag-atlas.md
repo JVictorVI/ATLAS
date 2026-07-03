@@ -2,7 +2,7 @@
 
 Atualizado em 1 de julho de 2026.
 
-> **Nota de sincronização:** a documentação geral e os diagramas foram alinhados para tratar documentos externos como funcionalidade implementada. As evoluções pendentes do RAG continuam sendo atualização incremental por arquivo, chunking orientado a símbolos e melhorias de qualidade da recuperação.
+> **Nota de sincronização:** a documentação geral e os diagramas foram alinhados para tratar documentos externos e atualização incremental como funcionalidades implementadas. As evoluções pendentes do RAG continuam sendo chunking orientado a símbolos e melhorias de qualidade da recuperação.
 
 Para o fluxo operacional de scanner, chunks, embeddings, persistência e recuperação, consulte [Processos de contexto, janela local e RAG](processos-contexto-rag-atlas.md).
 
@@ -20,7 +20,7 @@ O RAG do ATLAS fornece recuperação semântica local para:
 - controlar explicitamente o envio desse contexto para modelos cloud;
 - exibir projetos, status, tamanho, progresso e ações de manutenção na tela RAG.
 
-O fluxo principal já está implementado. As evoluções restantes concentram-se em atualização incremental por arquivo, chunking mais inteligente e melhorias de qualidade.
+O fluxo principal já está implementado. As evoluções restantes concentram-se em chunking mais inteligente e melhorias de qualidade.
 
 ## 2. Estado atual
 
@@ -39,7 +39,7 @@ O fluxo principal já está implementado. As evoluções restantes concentram-se
 | Barra de progresso e cancelamento | Implementados |
 | Configurações de indexação e recuperação | Implementadas |
 | Watcher e debounce | Implementados |
-| Atualização incremental por arquivo | Pendente; a atualização automática atual reindexa o projeto completo |
+| Atualização incremental por arquivo | Implementada; o modo pode alternar entre completa e incremental |
 | Documentos externos | Implementados para PDF, Office moderno, texto, Markdown, CSV/TSV, HTML e arquivos de configuracao textuais |
 | Chunking orientado a símbolos | Pendente |
 
@@ -261,9 +261,9 @@ O `FileSystemWatcher` observa projetos registrados. Quando um arquivo elegível 
 
 1. o índice é marcado como `outdated`;
 2. o debounce agrupa alterações próximas;
-3. se `autoIndex` estiver habilitado, o projeto é reindexado.
+3. se `autoIndex` estiver habilitado, o projeto é reindexado conforme `rag.indexingMode`.
 
-Importante: a implementação atual reconstrói o índice completo. Atualizar apenas as fontes modificadas continua no roadmap.
+No modo incremental, o ATLAS compara o hash das fontes já registradas no manifesto e gera embeddings apenas para arquivos novos ou alterados, removendo chunks de arquivos apagados. Quando a configuração que define a forma do índice muda, o serviço cai automaticamente para uma indexação completa.
 
 ## 8. Recuperação
 
@@ -340,6 +340,7 @@ As fontes também são armazenadas nos metadados da mensagem da sessão.
 - indexar Markdown;
 - indexar JSON e arquivos de configuração;
 - indexar automaticamente ao adicionar projeto;
+- modo de indexação completa ou incremental;
 - debounce após alterações.
 
 ### 9.3 Recuperação
@@ -391,18 +392,15 @@ Alterações que mudam o formato do índice marcam projetos prontos como `outdat
 
 ### Próximas evoluções
 
-1. atualização incremental somente das fontes alteradas;
-2. suporte opcional a formatos Office binarios legados (`.doc`, `.xls`, `.ppt`);
-3. chunking orientado a símbolos;
-4. avaliação automatizada com `recall@k`, precisão, latência e diversidade;
-5. suporte e empacotamento validados para outras plataformas;
-6. redução ou proteção dos logs de conteúdo em builds de produção;
-7. integração opcional do RAG com análise rápida após benchmark de latência.
+1. suporte opcional a formatos Office binarios legados (`.doc`, `.xls`, `.ppt`);
+2. chunking orientado a símbolos;
+3. avaliação automatizada com `recall@k`, precisão, latência e diversidade;
+4. suporte e empacotamento validados para outras plataformas;
+5. redução ou proteção dos logs de conteúdo em builds de produção;
+6. integração opcional do RAG com análise rápida após benchmark de latência.
 
 ## 13. Critérios de aceite pendentes
 
-- alteração pontual não exigir reconstrução completa;
-- exclusão de arquivo remover somente seus chunks;
 - documento externo indexado aparecer como fonte;
 - benchmarks demonstrarem recuperação relevante dentro do orçamento;
 - instalação em máquina limpa funcionar sem dependências externas;

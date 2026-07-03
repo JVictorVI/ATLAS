@@ -10,6 +10,8 @@ import {
   RagExternalDocument,
   RagExternalDocumentImportResult,
   RagIndexedSource,
+  RagIndexingMode,
+  RagIndexingOptions,
   RagIndexingProgress,
   RagProjectIndex,
   RagRuntimeStatus,
@@ -256,6 +258,7 @@ export class AtlasRagService {
   public async indexCurrentWorkspace(
     onProgress?: (progress: RagIndexingProgress) => void | Promise<void>,
     signal?: AbortSignal,
+    options?: RagIndexingOptions,
   ): Promise<RagProjectIndex> {
     const workspaceFolder = this.resolveCurrentWorkspaceFolder();
 
@@ -268,6 +271,7 @@ export class AtlasRagService {
       workspaceFolder.name,
       onProgress,
       signal,
+      options,
     );
   }
 
@@ -275,6 +279,7 @@ export class AtlasRagService {
     folderUri: vscode.Uri,
     onProgress?: (progress: RagIndexingProgress) => void | Promise<void>,
     signal?: AbortSignal,
+    options?: RagIndexingOptions,
   ): Promise<RagProjectIndex> {
     const folderName = path.basename(folderUri.fsPath);
 
@@ -282,7 +287,7 @@ export class AtlasRagService {
       throw new Error("A pasta selecionada não possui um nome válido.");
     }
 
-    return this.indexFolder(folderUri, folderName, onProgress, signal);
+    return this.indexFolder(folderUri, folderName, onProgress, signal, options);
   }
 
   public registerSelectedFolder(folderUri: vscode.Uri): RagProjectIndex {
@@ -321,6 +326,7 @@ export class AtlasRagService {
     projectId: string,
     onProgress?: (progress: RagIndexingProgress) => void | Promise<void>,
     signal?: AbortSignal,
+    options?: RagIndexingOptions,
   ): Promise<RagProjectIndex> {
     const project = this.repository.getProject(projectId);
 
@@ -333,6 +339,7 @@ export class AtlasRagService {
       project.name,
       onProgress,
       signal,
+      options,
     );
   }
 
@@ -341,13 +348,37 @@ export class AtlasRagService {
     folderName: string,
     onProgress?: (progress: RagIndexingProgress) => void | Promise<void>,
     signal?: AbortSignal,
+    options?: RagIndexingOptions,
   ): Promise<RagProjectIndex> {
     await this.initialize();
     const rootPath = folderUri.fsPath;
     const projectId = this.getProjectId(rootPath);
     const collectionName = `atlas_${projectId}`;
-    const stagingCollectionName = `${collectionName}_build_${Date.now()}`;
     const previous = this.repository.getProject(projectId);
+    const requestedMode = this.resolveIndexingMode(options?.mode);
+    const indexConfigHash = this.createIndexConfigHash();
+
+    if (
+      requestedMode === "incremental" &&
+      (await this.canUseIncrementalIndex(
+        previous,
+        collectionName,
+        indexConfigHash,
+      ))
+    ) {
+      return this.indexFolderIncremental(
+        folderUri,
+        folderName,
+        projectId,
+        collectionName,
+        previous!,
+        indexConfigHash,
+        onProgress,
+        signal,
+      );
+    }
+
+    const stagingCollectionName = `${collectionName}_build_${Date.now()}`;
     const now = new Date().toISOString();
     let project: RagProjectIndex = {
       projectId,
@@ -362,6 +393,7 @@ export class AtlasRagService {
       sizeBytes: previous?.sizeBytes ?? 0,
       createdAt: previous?.createdAt ?? now,
       updatedAt: now,
+      indexConfigHash,
     };
 
     this.repository.saveProject(project);
@@ -373,6 +405,7 @@ export class AtlasRagService {
       await onProgress?.({
         projectId,
         phase: "scanning",
+        mode: "full",
         processedFiles: 0,
         totalFiles: files.length,
         processedChunks: 0,
@@ -399,6 +432,7 @@ export class AtlasRagService {
         await onProgress?.({
           projectId,
           phase: "chunking",
+          mode: "full",
           processedFiles: index + 1,
           totalFiles: files.length,
           processedChunks: chunks.length,
@@ -438,6 +472,7 @@ export class AtlasRagService {
         await onProgress?.({
           projectId,
           phase: "embedding",
+          mode: "full",
           processedFiles: files.length,
           totalFiles: files.length,
           processedChunks: Math.min(offset + batch.length, chunks.length),
@@ -448,6 +483,7 @@ export class AtlasRagService {
       await onProgress?.({
         projectId,
         phase: "saving",
+        mode: "full",
         processedFiles: files.length,
         totalFiles: files.length,
         processedChunks: chunks.length,
@@ -479,6 +515,7 @@ export class AtlasRagService {
       await onProgress?.({
         projectId,
         phase: "completed",
+        mode: "full",
         processedFiles: files.length,
         totalFiles: files.length,
         processedChunks: chunks.length,
@@ -504,9 +541,264 @@ export class AtlasRagService {
         throw error;
       }
 
+      const errorMessage =
+        error instanceof Error ? error.message : "Falha na indexação.";
+      project =
+        previous?.status === "ready" || previous?.status === "outdated"
+          ? {
+              ...previous,
+              status: "outdated",
+              updatedAt: new Date().toISOString(),
+              errorMessage,
+            }
+          : {
+              ...project,
+              status: "error",
+              updatedAt: new Date().toISOString(),
+              errorMessage,
+            };
+      this.repository.saveProject(project);
+      this.emitProjectsChanged();
+      throw error;
+    } finally {
+      this.indexingProjects.delete(projectId);
+    }
+  }
+
+  private async indexFolderIncremental(
+    folderUri: vscode.Uri,
+    folderName: string,
+    projectId: string,
+    collectionName: string,
+    previous: RagProjectIndex,
+    indexConfigHash: string,
+    onProgress?: (progress: RagIndexingProgress) => void | Promise<void>,
+    signal?: AbortSignal,
+  ): Promise<RagProjectIndex> {
+    const rootPath = folderUri.fsPath;
+    const now = new Date().toISOString();
+    let project: RagProjectIndex = {
+      ...previous,
+      name: folderName,
+      rootPath,
+      collectionName,
+      status: "indexing",
+      embeddingModel: this.embeddingService.getModelId(),
+      updatedAt: now,
+      indexConfigHash,
+      errorMessage: undefined,
+    };
+
+    this.repository.saveProject(project);
+    this.indexingProjects.add(projectId);
+    this.emitProjectsChanged();
+
+    try {
+      const files = await this.scanFolder(folderUri, signal);
+      await onProgress?.({
+        projectId,
+        phase: "scanning",
+        mode: "incremental",
+        processedFiles: 0,
+        totalFiles: files.length,
+        processedChunks: 0,
+        totalChunks: 0,
+        changedFiles: 0,
+        skippedFiles: 0,
+        deletedFiles: 0,
+      });
+
+      const previousSourcesByPath = new Map(
+        this.repository
+          .listProjectSources(projectId)
+          .map((source) => [source.relativePath, source]),
+      );
+      const nextSources: RagIndexedSource[] = [];
+      const chunksToUpsert: Array<Omit<RagChunkRecord, "embedding">> = [];
+      const staleChunkIds = new Set<string>();
+      let changedFiles = 0;
+      let skippedFiles = 0;
+      let deletedFiles = 0;
+
+      for (let index = 0; index < files.length; index += 1) {
+        this.throwIfAborted(signal);
+        const file = files[index];
+        const relativePath = path
+          .relative(rootPath, file.fsPath)
+          .replace(/\\/g, "/");
+        const previousSource = previousSourcesByPath.get(relativePath);
+        const prepared = await this.prepareSource(folderUri, projectId, file);
+        previousSourcesByPath.delete(relativePath);
+
+        if (!prepared) {
+          if (previousSource) {
+            previousSource.chunkIds.forEach((chunkId) =>
+              staleChunkIds.add(chunkId),
+            );
+            deletedFiles += 1;
+          }
+
+          await onProgress?.({
+            projectId,
+            phase: "chunking",
+            mode: "incremental",
+            processedFiles: index + 1,
+            totalFiles: files.length,
+            processedChunks: chunksToUpsert.length,
+            totalChunks: chunksToUpsert.length,
+            changedFiles,
+            skippedFiles,
+            deletedFiles,
+            currentFile: vscode.workspace.asRelativePath(file, false),
+          });
+          continue;
+        }
+
+        if (
+          previousSource &&
+          previousSource.contentHash === prepared.source.contentHash
+        ) {
+          nextSources.push(prepared.source);
+          skippedFiles += 1;
+        } else {
+          if (previousSource) {
+            for (const chunkId of this.getStaleChunkIds(
+              previousSource,
+              prepared.source,
+            )) {
+              staleChunkIds.add(chunkId);
+            }
+          }
+
+          nextSources.push(prepared.source);
+          chunksToUpsert.push(...prepared.chunks);
+          changedFiles += 1;
+        }
+
+        await onProgress?.({
+          projectId,
+          phase: "chunking",
+          mode: "incremental",
+          processedFiles: index + 1,
+          totalFiles: files.length,
+          processedChunks: chunksToUpsert.length,
+          totalChunks: chunksToUpsert.length,
+          changedFiles,
+          skippedFiles,
+          deletedFiles,
+          currentFile: vscode.workspace.asRelativePath(file, false),
+        });
+      }
+
+      for (const removedSource of previousSourcesByPath.values()) {
+        removedSource.chunkIds.forEach((chunkId) => staleChunkIds.add(chunkId));
+        deletedFiles += 1;
+      }
+
+      const batchSize = 16;
+      let embeddingDimensions = previous.embeddingDimensions;
+
+      for (let offset = 0; offset < chunksToUpsert.length; offset += batchSize) {
+        this.throwIfAborted(signal);
+        const batch = chunksToUpsert.slice(offset, offset + batchSize);
+        const embeddings = await this.embeddingService.embedDocuments(
+          batch.map((chunk) => chunk.content),
+          signal,
+        );
+
+        embeddingDimensions = embeddings[0]?.length || embeddingDimensions;
+
+        await this.repository.upsertChunks(
+          collectionName,
+          batch.map((chunk, index) => ({
+            ...chunk,
+            embedding: embeddings[index],
+          })),
+        );
+
+        await onProgress?.({
+          projectId,
+          phase: "embedding",
+          mode: "incremental",
+          processedFiles: files.length,
+          totalFiles: files.length,
+          processedChunks: Math.min(
+            offset + batch.length,
+            chunksToUpsert.length,
+          ),
+          totalChunks: chunksToUpsert.length,
+          changedFiles,
+          skippedFiles,
+          deletedFiles,
+        });
+      }
+
+      const staleChunkIdsList = Array.from(staleChunkIds);
+      await onProgress?.({
+        projectId,
+        phase: "saving",
+        mode: "incremental",
+        processedFiles: files.length,
+        totalFiles: files.length,
+        processedChunks: chunksToUpsert.length,
+        totalChunks: chunksToUpsert.length,
+        changedFiles,
+        skippedFiles,
+        deletedFiles,
+      });
+
+      await this.deleteChunksInBatches(
+        collectionName,
+        staleChunkIdsList,
+        signal,
+      );
+
       project = {
         ...project,
-        status: previous?.status === "ready" ? "outdated" : "error",
+        status: "ready",
+        embeddingDimensions,
+        sourceCount: nextSources.length,
+        chunkCount: nextSources.reduce(
+          (total, source) => total + source.chunkIds.length,
+          0,
+        ),
+        sizeBytes: this.calculateProjectSize(nextSources, embeddingDimensions),
+        updatedAt: new Date().toISOString(),
+        indexConfigHash,
+        errorMessage: undefined,
+      };
+      this.repository.replaceProjectSources(projectId, nextSources);
+      this.repository.saveProject(project);
+      this.refreshProjectWatchers();
+      this.emitProjectsChanged();
+
+      await onProgress?.({
+        projectId,
+        phase: "completed",
+        mode: "incremental",
+        processedFiles: files.length,
+        totalFiles: files.length,
+        processedChunks: chunksToUpsert.length,
+        totalChunks: chunksToUpsert.length,
+        changedFiles,
+        skippedFiles,
+        deletedFiles,
+      });
+
+      return project;
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        this.repository.saveProject(previous);
+        this.emitProjectsChanged();
+        throw error;
+      }
+
+      project = {
+        ...project,
+        status:
+          previous.status === "ready" || previous.status === "outdated"
+            ? "outdated"
+            : "error",
         updatedAt: new Date().toISOString(),
         errorMessage:
           error instanceof Error ? error.message : "Falha na indexação.",
@@ -516,6 +808,100 @@ export class AtlasRagService {
       throw error;
     } finally {
       this.indexingProjects.delete(projectId);
+    }
+  }
+
+  private resolveIndexingMode(mode?: RagIndexingMode): RagIndexingMode {
+    if (mode === "full" || mode === "incremental") {
+      return mode;
+    }
+
+    return this.configManager.getConfig().rag.indexingMode === "full"
+      ? "full"
+      : "incremental";
+  }
+
+  private async canUseIncrementalIndex(
+    previous: RagProjectIndex | null,
+    collectionName: string,
+    indexConfigHash: string,
+  ): Promise<boolean> {
+    if (
+      !previous ||
+      (previous.status !== "ready" && previous.status !== "outdated") ||
+      previous.embeddingModel !== this.embeddingService.getModelId() ||
+      previous.indexConfigHash !== indexConfigHash
+    ) {
+      return false;
+    }
+
+    return this.repository.collectionExists(collectionName);
+  }
+
+  private createIndexConfigHash(): string {
+    const settings = this.configManager.getConfig().rag;
+    return this.hashText(
+      JSON.stringify({
+        indexerVersion: "rag-project-index-v2",
+        embeddingModel: this.embeddingService.getModelId(),
+        chunkSize: settings.chunkSize,
+        chunkOverlap: settings.chunkOverlap,
+        maxFileSizeBytes: settings.maxFileSizeBytes,
+        allowedExtensions: this.normalizeHashList(settings.allowedExtensions),
+        respectGitIgnore: settings.respectGitIgnore,
+        includeMarkdownFiles: settings.includeMarkdownFiles,
+        includeConfigFiles: settings.includeConfigFiles,
+        ignoredPaths: this.normalizeHashList(settings.ignoredPaths),
+      }),
+    );
+  }
+
+  private normalizeHashList(values: string[]): string[] {
+    return Array.from(
+      new Set(values.map((value) => value.trim().toLowerCase()).filter(Boolean)),
+    ).sort();
+  }
+
+  private getStaleChunkIds(
+    previousSource: RagIndexedSource,
+    nextSource: RagIndexedSource,
+  ): string[] {
+    const nextChunkIds = new Set(nextSource.chunkIds);
+    return previousSource.chunkIds.filter((chunkId) => !nextChunkIds.has(chunkId));
+  }
+
+  private calculateProjectSize(
+    sources: RagIndexedSource[],
+    embeddingDimensions: number,
+  ): number {
+    const sourceBytes = sources.reduce(
+      (total, source) => total + source.sizeBytes,
+      0,
+    );
+    const chunkCount = sources.reduce(
+      (total, source) => total + source.chunkIds.length,
+      0,
+    );
+
+    return (
+      sourceBytes +
+      chunkCount * embeddingDimensions * Float32Array.BYTES_PER_ELEMENT
+    );
+  }
+
+  private async deleteChunksInBatches(
+    collectionName: string,
+    chunkIds: string[],
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const batchSize = 256;
+
+    for (let offset = 0; offset < chunkIds.length; offset += batchSize) {
+      this.throwIfAborted(signal);
+      await this.repository.deleteChunks(
+        collectionName,
+        chunkIds.slice(offset, offset + batchSize),
+      );
     }
   }
 
@@ -1085,6 +1471,9 @@ export class AtlasRagService {
 
       void this.indexSelectedFolder(
         vscode.Uri.file(project.rootPath),
+        undefined,
+        undefined,
+        { mode: this.resolveIndexingMode(currentSettings.indexingMode) },
       ).catch((error) => {
         console.error(
           `[ATLAS RAG] Falha na reindexação automática de ${project.name}:`,

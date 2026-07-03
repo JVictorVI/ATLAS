@@ -46,6 +46,7 @@ const respectGitIgnoreInput = document.getElementById("rag-respect-gitignore");
 const markdownFilesInput = document.getElementById("rag-markdown-files");
 const configFilesInput = document.getElementById("rag-config-files");
 const indexOnAddInput = document.getElementById("rag-index-on-add");
+const indexingModeInput = document.getElementById("rag-indexing-mode");
 const debounceInput = document.getElementById("rag-debounce");
 const relevanceModeInput = document.getElementById("rag-relevance-mode");
 const relevanceThresholdInput = document.getElementById(
@@ -98,6 +99,10 @@ function showFeedback(message, level = "info") {
     message,
     level,
   });
+}
+
+function getSelectedIndexingMode() {
+  return indexingModeInput?.value === "full" ? "full" : "incremental";
 }
 
 function saveRagSettings(options = {}) {
@@ -261,6 +266,7 @@ function saveRagSettings(options = {}) {
       includeMarkdownFiles: markdownFilesInput?.checked === true,
       includeConfigFiles: configFilesInput?.checked === true,
       indexOnAdd: indexOnAddInput?.checked === true,
+      indexingMode: getSelectedIndexingMode(),
       autoIndexDebounceMs,
       relevanceMode,
       relevanceThreshold,
@@ -321,15 +327,23 @@ document
 
 document.getElementById("add-project")?.addEventListener("click", () => {
   setIndexingState(true);
-  vscode.postMessage({ type: "indexarWorkspaceRag" });
+  vscode.postMessage({
+    type: "indexarWorkspaceRag",
+    indexingMode: getSelectedIndexingMode(),
+  });
 });
 
 selectFolderButton?.addEventListener("click", () => {
   setIndexingState(true);
-  vscode.postMessage({ type: "selecionarPastaRag" });
+  vscode.postMessage({
+    type: "selecionarPastaRag",
+    indexingMode: getSelectedIndexingMode(),
+  });
 });
 
 cancelIndexingButton?.addEventListener("click", () => {
+  cancelIndexingButton.disabled = true;
+  cancelIndexingButton.textContent = "Confirmando...";
   vscode.postMessage({ type: "cancelarIndexacaoRag" });
 });
 
@@ -428,6 +442,29 @@ window.addEventListener("message", (event) => {
     showFeedback(
       "Projeto adicionado. Use Reindexar para criar a base vetorial.",
     );
+    return;
+  }
+
+  if (message.type === "cancelamentoIndexacaoRagSolicitado") {
+    if (cancelIndexingButton) {
+      cancelIndexingButton.disabled = true;
+      cancelIndexingButton.textContent = "Cancelando...";
+    }
+    showFeedback("Cancelamento da indexação solicitado.");
+    return;
+  }
+
+  if (message.type === "cancelamentoIndexacaoRagRecusado") {
+    if (cancelIndexingButton) {
+      cancelIndexingButton.disabled = false;
+      cancelIndexingButton.textContent = "Cancelar indexação";
+    }
+    return;
+  }
+
+  if (message.type === "cancelamentoIndexacaoRagIndisponivel") {
+    setIndexingState(false);
+    showFeedback("Nenhuma indexação em andamento para cancelar.", "warning");
     return;
   }
 
@@ -607,6 +644,11 @@ window.addEventListener("message", (event) => {
 
   if (indexOnAddInput) {
     indexOnAddInput.checked = settings.indexOnAdd !== false;
+  }
+
+  if (indexingModeInput) {
+    indexingModeInput.value =
+      settings.indexingMode === "full" ? "full" : "incremental";
   }
 
   if (debounceInput) {
@@ -857,11 +899,18 @@ function setIndexingState(indexing) {
 
   if (selectFolderButton) {
     selectFolderButton.disabled = indexing;
+    selectFolderButton.hidden = indexing;
   }
 
   if (cancelIndexingButton) {
     cancelIndexingButton.hidden = !indexing;
+    cancelIndexingButton.disabled = false;
+    cancelIndexingButton.textContent = "Cancelar indexação";
   }
+
+  document.querySelectorAll(".project-action-button").forEach((button) => {
+    button.disabled = indexing;
+  });
 }
 
 function setExternalDocumentsState(loading) {
@@ -928,31 +977,45 @@ function updateIndexingProgress(progress) {
   const totalFiles = Math.max(0, Number(progress.totalFiles) || 0);
   const processedChunks = Math.max(0, Number(progress.processedChunks) || 0);
   const totalChunks = Math.max(0, Number(progress.totalChunks) || 0);
+  const changedFiles = Math.max(0, Number(progress.changedFiles) || 0);
+  const skippedFiles = Math.max(0, Number(progress.skippedFiles) || 0);
+  const deletedFiles = Math.max(0, Number(progress.deletedFiles) || 0);
+  const isIncremental = progress.mode === "incremental";
   let label = "Preparando indexação...";
   let details = "Analisando o projeto...";
   let percentage = null;
 
   if (phase === "scanning") {
-    label = "Analisando arquivos";
+    label = isIncremental ? "Comparando arquivos" : "Analisando arquivos";
     details = `${totalFiles} ${totalFiles === 1 ? "arquivo encontrado" : "arquivos encontrados"}`;
   } else if (phase === "chunking") {
-    label = "Preparando chunks";
+    label = isIncremental ? "Preparando alterações" : "Preparando chunks";
     percentage = calculatePercentage(processedFiles, totalFiles);
     const remainingFiles = Math.max(0, totalFiles - processedFiles);
-    details = `${processedChunks} chunks preparados • ${remainingFiles} ${remainingFiles === 1 ? "arquivo restante" : "arquivos restantes"}`;
+    details = isIncremental
+      ? `${changedFiles} alterados/novos - ${deletedFiles} removidos - ${skippedFiles} sem alterações`
+      : `${processedChunks} chunks preparados • ${remainingFiles} ${remainingFiles === 1 ? "arquivo restante" : "arquivos restantes"}`;
   } else if (phase === "embedding") {
-    label = "Gerando embeddings";
+    label = isIncremental
+      ? "Gerando embeddings incrementais"
+      : "Gerando embeddings";
     percentage = calculatePercentage(processedChunks, totalChunks);
     const remainingChunks = Math.max(0, totalChunks - processedChunks);
     details = `${processedChunks} de ${totalChunks} chunks processados • ${remainingChunks} restantes`;
   } else if (phase === "saving") {
-    label = "Salvando base vetorial";
+    label = isIncremental ? "Aplicando alterações" : "Salvando base vetorial";
     percentage = 100;
-    details = `${totalChunks} chunks processados`;
+    details = isIncremental
+      ? `${changedFiles} alterados/novos - ${deletedFiles} removidos`
+      : `${totalChunks} chunks processados`;
   } else if (phase === "completed") {
-    label = "Indexação concluída";
+    label = isIncremental
+      ? "Atualização incremental concluída"
+      : "Indexação concluída";
     percentage = 100;
-    details = `${totalChunks} chunks indexados`;
+    details = isIncremental
+      ? `${changedFiles} alterados/novos - ${deletedFiles} removidos - ${skippedFiles} sem alterações`
+      : `${totalChunks} chunks indexados`;
   }
 
   if (percentage === null) {
@@ -1145,21 +1208,24 @@ function createProjectRow(project) {
   actions.setAttribute("role", "cell");
 
   const reindexButton = document.createElement("button");
-  reindexButton.className = "btn btn-outline";
+  reindexButton.className = "btn btn-outline project-action-button";
   reindexButton.type = "button";
   reindexButton.textContent = "Reindexar";
+  reindexButton.disabled = indexingInProgress;
   reindexButton.addEventListener("click", () => {
     setIndexingState(true);
     vscode.postMessage({
       type: "reindexarProjetoRag",
       projectId: project.projectId,
+      indexingMode: getSelectedIndexingMode(),
     });
   });
 
   const deleteButton = document.createElement("button");
-  deleteButton.className = "btn btn-danger";
+  deleteButton.className = "btn btn-danger project-action-button";
   deleteButton.type = "button";
   deleteButton.textContent = "Excluir";
+  deleteButton.disabled = indexingInProgress;
   deleteButton.addEventListener("click", () => {
     vscode.postMessage({
       type: "excluirProjetoRag",

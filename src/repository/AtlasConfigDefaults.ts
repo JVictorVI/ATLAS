@@ -76,6 +76,7 @@ export class AtlasConfigDefaults {
         includeMarkdownFiles: true,
         includeConfigFiles: true,
         indexOnAdd: true,
+        indexingMode: "incremental",
         autoIndexDebounceMs: 2000,
         relevanceMode: "maxDistance",
         relevanceThreshold: 0.9,

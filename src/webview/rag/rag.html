@@ -152,18 +152,6 @@
         </div>
       </section>
 
-      <section class="toggle-section" aria-labelledby="auto-index-title">
-        <h2 id="auto-index-title">Atualização Automática de Índices</h2>
-        <label class="toggle-option">
-          <input id="auto-index-enabled" type="checkbox" />
-          <span class="checkbox" aria-hidden="true"></span>
-          <span
-            >Reindexa automaticamente após alterações nos arquivos do
-            projeto</span
-          >
-        </label>
-      </section>
-
       <section
         class="content-section external-section"
         aria-labelledby="external-documents-title"
@@ -354,6 +342,17 @@
               >Tempo em milissegundos antes da reindexação automática</small
             >
           </label>
+
+          <label class="field">
+            <span>Modo de indexação</span>
+            <select id="rag-indexing-mode">
+              <option value="incremental">
+                Incremental: somente arquivos novos ou alterados
+              </option>
+              <option value="full">Completa: reindexar tudo sempre</option>
+            </select>
+            <small>Usado em indexações manuais e automáticas</small>
+          </label>
         </div>
 
         <label class="field field-full">
@@ -370,6 +369,15 @@
         </label>
 
         <div class="option-list">
+          <label class="toggle-option compact-toggle">
+            <input id="auto-index-enabled" type="checkbox" />
+            <span class="checkbox" aria-hidden="true"></span>
+            <span
+              >Reindexa automaticamente após alterações nos arquivos do
+              projeto</span
+            >
+          </label>
+
           <label class="toggle-option compact-toggle">
             <input id="rag-respect-gitignore" type="checkbox" />
             <span class="checkbox" aria-hidden="true"></span>

@@ -5,7 +5,7 @@ class UserRepository {
     return {
       id: userId,
       name: "Maria",
-      email: "maria@email.com",
+      email: "maria@email.comx",
       active: true,
       role: "user",
     };

@@ -148,6 +148,13 @@ export class AtlasRagRepository {
     );
   }
 
+  public listProjectSources(projectId: string): RagIndexedSource[] {
+    return this.loadManifest().sources.filter(
+      (source) =>
+        source.projectId === projectId && source.externalDocument !== true,
+    );
+  }
+
   public saveProject(project: RagProjectIndex): void {
     const manifest = this.loadManifest();
     const index = manifest.projects.findIndex(
@@ -334,6 +341,20 @@ export class AtlasRagRepository {
     });
   }
 
+  public async deleteChunks(
+    collectionName: string,
+    chunkIds: string[],
+  ): Promise<void> {
+    if (chunkIds.length === 0) {
+      return;
+    }
+
+    const collection = await this.getCollection(collectionName);
+    await collection.delete({
+      ids: chunkIds,
+    });
+  }
+
   public async deleteCollection(collectionName: string): Promise<void> {
     const client = await this.chromaService.ensureReady();
 
@@ -392,6 +413,21 @@ export class AtlasRagRepository {
 
     await this.deleteCollection(targetCollectionName);
     await staging.modify({ name: targetCollectionName });
+  }
+
+  public async collectionExists(collectionName: string): Promise<boolean> {
+    const client = await this.chromaService.ensureReady();
+
+    try {
+      await client.getCollection({ name: collectionName });
+      return true;
+    } catch (error) {
+      if (this.isNotFoundError(error)) {
+        return false;
+      }
+
+      throw error;
+    }
   }
 
   public async count(collectionName: string): Promise<number> {

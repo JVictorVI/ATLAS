@@ -13,6 +13,7 @@ import {
   RagEmbeddingModelInfo,
   RagExternalDocument,
   RagExternalDocumentImportResult,
+  RagIndexingOptions,
   RagIndexingProgress,
   RagProjectIndex,
   RagRuntimeStatus,
@@ -85,17 +86,20 @@ export type RouterDependencies = {
   indexCurrentWorkspace: (
     onProgress?: (progress: RagIndexingProgress) => void | Promise<void>,
     signal?: AbortSignal,
+    options?: RagIndexingOptions,
   ) => Promise<RagProjectIndex>;
   indexSelectedFolder: (
     folderUri: vscode.Uri,
     onProgress?: (progress: RagIndexingProgress) => void | Promise<void>,
     signal?: AbortSignal,
+    options?: RagIndexingOptions,
   ) => Promise<RagProjectIndex>;
   registerSelectedFolder: (folderUri: vscode.Uri) => RagProjectIndex;
   indexRagProject: (
     projectId: string,
     onProgress?: (progress: RagIndexingProgress) => void | Promise<void>,
     signal?: AbortSignal,
+    options?: RagIndexingOptions,
   ) => Promise<RagProjectIndex>;
   deleteRagProject: (projectId: string) => Promise<void>;
   getRagContext: (

@@ -392,15 +392,20 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         return this.ragService.deleteAllExternalDocuments();
       },
 
-      indexCurrentWorkspace: async (onProgress, signal) => {
-        return this.ragService.indexCurrentWorkspace(onProgress, signal);
+      indexCurrentWorkspace: async (onProgress, signal, options) => {
+        return this.ragService.indexCurrentWorkspace(
+          onProgress,
+          signal,
+          options,
+        );
       },
 
-      indexSelectedFolder: async (folderUri, onProgress, signal) => {
+      indexSelectedFolder: async (folderUri, onProgress, signal, options) => {
         return this.ragService.indexSelectedFolder(
           folderUri,
           onProgress,
           signal,
+          options,
         );
       },
 
@@ -408,8 +413,13 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         return this.ragService.registerSelectedFolder(folderUri);
       },
 
-      indexRagProject: async (projectId, onProgress, signal) => {
-        return this.ragService.indexProject(projectId, onProgress, signal);
+      indexRagProject: async (projectId, onProgress, signal, options) => {
+        return this.ragService.indexProject(
+          projectId,
+          onProgress,
+          signal,
+          options,
+        );
       },
 
       deleteRagProject: async (projectId) => {

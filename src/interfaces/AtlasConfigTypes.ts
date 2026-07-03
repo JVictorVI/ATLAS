@@ -1,6 +1,7 @@
 export type JsonMap = Record<string, unknown>;
 
 export type AtlasResponseLanguage = "pt-BR" | "en-US";
+export type AtlasRagIndexingMode = "full" | "incremental";
 
 export interface AtlasGeneralSettings {
   theme: string;
@@ -39,6 +40,7 @@ export interface AtlasRagSettings {
   includeMarkdownFiles: boolean;
   includeConfigFiles: boolean;
   indexOnAdd: boolean;
+  indexingMode: AtlasRagIndexingMode;
   autoIndexDebounceMs: number;
   relevanceMode: "maxDistance" | "minRelevance";
   relevanceThreshold: number;

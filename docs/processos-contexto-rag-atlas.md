@@ -220,6 +220,13 @@ O ATLAS tem três entradas principais:
 
 Também existe `registerSelectedFolder`, que registra uma pasta como projeto `not-indexed` sem necessariamente construir o índice naquele momento.
 
+O modo de indexação é controlado por `rag.indexingMode`:
+
+- `full`: cria uma coleção temporária e substitui a coleção ativa ao final.
+- `incremental`: compara os hashes do manifesto e gera embeddings apenas para arquivos novos ou alterados, além de remover chunks de arquivos apagados.
+
+Se o projeto ainda não possui metadados compatíveis, se a coleção ativa não existe ou se a configuração que define a forma do índice mudou, a execução incremental cai automaticamente para `full`.
+
 ### Inicialização do runtime vetorial
 
 Antes de indexar, `AtlasRagService.indexFolder` chama `initialize`.
@@ -393,9 +400,7 @@ Quando um arquivo muda:
 1. o ATLAS verifica se o arquivo é rastreável e elegível;
 2. se o projeto estava pronto, marca como `outdated`;
 3. se `rag.autoIndex` estiver ativo, agenda reindexação após `rag.autoIndexDebounceMs`;
-4. a reindexação automática atual reconstrói o projeto completo.
-
-Atualização incremental por arquivo ainda é uma evolução pendente.
+4. a reindexação automática usa `rag.indexingMode`, podendo reconstruir tudo ou aplicar apenas arquivos novos/alterados.
 
 ## 4. Documentos externos no RAG
 
@@ -621,6 +626,7 @@ Cada fonte retornada ao chat inclui distância, relevância, tipo, caminho e lin
 | `rag.topK` | Quantidade final de resultados recuperados. |
 | `rag.maxChunksPerFile` | Limite de chunks por arquivo após filtros. |
 | `rag.autoIndex` | Habilita reindexação automática por watcher. |
+| `rag.indexingMode` | Define indexação `full` ou `incremental`. |
 | `rag.autoIndexDebounceMs` | Atraso antes da reindexação automática. |
 | `rag.allowCloudContext` | Permite enviar contexto RAG para modelos cloud. |
 | `rag.offlineOnly` | Bloqueia RAG no modo cloud quando ativo. |
