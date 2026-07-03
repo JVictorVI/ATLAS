@@ -1,16 +1,16 @@
-# Casos de Uso e Diagramas PlantUML - ATLAS
+﻿# Casos de Uso e Diagramas PlantUML - ATLAS
 
 Este arquivo contém os casos de uso e os diagramas PlantUML atualizados com base na implementação atual do ATLAS.
 Os blocos podem ser copiados diretamente para o PlantText ou para uma extensão PlantUML compatível com UTF-8.
 
-> **Nota de atualização:** a arquitetura atual do ATLAS é uma extensão do VS Code implementada em TypeScript. O ponto central de inferência é o `AtlasInferenceService`, que decide entre execução em nuvem e execução local. O projeto possui sessões, histórico, resumo de conversas, modelos `.gguf`, análise rápida, contexto estrutural do VS Code, RAG local e documentos externos no RAG. Em execução local, o ajuste automático de contexto recalcula e salva apenas a janela de contexto quando a requisição não cabe na configuração atual. Busca real em Hugging Face e download automatizado de modelos de chat permanecem como evolução.
+> **Nota de atualização:** a arquitetura atual do ATLAS é uma extensão do VS Code implementada em TypeScript. O ponto central de inferência é o `AtlasInferenceService`, que decide entre execução em nuvem e execução local. O projeto possui sessões, histórico, resumo de conversas, modelos `.gguf`, análise rápida, contexto estrutural do VS Code, RAG local e materiais complementares no RAG. Em execução local, o ajuste automático de contexto recalcula e salva apenas a janela de contexto quando a requisição não cabe na configuração atual. Busca real em Hugging Face e download automatizado de modelos de chat permanecem como evolução.
 
 ## Pontos atualizados na versão 1.6
 
 - A seção de Configurações Gerais passou a tratar **Contexto local**, refletindo que o modo automático ajusta `contextWindow`.
 - `LocalApiService` detecta overflow de contexto da engine local, calcula a janela necessária para entrada mais saída, persiste o novo `contextWindow` no modelo e reenvia a requisição após reiniciar a engine.
 - `AtlasLocalEngineService` diferencia primeira inicialização de reinício para aplicar parâmetros, com mensagens específicas na Webview e logs estruturados do processo.
-- Documentos externos no RAG deixam de ser evolução nos diagramas: a ingestão, listagem, exclusão e recuperação semântica estão implementadas.
+- Materiais complementares no RAG deixam de ser evolução nos diagramas: a ingestão, listagem, exclusão e recuperação semântica estão implementadas.
 - O mapa arquitetural removeu responsabilidades obsoletas de `LocalApiService`, como `isAbortError` público e dependência direta da descoberta de modelos.
 
 ## Pontos atualizados na versão 1.5
@@ -22,7 +22,7 @@ Os blocos podem ser copiados diretamente para o PlantText ou para uma extensão 
 - Configurações de indexação e recuperação, incluindo controles separados para Markdown e JSON/configurações.
 - Watcher e debounce implementados; a atualização automática atual reconstrói o índice completo.
 - Recuperação com distância/relevância, diversidade, filtros por linguagem/diretório, prioridade de fonte e orçamento de contexto.
-- Tela RAG com status da base vetorial no topo, projetos indexados em destaque, documentos externos funcionais e carregamento inicial não bloqueante.
+- Tela RAG com status da base vetorial no topo, projetos indexados em destaque, materiais complementares funcionais e carregamento inicial não bloqueante.
 - Seleção de modelos de embeddings por pasta configurável, com atualização ao abrir o seletor e download do modelo padrão quando necessário.
 
 ## Pontos atualizados na versão 1.4

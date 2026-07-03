@@ -1,8 +1,8 @@
-# Plano e Estado da Implementação do RAG no ATLAS
+﻿# Plano e Estado da Implementação do RAG no ATLAS
 
 Atualizado em 1 de julho de 2026.
 
-> **Nota de sincronização:** a documentação geral e os diagramas foram alinhados para tratar documentos externos e atualização incremental como funcionalidades implementadas. As evoluções pendentes do RAG continuam sendo chunking orientado a símbolos e melhorias de qualidade da recuperação.
+> **Nota de sincronização:** a documentação geral e os diagramas foram alinhados para tratar materiais complementares e atualização incremental como funcionalidades implementadas. As evoluções pendentes do RAG continuam sendo chunking orientado a símbolos e melhorias de qualidade da recuperação.
 
 Para o fluxo operacional de scanner, chunks, embeddings, persistência e recuperação, consulte [Processos de contexto, janela local e RAG](processos-contexto-rag-atlas.md).
 
@@ -40,7 +40,7 @@ O fluxo principal já está implementado. As evoluções restantes concentram-se
 | Configurações de indexação e recuperação | Implementadas |
 | Watcher e debounce | Implementados |
 | Atualização incremental por arquivo | Implementada; o modo pode alternar entre completa e incremental |
-| Documentos externos | Implementados para PDF, Office moderno, texto, Markdown, CSV/TSV, HTML e arquivos de configuracao textuais |
+| Materiais complementares | Implementados para PDF, Office moderno, texto, Markdown, CSV/TSV, HTML e arquivos de configuracao textuais |
 | Chunking orientado a símbolos | Pendente |
 
 ## 3. Arquitetura implementada
@@ -189,7 +189,7 @@ A organização atual da tela prioriza:
 
 1. status da base vetorial no topo;
 2. projetos indexados;
-3. documentos externos no RAG;
+3. materiais complementares no RAG;
 4. configurações principais, embeddings, indexação e recuperação.
 
 ### 7.2 Fluxo
@@ -261,7 +261,8 @@ O `FileSystemWatcher` observa projetos registrados. Quando um arquivo elegível 
 
 1. o índice é marcado como `outdated`;
 2. o debounce agrupa alterações próximas;
-3. se `autoIndex` estiver habilitado, o projeto é reindexado conforme `rag.indexingMode`.
+3. se `autoIndex` estiver habilitado, o projeto é reindexado conforme `rag.indexingMode`;
+4. se `promptIndexOnChange` estiver habilitado, o VS Code pergunta se o usuário deseja reindexar os arquivos alterados.
 
 No modo incremental, o ATLAS compara o hash das fontes já registradas no manifesto e gera embeddings apenas para arquivos novos ou alterados, removendo chunks de arquivos apagados. Quando a configuração que define a forma do índice muda, o serviço cai automaticamente para uma indexação completa.
 
@@ -284,7 +285,7 @@ No modo incremental, o ATLAS compara o hash das fontes já registradas no manife
 
 - distância máxima ou relevância mínima;
 - exclusão de lockfiles gerados;
-- inclusão ou exclusão de documentos externos;
+- inclusão ou exclusão de materiais complementares;
 - exclusão do arquivo atualmente aberto;
 - linguagens permitidas;
 - diretórios ou padrões glob permitidos;
@@ -339,8 +340,9 @@ As fontes também são armazenadas nos metadados da mensagem da sessão.
 - respeitar `.gitignore`;
 - indexar Markdown;
 - indexar JSON e arquivos de configuração;
-- indexar automaticamente ao adicionar projeto;
 - modo de indexação completa ou incremental;
+- reindexar projetos ao inicializar o ATLAS;
+- perguntar antes da reindexação na inicialização;
 - debounce após alterações.
 
 ### 9.3 Recuperação
@@ -349,7 +351,7 @@ As fontes também são armazenadas nos metadados da mensagem da sessão.
 - máximo de chunks do mesmo arquivo;
 - diversidade entre arquivos;
 - exclusão do arquivo aberto;
-- inclusão de documentos externos;
+- inclusão de materiais complementares;
 - prioridade de fontes;
 - filtros por linguagem e diretório;
 - exibição das fontes.
@@ -401,7 +403,7 @@ Alterações que mudam o formato do índice marcam projetos prontos como `outdat
 
 ## 13. Critérios de aceite pendentes
 
-- documento externo indexado aparecer como fonte;
+- material complementar indexado aparecer como fonte;
 - benchmarks demonstrarem recuperação relevante dentro do orçamento;
 - instalação em máquina limpa funcionar sem dependências externas;
 - suporte de plataforma falhar de forma clara sem derrubar o chat.

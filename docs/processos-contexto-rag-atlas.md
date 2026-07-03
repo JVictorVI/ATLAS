@@ -1,4 +1,4 @@
-# Processos de Contexto, Janela Local e RAG
+﻿# Processos de Contexto, Janela Local e RAG
 
 Atualizado em 1 de julho de 2026.
 
@@ -400,11 +400,12 @@ Quando um arquivo muda:
 1. o ATLAS verifica se o arquivo é rastreável e elegível;
 2. se o projeto estava pronto, marca como `outdated`;
 3. se `rag.autoIndex` estiver ativo, agenda reindexação após `rag.autoIndexDebounceMs`;
-4. a reindexação automática usa `rag.indexingMode`, podendo reconstruir tudo ou aplicar apenas arquivos novos/alterados.
+4. se `rag.promptIndexOnChange` estiver ativo, agenda uma pergunta de confirmação pelo VS Code;
+5. quando a reindexação é confirmada ou automática, usa `rag.indexingMode`, podendo reconstruir tudo ou aplicar apenas arquivos novos/alterados.
 
-## 4. Documentos externos no RAG
+## 4. Materiais complementares no RAG
 
-Documentos externos são fontes associadas ao workspace/projeto, mas armazenadas em coleção separada por projeto e modelo de embeddings.
+Materiais complementares são fontes associadas ao workspace/projeto, mas armazenadas em coleção separada por projeto e modelo de embeddings.
 
 Coleção:
 
@@ -451,7 +452,7 @@ Processo:
 5. `AtlasEmbeddingService` gera vetores;
 6. `AtlasRagRepository` salva fontes no manifesto e chunks na coleção externa.
 
-Na recuperação, documentos externos só entram se:
+Na recuperação, materiais complementares só entram se:
 
 ```text
 rag.includeExternalDocuments === true
@@ -553,7 +554,7 @@ normalize: true
 Isso produz vetores normalizados. O mesmo serviço gera embeddings para:
 
 - chunks de arquivos do projeto;
-- chunks de documentos externos;
+- chunks de materiais complementares;
 - pergunta do usuário na recuperação semântica.
 
 Na indexação de projeto, os chunks são processados em lotes de 16.
@@ -580,7 +581,7 @@ Cada chunk salvo inclui:
 - `sourceId`;
 - caminho relativo;
 - tipo `code` ou `document`;
-- sinal de documento externo;
+- sinal de material complementar;
 - linguagem;
 - linhas inicial/final;
 - índice do chunk;
@@ -601,7 +602,7 @@ Quando o chat precisa de contexto RAG:
 candidateCount = max(rag.topK * 5, rag.topK)
 ```
 
-7. Aplica filtros de relevância, arquivos gerados, documento externo, arquivo ativo, linguagem, diretório e limite por arquivo.
+7. Aplica filtros de relevância, arquivos gerados, material complementar, arquivo ativo, linguagem, diretório e limite por arquivo.
 8. Aplica prioridade de fonte (`code`, `documentation` ou `balanced`).
 9. Diversifica por arquivo quando `rag.diversifyFiles` está ativo.
 10. Monta o contexto final respeitando `rag.maxContextCharacters`.
@@ -626,8 +627,11 @@ Cada fonte retornada ao chat inclui distância, relevância, tipo, caminho e lin
 | `rag.topK` | Quantidade final de resultados recuperados. |
 | `rag.maxChunksPerFile` | Limite de chunks por arquivo após filtros. |
 | `rag.autoIndex` | Habilita reindexação automática por watcher. |
+| `rag.promptIndexOnChange` | Pergunta se deve reindexar quando o watcher detecta alterações. |
+| `rag.indexOnStartup` | Detecta e reindexa projetos prontos/desatualizados ao inicializar o ATLAS. |
+| `rag.promptBeforeStartupIndex` | Pergunta antes de executar a reindexação de inicialização. |
 | `rag.indexingMode` | Define indexação `full` ou `incremental`. |
 | `rag.autoIndexDebounceMs` | Atraso antes da reindexação automática. |
 | `rag.allowCloudContext` | Permite enviar contexto RAG para modelos cloud. |
 | `rag.offlineOnly` | Bloqueia RAG no modo cloud quando ativo. |
-| `rag.includeExternalDocuments` | Inclui documentos externos na recuperação. |
+| `rag.includeExternalDocuments` | Inclui materiais complementares na recuperação. |

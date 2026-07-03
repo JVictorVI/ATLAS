@@ -1,4 +1,4 @@
-import * as vscode from "vscode";
+﻿import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -361,10 +361,11 @@ export class ChatMessageRouter {
       const respectGitIgnore = payload.respectGitIgnore !== false;
       const includeMarkdownFiles = payload.includeMarkdownFiles !== false;
       const includeConfigFiles = payload.includeConfigFiles !== false;
-      const indexOnAdd = payload.indexOnAdd !== false;
       const indexingMode = this.normalizeRagIndexingMode(
         payload.indexingMode,
       );
+      const promptIndexOnChange = payload.promptIndexOnChange === true;
+      const autoIndex = payload.autoIndex === true && !promptIndexOnChange;
       const autoIndexDebounceMs = this.normalizeInteger(
         payload.autoIndexDebounceMs,
         500,
@@ -417,7 +418,7 @@ export class ChatMessageRouter {
         includeConfigFiles !== current.includeConfigFiles;
       const config = this.deps.configManager.updateRagSettings({
         enabled: payload.enabled === true,
-        autoIndex: payload.autoIndex === true,
+        autoIndex,
         allowLocalContext:
           typeof payload.allowLocalContext === "boolean"
             ? payload.allowLocalContext
@@ -436,8 +437,12 @@ export class ChatMessageRouter {
         respectGitIgnore,
         includeMarkdownFiles,
         includeConfigFiles,
-        indexOnAdd,
         indexingMode,
+        promptIndexOnChange,
+        indexOnStartup: payload.indexOnStartup === true,
+        promptBeforeStartupIndex:
+          payload.indexOnStartup === true &&
+          payload.promptBeforeStartupIndex === true,
         autoIndexDebounceMs,
         relevanceMode,
         relevanceThreshold,
@@ -884,7 +889,7 @@ export class ChatMessageRouter {
           "Todos os arquivos": ["*"],
         },
         openLabel: "Adicionar ao RAG",
-        title: "Selecione documentos externos para o RAG",
+        title: "Selecione materiais complementares para o RAG",
       });
 
       if (!selection?.length) {
@@ -953,7 +958,7 @@ export class ChatMessageRouter {
       await this.postError(
         webview,
         error,
-        "Nao foi possivel adicionar documentos externos ao RAG.",
+        "Nao foi possivel adicionar materiais complementares ao RAG.",
       );
     }
   }
@@ -966,11 +971,11 @@ export class ChatMessageRouter {
       const sourceId = typeof data.sourceId === "string" ? data.sourceId : "";
 
       if (!sourceId) {
-        throw new Error("Documento externo RAG invalido.");
+        throw new Error("Material complementar RAG invalido.");
       }
 
       const answer = await vscode.window.showWarningMessage(
-        "Deseja excluir este documento externo do RAG?",
+        "Deseja excluir este material complementar do RAG?",
         { modal: true },
         "Excluir",
       );
@@ -1003,7 +1008,7 @@ export class ChatMessageRouter {
       await this.postError(
         webview,
         error,
-        "Nao foi possivel excluir o documento externo.",
+        "Nao foi possivel excluir o material complementar.",
       );
     }
   }
@@ -1013,7 +1018,7 @@ export class ChatMessageRouter {
   ): Promise<void> {
     try {
       const answer = await vscode.window.showWarningMessage(
-        "Deseja remover todos os documentos externos deste workspace do RAG?",
+        "Deseja remover todos os materiais complementares deste workspace do RAG?",
         { modal: true },
         "Remover todos",
       );
@@ -1046,7 +1051,7 @@ export class ChatMessageRouter {
       await this.postError(
         webview,
         error,
-        "Nao foi possivel remover os documentos externos.",
+        "Nao foi possivel remover os materiais complementares.",
       );
     }
   }
@@ -1091,17 +1096,6 @@ export class ChatMessageRouter {
           return;
         }
 
-        if (!this.deps.configManager.getSection("rag").indexOnAdd) {
-          const project = this.deps.registerSelectedFolder(selectedFolder);
-          await webview.postMessage({
-            type: "projetoRagAdicionado",
-            value: {
-              project,
-              projects: this.deps.listRagProjects(),
-            },
-          });
-          return;
-        }
       }
 
       if (source === "project" && !projectId) {

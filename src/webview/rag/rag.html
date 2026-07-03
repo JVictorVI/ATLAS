@@ -32,23 +32,23 @@
       <header class="page-heading">
         <h1>Geração Aumentada por Recuperação (RAG)</h1>
         <div class="subtitle">
-          Configure como o ATLAS utiliza o contexto dos projetos e documentos
+          Configure como o ATLAS utiliza o contexto dos projetos e materiais
           complementares nas análises
         </div>
       </header>
 
       <section class="toggle-section" aria-labelledby="rag-use-title">
-        <h2 id="rag-use-title">Utilização de RAG</h2>
+        <h2 id="rag-use-title">Uso de Recuperação Semântica</h2>
         <label class="toggle-option">
           <input id="rag-enabled" type="checkbox" checked />
           <span class="checkbox" aria-hidden="true"></span>
           <span>
-            Habilita o uso de recuperação semântica para enriquecer as análises
-            com contexto do projeto
+            Habilita a utilização de recuperação semântica para enriquecer as
+            análises com contexto do projeto
           </span>
         </label>
         <div
-          class="toggle-suboptions"
+          class="toggle-suboptions rag-destination-suboptions"
           role="group"
           aria-label="Destinos do contexto recuperado"
         >
@@ -63,7 +63,8 @@
             <input id="cloud-rag-enabled" type="checkbox" />
             <span class="checkbox" aria-hidden="true"></span>
             <span
-              >Permite o envio de contexto recuperado para modelos em nuvem</span
+              >Permite o envio de contexto recuperado para modelos em
+              nuvem</span
             >
           </label>
         </div>
@@ -157,7 +158,7 @@
         aria-labelledby="external-documents-title"
       >
         <div class="section-heading">
-          <h2 id="external-documents-title">Documentos Externos</h2>
+          <h2 id="external-documents-title">Materiais Complementares</h2>
           <p>
             Adicione materiais complementares para enriquecer o contexto das
             respostas
@@ -170,7 +171,9 @@
             class="documents-list"
             aria-live="polite"
           >
-            <div class="empty-state">Nenhum documento externo adicionado</div>
+            <div class="empty-state">
+              Nenhum material complementar adicionado
+            </div>
           </div>
           <p class="supported-files">
             Arquivos suportados: PDF, DOCX, PPTX, XLSX, TXT, Markdown, CSV/TSV,
@@ -330,7 +333,7 @@
           </label>
 
           <label class="field">
-            <span>Debounce após alterações</span>
+            <span>Atraso antes de reindexar</span>
             <input
               id="rag-debounce"
               type="number"
@@ -339,7 +342,7 @@
               step="500"
             />
             <small
-              >Tempo em milissegundos antes da reindexação automática</small
+              >Tempo em milissegundos após a última alteração detectada</small
             >
           </label>
 
@@ -368,41 +371,65 @@
           >
         </label>
 
+        <div class="settings-subsection">
+          <h3>Reindexação Automática</h3>
+          <div class="option-list">
+            <label class="toggle-option compact-toggle">
+              <input id="auto-index-enabled" type="checkbox" />
+              <span class="checkbox" aria-hidden="true"></span>
+              <span
+                >Reindexa automaticamente após alterações nos arquivos do
+                projeto</span
+              >
+            </label>
+
+            <label class="toggle-option compact-toggle">
+              <input id="rag-prompt-index-on-change" type="checkbox" />
+              <span class="checkbox" aria-hidden="true"></span>
+              <span>Perguntar se deseja reindexar ao detectar alterações</span>
+            </label>
+          </div>
+        </div>
+
         <div class="option-list">
           <label class="toggle-option compact-toggle">
-            <input id="auto-index-enabled" type="checkbox" />
+            <input id="rag-index-on-startup" type="checkbox" />
             <span class="checkbox" aria-hidden="true"></span>
-            <span
-              >Reindexa automaticamente após alterações nos arquivos do
-              projeto</span
-            >
+            <span>Detectar e reindexar projetos ao inicializar o ATLAS</span>
           </label>
 
-          <label class="toggle-option compact-toggle">
-            <input id="rag-respect-gitignore" type="checkbox" />
-            <span class="checkbox" aria-hidden="true"></span>
-            <span>Respeitar regras do arquivo .gitignore</span>
-          </label>
+          <div
+            class="toggle-suboptions startup-index-suboptions"
+            role="group"
+            aria-label="Opções da reindexação na inicialização"
+          >
+            <label class="toggle-option toggle-suboption compact-toggle">
+              <input id="rag-prompt-startup-index" type="checkbox" />
+              <span class="checkbox" aria-hidden="true"></span>
+              <span>Perguntar antes de reindexar na inicialização</span>
+            </label>
+          </div>
 
-          <label class="toggle-option compact-toggle">
-            <input id="rag-markdown-files" type="checkbox" />
-            <span class="checkbox" aria-hidden="true"></span>
-            <span>Indexar arquivos Markdown</span>
-          </label>
+          <div class="settings-subsection">
+            <h3>Arquivos incluídos no índice</h3>
+            <label class="toggle-option compact-toggle">
+              <input id="rag-respect-gitignore" type="checkbox" />
+              <span class="checkbox" aria-hidden="true"></span>
+              <span>Respeitar regras do arquivo .gitignore</span>
+            </label>
 
-          <label class="toggle-option compact-toggle">
-            <input id="rag-config-files" type="checkbox" />
-            <span class="checkbox" aria-hidden="true"></span>
-            <span>Indexar JSON e arquivos de configuração</span>
-          </label>
+            <label class="toggle-option compact-toggle">
+              <input id="rag-markdown-files" type="checkbox" />
+              <span class="checkbox" aria-hidden="true"></span>
+              <span>Indexar arquivos Markdown</span>
+            </label>
 
-          <label class="toggle-option compact-toggle">
-            <input id="rag-index-on-add" type="checkbox" />
-            <span class="checkbox" aria-hidden="true"></span>
-            <span
-              >Iniciar indexação automaticamente ao adicionar um projeto</span
-            >
-          </label>
+            <label class="toggle-option compact-toggle">
+              <input id="rag-config-files" type="checkbox" />
+              <span class="checkbox" aria-hidden="true"></span>
+              <span>Indexar JSON e arquivos de configuração</span>
+            </label>
+          </div>
         </div>
 
         <div class="settings-actions">
@@ -511,7 +538,7 @@
           <label class="toggle-option compact-toggle">
             <input id="rag-external-documents" type="checkbox" />
             <span class="checkbox" aria-hidden="true"></span>
-            <span>Incluir documentos externos nas consultas</span>
+            <span>Incluir materiais complementares nas consultas</span>
           </label>
 
           <label class="toggle-option compact-toggle">

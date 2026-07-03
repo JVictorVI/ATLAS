@@ -1,10 +1,10 @@
-# Diagramas por Caso de Uso - ATLAS
+﻿# Diagramas por Caso de Uso - ATLAS
 
 Este arquivo contém diagramas de classe e de sequência em PlantUML para cada caso de uso atualizado do ATLAS.
 Os blocos podem ser copiados diretamente para o PlantText.
 
-> **Nota de atualização:** os diagramas abaixo representam o ATLAS atual como extensão VS Code em TypeScript. Além dos fluxos de inferência local/cloud, sessões, análise rápida e contexto estrutural, o RAG local está implementado com `AtlasRagService`, embeddings locais, ChromaDB empacotado, indexação por projeto, documentos externos e recuperação integrada ao chat.
-> Busca real em Hugging Face e download automatizado de modelos de chat continuam marcados como futuro. A ingestão de documentos externos foi atualizada para o estado implementado.
+> **Nota de atualização:** os diagramas abaixo representam o ATLAS atual como extensão VS Code em TypeScript. Além dos fluxos de inferência local/cloud, sessões, análise rápida e contexto estrutural, o RAG local está implementado com `AtlasRagService`, embeddings locais, ChromaDB empacotado, indexação por projeto, materiais complementares e recuperação integrada ao chat.
+> Busca real em Hugging Face e download automatizado de modelos de chat continuam marcados como futuro. A ingestão de materiais complementares foi atualizada para o estado implementado.
 
 ## Mapa de defasagens corrigidas nesta atualização
 
@@ -1374,7 +1374,7 @@ UI --> Usuário : modelo disponível
 @enduml
 ```
 
-## UC019 - Adicionar documentos externos ao RAG
+## UC019 - Adicionar materiais complementares ao RAG
 
 ### Diagrama de Classes
 
@@ -1433,7 +1433,7 @@ participant AtlasEmbeddingService as Embeddings
 participant AtlasRagRepository as Repository
 database "ChromaDB local" as Chroma
 
-Usuário -> UI : adiciona documento externo
+Usuário -> UI : adiciona material complementar
 UI -> Router : adicionarDocumentoExternoRag
 Router -> RAG : addExternalDocuments(uris, progress, signal)
 RAG -> Parser : canParse(uri) / parse(uri, bytes)

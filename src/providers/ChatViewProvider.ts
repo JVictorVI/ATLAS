@@ -76,6 +76,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private readonly modelWebviewService: ChatModelWebviewService;
   private readonly messageRouter: ChatMessageRouter;
   private startupEnginePromise: Promise<void> | null = null;
+  private startupRagIndexPromise: Promise<void> | null = null;
+  private startupRagIndexChecked = false;
   private notifyEngineStartup = false;
 
   constructor(private readonly context: vscode.ExtensionContext) {
@@ -456,6 +458,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
     void this.sendAvailableLlmsToWebview(webviewView.webview);
     void this.startEngineOnAtlasOpenIfEnabled();
+    void this.indexRagOnAtlasOpenIfEnabled();
 
     webviewView.webview.onDidReceiveMessage((data) => {
       this.handleWebviewMessage(data, webviewView.webview);
@@ -585,6 +588,91 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     } finally {
       this.notifyEngineStartup = false;
     }
+  }
+
+  private async indexRagOnAtlasOpenIfEnabled(): Promise<void> {
+    const settings = this.configManager.getConfig().rag;
+
+    if (
+      this.startupRagIndexChecked ||
+      !settings.enabled ||
+      !settings.indexOnStartup
+    ) {
+      return;
+    }
+
+    this.startupRagIndexChecked = true;
+
+    if (this.startupRagIndexPromise) {
+      return this.startupRagIndexPromise;
+    }
+
+    this.startupRagIndexPromise = this.indexRagOnAtlasOpen();
+
+    try {
+      await this.startupRagIndexPromise;
+    } finally {
+      this.startupRagIndexPromise = null;
+    }
+  }
+
+  private async indexRagOnAtlasOpen(): Promise<void> {
+    const settings = this.configManager.getConfig().rag;
+    const projects = this.ragService
+      .listProjects()
+      .filter(
+        (project) =>
+          project.status === "ready" || project.status === "outdated",
+      );
+
+    if (projects.length === 0) {
+      return;
+    }
+
+    const projectLabel =
+      projects.length === 1
+        ? `o projeto ${projects[0].name}`
+        : `${projects.length} projetos`;
+
+    if (settings.promptBeforeStartupIndex) {
+      const answer = await vscode.window.showInformationMessage(
+        `ATLAS: deseja detectar alterações e reindexar ${projectLabel} agora?`,
+        "Reindexar",
+        "Ignorar",
+      );
+
+      if (answer !== "Reindexar") {
+        return;
+      }
+    }
+
+    const mode = settings.indexingMode === "full" ? "full" : "incremental";
+    vscode.window.showInformationMessage(
+      `ATLAS: verificando e reindexando ${projectLabel}.`,
+    );
+
+    let indexedCount = 0;
+
+    for (const project of projects) {
+      try {
+        await this.ragService.indexProject(project.projectId, undefined, undefined, {
+          mode,
+        });
+        indexedCount += 1;
+      } catch (error) {
+        console.error(
+          `[ATLAS RAG] Falha ao reindexar ${project.name} na inicialização:`,
+          error,
+        );
+        vscode.window.showWarningMessage(
+          `ATLAS: falha ao reindexar ${project.name} na inicialização.`,
+        );
+      }
+    }
+
+    vscode.window.showInformationMessage(
+      `ATLAS: reindexação na inicialização concluída (${indexedCount}/${projects.length}).`,
+    );
   }
 
   private async startLocalEngineForActiveModel(): Promise<void> {

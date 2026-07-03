@@ -39,8 +39,10 @@ export interface AtlasRagSettings {
   respectGitIgnore: boolean;
   includeMarkdownFiles: boolean;
   includeConfigFiles: boolean;
-  indexOnAdd: boolean;
   indexingMode: AtlasRagIndexingMode;
+  promptIndexOnChange: boolean;
+  indexOnStartup: boolean;
+  promptBeforeStartupIndex: boolean;
   autoIndexDebounceMs: number;
   relevanceMode: "maxDistance" | "minRelevance";
   relevanceThreshold: number;

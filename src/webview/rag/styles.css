@@ -216,6 +216,23 @@ body.rag-loading-active .rag-page {
   margin-top: 14px;
 }
 
+.settings-subsection {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--atlas-border);
+}
+
+.settings-subsection h3 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.settings-subsection .option-list {
+  margin-top: 0;
+}
+
 .compact-toggle {
   max-width: none;
 }
@@ -270,6 +287,22 @@ body.rag-loading-active .rag-page {
 
 .toggle-suboption + .toggle-suboption {
   margin-top: 0;
+}
+
+.toggle-suboptions.is-disabled {
+  opacity: 0.62;
+}
+
+.toggle-option:has(input:disabled) {
+  cursor: not-allowed;
+}
+
+.toggle-option:has(input:disabled):hover {
+  border-color: var(--atlas-border);
+}
+
+.toggle-option input:disabled {
+  cursor: not-allowed;
 }
 
 .toggle-option input {

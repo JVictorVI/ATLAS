@@ -1,4 +1,4 @@
-# Processo de Configuração
+﻿# Processo de Configuração
 
 Atualizado em 1 de julho de 2026.
 
@@ -107,7 +107,7 @@ Controla:
 - limites de arquivos;
 - recuperação;
 - filtros;
-- documentos externos;
+- materiais complementares;
 - fontes exibidas.
 
 O fluxo operacional detalhado está em [Processos de contexto, janela local e RAG](processos-contexto-rag-atlas.md).

@@ -1,4 +1,4 @@
-# Resumo de Status Arquitetural
+﻿# Resumo de Status Arquitetural
 
 Atualizado em 1 de julho de 2026 com base na implementação presente no repositório.
 
@@ -59,12 +59,12 @@ Para o fluxo detalhado de ajuste automático da janela local, indexação RAG e 
 | Indexação do workspace atual             | Implementada                                                                                                                                                     |
 | Indexação de pasta escolhida             | Implementada                                                                                                                                                     |
 | Progresso da indexação                   | Implementado por etapa, arquivos e chunks, com cancelamento                                                                                                      |
-| Tela RAG                                 | Implementada com status da base vetorial no topo, projetos indexados em destaque, documentos externos funcionais e loading inicial não bloqueante                |
+| Tela RAG                                 | Implementada com status da base vetorial no topo, projetos indexados em destaque, materiais complementares funcionais e loading inicial não bloqueante                |
 | Atualização automática                   | Implementada por watcher e debounce; usa modo configurável completo ou incremental                                                                               |
 | Recuperação semântica no chat            | Implementada com fontes, relevância, filtros e limite de contexto                                                                                                |
 | Configurações de indexação               | Implementadas, incluindo modo completo/incremental, Markdown e JSON/configuração como opções independentes                                                       |
 | Configurações de recuperação             | Implementadas: distância/relevância, diversidade, limite por arquivo, linguagem, diretório e prioridade                                                          |
-| Documentos externos no RAG               | Implementados com ingestão, listagem, exclusão e recuperação semântica em coleção externa por workspace e modelo de embeddings                                   |
+| Materiais complementares no RAG               | Implementados com ingestão, listagem, exclusão e recuperação semântica em coleção externa por workspace e modelo de embeddings                                   |
 | Hugging Face API para busca de modelos   | Planejada                                                                                                                                                        |
 | Download automatizado de modelos de chat | Planejado                                                                                                                                                        |
 
@@ -75,7 +75,7 @@ Para o fluxo detalhado de ajuste automático da janela local, indexação RAG e 
 | Contexto local automático     | A documentação descrevia apenas aumento do tamanho de contexto quando a engine rejeitava a requisição. | A opção automática em Configurações Gerais ajusta e salva apenas o `contextWindow` do modelo local para comportar o contexto enviado.                                        |
 | Reinício da engine local      | O fluxo de reinício era tratado como inicialização genérica.                                           | Quando o contexto dinâmico é salvo, a engine é reiniciada com motivo explícito de atualização de parâmetros, mensagens próprias na UI e logs com modelo, engine e contexto.  |
 | Diagramas de inferência local | `LocalApiService` aparecia com responsabilidades antigas e sem o retry por overflow.                   | Os diagramas passam a representar detecção de overflow, persistência do novo `contextWindow` e reinício do `llama-server` antes do reenvio da requisição.                    |
-| Documentos externos no RAG    | Parte dos diagramas ainda marcava ingestão de documentos externos como futuro.                         | Documentos externos estão implementados via `AtlasExternalDocumentParser`, `AtlasRagService` e `AtlasRagRepository`, com suporte a PDF, Office moderno e formatos textuais.  |
+| Materiais complementares no RAG    | Parte dos diagramas ainda marcava ingestão de materiais complementares como futuro.                         | Materiais complementares estão implementados via `AtlasExternalDocumentParser`, `AtlasRagService` e `AtlasRagRepository`, com suporte a PDF, Office moderno e formatos textuais.  |
 | Biblioteca local              | O resumo usava "parcial" sem delimitar o que faltava.                                                  | A biblioteca local está descrita como funcional para modelos GGUF locais; o que permanece planejado é busca real em Hugging Face e download automatizado de modelos de chat. |
 
 ## Execução local e ajuste dinâmico

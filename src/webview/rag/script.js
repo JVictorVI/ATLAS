@@ -1,4 +1,4 @@
-const vscode = acquireVsCodeApi();
+﻿const vscode = acquireVsCodeApi();
 const ragPage = document.getElementById("rag-page");
 const ragLoading = document.getElementById("rag-loading");
 const projectsTable = document.getElementById("projects-table");
@@ -36,6 +36,9 @@ const ignoredPathsInput = document.getElementById("rag-ignored-paths");
 const ragEnabledInput = document.getElementById("rag-enabled");
 const localRagEnabledInput = document.getElementById("local-rag-enabled");
 const cloudRagEnabledInput = document.getElementById("cloud-rag-enabled");
+const ragDestinationSuboptions = document.querySelector(
+  ".rag-destination-suboptions",
+);
 const chunkSizeInput = document.getElementById("rag-chunk-size");
 const chunkOverlapInput = document.getElementById("rag-chunk-overlap");
 const maxFileSizeInput = document.getElementById("rag-max-file-size");
@@ -45,7 +48,16 @@ const allowedExtensionsInput = document.getElementById(
 const respectGitIgnoreInput = document.getElementById("rag-respect-gitignore");
 const markdownFilesInput = document.getElementById("rag-markdown-files");
 const configFilesInput = document.getElementById("rag-config-files");
-const indexOnAddInput = document.getElementById("rag-index-on-add");
+const promptIndexOnChangeInput = document.getElementById(
+  "rag-prompt-index-on-change",
+);
+const indexOnStartupInput = document.getElementById("rag-index-on-startup");
+const promptStartupIndexInput = document.getElementById(
+  "rag-prompt-startup-index",
+);
+const startupIndexSuboptions = document.querySelector(
+  ".startup-index-suboptions",
+);
 const indexingModeInput = document.getElementById("rag-indexing-mode");
 const debounceInput = document.getElementById("rag-debounce");
 const relevanceModeInput = document.getElementById("rag-relevance-mode");
@@ -103,6 +115,24 @@ function showFeedback(message, level = "info") {
 
 function getSelectedIndexingMode() {
   return indexingModeInput?.value === "full" ? "full" : "incremental";
+}
+
+function updateStartupIndexPromptAvailability() {
+  if (!promptStartupIndexInput) {
+    return;
+  }
+
+  const enabled = indexOnStartupInput?.checked === true;
+  promptStartupIndexInput.disabled = !enabled;
+  startupIndexSuboptions?.classList.toggle("is-disabled", !enabled);
+  startupIndexSuboptions?.setAttribute(
+    "aria-disabled",
+    enabled ? "false" : "true",
+  );
+
+  if (!enabled) {
+    promptStartupIndexInput.checked = false;
+  }
 }
 
 function saveRagSettings(options = {}) {
@@ -187,7 +217,7 @@ function saveRagSettings(options = {}) {
     externalMaxFileSizeMb > 250
   ) {
     showFeedback(
-      "O tamanho máximo por documento externo deve ficar entre 1 e 250 MB.",
+      "O tamanho máximo por material complementar deve ficar entre 1 e 250 MB.",
       "warning",
     );
     externalMaxFileSizeInput?.focus();
@@ -265,8 +295,10 @@ function saveRagSettings(options = {}) {
       respectGitIgnore: respectGitIgnoreInput?.checked === true,
       includeMarkdownFiles: markdownFilesInput?.checked === true,
       includeConfigFiles: configFilesInput?.checked === true,
-      indexOnAdd: indexOnAddInput?.checked === true,
       indexingMode: getSelectedIndexingMode(),
+      promptIndexOnChange: promptIndexOnChangeInput?.checked === true,
+      indexOnStartup: indexOnStartupInput?.checked === true,
+      promptBeforeStartupIndex: promptStartupIndexInput?.checked === true,
       autoIndexDebounceMs,
       relevanceMode,
       relevanceThreshold,
@@ -298,8 +330,33 @@ cloudRagEnabledInput?.addEventListener("change", () => {
 document
   .getElementById("auto-index-enabled")
   ?.addEventListener("change", () => {
+    if (
+      document.getElementById("auto-index-enabled")?.checked === true &&
+      promptIndexOnChangeInput
+    ) {
+      promptIndexOnChangeInput.checked = false;
+    }
     saveRagSettings();
   });
+
+promptIndexOnChangeInput?.addEventListener("change", () => {
+  if (
+    promptIndexOnChangeInput.checked === true &&
+    document.getElementById("auto-index-enabled")
+  ) {
+    document.getElementById("auto-index-enabled").checked = false;
+  }
+  saveRagSettings();
+});
+
+indexOnStartupInput?.addEventListener("change", () => {
+  updateStartupIndexPromptAvailability();
+  saveRagSettings();
+});
+
+promptStartupIndexInput?.addEventListener("change", () => {
+  saveRagSettings();
+});
 
 externalDocumentsInput?.addEventListener("change", () => {
   saveRagSettings();
@@ -495,12 +552,12 @@ window.addEventListener("message", (event) => {
     }
 
     if (message.value?.deleted === true) {
-      showFeedback("Documento externo removido do RAG.");
+      showFeedback("Material complementar removido do RAG.");
       return;
     }
 
     if (message.value?.deletedAll === true) {
-      showFeedback("Todos os documentos externos foram removidos do RAG.");
+      showFeedback("Todos os materiais complementares foram removidos do RAG.");
       return;
     }
 
@@ -511,7 +568,7 @@ window.addEventListener("message", (event) => {
 
     if (importedCount > 0) {
       showFeedback(
-        `${importedCount} ${importedCount === 1 ? "documento externo adicionado" : "documentos externos adicionados"} ao RAG.`,
+        `${importedCount} ${importedCount === 1 ? "material complementar adicionado" : "materiais complementares adicionados"} ao RAG.`,
       );
     }
 
@@ -524,7 +581,7 @@ window.addEventListener("message", (event) => {
     }
 
     if (importedCount === 0 && skipped.length === 0) {
-      showFeedback("Nenhum documento externo foi adicionado.", "warning");
+      showFeedback("Nenhum material complementar foi adicionado.", "warning");
     }
 
     return;
@@ -582,7 +639,8 @@ window.addEventListener("message", (event) => {
   updateRagDestinationAvailability();
 
   if (autoIndexEnabled) {
-    autoIndexEnabled.checked = settings.autoIndex === true;
+    autoIndexEnabled.checked =
+      settings.autoIndex === true && settings.promptIndexOnChange !== true;
   }
 
   if (topKInput) {
@@ -642,9 +700,19 @@ window.addEventListener("message", (event) => {
     configFilesInput.checked = settings.includeConfigFiles !== false;
   }
 
-  if (indexOnAddInput) {
-    indexOnAddInput.checked = settings.indexOnAdd !== false;
+  if (promptIndexOnChangeInput) {
+    promptIndexOnChangeInput.checked = settings.promptIndexOnChange === true;
   }
+
+  if (indexOnStartupInput) {
+    indexOnStartupInput.checked = settings.indexOnStartup === true;
+  }
+
+  if (promptStartupIndexInput) {
+    promptStartupIndexInput.checked =
+      settings.promptBeforeStartupIndex === true;
+  }
+  updateStartupIndexPromptAvailability();
 
   if (indexingModeInput) {
     indexingModeInput.value =
@@ -756,6 +824,11 @@ function releaseRagLoadingWithError(message) {
 
 function updateRagDestinationAvailability() {
   const enabled = ragEnabledInput?.checked === true;
+  ragDestinationSuboptions?.classList.toggle("is-disabled", !enabled);
+  ragDestinationSuboptions?.setAttribute(
+    "aria-disabled",
+    enabled ? "false" : "true",
+  );
 
   if (localRagEnabledInput) {
     localRagEnabledInput.disabled = !enabled;
@@ -1073,7 +1146,7 @@ function renderExternalDocuments(documents) {
   if (!safeDocuments.length) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
-    empty.textContent = "Nenhum documento externo adicionado";
+    empty.textContent = "Nenhum material complementar adicionado";
     externalDocumentsList.appendChild(empty);
     return;
   }
@@ -1095,7 +1168,7 @@ function createExternalDocumentItem(documentInfo) {
   copy.className = "document-copy";
 
   const title = document.createElement("strong");
-  title.textContent = documentInfo.name || "Documento externo";
+  title.textContent = documentInfo.name || "Material complementar";
   title.title = documentInfo.absolutePath || documentInfo.relativePath || "";
 
   const details = document.createElement("span");

@@ -1,4 +1,4 @@
-import * as crypto from "crypto";
+﻿import * as crypto from "crypto";
 import * as path from "path";
 import * as vscode from "vscode";
 import { minimatch } from "minimatch";
@@ -25,6 +25,7 @@ import { AtlasExternalDocumentParser } from "./AtlasExternalDocumentParser";
 export class AtlasRagService {
   private readonly watchers = new Map<string, vscode.FileSystemWatcher>();
   private readonly autoIndexTimers = new Map<string, NodeJS.Timeout>();
+  private readonly autoIndexChangedFiles = new Map<string, Set<string>>();
   private readonly indexingProjects = new Set<string>();
   private readonly externalDocumentParser = new AtlasExternalDocumentParser();
   private projectsChangedListener?: (projects: RagProjectIndex[]) => void;
@@ -91,7 +92,7 @@ export class AtlasRagService {
 
     if (!workspaceFolder) {
       throw new Error(
-        "Abra uma pasta ou workspace antes de adicionar documentos externos ao RAG.",
+        "Abra uma pasta ou workspace antes de adicionar materiais complementares ao RAG.",
       );
     }
 
@@ -119,11 +120,11 @@ export class AtlasRagService {
           prepared.source.sourceId,
         );
         const previousCollectionName = previousSource
-          ? previousSource.collectionName ??
+          ? (previousSource.collectionName ??
             this.getExternalCollectionName(
               previousSource.projectId,
               previousSource.embeddingModel,
-            )
+            ))
           : undefined;
         const embeddings = await this.embeddingService.embedDocuments(
           prepared.chunks.map((chunk) => chunk.content),
@@ -190,7 +191,7 @@ export class AtlasRagService {
     const source = this.repository.getSource(sourceId);
 
     if (!source || source.externalDocument !== true) {
-      throw new Error("Documento externo RAG nao encontrado.");
+      throw new Error("Material complementar RAG nao encontrado.");
     }
 
     await this.repository.deleteSource(
@@ -207,7 +208,7 @@ export class AtlasRagService {
 
     if (!workspaceFolder) {
       throw new Error(
-        "Abra uma pasta ou workspace antes de remover documentos externos do RAG.",
+        "Abra uma pasta ou workspace antes de remover materiais complementares do RAG.",
       );
     }
 
@@ -216,14 +217,15 @@ export class AtlasRagService {
     const projectId = this.getProjectId(workspaceFolder.uri.fsPath);
     const deletedSources =
       this.repository.deleteExternalSourcesFromManifest(projectId);
-    const collectionNames = new Set<string>([
-      `atlas_${projectId}_external`,
-    ]);
+    const collectionNames = new Set<string>([`atlas_${projectId}_external`]);
 
     for (const source of deletedSources) {
       collectionNames.add(
         source.collectionName ??
-          this.getExternalCollectionName(source.projectId, source.embeddingModel),
+          this.getExternalCollectionName(
+            source.projectId,
+            source.embeddingModel,
+          ),
       );
     }
 
@@ -263,7 +265,9 @@ export class AtlasRagService {
     const workspaceFolder = this.resolveCurrentWorkspaceFolder();
 
     if (!workspaceFolder) {
-      throw new Error("Abra uma pasta ou workspace antes de indexar o projeto.");
+      throw new Error(
+        "Abra uma pasta ou workspace antes de indexar o projeto.",
+      );
     }
 
     return this.indexFolder(
@@ -418,11 +422,7 @@ export class AtlasRagService {
       for (let index = 0; index < files.length; index += 1) {
         this.throwIfAborted(signal);
         const file = files[index];
-        const prepared = await this.prepareSource(
-          folderUri,
-          projectId,
-          file,
-        );
+        const prepared = await this.prepareSource(folderUri, projectId, file);
 
         if (prepared) {
           sources.push(prepared.source);
@@ -458,8 +458,7 @@ export class AtlasRagService {
           signal,
         );
 
-        embeddingDimensions =
-          embeddingDimensions || embeddings[0]?.length || 0;
+        embeddingDimensions = embeddingDimensions || embeddings[0]?.length || 0;
 
         await this.repository.upsertChunks(
           stagingCollectionName,
@@ -698,7 +697,11 @@ export class AtlasRagService {
       const batchSize = 16;
       let embeddingDimensions = previous.embeddingDimensions;
 
-      for (let offset = 0; offset < chunksToUpsert.length; offset += batchSize) {
+      for (
+        let offset = 0;
+        offset < chunksToUpsert.length;
+        offset += batchSize
+      ) {
         this.throwIfAborted(signal);
         const batch = chunksToUpsert.slice(offset, offset + batchSize);
         const embeddings = await this.embeddingService.embedDocuments(
@@ -858,7 +861,9 @@ export class AtlasRagService {
 
   private normalizeHashList(values: string[]): string[] {
     return Array.from(
-      new Set(values.map((value) => value.trim().toLowerCase()).filter(Boolean)),
+      new Set(
+        values.map((value) => value.trim().toLowerCase()).filter(Boolean),
+      ),
     ).sort();
   }
 
@@ -867,7 +872,9 @@ export class AtlasRagService {
     nextSource: RagIndexedSource,
   ): string[] {
     const nextChunkIds = new Set(nextSource.chunkIds);
-    return previousSource.chunkIds.filter((chunkId) => !nextChunkIds.has(chunkId));
+    return previousSource.chunkIds.filter(
+      (chunkId) => !nextChunkIds.has(chunkId),
+    );
   }
 
   private calculateProjectSize(
@@ -1000,7 +1007,9 @@ export class AtlasRagService {
 
     const rootPath = workspaceFolder?.uri.fsPath;
     const projectId = rootPath ? this.getProjectId(rootPath) : undefined;
-    const project = projectId ? this.repository.getProject(projectId) : undefined;
+    const project = projectId
+      ? this.repository.getProject(projectId)
+      : undefined;
     const canSearchProject =
       project?.status === "ready" || project?.status === "outdated";
     const externalSources = settings.includeExternalDocuments
@@ -1080,7 +1089,7 @@ export class AtlasRagService {
               .search(collectionName, queryEmbedding, candidateCount)
               .catch((error) => {
                 console.warn(
-                  "[ATLAS RAG] Falha ao consultar documentos externos:",
+                  "[ATLAS RAG] Falha ao consultar materiais complementares:",
                   error,
                 );
                 return [];
@@ -1186,8 +1195,9 @@ export class AtlasRagService {
     const activeFile =
       workspaceFolder &&
       activeDocument &&
-      vscode.workspace.getWorkspaceFolder(activeDocument.uri)?.uri.toString() ===
-        workspaceFolder.uri.toString()
+      vscode.workspace
+        .getWorkspaceFolder(activeDocument.uri)
+        ?.uri.toString() === workspaceFolder.uri.toString()
         ? path
             .relative(workspaceFolder.uri.fsPath, activeDocument.uri.fsPath)
             .replace(/\\/g, "/")
@@ -1391,14 +1401,18 @@ export class AtlasRagService {
     }
 
     const settings = this.configManager.getConfig().rag;
-    const autoIndex = settings.enabled && settings.autoIndex;
+    const shouldScheduleIndex =
+      settings.enabled && (settings.autoIndex || settings.promptIndexOnChange);
+    const changedRelativePath = path
+      .relative(currentProject.rootPath, uri.fsPath)
+      .replace(/\\/g, "/");
 
     if (
       currentProject.status === "not-indexed" ||
       currentProject.status === "error"
     ) {
-      if (autoIndex) {
-        this.scheduleAutomaticIndex(currentProject);
+      if (shouldScheduleIndex) {
+        this.scheduleAutomaticIndex(currentProject, changedRelativePath);
       }
       return;
     }
@@ -1415,12 +1429,12 @@ export class AtlasRagService {
 
     console.log("[ATLAS RAG] Índice marcado como desatualizado:", {
       project: updated.name,
-      changedFile: path.relative(updated.rootPath, uri.fsPath),
+      changedFile: changedRelativePath,
     });
     this.emitProjectsChanged();
 
-    if (autoIndex) {
-      this.scheduleAutomaticIndex(updated);
+    if (shouldScheduleIndex) {
+      this.scheduleAutomaticIndex(updated, changedRelativePath);
     }
   }
 
@@ -1448,11 +1462,24 @@ export class AtlasRagService {
     return this.isIndexableFile(uri);
   }
 
-  private scheduleAutomaticIndex(project: RagProjectIndex): void {
+  private scheduleAutomaticIndex(
+    project: RagProjectIndex,
+    changedRelativePath?: string,
+  ): void {
     const settings = this.configManager.getConfig().rag;
 
-    if (!settings.enabled || !settings.autoIndex) {
+    if (
+      !settings.enabled ||
+      (!settings.autoIndex && !settings.promptIndexOnChange)
+    ) {
       return;
+    }
+
+    if (changedRelativePath) {
+      const changedFiles =
+        this.autoIndexChangedFiles.get(project.projectId) ?? new Set<string>();
+      changedFiles.add(changedRelativePath);
+      this.autoIndexChangedFiles.set(project.projectId, changedFiles);
     }
 
     const currentTimer = this.autoIndexTimers.get(project.projectId);
@@ -1463,31 +1490,96 @@ export class AtlasRagService {
 
     const timer = setTimeout(() => {
       this.autoIndexTimers.delete(project.projectId);
+      const changedFiles = Array.from(
+        this.autoIndexChangedFiles.get(project.projectId) ?? [],
+      );
+      this.autoIndexChangedFiles.delete(project.projectId);
       const currentSettings = this.configManager.getConfig().rag;
 
-      if (!currentSettings.enabled || !currentSettings.autoIndex) {
+      if (
+        !currentSettings.enabled ||
+        (!currentSettings.autoIndex && !currentSettings.promptIndexOnChange)
+      ) {
         return;
       }
 
-      void this.indexSelectedFolder(
-        vscode.Uri.file(project.rootPath),
-        undefined,
-        undefined,
-        { mode: this.resolveIndexingMode(currentSettings.indexingMode) },
-      ).catch((error) => {
-        console.error(
-          `[ATLAS RAG] Falha na reindexação automática de ${project.name}:`,
-          error,
-        );
-      });
+      const mode = this.resolveIndexingMode(currentSettings.indexingMode);
+      const filesLabel = this.formatChangedFilesLabel(changedFiles);
+
+      if (currentSettings.promptIndexOnChange) {
+        void vscode.window
+          .showInformationMessage(
+            `ATLAS: alterações detectadas: ${filesLabel}. Deseja reindexar?`,
+            "Reindexar",
+            "Ignorar",
+          )
+          .then((answer) => {
+            if (answer !== "Reindexar") {
+              return;
+            }
+
+            this.runAutomaticIndex(project, mode, filesLabel);
+          });
+        return;
+      }
+
+      this.runAutomaticIndex(project, mode, filesLabel);
     }, settings.autoIndexDebounceMs);
 
     this.autoIndexTimers.set(project.projectId, timer);
   }
 
+  private runAutomaticIndex(
+    project: RagProjectIndex,
+    mode: RagIndexingMode,
+    filesLabel: string,
+  ): void {
+    vscode.window.showInformationMessage(`ATLAS: reindexando ${filesLabel}.`);
+
+    void this.indexSelectedFolder(
+      vscode.Uri.file(project.rootPath),
+      undefined,
+      undefined,
+      { mode },
+    )
+      .then(() => {
+        vscode.window.showInformationMessage(
+          `ATLAS: reindexação concluída para ${filesLabel}.`,
+        );
+      })
+      .catch((error) => {
+        console.error(
+          `[ATLAS RAG] Falha na reindexação de ${project.name}:`,
+          error,
+        );
+        vscode.window.showWarningMessage(
+          `ATLAS: falha na reindexação de ${filesLabel}.`,
+        );
+      });
+  }
+
+  private formatChangedFilesLabel(changedFiles: string[]): string {
+    if (changedFiles.length === 0) {
+      return "arquivos alterados";
+    }
+
+    const visibleFiles = changedFiles.slice(0, 3);
+    const suffix =
+      changedFiles.length > visibleFiles.length
+        ? ` e mais ${changedFiles.length - visibleFiles.length}`
+        : "";
+
+    if (changedFiles.length === 1) {
+      return `o arquivo ${visibleFiles[0]}`;
+    }
+
+    return `${changedFiles.length} arquivos: ${visibleFiles.join(", ")}${suffix}`;
+  }
+
   private disposeProjectWatcher(projectId: string): void {
     this.watchers.get(projectId)?.dispose();
     this.watchers.delete(projectId);
+    this.autoIndexChangedFiles.delete(projectId);
 
     const timer = this.autoIndexTimers.get(projectId);
     if (timer) {
@@ -1579,9 +1671,7 @@ export class AtlasRagService {
     }
 
     if (this.isGlobPattern(normalized)) {
-      const rooted = normalized.includes("/")
-        ? normalized
-        : `**/${normalized}`;
+      const rooted = normalized.includes("/") ? normalized : `**/${normalized}`;
       return [rooted, `${rooted}/**`];
     }
 
@@ -1605,9 +1695,7 @@ export class AtlasRagService {
     return /[*?[\]{}()!+@]/.test(value);
   }
 
-  private async readGitIgnoreEntries(
-    folderUri: vscode.Uri,
-  ): Promise<string[]> {
+  private async readGitIgnoreEntries(folderUri: vscode.Uri): Promise<string[]> {
     const gitIgnoreUri = vscode.Uri.joinPath(folderUri, ".gitignore");
 
     try {
@@ -1618,9 +1706,7 @@ export class AtlasRagService {
         .map((line) => line.trim())
         .filter(
           (line) =>
-            Boolean(line) &&
-            !line.startsWith("#") &&
-            !line.startsWith("!"),
+            Boolean(line) && !line.startsWith("#") && !line.startsWith("!"),
         )
         .map((line) => line.replace(/\/+$/, ""));
     } catch {
@@ -1718,9 +1804,10 @@ export class AtlasRagService {
       const chunkHash = this.hashText(chunk.content);
 
       return {
-        chunkId: this.hashText(
-          `${sourceId}:${chunkIndex}:${chunkHash}`,
-        ).slice(0, 40),
+        chunkId: this.hashText(`${sourceId}:${chunkIndex}:${chunkHash}`).slice(
+          0,
+          40,
+        ),
         projectId,
         sourceId,
         content: [
@@ -1778,7 +1865,9 @@ export class AtlasRagService {
     }
 
     if (!this.externalDocumentParser.canParse(uri)) {
-      throw new Error("Tipo de arquivo nao suportado para documentos externos.");
+      throw new Error(
+        "Tipo de arquivo nao suportado para materiais complementares.",
+      );
     }
 
     const bytes = await vscode.workspace.fs.readFile(uri);
@@ -1794,7 +1883,7 @@ export class AtlasRagService {
       projectId,
       embeddingModel,
     );
-    const relativePath = `Documentos externos/${parsed.displayName}`;
+    const relativePath = `Materiais complementares/${parsed.displayName}`;
     const chunks = this.chunkContent(
       parsed.content,
       this.configManager.getConfig().rag.chunkSize,
@@ -1803,13 +1892,14 @@ export class AtlasRagService {
       const chunkHash = this.hashText(chunk.content);
 
       return {
-        chunkId: this.hashText(
-          `${sourceId}:${chunkIndex}:${chunkHash}`,
-        ).slice(0, 40),
+        chunkId: this.hashText(`${sourceId}:${chunkIndex}:${chunkHash}`).slice(
+          0,
+          40,
+        ),
         projectId,
         sourceId,
         content: [
-          `Documento externo: ${parsed.displayName}`,
+          `Material complementar: ${parsed.displayName}`,
           `Tipo: ${parsed.fileType}`,
           `Trecho: ${chunk.startLine}-${chunk.endLine}`,
           "",
