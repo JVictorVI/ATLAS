@@ -53,28 +53,11 @@
       </div>
     </div>
 
-    <div class="card">
+    <div class="card cloud-execution-card">
       <div class="section-title">Parâmetros de Execução em Nuvem</div>
       <div class="section-description">
         Ajuste os parâmetros de execução aplicados nas chamadas feitas para
         modelos executados por provedores externos
-      </div>
-
-      <div class="checkbox-group">
-        <label class="checkBoxSection">
-          <input type="checkbox" id="stream" checked />
-          Responder em tempo real (streaming)
-        </label>
-
-        <label class="checkBoxSection">
-          <input type="checkbox" id="limitPayload" checked />
-          Limitar tamanho máximo de payload (tokens)
-        </label>
-
-        <label class="checkBoxSection">
-          <input type="checkbox" id="dynamicMaxTokens" />
-          Ajustar máximo de tokens automaticamente
-        </label>
       </div>
 
       <div class="inline-fields">
@@ -113,6 +96,26 @@
             value="0.95"
           />
         </div>
+      </div>
+
+      <div class="checkbox-group cloud-toggle-list">
+        <label class="toggle-option">
+          <input type="checkbox" id="stream" checked />
+          <span class="checkbox" aria-hidden="true"></span>
+          <span>Responder em tempo real (streaming)</span>
+        </label>
+
+        <label class="toggle-option">
+          <input type="checkbox" id="limitPayload" checked />
+          <span class="checkbox" aria-hidden="true"></span>
+          <span>Limitar tamanho máximo de payload (tokens)</span>
+        </label>
+
+        <label class="toggle-option">
+          <input type="checkbox" id="dynamicMaxTokens" />
+          <span class="checkbox" aria-hidden="true"></span>
+          <span>Ajustar máximo de tokens automaticamente</span>
+        </label>
       </div>
 
       <div class="row-end">
