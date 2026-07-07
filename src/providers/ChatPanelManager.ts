@@ -274,17 +274,29 @@ export class ChatPanelManager {
     webviewPath: string,
     selectedView: string,
   ): string {
-    const scriptFiles =
-      selectedView === "library"
-        ? [
-            "scripts/state.js",
-            "scripts/dom-utils.js",
-            "scripts/gpu-slider.js",
-            "scripts/model-view.js",
-            "scripts/controls.js",
-            "scripts/script.js",
-          ]
-        : ["script.js"];
+    const scriptsByView: Record<string, string[]> = {
+      chat: [
+        "scripts/state.js",
+        "scripts/sidebar.js",
+        "scripts/navigation.js",
+        "scripts/model-popover.js",
+        "scripts/chat-events.js",
+        "scripts/local-views.js",
+        "scripts/navbar.js",
+        "scripts/search.js",
+        "scripts/message-bus.js",
+        "scripts/shortcuts.js",
+      ],
+      library: [
+        "scripts/state.js",
+        "scripts/dom-utils.js",
+        "scripts/gpu-slider.js",
+        "scripts/model-view.js",
+        "scripts/controls.js",
+        "scripts/script.js",
+      ],
+    };
+    const scriptFiles = scriptsByView[selectedView] ?? ["script.js"];
 
     return scriptFiles
       .map((scriptFile) => {
