@@ -237,6 +237,11 @@ export class ChatPanelManager {
     const scriptUri = webview.asWebviewUri(
       vscode.Uri.file(path.join(webviewPath, "script.js")),
     );
+    const scriptTags = this.buildScriptTags(
+      webview,
+      webviewPath,
+      normalizedView,
+    );
     const codiconsUri = webview.asWebviewUri(
       vscode.Uri.file(
         path.join(
@@ -257,10 +262,39 @@ export class ChatPanelManager {
       .replace(/{{cspSource}}/g, webview.cspSource)
       .replace(/{{styleUri}}/g, styleUri.toString())
       .replace(/{{scriptUri}}/g, scriptUri.toString())
+      .replace(/{{scriptTags}}/g, scriptTags)
       .replace(/{{codiconsUri}}/g, codiconsUri.toString())
       .replace(/{{markedUri}}/g, markedUri);
 
     return html;
+  }
+
+  private buildScriptTags(
+    webview: vscode.Webview,
+    webviewPath: string,
+    selectedView: string,
+  ): string {
+    const scriptFiles =
+      selectedView === "library"
+        ? [
+            "scripts/state.js",
+            "scripts/dom-utils.js",
+            "scripts/gpu-slider.js",
+            "scripts/model-view.js",
+            "scripts/controls.js",
+            "scripts/script.js",
+          ]
+        : ["script.js"];
+
+    return scriptFiles
+      .map((scriptFile) => {
+        const uri = webview.asWebviewUri(
+          vscode.Uri.file(path.join(webviewPath, scriptFile)),
+        );
+
+        return `<script src="${uri.toString()}"></script>`;
+      })
+      .join("\n    ");
   }
 
   private resolveHtmlPath(webviewPath: string, selectedView: string): string {
