@@ -303,6 +303,19 @@ export class ChatPanelManager {
         "scripts/controls.js",
         "scripts/script.js",
       ],
+      rag: [
+        "scripts/state.js",
+        "scripts/parsers.js",
+        "scripts/settings.js",
+        "scripts/loading.js",
+        "scripts/embedding-models.js",
+        "scripts/indexing-progress.js",
+        "scripts/external-documents.js",
+        "scripts/projects.js",
+        "scripts/events.js",
+        "scripts/message-bus.js",
+        "scripts/script.js",
+      ],
     };
     const scriptFiles = scriptsByView[selectedView] ?? ["script.js"];
 

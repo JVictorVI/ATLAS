@@ -7,6 +7,7 @@ scripts/**
 !src/webview/chat/scripts/**
 !src/webview/api-keys/scripts/**
 !src/webview/library/scripts/**
+!src/webview/rag/scripts/**
 engine/**
 docs/**
 models/**
