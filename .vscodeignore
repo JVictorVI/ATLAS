@@ -5,6 +5,7 @@ node_modules/**
 resources/embedding-runtime/package-lock.json
 scripts/**
 !src/webview/chat/scripts/**
+!src/webview/api-keys/scripts/**
 !src/webview/library/scripts/**
 engine/**
 docs/**

@@ -287,6 +287,14 @@ export class ChatPanelManager {
         "scripts/message-bus.js",
         "scripts/shortcuts.js",
       ],
+      "api-keys": [
+        "scripts/state.js",
+        "scripts/dom-utils.js",
+        "scripts/credentials.js",
+        "scripts/cloud-config.js",
+        "scripts/behavior.js",
+        "scripts/script.js",
+      ],
       library: [
         "scripts/state.js",
         "scripts/dom-utils.js",
