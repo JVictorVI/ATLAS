@@ -1,6 +1,28 @@
 // Responsabilidade: carrega, salva e habilita os parametros de execucao em nuvem.
+let cloudConfigSaveTimeout = null;
+let isApplyingCloudConfig = false;
+
 function setupCloudConfigEvents() {
-  apiKeyElements.saveSecurityBtn?.addEventListener("click", saveCloudConfigs);
+  const numericInputs = [
+    apiKeyElements.maxTokens,
+    apiKeyElements.timeout,
+    apiKeyElements.temperature,
+    apiKeyElements.topP,
+  ];
+  const toggleInputs = [
+    apiKeyElements.limitPayload,
+    apiKeyElements.dynamicMaxTokens,
+    apiKeyElements.stream,
+  ];
+
+  numericInputs.forEach((input) => {
+    input?.addEventListener("input", () => scheduleCloudConfigAutosave());
+  });
+
+  toggleInputs.forEach((input) => {
+    input?.addEventListener("change", handleCloudConfigToggleChange);
+  });
+
   apiKeyElements.limitPayload?.addEventListener("change", deactivateInputs);
   apiKeyElements.dynamicMaxTokens?.addEventListener(
     "change",
@@ -13,6 +35,7 @@ function fillCloudConfigs(settings) {
     return;
   }
 
+  isApplyingCloudConfig = true;
   setChecked(apiKeyElements.limitPayload, settings.limitPayload);
   setChecked(apiKeyElements.dynamicMaxTokens, settings.dynamicMaxTokens === true);
   setChecked(apiKeyElements.stream, settings.stream);
@@ -20,6 +43,7 @@ function fillCloudConfigs(settings) {
   setInputValue(apiKeyElements.timeout, settings.timeout);
   setInputValue(apiKeyElements.temperature, settings.temperature);
   setInputValue(apiKeyElements.topP, settings.topP);
+  isApplyingCloudConfig = false;
 }
 
 function saveCloudConfigs() {
@@ -45,6 +69,26 @@ function saveCloudConfigs() {
       stream: stream ? Boolean(stream.checked) : undefined,
     },
   });
+}
+
+function handleCloudConfigToggleChange() {
+  deactivateInputs();
+  scheduleCloudConfigAutosave(0);
+}
+
+function scheduleCloudConfigAutosave(delay = 500) {
+  if (isApplyingCloudConfig) {
+    return;
+  }
+
+  if (cloudConfigSaveTimeout) {
+    clearTimeout(cloudConfigSaveTimeout);
+  }
+
+  cloudConfigSaveTimeout = setTimeout(() => {
+    cloudConfigSaveTimeout = null;
+    saveCloudConfigs();
+  }, delay);
 }
 
 function deactivateInputs() {

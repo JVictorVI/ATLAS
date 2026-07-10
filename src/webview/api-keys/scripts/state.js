@@ -10,7 +10,6 @@ const apiKeyElements = {
   providersTable: document.getElementById("providers-table"),
   providersTbody: document.getElementById("providers-tbody"),
   savePromptBtn: document.getElementById("save-prompt-btn"),
-  saveSecurityBtn: document.getElementById("save-security-btn"),
   stream: document.getElementById("stream"),
   systemPrompt: document.getElementById("system-prompt"),
   temperature: document.getElementById("temperature"),

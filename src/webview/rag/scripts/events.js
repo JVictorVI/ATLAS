@@ -1,4 +1,55 @@
 // Responsabilidade: conecta controles da tela a comandos enviados para a extensao.
+let ragSettingsSaveTimeout = null;
+
+function scheduleRagSettingsSave(delay = 600) {
+  if (ragSettingsSaveTimeout) {
+    clearTimeout(ragSettingsSaveTimeout);
+  }
+
+  ragSettingsSaveTimeout = setTimeout(() => {
+    ragSettingsSaveTimeout = null;
+    saveRagSettings();
+  }, delay);
+}
+
+function registerRagSettingsAutosave() {
+  const debouncedInputs = [
+    chunkSizeInput,
+    chunkOverlapInput,
+    maxFileSizeInput,
+    debounceInput,
+    allowedExtensionsInput,
+    relevanceThresholdInput,
+    maxChunksPerFileInput,
+    languageFiltersInput,
+    directoryFiltersInput,
+    topKInput,
+    contextLimitInput,
+    ignoredPathsInput,
+  ];
+  const instantInputs = [
+    indexingModeInput,
+    respectGitIgnoreInput,
+    markdownFilesInput,
+    configFilesInput,
+    relevanceModeInput,
+    sourcePriorityInput,
+    diversifyFilesInput,
+    excludeActiveFileInput,
+    showSourcesInput,
+  ];
+
+  debouncedInputs.forEach((input) => {
+    input?.addEventListener("input", () => scheduleRagSettingsSave());
+  });
+
+  instantInputs.forEach((input) => {
+    input?.addEventListener("change", saveRagSettings);
+  });
+}
+
+registerRagSettingsAutosave();
+
 ragEnabledInput?.addEventListener("change", () => {
   updateRagDestinationAvailability();
   saveRagSettings();
@@ -44,18 +95,6 @@ externalDocumentsInput?.addEventListener("change", () => {
 externalMaxFileSizeInput?.addEventListener("change", () => {
   saveRagSettings();
 });
-
-document
-  .getElementById("save-rag-settings")
-  ?.addEventListener("click", saveRagSettings);
-
-document
-  .getElementById("save-indexing-settings")
-  ?.addEventListener("click", saveRagSettings);
-
-document
-  .getElementById("save-retrieval-settings")
-  ?.addEventListener("click", saveRagSettings);
 
 document.getElementById("add-project")?.addEventListener("click", () => {
   setIndexingState(true);

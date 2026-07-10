@@ -26,7 +26,6 @@ function handleApiKeysMessage(event) {
     case "configuracoesCloudSalvas":
       fillCloudConfigs(message.value);
       deactivateInputs();
-      showButtonFeedback(apiKeyElements.saveSecurityBtn, "Salvo!");
       break;
 
     case "comportamentoModeloCarregado":
