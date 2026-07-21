@@ -1470,18 +1470,19 @@ textarea {
 }
 
 .search-input-wrapper {
-  position: relative;
   padding: 10px 14px;
   display: flex;
   align-items: center;
+  gap: 6px;
 }
 
 #model-search {
+  min-width: 0;
   width: 100%;
   background: var(--vscode-input-background);
   color: var(--vscode-input-foreground);
   border: 1px solid var(--vscode-input-border, transparent);
-  padding: 6px 28px 6px 8px;
+  padding: 6px 8px;
   border-radius: 4px;
   outline: none;
   font-family: inherit;
@@ -1491,12 +1492,23 @@ textarea {
   border-color: var(--vscode-focusBorder);
 }
 
-.search-icon {
-  position: absolute;
-  right: 22px;
-  color: var(--vscode-input-foreground);
-  opacity: 0.6;
-  pointer-events: none;
+.search-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 32px;
+  flex-shrink: 0;
+  border: 1px solid var(--atlas-border);
+  border-radius: 4px;
+  color: var(--vscode-foreground);
+  background: var(--atlas-surface-bg);
+  cursor: pointer;
+  font: inherit;
+}
+
+.search-submit:hover {
+  background: var(--atlas-surface-hover-bg);
 }
 
 .search-results-info {
@@ -1524,11 +1536,17 @@ textarea {
   display: flex;
   align-items: flex-start;
   gap: 10px;
+  width: 100%;
   min-height: 104px;
   box-sizing: border-box;
   padding: 14px 12px;
+  border: 0;
   border-bottom: 1px solid var(--atlas-border);
+  color: var(--vscode-foreground);
+  background: transparent;
   cursor: pointer;
+  font: inherit;
+  text-align: left;
   transition:
     background-color 0.12s ease,
     color 0.12s ease;
@@ -1585,18 +1603,37 @@ textarea {
 .model-card-author {
   display: inline-flex;
   align-items: center;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   gap: 4px;
   font-size: 10px;
   color: var(--vscode-descriptionForeground);
   border: 1px solid var(--atlas-border);
   padding: 2px 6px;
   border-radius: 4px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   width: fit-content;
 }
 
+.model-card-author i {
+  flex-shrink: 0;
+}
+
 /* Transições suaves nas cores quando o item está selecionado */
+.model-card-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 6px;
+  min-width: 0;
+}
+
 .model-card.active .model-card-author,
-.model-card.active .model-card-footer span {
+.model-card.active .model-card-footer span,
+.model-card.active .model-card-variant {
   color: var(--vscode-list-activeSelectionForeground, var(--vscode-foreground));
   border-color: currentColor;
 }
@@ -1625,10 +1662,106 @@ textarea {
   font-size: 12px;
 }
 
+.model-card-variant {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  min-width: 0;
+  width: fit-content;
+  max-width: 58%;
+  box-sizing: border-box;
+  overflow: hidden;
+  gap: 4px;
+  border: 1px solid var(--atlas-border);
+  border-radius: 4px;
+  padding: 3px 7px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 9px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .model-list-empty {
   padding: 18px 14px;
   color: var(--vscode-descriptionForeground);
   font-size: 12px;
+}
+
+.search-error-state {
+  display: flex;
+  flex: 1;
+  min-height: 220px;
+  box-sizing: border-box;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px;
+  color: var(--vscode-descriptionForeground);
+  text-align: center;
+}
+
+.search-error-state i {
+  color: var(--vscode-errorForeground, var(--vscode-inputValidation-warningBorder));
+  font-size: 24px;
+}
+
+.search-error-state span {
+  max-width: 360px;
+  line-height: 1.4;
+}
+
+.retry-search-button {
+  height: 30px;
+  border: 1px solid var(--atlas-border);
+  border-radius: 4px;
+  padding: 0 12px;
+  color: var(--vscode-foreground);
+  background: var(--atlas-surface-bg);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
+
+.retry-search-button:hover {
+  background: var(--atlas-surface-hover-bg);
+}
+
+.model-list-loading {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  color: var(--vscode-descriptionForeground);
+}
+
+.search-loading-card {
+  display: flex;
+  width: 72px;
+  height: 72px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--atlas-border);
+  border-radius: 14px;
+  padding: 18px;
+  background: var(--atlas-panel-bg);
+}
+
+.search-loading-spinner {
+  width: 34px;
+  height: 34px;
+  border: 3px solid var(--vscode-progressBar-background, var(--atlas-border));
+  border-top-color: var(--vscode-button-background);
+  border-radius: 50%;
+  animation: search-loading-spin 850ms linear infinite;
+}
+
+@keyframes search-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .streaming-message {

@@ -194,6 +194,18 @@ export class ChatMessageRouter {
       case "openLocalModelsFolder":
         await this.handleOpenLocalModelsFolder();
         return;
+      case "buscarModelosHuggingFace":
+        await this.handleSearchHuggingFaceModels(data, webview);
+        return;
+      case "detalharModeloHuggingFace":
+        await this.handleGetHuggingFaceModelDetails(data, webview);
+        return;
+      case "baixarModeloHuggingFace":
+        await this.handleDownloadHuggingFaceModel(data, webview);
+        return;
+      case "abrirArquivoHuggingFace":
+        await this.handleOpenHuggingFaceFile(data);
+        return;
       case "startLocalEngineRequest":
         await this.handleStartLocalEngineRequest(webview);
         return;
@@ -314,12 +326,7 @@ export class ChatMessageRouter {
     try {
       const payload = data.payload ?? {};
       const current = this.deps.configManager.getSection("rag");
-      const topK = this.normalizeInteger(
-        payload.topK,
-        1,
-        30,
-        current.topK,
-      );
+      const topK = this.normalizeInteger(payload.topK, 1, 30, current.topK);
       const maxContextCharacters = this.normalizeInteger(
         payload.maxContextCharacters,
         1000,
@@ -361,9 +368,7 @@ export class ChatMessageRouter {
       const respectGitIgnore = payload.respectGitIgnore !== false;
       const includeMarkdownFiles = payload.includeMarkdownFiles !== false;
       const includeConfigFiles = payload.includeConfigFiles !== false;
-      const indexingMode = this.normalizeRagIndexingMode(
-        payload.indexingMode,
-      );
+      const indexingMode = this.normalizeRagIndexingMode(payload.indexingMode);
       const promptIndexOnChange = payload.promptIndexOnChange === true;
       const autoIndex = payload.autoIndex === true && !promptIndexOnChange;
       const autoIndexDebounceMs = this.normalizeInteger(
@@ -703,8 +708,7 @@ export class ChatMessageRouter {
   }
 
   private handleRagNotification(data: any): void {
-    const message =
-      typeof data.message === "string" ? data.message.trim() : "";
+    const message = typeof data.message === "string" ? data.message.trim() : "";
 
     if (!message) {
       return;
@@ -726,8 +730,7 @@ export class ChatMessageRouter {
   private getRagStatePayload(
     runtime: RagRuntimeStatus,
     settings: AtlasRagSettings = this.deps.configManager.getSection("rag"),
-    embeddingModels: RagEmbeddingModelInfo[] =
-      this.deps.refreshRagEmbeddingModels(),
+    embeddingModels: RagEmbeddingModelInfo[] = this.deps.refreshRagEmbeddingModels(),
   ) {
     return {
       settings,
@@ -787,10 +790,7 @@ export class ChatMessageRouter {
       : "incremental";
   }
 
-  private normalizeIgnoredPaths(
-    value: unknown,
-    fallback: string[],
-  ): string[] {
+  private normalizeIgnoredPaths(value: unknown, fallback: string[]): string[] {
     if (!Array.isArray(value)) {
       return fallback;
     }
@@ -811,10 +811,7 @@ export class ChatMessageRouter {
     ).slice(0, 100);
   }
 
-  private normalizeExtensions(
-    value: unknown,
-    fallback: string[],
-  ): string[] {
+  private normalizeExtensions(value: unknown, fallback: string[]): string[] {
     if (!Array.isArray(value)) {
       return fallback;
     }
@@ -833,10 +830,7 @@ export class ChatMessageRouter {
     return extensions.length ? extensions : fallback;
   }
 
-  private normalizeSimpleList(
-    value: unknown,
-    fallback: string[],
-  ): string[] {
+  private normalizeSimpleList(value: unknown, fallback: string[]): string[] {
     if (!Array.isArray(value)) {
       return fallback;
     }
@@ -851,10 +845,7 @@ export class ChatMessageRouter {
     ).slice(0, 100);
   }
 
-  private normalizeEmbeddingModelId(
-    value: unknown,
-    fallback: string,
-  ): string {
+  private normalizeEmbeddingModelId(value: unknown, fallback: string): string {
     const modelId = typeof value === "string" ? value.trim() : "";
 
     if (
@@ -1095,7 +1086,6 @@ export class ChatMessageRouter {
           });
           return;
         }
-
       }
 
       if (source === "project" && !projectId) {
@@ -1159,7 +1149,9 @@ export class ChatMessageRouter {
     }
   }
 
-  private async handleCancelRagIndexing(webview: vscode.Webview): Promise<void> {
+  private async handleCancelRagIndexing(
+    webview: vscode.Webview,
+  ): Promise<void> {
     const controller = this.ragIndexController;
 
     if (!controller || controller.signal.aborted) {
@@ -1310,12 +1302,9 @@ export class ChatMessageRouter {
     }
   }
 
-  private async handleLoadCloudConfigs(
-    webview: vscode.Webview,
-  ): Promise<void> {
+  private async handleLoadCloudConfigs(webview: vscode.Webview): Promise<void> {
     try {
-      const cloudConfigs =
-        this.deps.configManager.getSection("cloudConfigs");
+      const cloudConfigs = this.deps.configManager.getSection("cloudConfigs");
 
       await webview.postMessage({
         type: "configuracoesCloudCarregadas",
@@ -1433,8 +1422,9 @@ export class ChatMessageRouter {
       );
       const currentCustom = this.deps.configManager.getConfig().custom ?? {};
       const contextProfile = this.normalizeContextProfilePayload(payload);
-      const presetEffects =
-        AtlasContextProfileService.getPresetEffects(contextProfile.mode);
+      const presetEffects = AtlasContextProfileService.getPresetEffects(
+        contextProfile.mode,
+      );
       const currentLocalEngine =
         typeof currentCustom.localEngine === "object" &&
         currentCustom.localEngine !== null
@@ -1446,7 +1436,7 @@ export class ChatMessageRouter {
         payload.saveInterruptedResponses !== false;
       const dynamicContextWindow =
         presetEffects?.localEngine.dynamicContextWindow ??
-        (payload.dynamicContextWindow !== false);
+        payload.dynamicContextWindow !== false;
       const localModels =
         typeof currentCustom.localModels === "object" &&
         currentCustom.localModels !== null
@@ -1455,14 +1445,12 @@ export class ChatMessageRouter {
       const modelsDir = this.normalizeFolderPath(payload.modelsDir);
       const enginesDir = this.normalizeFolderPath(payload.enginesDir);
       const staticAnalysisEnabled = payload.staticAnalysisEnabled === true;
-      const staticAnalysisQuick =
-        payload.staticAnalysisQuick === true;
+      const staticAnalysisQuick = payload.staticAnalysisQuick === true;
       const staticAnalysisArchitectural =
         payload.staticAnalysisArchitectural === true;
       const staticAnalysisDiagnostics =
         payload.staticAnalysisDiagnostics === true;
-      const staticAnalysisRelations =
-        payload.staticAnalysisRelations === true;
+      const staticAnalysisRelations = payload.staticAnalysisRelations === true;
       const staticAnalysis = presetEffects?.staticAnalysis ?? {
         enabled: staticAnalysisEnabled,
         useInQuickAnalysis: staticAnalysisQuick,
@@ -1708,6 +1696,116 @@ export class ChatMessageRouter {
     );
   }
 
+  private async handleSearchHuggingFaceModels(
+    data: any,
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      const query = typeof data.query === "string" ? data.query : "";
+      const models = await this.deps.searchHuggingFaceModels(query);
+
+      await webview.postMessage({
+        type: "modelosHuggingFaceEncontrados",
+        value: { query, models },
+      });
+    } catch (error) {
+      await webview.postMessage({
+        type: "erro",
+        value: this.getErrorMessage(
+          error,
+          "Erro ao buscar modelos no Hugging Face.",
+        ),
+      });
+    }
+  }
+
+  private async handleGetHuggingFaceModelDetails(
+    data: any,
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      const modelId = typeof data.modelId === "string" ? data.modelId : "";
+
+      if (!modelId) {
+        throw new Error("Modelo Hugging Face inválido.");
+      }
+
+      const model = await this.deps.getHuggingFaceModelDetails(modelId);
+
+      await webview.postMessage({
+        type: "modeloHuggingFaceDetalhado",
+        value: { model },
+      });
+    } catch (error) {
+      await webview.postMessage({
+        type: "erro",
+        value: this.getErrorMessage(
+          error,
+          "Erro ao carregar detalhes do modelo GGUF.",
+        ),
+      });
+    }
+  }
+
+  private async handleDownloadHuggingFaceModel(
+    data: any,
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      const modelId = typeof data.modelId === "string" ? data.modelId : "";
+      const fileName = typeof data.fileName === "string" ? data.fileName : "";
+
+      if (!modelId || !fileName) {
+        throw new Error("Modelo ou arquivo GGUF inválido.");
+      }
+
+      const targetPath = await this.deps.downloadHuggingFaceModel(
+        modelId,
+        fileName,
+        webview,
+      );
+
+      await webview.postMessage({
+        type: "downloadModeloHuggingFaceConcluido",
+        value: { modelId, fileName, targetPath },
+      });
+
+      this.deps.sendModelsToWebview(webview);
+      vscode.window.showInformationMessage(
+        `Modelo GGUF baixado para ${path.basename(targetPath)}.`,
+      );
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.toLowerCase().includes("download cancelado")
+      ) {
+        await webview.postMessage({
+          type: "downloadModeloHuggingFaceConcluido",
+          value: { canceled: true },
+        });
+
+        vscode.window.showInformationMessage("Download do modelo cancelado.");
+        return;
+      }
+
+      await this.postError(
+        webview,
+        error,
+        "Erro ao baixar modelo GGUF do Hugging Face.",
+      );
+    }
+  }
+
+  private async handleOpenHuggingFaceFile(data: any): Promise<void> {
+    const url = typeof data.url === "string" ? data.url : "";
+
+    if (!url.startsWith("https://huggingface.co/")) {
+      throw new Error("URL do Hugging Face inválida.");
+    }
+
+    await vscode.env.openExternal(vscode.Uri.parse(url));
+  }
+
   private async handleOpenLocalEnginesFolder(): Promise<void> {
     const enginesDir = this.deps.getLocalEnginesDir();
     await vscode.commands.executeCommand(
@@ -1748,7 +1846,11 @@ export class ChatMessageRouter {
         "Pasta de modelos locais atualizada.",
       );
     } catch (error) {
-      await this.postError(webview, error, "Erro ao selecionar pasta de modelos.");
+      await this.postError(
+        webview,
+        error,
+        "Erro ao selecionar pasta de modelos.",
+      );
     }
   }
 
@@ -1783,7 +1885,11 @@ export class ChatMessageRouter {
         "Pasta de engines locais atualizada.",
       );
     } catch (error) {
-      await this.postError(webview, error, "Erro ao selecionar pasta de engines.");
+      await this.postError(
+        webview,
+        error,
+        "Erro ao selecionar pasta de engines.",
+      );
     }
   }
 
@@ -1793,7 +1899,11 @@ export class ChatMessageRouter {
     try {
       await webview.postMessage({
         type: "engineControlStatus",
-        value: { loading: true, running: false, message: "Iniciando engine..." },
+        value: {
+          loading: true,
+          running: false,
+          message: "Iniciando engine...",
+        },
       });
 
       await this.deps.startLocalEngine();
@@ -2007,8 +2117,7 @@ export class ChatMessageRouter {
       typeof localEngine === "object" && localEngine !== null
         ? (localEngine as Record<string, unknown>)
         : {};
-    const staticAnalysis =
-      this.deps.configManager.getStaticAnalysisConfig();
+    const staticAnalysis = this.deps.configManager.getStaticAnalysisConfig();
     const contextProfile = this.deps.configManager.getContextProfile();
 
     return {

@@ -253,10 +253,30 @@ export class AtlasConfigDefaults {
             false,
         },
       },
-      providers: partial.providers ?? defaults.providers,
+      providers: this.mergeProviders(defaults.providers ?? [], partial.providers),
       updatedAt: partial.updatedAt ?? defaults.updatedAt,
       version: partial.version ?? defaults.version,
     };
+  }
+
+  private mergeProviders(
+    defaults: ProviderConfig[],
+    configured?: ProviderConfig[],
+  ): ProviderConfig[] {
+    const providersById = new Map<string, ProviderConfig>();
+
+    for (const provider of defaults) {
+      providersById.set(provider.id, provider);
+    }
+
+    for (const provider of configured ?? []) {
+      providersById.set(provider.id, {
+        ...providersById.get(provider.id),
+        ...provider,
+      });
+    }
+
+    return Array.from(providersById.values());
   }
 
   private pickDefinedCloudRequestDefaults(
@@ -326,6 +346,12 @@ export class AtlasConfigDefaults {
         baseUrl: "https://api.x.ai/v1",
         apiKeyPlaceholder: "xai-...",
         kind: "openai-compatible",
+      },
+      {
+        id: "HuggingFace",
+        label: "Hugging Face",
+        baseUrl: "https://huggingface.co",
+        apiKeyPlaceholder: "hf_...",
       },
     ];
   }

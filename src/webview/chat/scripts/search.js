@@ -1,88 +1,235 @@
-// Responsabilidade: renderiza e filtra o catalogo de modelos pesquisaveis.
-const searchableModelCatalog = [
-  ["qwen3-coder-30b", "30B", "Qwen", "23/01/2025", "23.245"],
-  ["phi-4-gguf", "15B", "Microsoft", "18/06/2024", "710.171"],
-  ["gemma-3-27b-it", "27B", "Google", "28/11/2024", "140.294"],
-  ["gpt-oss-20b", "20B", "OpenAI", "28/11/2025", "1.147.142"],
-  ["ministral-3-14b-reasoning", "14B", "Mistral", "31/05/2025", "694.240"],
-  ["deepseek-r1-0528-qwen3-8b", "8B", "DeepSeek", "19/10/2023", "5.583.787"],
-  ["gemma-3-4b-it", "4B", "Google", "25/12/2024", "4.390.982"],
-  ["granite-4-h-tiny", "7B", "IBM", "05/07/2025", "15.662"],
-].map(([id, badge, author, updatedAt, downloads]) => ({
-  id,
-  name: id,
-  badge,
-  author,
-  updatedAt,
-  downloads,
-}));
+// Responsabilidade: renderiza a busca funcional de modelos GGUF no Hugging Face.
+const searchModelState = {
+  query: "",
+  models: [],
+  selectedModelId: "",
+  loading: false,
+  error: "",
+};
+
+let searchDebounceTimer = undefined;
+
+function formatSearchNumber(value) {
+  return new Intl.NumberFormat("pt-BR").format(Number(value) || 0);
+}
+
+function formatSearchDate(value) {
+  if (!value) {
+    return "Não informado";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Não informado";
+  }
+
+  return new Intl.DateTimeFormat("pt-BR").format(date);
+}
+
+function getSearchModelBadge(model) {
+  const fromName = `${model.name} ${model.id}`.match(
+    /(?:^|[-_\s])(\d+(?:\.\d+)?b)(?:[-_\s]|$)/i,
+  );
+
+  return fromName?.[1]?.toUpperCase() || "GGUF";
+}
+
+function getPrimarySearchFile(model) {
+  return model.ggufFiles?.[0] || null;
+}
+
+function getSearchFileSizeLabel(file) {
+  const size = file?.size || "";
+
+  return size && !/tamanho n[aã]o informado/i.test(size) ? size : "";
+}
+
+function getSearchVariantLabel(model, file) {
+  const count = model.ggufFiles?.length || 0;
+  const size = getSearchFileSizeLabel(file);
+
+  return `${count} variante(s) ${size ? ` · ${size}` : ""}`;
+}
+
+function getSearchResultsLabel() {
+  if (searchModelState.loading) {
+    return "PESQUISANDO...";
+  }
+
+  if (searchModelState.error) {
+    return "ERRO AO PESQUISAR";
+  }
+
+  return `${searchModelState.models.length} RESULTADOS ENCONTRADOS`;
+}
+
+function requestSearchModels(query = searchModelState.query) {
+  searchModelState.query = query.trim();
+  searchModelState.loading = true;
+  searchModelState.error = "";
+  renderSearchModelCards();
+  updateSearchResultsCount();
+
+  vscode.postMessage({
+    type: "buscarModelosHuggingFace",
+    query: searchModelState.query || "gguf",
+  });
+}
+
+function scheduleSearchModels(query) {
+  window.clearTimeout(searchDebounceTimer);
+
+  searchDebounceTimer = window.setTimeout(() => {
+    requestSearchModels(query);
+  }, 350);
+}
 
 function bindSearchModelEvents() {
-  renderModelCards(searchableModelCatalog);
-
   const modelSearch = document.getElementById("model-search");
-  modelSearch?.addEventListener("input", () => {
-    const query = modelSearch.value.trim().toLowerCase();
-    const filteredModels = searchableModelCatalog.filter((model) =>
-      `${model.name} ${model.author} ${model.badge}`
-        .toLowerCase()
-        .includes(query),
-    );
-    const activeModelId =
-      document.querySelector(".model-card.active")?.getAttribute("data-id") ||
-      "qwen3-coder-30b";
-    const countLabel = document.getElementById("search-results-count");
 
-    if (countLabel) {
-      countLabel.textContent = query
-        ? `${filteredModels.length} RESULTADOS ENCONTRADOS`
-        : "628 RESULTADOS ENCONTRADOS";
-    }
+  if (modelSearch) {
+    modelSearch.value = searchModelState.query;
+    modelSearch.addEventListener("input", () => {
+      searchModelState.query = modelSearch.value;
+      scheduleSearchModels(modelSearch.value);
+    });
+  }
 
-    renderModelCards(filteredModels, activeModelId);
-  });
+  document
+    .getElementById("model-search-form")
+    ?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      requestSearchModels(modelSearch?.value || "");
+    });
+
+  bindModelCardEvents();
 }
 
 function bindModelCardEvents() {
   document.querySelectorAll(".model-card").forEach((card) => {
     card.addEventListener("click", () => {
-      document
-        .querySelectorAll(".model-card")
-        .forEach((item) => item.classList.remove("active"));
-      card.classList.add("active");
+      const modelId = card.getAttribute("data-id") || "";
+
+      if (!modelId) {
+        return;
+      }
+
+      searchModelState.selectedModelId = modelId;
+      renderSearchModelCards();
+
       vscode.postMessage({
         type: "abrirDetalhesModelo",
-        modelId: card.getAttribute("data-id"),
+        modelId,
       });
     });
   });
 }
 
-function renderModelCards(models, activeModelId = "qwen3-coder-30b") {
+function renderModelCards(
+  models,
+  activeModelId = searchModelState.selectedModelId,
+) {
   const modelList = document.getElementById("model-list");
-  if (!modelList) {return;}
+
+  if (!modelList) {
+    return;
+  }
+
+  if (searchModelState.loading) {
+    modelList.innerHTML =
+      '<div class="model-list-loading"><div class="search-loading-card"><span class="search-loading-spinner" aria-hidden="true"></span></div></div>';
+    return;
+  }
+
+  if (searchModelState.error) {
+    modelList.innerHTML = `
+      <div class="search-error-state">
+        <i class="codicon codicon-warning" aria-hidden="true"></i>
+        <span>${escapeHtml(searchModelState.error)}</span>
+        <button class="retry-search-button" id="retry-model-search" type="button">Tentar novamente</button>
+      </div>
+    `;
+
+    document
+      .getElementById("retry-model-search")
+      ?.addEventListener("click", () => {
+        requestSearchModels(searchModelState.query);
+      });
+    return;
+  }
 
   modelList.innerHTML =
     models
-      .map(
-        (model) => `
-          <div class="model-card ${model.id === activeModelId ? "active" : ""}" data-id="${model.id}">
-            <div class="model-badge">${model.badge}</div>
-            <div class="model-card-info">
-              <span class="model-card-name" title="${escapeHtml(model.name)}">${escapeHtml(model.name)}</span>
-              <span class="model-card-author"><i class="codicon codicon-code"></i> ${escapeHtml(model.author)}</span>
-              <div class="model-card-footer">
-                <span>Atualizado em ${model.updatedAt}</span>
-                <span><i class="codicon codicon-cloud-download"></i> ${model.downloads}</span>
-              </div>
-            </div>
-          </div>
-        `,
-      )
+      .map((model) => {
+        const primaryFile = getPrimarySearchFile(model);
+        const active = model.id === activeModelId ? "active" : "";
+
+        return `
+          <button class="model-card ${active}" type="button" data-id="${escapeHtml(model.id)}">
+            <span class="model-badge">${escapeHtml(getSearchModelBadge(model))}</span>
+              <span class="model-card-info">
+                <span class="model-card-name" title="${escapeHtml(model.id)}">${escapeHtml(model.name)}</span>
+              <span class="model-card-meta">
+                <span class="model-card-author"><i class="codicon codicon-code"></i> ${escapeHtml(model.author)}</span>
+                <span class="model-card-variant">${escapeHtml(getSearchVariantLabel(model, primaryFile))}</span>
+              </span>
+              <span class="model-card-footer">
+                <span>Atualizado em ${escapeHtml(formatSearchDate(model.updatedAt))}</span>
+                <span><i class="codicon codicon-cloud-download"></i> ${escapeHtml(formatSearchNumber(model.downloads))}</span>
+              </span>
+            </span>
+          </button>
+        `;
+      })
       .join("") ||
-    `<div class="model-list-empty">Nenhum modelo encontrado</div>`;
+    '<div class="model-list-empty">Nenhum resultado foi encontrado</div>';
 
   bindModelCardEvents();
+}
+
+function renderSearchModelCards() {
+  renderModelCards(searchModelState.models);
+}
+
+function updateSearchResultsCount() {
+  const countLabel = document.getElementById("search-results-count");
+
+  if (countLabel) {
+    countLabel.textContent = getSearchResultsLabel();
+  }
+}
+
+function handleSearchModelsLoaded(payload) {
+  if (currentView !== "search") {
+    return;
+  }
+
+  searchModelState.loading = false;
+  searchModelState.error = "";
+  searchModelState.models = payload?.models || [];
+  searchModelState.selectedModelId =
+    searchModelState.selectedModelId &&
+    searchModelState.models.some(
+      (model) => model.id === searchModelState.selectedModelId,
+    )
+      ? searchModelState.selectedModelId
+      : searchModelState.models[0]?.id || "";
+
+  updateSearchResultsCount();
+  renderSearchModelCards();
+}
+
+function handleSearchModelsError(message) {
+  if (currentView !== "search") {
+    return;
+  }
+
+  searchModelState.loading = false;
+  searchModelState.error =
+    message || "Não foi possível buscar modelos no Hugging Face.";
+  updateSearchResultsCount();
+  renderSearchModelCards();
 }
 
 function renderSearchView() {
@@ -90,20 +237,26 @@ function renderSearchView() {
   notifyCurrentView();
   contentContainer.innerHTML = `
     <div class="search-layout">
-      <div class="search-sidebar">
-        <div class="search-input-wrapper">
-          <input type="text" id="model-search" placeholder="Pesquisar modelos..." />
-          <i class="codicon codicon-search search-icon"></i>
-        </div>
+      <aside class="search-sidebar">
+        <form class="search-input-wrapper" id="model-search-form">
+          <input type="text" id="model-search" placeholder="Pesquisar..." />
+          <button class="search-submit" type="submit" title="Pesquisar">
+            <i class="codicon codicon-search"></i>
+          </button>
+        </form>
         <div class="search-results-info">
           <i class="codicon codicon-chevron-right"></i>
-          <span id="search-results-count">628 RESULTADOS ENCONTRADOS</span>
+          <span id="search-results-count">${escapeHtml(getSearchResultsLabel())}</span>
         </div>
         <div class="model-list" id="model-list"></div>
-      </div>
+      </aside>
     </div>
   `;
 
   bindSearchModelEvents();
-  vscode.postMessage({ type: "abrirPainelConfig", selectedView: "search" });
+  renderSearchModelCards();
+
+  if (searchModelState.models.length === 0 && !searchModelState.loading) {
+    requestSearchModels("");
+  }
 }

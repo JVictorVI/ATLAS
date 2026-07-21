@@ -1,449 +1,558 @@
-const modelDetails = {
-  "qwen3-coder-30b": {
-    title: "Qwen3 Coder 30B",
-    id: "qwen3-coder-30b",
-    author: "Qwen",
-    architecture: "qwen3moe",
-    badge: "30B",
-    size: "24.68 GB",
-    quant: "Q4_K_M",
-    updatedAt: "23/01/2025",
-    downloads: "23.245",
-    modelSize: "30B parâmetros",
-    tags: ["Text Generation", "GGUF", "Conversational"],
-    summary:
-      "The Qwen3 Coder 30B is a coding-focused large language model designed for programming, software engineering and agentic reasoning workflows.",
-    features: [
-      "Strong code generation and refactoring support for day-to-day development.",
-      "Good fit for autonomous coding agents, tool use and repository-level analysis.",
-      "Balanced performance for debugging, implementation planning and code review.",
-    ],
-    compatibility: {
-      level: "Não recomendado",
-      tone: "danger",
-      message:
-        "Modelo grande para uma máquina comum. Baixe apenas se tiver bastante RAM e GPU dedicada para uso local confortável.",
-      machine: {
-        ram: "16 GB",
-        cpu: "Intel Core i5, 8 núcleos lógicos",
-        gpu: "GPU integrada ou VRAM não informada",
-        storage: "SSD com 42 GB livres",
-      },
-      recommended: {
-        ram: "48 GB ou mais",
-        cpu: "12+ núcleos lógicos",
-        gpu: "16 GB de VRAM para offload confortável",
-        storage: "50 GB livres em SSD",
-        context: "4096 tokens para começar",
-      },
-    },
-  },
-  "phi-4-gguf": {
-    title: "Phi 4 GGUF",
-    id: "phi-4-gguf",
-    author: "Microsoft",
-    architecture: "phi",
-    badge: "15B",
-    size: "8.92 GB",
-    quant: "Q4_K_M",
-    updatedAt: "18/06/2024",
-    downloads: "710.171",
-    modelSize: "15B parâmetros",
-    tags: ["Reasoning", "GGUF", "Local"],
-    summary:
-      "Phi 4 GGUF is a compact model aimed at local execution, useful when you want fast responses with a solid quality-to-resource ratio.",
-    features: [
-      "Runs well on local setups compared with larger models.",
-      "Useful for concise technical explanations and lightweight coding tasks.",
-      "Good default when latency and memory usage matter more than maximum scale.",
-    ],
-    compatibility: {
-      level: "Pesado, mas viável",
-      tone: "warning",
-      message:
-        "Deve rodar localmente, mas pode pesar em respostas longas. Comece com contexto moderado e ajuste depois.",
-      machine: {
-        ram: "16 GB",
-        cpu: "Ryzen 5, 12 núcleos lógicos",
-        gpu: "Vulkan disponível, 6 GB VRAM",
-        storage: "SSD com 30 GB livres",
-      },
-      recommended: {
-        ram: "24 GB recomendados",
-        cpu: "8+ núcleos lógicos",
-        gpu: "8 GB VRAM para acelerar camadas",
-        storage: "20 GB livres em SSD",
-        context: "4096 a 8192 tokens",
-      },
-    },
-  },
-  "gemma-3-27b-it": {
-    title: "Gemma 3 27B IT",
-    id: "gemma-3-27b-it",
-    author: "Google",
-    architecture: "gemma3",
-    badge: "27B",
-    size: "17.24 GB",
-    quant: "Q4_K_M",
-    updatedAt: "28/11/2024",
-    downloads: "140.294",
-    modelSize: "27B parâmetros",
-    tags: ["Instruction", "Analysis", "Chat"],
-    summary:
-      "Gemma 3 27B IT is an instruction-tuned model for general chat, text analysis and technical assistance with clear prompting.",
-    features: [
-      "Instruction-tuned behavior for assistant-style conversations.",
-      "Good at summarization, analysis and structured responses.",
-      "A useful middle ground for quality without jumping to very large models.",
-    ],
-    compatibility: {
-      level: "Não recomendado",
-      tone: "danger",
-      message:
-        "Modelo de alta qualidade, mas pesado demais para máquinas intermediárias. A experiência tende a ser lenta sem GPU forte.",
-      machine: {
-        ram: "16 GB",
-        cpu: "Intel Core i7, 8 núcleos lógicos",
-        gpu: "4 GB VRAM",
-        storage: "SSD com 25 GB livres",
-      },
-      recommended: {
-        ram: "40 GB recomendados",
-        cpu: "12+ núcleos lógicos",
-        gpu: "12 GB VRAM ou mais",
-        storage: "36 GB livres em SSD",
-        context: "4096 tokens inicialmente",
-      },
-    },
-  },
-  "gpt-oss-20b": {
-    title: "GPT OSS 20B",
-    id: "gpt-oss-20b",
-    author: "OpenAI",
-    architecture: "gpt-oss",
-    badge: "20B",
-    size: "12.80 GB",
-    quant: "Q4_K_M",
-    updatedAt: "28/11/2025",
-    downloads: "1.147.142",
-    modelSize: "20B parâmetros",
-    tags: ["General", "Tool Use", "Chat"],
-    summary:
-      "GPT OSS 20B is positioned as a strong general-purpose open model for assistants, coding support and structured reasoning tasks.",
-    features: [
-      "Comfortable balance between broad language ability and local deployment size.",
-      "Works well for product assistants, automation and technical workflows.",
-      "Useful for teams that want a capable baseline model across many tasks.",
-    ],
-    compatibility: {
-      level: "Pesado, mas viável",
-      tone: "warning",
-      message:
-        "Compatível para uso local em máquinas fortes. Em notebooks comuns, pode responder devagar ou exigir contexto menor.",
-      machine: {
-        ram: "32 GB",
-        cpu: "Apple M-series ou Ryzen 7, 10+ núcleos",
-        gpu: "GPU compartilhada ou 8 GB VRAM",
-        storage: "SSD com 35 GB livres",
-      },
-      recommended: {
-        ram: "32 GB recomendados",
-        cpu: "10+ núcleos lógicos",
-        gpu: "10 GB VRAM para boa aceleração",
-        storage: "28 GB livres em SSD",
-        context: "4096 a 8192 tokens",
-      },
-    },
-  },
-  "ministral-3-14b-reasoning": {
-    title: "Ministral 3 14B Reasoning",
-    id: "ministral-3-14b-reasoning",
-    author: "Mistral",
-    architecture: "ministral",
-    badge: "14B",
-    size: "9.44 GB",
-    quant: "Q4_K_M",
-    updatedAt: "31/05/2025",
-    downloads: "694.240",
-    modelSize: "14B parâmetros",
-    tags: ["Reasoning", "Planning", "Agent"],
-    summary:
-      "Ministral 3 14B Reasoning is tuned for planning, multi-step reasoning and assistant flows where compact deployment is still important.",
-    features: [
-      "Good for breaking down tasks and producing structured plans.",
-      "Smaller footprint than large reasoning models.",
-      "Useful for agents that need careful but responsive decisions.",
-    ],
-    compatibility: {
-      level: "Pesado, mas viável",
-      tone: "warning",
-      message:
-        "Boa escolha intermediária para raciocínio local, desde que a máquina tenha RAM sobrando.",
-      machine: {
-        ram: "16 GB",
-        cpu: "Ryzen 7, 16 núcleos lógicos",
-        gpu: "8 GB VRAM",
-        storage: "SSD com 24 GB livres",
-      },
-      recommended: {
-        ram: "24 GB recomendados",
-        cpu: "8+ núcleos lógicos",
-        gpu: "8 GB VRAM para offload parcial",
-        storage: "22 GB livres em SSD",
-        context: "4096 tokens",
-      },
-    },
-  },
-  "deepseek-r1-0528-qwen3-8b": {
-    title: "DeepSeek R1 0528 Qwen3 8B",
-    id: "deepseek-r1-0528-qwen3-8b",
-    author: "DeepSeek",
-    architecture: "qwen3",
-    badge: "8B",
-    size: "5.31 GB",
-    quant: "Q4_K_M",
-    updatedAt: "19/10/2023",
-    downloads: "5.583.787",
-    modelSize: "8B parâmetros",
-    tags: ["Reasoning", "Compact", "GGUF"],
-    summary:
-      "DeepSeek R1 0528 Qwen3 8B is a compact reasoning-oriented model suited to experiments, local assistants and quick iteration.",
-    features: [
-      "Light enough for broader local compatibility.",
-      "Reasoning-style behavior for analysis and problem solving.",
-      "A practical option for testing agent flows before moving to larger models.",
-    ],
-    compatibility: {
-      level: "Roda bem",
-      tone: "good",
-      message:
-        "Boa compatibilidade para máquinas intermediárias. Deve ser uma opção segura para testar raciocínio local.",
-      machine: {
-        ram: "16 GB",
-        cpu: "Intel Core i5/Ryzen 5, 8 núcleos lógicos",
-        gpu: "GPU integrada ou 4 GB VRAM",
-        storage: "SSD com 18 GB livres",
-      },
-      recommended: {
-        ram: "12 GB recomendados",
-        cpu: "6+ núcleos lógicos",
-        gpu: "4 GB VRAM opcional",
-        storage: "14 GB livres em SSD",
-        context: "4096 tokens",
-      },
-    },
-  },
-  "gemma-3-4b-it": {
-    title: "Gemma 3 4B IT",
-    id: "gemma-3-4b-it",
-    author: "Google",
-    architecture: "gemma3",
-    badge: "4B",
-    size: "2.74 GB",
-    quant: "Q4_K_M",
-    updatedAt: "25/12/2024",
-    downloads: "4.390.982",
-    modelSize: "4B parâmetros",
-    tags: ["Small", "Instruction", "Local"],
-    summary:
-      "Gemma 3 4B IT is a small instruction model for fast local chat, simple summarization and lightweight assistant tasks.",
-    features: [
-      "Very responsive on modest hardware.",
-      "Good for simple prompts, drafts and quick text transformation.",
-      "Best used when speed and low resource usage are the priority.",
-    ],
-    compatibility: {
-      level: "Roda bem",
-      tone: "good",
-      message:
-        "Modelo leve para baixar e testar. Deve rodar bem mesmo em máquinas modestas.",
-      machine: {
-        ram: "8 GB",
-        cpu: "Intel Core i3/Ryzen 3, 4 núcleos lógicos",
-        gpu: "Não necessária",
-        storage: "SSD com 8 GB livres",
-      },
-      recommended: {
-        ram: "8 GB recomendados",
-        cpu: "4+ núcleos lógicos",
-        gpu: "Opcional",
-        storage: "8 GB livres em SSD",
-        context: "4096 tokens",
-      },
-    },
-  },
-  "granite-4-h-tiny": {
-    title: "Granite 4 H Tiny",
-    id: "granite-4-h-tiny",
-    author: "IBM",
-    architecture: "granite",
-    badge: "7B",
-    size: "4.11 GB",
-    quant: "Q4_K_M",
-    updatedAt: "05/07/2025",
-    downloads: "15.662",
-    modelSize: "7B parâmetros",
-    tags: ["Enterprise", "Small", "Assistant"],
-    summary:
-      "Granite 4 H Tiny is a compact assistant model aimed at efficient enterprise-style workflows and controlled local usage.",
-    features: [
-      "Compact enough for responsive local assistant experiences.",
-      "Suited to structured business and productivity tasks.",
-      "Useful as a lightweight model for side panels and always-on tooling.",
-    ],
-    compatibility: {
-      level: "Roda bem",
-      tone: "good",
-      message:
-        "Compatibilidade confortável para uso diário. Bom candidato para baixar quando a prioridade é estabilidade local.",
-      machine: {
-        ram: "12 GB",
-        cpu: "Intel Core i5/Ryzen 5, 6 núcleos lógicos",
-        gpu: "4 GB VRAM opcional",
-        storage: "SSD com 12 GB livres",
-      },
-      recommended: {
-        ram: "10 GB recomendados",
-        cpu: "6+ núcleos lógicos",
-        gpu: "4 GB VRAM opcional",
-        storage: "10 GB livres em SSD",
-        context: "4096 tokens",
-      },
-    },
-  },
+const vscode = acquireVsCodeApi();
+
+const state = {
+  query: "",
+  models: [],
+  selectedModel: null,
+  selectedFileName: "",
+  detailOnly: false,
+  loading: false,
+  detailsLoading: false,
+  downloading: false,
+  variantMenuOpen: false,
+  error: "",
+  detailsError: "",
 };
+
+const root = document.getElementById("model-detail-view");
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function formatNumber(value) {
+  return new Intl.NumberFormat("pt-BR").format(Number(value) || 0);
+}
+
+function formatDate(value) {
+  if (!value) {
+    return "Não informado";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Não informado";
+  }
+
+  return new Intl.DateTimeFormat("pt-BR").format(date);
+}
+
+function getModelBadge(model) {
+  const fromName = `${model.name} ${model.id}`.match(
+    /(?:^|[-_\s])(\d+(?:\.\d+)?b)(?:[-_\s]|$)/i,
+  );
+
+  return fromName?.[1]?.toUpperCase() || "GGUF";
+}
+
+function getSelectedFile() {
+  const files = state.selectedModel?.ggufFiles || [];
+  return (
+    files.find((file) => file.name === state.selectedFileName) ||
+    files[0] ||
+    null
+  );
+}
+
+function getFileSizeLabel(file) {
+  const size = file?.size || "";
+
+  return size && !/tamanho n[aã]o informado/i.test(size) ? size : "";
+}
+
+function getVariantLabel(model, file) {
+  const count = model.ggufFiles?.length || 0;
+  const size = getFileSizeLabel(file);
+
+  return `${count} variante(s) ${size ? ` · ${size}` : ""}`;
+}
+
+function getVariantOptionLabel(file) {
+  return `${file.quantization}${getFileSizeLabel(file) ? ` - ${getFileSizeLabel(file)}` : ""} - ${file.name}`;
+}
 
 function renderInfoItem(label, value) {
   return `
     <div class="info-item">
-      <span>${label}</span>
-      <strong>${value}</strong>
+      <span>${escapeHtml(label)}</span>
+      <strong title="${escapeHtml(value)}">${escapeHtml(value)}</strong>
     </div>
   `;
 }
 
-function renderCompatibilityItem(label, value) {
+function renderModelCard(model) {
+  const active = state.selectedModel?.id === model.id ? "active" : "";
+  const primaryFile = model.ggufFiles?.[0];
+
   return `
-    <div class="compatibility-item">
-      <span>${label}</span>
-      <strong>${value}</strong>
-    </div>
+    <button class="model-card ${active}" type="button" data-model-id="${escapeHtml(model.id)}">
+      <span class="model-badge">${escapeHtml(getModelBadge(model))}</span>
+      <span class="model-card-info">
+        <span class="model-card-name" title="${escapeHtml(model.id)}">${escapeHtml(model.name)}</span>
+        <span class="model-card-meta">
+          <span class="model-card-author"><i class="codicon codicon-code"></i> ${escapeHtml(model.author)}</span>
+          <span class="model-card-variant">${escapeHtml(getVariantLabel(model, primaryFile))}</span>
+        </span>
+        <span class="model-card-footer">
+          <span>Atualizado em ${escapeHtml(formatDate(model.updatedAt))}</span>
+          <span><i class="codicon codicon-cloud-download"></i> ${escapeHtml(formatNumber(model.downloads))}</span>
+        </span>
+      </span>
+    </button>
   `;
 }
 
-function renderCompatibilityCard(model) {
-  const compatibility = model.compatibility;
+function renderSidebar() {
+  const resultLabel = state.loading
+    ? '<span class="search-loading-spinner search-loading-spinner-small" aria-hidden="true"></span>'
+    : state.error
+      ? "ERRO AO PESQUISAR"
+      : `${state.models.length} RESULTADOS ENCONTRADOS`;
 
   return `
-    <section class="compatibility-card compatibility-${compatibility.tone}">
-      <div class="compatibility-header">
-        <div>
-          <h2>
-            <i class="codicon codicon-dashboard"></i>
-            Diagnóstico rápido de compatibilidade
-          </h2>
-          <p>${compatibility.message}</p>
-        </div>
-        <span class="compatibility-badge">${compatibility.level}</span>
+    <aside class="search-sidebar">
+      <form class="search-input-wrapper" id="model-search-form">
+        <input type="text" id="model-search" placeholder="Pesquisar..." value="${escapeHtml(state.query)}" />
+        <button class="search-submit" type="submit" title="Pesquisar">
+          <i class="codicon codicon-search"></i>
+        </button>
+      </form>
+      <div class="search-results-info">
+        <i class="codicon codicon-chevron-right"></i>
+        <span>${state.loading ? resultLabel : escapeHtml(resultLabel)}</span>
       </div>
-
-      <div class="compatibility-grid">
-        <div class="compatibility-block">
-          <h3>Sua máquina</h3>
-          ${renderCompatibilityItem("Memória RAM", compatibility.machine.ram)}
-          ${renderCompatibilityItem("Processador", compatibility.machine.cpu)}
-          ${renderCompatibilityItem("GPU", compatibility.machine.gpu)}
-          ${renderCompatibilityItem("Armazenamento", compatibility.machine.storage)}
-        </div>
-
-        <div class="compatibility-block">
-          <h3>Recomendado para este modelo</h3>
-          ${renderCompatibilityItem("Memória RAM", compatibility.recommended.ram)}
-          ${renderCompatibilityItem("Processador", compatibility.recommended.cpu)}
-          ${renderCompatibilityItem("VRAM", compatibility.recommended.gpu)}
-          ${renderCompatibilityItem("Armazenamento", compatibility.recommended.storage)}
-          ${renderCompatibilityItem("Contexto sugerido", compatibility.recommended.context)}
-        </div>
+      <div class="model-list" id="model-list">
+        ${
+          state.loading
+            ? `<div class="model-list-loading"><div class="search-loading-card"><span class="search-loading-spinner" aria-hidden="true"></span></div></div>`
+            : state.error
+              ? `<div class="search-error-state">
+                  <i class="codicon codicon-warning" aria-hidden="true"></i>
+                  <span>${escapeHtml(state.error)}</span>
+                  <button class="retry-search-button" id="retry-model-search" type="button">Tentar novamente</button>
+                </div>`
+              : state.models.map(renderModelCard).join("") ||
+                `<div class="model-list-empty">Nenhum modelo encontrado.</div>`
+        }
       </div>
-    </section>
+    </aside>
   `;
 }
 
-function renderModelDetails(modelId) {
-  const detailView = document.getElementById("model-detail-view");
-  const model = modelDetails[modelId] || modelDetails["qwen3-coder-30b"];
-  if (!detailView || !model) {
-    return;
-  }
-
-  detailView.innerHTML = `
+function renderDetailEmpty() {
+  return `
     <section class="detail-header">
       <div class="detail-page-heading">
         <span class="detail-page-icon">
           <i class="codicon codicon-search"></i>
         </span>
         <div class="detail-page-copy">
-          <h1>Repositório de Modelos</h1>
-          <p>Consulte, explore e baixe modelos disponíveis no Hugging Face</p>
+          <h1>Pesquisa de Modelos</h1>
+          <p>Busque modelos GGUF no Hugging Face, escolha uma variação e baixe para o ATLAS</p>
+        </div>
+      </div>
+    </section>
+    <section class="empty-detail">
+      <i class="codicon codicon-package"></i>
+      <h2>Selecione um modelo GGUF</h2>
+      <p>Os detalhes e variantes disponíveis aparecem aqui.</p>
+    </section>
+  `;
+}
+
+function renderDetails() {
+  const model = state.selectedModel;
+
+  if (!model) {
+    return renderDetailEmpty();
+  }
+
+  if (state.detailsLoading) {
+    return `
+      <section class="detail-loading" aria-busy="true">
+        <div class="search-loading-card">
+          <span class="search-loading-spinner" aria-hidden="true"></span>
+        </div>
+      </section>
+    `;
+  }
+
+  if (state.detailsError) {
+    return `
+      <section class="detail-error-state">
+        <i class="codicon codicon-warning" aria-hidden="true"></i>
+        <span>${escapeHtml(state.detailsError)}</span>
+        <button class="retry-search-button" id="retry-model-details" type="button">Tentar novamente</button>
+      </section>
+    `;
+  }
+
+  const selectedFile = getSelectedFile();
+  const tags = (model.tags || []).slice(0, 8);
+
+  return `
+    <section class="detail-header">
+      <div class="detail-page-heading">
+        <span class="detail-page-icon">
+          <i class="codicon codicon-search"></i>
+        </span>
+        <div class="detail-page-copy">
+          <h1>Pesquisa de Modelos</h1>
         </div>
       </div>
 
       <div class="model-heading">
         <span class="detail-kicker">Modelo selecionado</span>
-        <h2>${model.title}</h2>
+        <h2>${escapeHtml(model.name)}</h2>
       </div>
-      <p class="detail-author">Por ${model.author}</p>
+      <p class="detail-author">Por ${escapeHtml(model.author)} · ${escapeHtml(model.id)}</p>
 
       <div class="detail-actions">
-        <button class="download-button" type="button">
+        <button class="download-button" id="download-model" type="button" ${!selectedFile || state.downloading ? "disabled" : ""}>
           <i class="codicon codicon-arrow-down"></i>
-          Baixar ${model.size}
+          ${state.downloading ? "Baixando..." : `Baixar${getFileSizeLabel(selectedFile) ? ` ${escapeHtml(getFileSizeLabel(selectedFile))}` : ""}`}
         </button>
-        <button class="quant-button" type="button">
-          <span>${model.quant} - ${model.size}</span>
-          <i class="codicon codicon-chevron-down"></i>
-        </button>
-        <button class="icon-button" type="button" title="Informações">
-          <i class="codicon codicon-question"></i>
+        <div class="variant-picker ${state.variantMenuOpen ? "open" : ""}" title="${escapeHtml(selectedFile?.name || "Selecionar variacao GGUF")}">
+          <button class="variant-picker-trigger" id="gguf-variant-trigger" type="button" ${state.downloading || !selectedFile ? "disabled" : ""} aria-expanded="${state.variantMenuOpen ? "true" : "false"}">
+            <i class="codicon codicon-versions variant-leading-icon"></i>
+            <span class="variant-selected-label">${escapeHtml(selectedFile ? getVariantOptionLabel(selectedFile) : "Selecionar variacao GGUF")}</span>
+            <i class="codicon codicon-chevron-down variant-chevron-icon"></i>
+          </button>
+          ${
+            state.variantMenuOpen
+              ? `<div class="variant-options" role="listbox">
+                  ${(model.ggufFiles || [])
+                    .map(
+                      (file) => `
+                        <button class="variant-option ${file.name === selectedFile?.name ? "selected" : ""}" type="button" data-file-name="${escapeHtml(file.name)}" role="option" aria-selected="${file.name === selectedFile?.name ? "true" : "false"}">
+                          <span class="variant-option-main">${escapeHtml(file.quantization)}</span>
+                          ${getFileSizeLabel(file) ? `<span class="variant-option-size">${escapeHtml(getFileSizeLabel(file))}</span>` : ""}
+                          <span class="variant-option-name">${escapeHtml(file.name)}</span>
+                        </button>
+                      `,
+                    )
+                    .join("")}
+                </div>`
+              : ""
+          }
+        </div>
+        <label class="variant-select" title="${escapeHtml(selectedFile?.name || "Selecionar variação GGUF")}">
+          <i class="codicon codicon-versions variant-leading-icon"></i>
+          <select id="gguf-variant-select" ${state.downloading ? "disabled" : ""}>
+            ${(model.ggufFiles || [])
+              .map(
+                (file) => `
+                  <option value="${escapeHtml(file.name)}" ${file.name === selectedFile?.name ? "selected" : ""}>
+                    ${escapeHtml(file.quantization)}${getFileSizeLabel(file) ? ` - ${escapeHtml(getFileSizeLabel(file))}` : ""} - ${escapeHtml(file.name)}
+                  </option>
+                `,
+              )
+              .join("")}
+          </select>
+          <i class="codicon codicon-chevron-down variant-chevron-icon"></i>
+        </label>
+        <button class="icon-button" id="open-huggingface-file" type="button" title="Abrir arquivo no Hugging Face" ${!selectedFile?.fileUrl ? "disabled" : ""}>
+          <i class="codicon codicon-link-external"></i>
         </button>
       </div>
     </section>
 
-    ${renderCompatibilityCard(model)}
-
     <section class="detail-section">
       <h2><i class="codicon codicon-info"></i> Informações do modelo</h2>
       <div class="info-panel">
-        ${renderInfoItem("Modelo", model.id)}
-        ${renderInfoItem("Arquitetura", model.architecture)}
-        ${renderInfoItem("Tags", model.tags[0])}
-        ${renderInfoItem("Atualização recente", model.updatedAt)}
-        ${renderInfoItem("Tamanho do modelo", model.modelSize)}
-        ${renderInfoItem("Formato", model.quant)}
+        ${renderInfoItem("Repositório", model.id)}
+        ${renderInfoItem("Autor", model.author)}
+        ${renderInfoItem("Formato", "GGUF")}
+        ${renderInfoItem("Atualização", formatDate(model.updatedAt))}
+        ${renderInfoItem("Downloads", formatNumber(model.downloads))}
+        ${renderInfoItem("Variações", `${model.ggufFiles?.length || 0} arquivos`)}
       </div>
+    </section>
+
+    <section class="detail-section">
+      <h2><i class="codicon codicon-file-binary"></i> Variação selecionada</h2>
+      <article class="description-panel compact-panel">
+        <h3>${escapeHtml(selectedFile?.name || "Nenhuma variação disponível")}</h3>
+        <div class="selected-file-grid">
+          ${renderInfoItem("Quantização", selectedFile?.quantization || "-")}
+          ${renderInfoItem("Tamanho", getFileSizeLabel(selectedFile) || "-")}
+          ${renderInfoItem("Destino", "Pasta local de modelos do ATLAS")}
+        </div>
+      </article>
     </section>
 
     <section class="detail-section">
       <h2><i class="codicon codicon-note"></i> Descrição do modelo</h2>
       <article class="description-panel">
-        <h3>${model.title}</h3>
-        <p>${model.summary}</p>
-        <h4>Principais recursos</h4>
-        <ul>
-          ${model.features.map((feature) => `<li>${feature}</li>`).join("")}
-        </ul>
+        <h3>${escapeHtml(model.name)}</h3>
+        <p>${escapeHtml(model.description || "Modelo GGUF disponível para execução local.")}</p>
         <div class="tag-row">
-          ${model.tags.map((tag) => `<span>${tag}</span>`).join("")}
+          ${tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}
         </div>
       </article>
     </section>
   `;
 }
 
+function render() {
+  root.innerHTML = `
+    <div class="search-layout ${state.detailOnly ? "detail-only-layout" : ""}">
+      ${state.detailOnly ? "" : renderSidebar()}
+      <main class="search-detail">
+        ${renderDetails()}
+      </main>
+    </div>
+  `;
+
+  bindEvents();
+}
+
+function bindEvents() {
+  document
+    .getElementById("model-search-form")
+    ?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const input = document.getElementById("model-search");
+      searchModels(input?.value || "");
+    });
+
+  document.querySelectorAll(".model-card").forEach((card) => {
+    card.addEventListener("click", () => {
+      const modelId = card.getAttribute("data-model-id");
+      const model = state.models.find((item) => item.id === modelId);
+
+      if (!model) {
+        return;
+      }
+
+      state.selectedModel = model;
+      state.selectedFileName = model.ggufFiles?.[0]?.name || "";
+      state.detailsLoading = true;
+      state.detailsError = "";
+      state.variantMenuOpen = false;
+      render();
+      vscode.postMessage({ type: "detalharModeloHuggingFace", modelId });
+    });
+  });
+
+  document
+    .getElementById("gguf-variant-select")
+    ?.addEventListener("change", (event) => {
+      state.selectedFileName = event.target.value;
+      render();
+    });
+
+  document
+    .getElementById("gguf-variant-trigger")
+    ?.addEventListener("click", () => {
+      state.variantMenuOpen = !state.variantMenuOpen;
+      render();
+    });
+
+  document.querySelectorAll(".variant-option").forEach((option) => {
+    option.addEventListener("click", () => {
+      state.selectedFileName = option.getAttribute("data-file-name") || "";
+      state.variantMenuOpen = false;
+      render();
+    });
+  });
+
+  document
+    .querySelector(".search-layout")
+    ?.addEventListener("click", (event) => {
+      const target = event.target;
+
+      if (
+        state.variantMenuOpen &&
+        target instanceof Element &&
+        !target.closest(".variant-picker")
+      ) {
+        state.variantMenuOpen = false;
+        render();
+      }
+    });
+
+  document.getElementById("download-model")?.addEventListener("click", () => {
+    const selectedFile = getSelectedFile();
+
+    if (!state.selectedModel || !selectedFile) {
+      return;
+    }
+
+    state.downloading = true;
+    state.variantMenuOpen = false;
+    render();
+    vscode.postMessage({
+      type: "baixarModeloHuggingFace",
+      modelId: state.selectedModel.id,
+      fileName: selectedFile.name,
+    });
+  });
+
+  document
+    .getElementById("retry-model-search")
+    ?.addEventListener("click", () => {
+      searchModels(state.query);
+    });
+
+  document
+    .getElementById("retry-model-details")
+    ?.addEventListener("click", () => {
+      const modelId = state.selectedModel?.id;
+
+      if (!modelId) {
+        return;
+      }
+
+      state.detailsLoading = true;
+      state.detailsError = "";
+      render();
+      vscode.postMessage({ type: "detalharModeloHuggingFace", modelId });
+    });
+
+  document
+    .getElementById("open-huggingface-file")
+    ?.addEventListener("click", () => {
+      const selectedFile = getSelectedFile();
+
+      if (!selectedFile?.fileUrl) {
+        return;
+      }
+
+      vscode.postMessage({
+        type: "abrirArquivoHuggingFace",
+        url: selectedFile.fileUrl,
+      });
+    });
+}
+
+function searchModels(query) {
+  state.query = query.trim();
+  state.loading = true;
+  state.selectedModel = null;
+  state.selectedFileName = "";
+  state.variantMenuOpen = false;
+  state.error = "";
+  state.detailsError = "";
+  render();
+  vscode.postMessage({
+    type: "buscarModelosHuggingFace",
+    query: state.query || "gguf",
+  });
+}
+
 window.addEventListener("message", (event) => {
-  if (event.data?.type === "mostrarDetalhesModelo") {
-    renderModelDetails(event.data.modelId);
+  const message = event.data;
+
+  if (message.type === "modelosHuggingFaceEncontrados") {
+    if (state.detailOnly) {
+      return;
+    }
+
+    state.loading = false;
+    state.error = "";
+    state.models = message.value?.models || [];
+    state.selectedModel = state.models[0] || null;
+    state.selectedFileName = state.selectedModel?.ggufFiles?.[0]?.name || "";
+    state.variantMenuOpen = false;
+    render();
+
+    if (state.selectedModel) {
+      state.detailsLoading = true;
+      state.detailsError = "";
+      render();
+      vscode.postMessage({
+        type: "detalharModeloHuggingFace",
+        modelId: state.selectedModel.id,
+      });
+    }
+  }
+
+  if (message.type === "modeloHuggingFaceDetalhado") {
+    const detailed = message.value?.model;
+
+    if (detailed) {
+      state.selectedModel = detailed;
+      state.selectedFileName =
+        state.selectedFileName || detailed.ggufFiles?.[0]?.name || "";
+    }
+
+    state.detailsLoading = false;
+    state.detailsError = "";
+    state.variantMenuOpen = false;
+    render();
+  }
+
+  if (message.type === "mostrarDetalhesModelo") {
+    const modelId = message.modelId;
+
+    if (!modelId) {
+      return;
+    }
+
+    state.detailOnly = true;
+    state.loading = false;
+    state.detailsLoading = true;
+    state.selectedFileName = "";
+    state.variantMenuOpen = false;
+    state.detailsError = "";
+    state.selectedModel = {
+      id: modelId,
+      name: modelId.split("/").pop() || modelId,
+      author: modelId.split("/")[0] || "Hugging Face",
+      downloads: 0,
+      likes: 0,
+      updatedAt: null,
+      tags: [],
+      ggufFiles: [],
+      description: "",
+    };
+    render();
+    vscode.postMessage({ type: "detalharModeloHuggingFace", modelId });
+  }
+
+  if (message.type === "downloadModeloHuggingFaceConcluido") {
+    state.downloading = false;
+    state.variantMenuOpen = false;
+    render();
+  }
+
+  if (message.type === "erro") {
+    const messageText =
+      typeof message.value === "string"
+        ? message.value
+        : "Nao foi possivel concluir a operacao.";
+
+    if (state.loading) {
+      state.error = messageText;
+    }
+
+    if (state.detailsLoading) {
+      state.detailsError = messageText;
+    }
+
+    state.loading = false;
+    state.detailsLoading = false;
+    state.downloading = false;
+    state.variantMenuOpen = false;
+    render();
   }
 });
 
-renderModelDetails("qwen3-coder-30b");
+window.addEventListener("keydown", (event) => {
+  if (!state.variantMenuOpen || event.key !== "Escape") {
+    return;
+  }
+
+  state.variantMenuOpen = false;
+  render();
+});
+
+render();
+searchModels("");

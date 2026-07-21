@@ -157,6 +157,11 @@ window.addEventListener("message", (event) => {
       break;
     }
 
+    case "modelosHuggingFaceEncontrados": {
+      handleSearchModelsLoaded(message.value);
+      break;
+    }
+
     case "fimResposta": {
       clearGenerationForMessage(message);
 
@@ -218,6 +223,10 @@ window.addEventListener("message", (event) => {
           message.value || "Não foi possível carregar o ambiente local.";
         releaseLocalHealthLoading();
         renderLocalHealthPanel();
+      }
+
+      if (currentView === "search") {
+        handleSearchModelsError(message.value);
       }
 
       if (!isMessageForActiveSession(message)) {

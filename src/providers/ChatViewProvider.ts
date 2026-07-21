@@ -7,6 +7,7 @@ import { LocalApiService } from "../services/LocalApiService";
 import { AtlasInferenceService } from "../services/AtlasInferenceService";
 import { AtlasLocalModelDiscoveryService } from "../services/AtlasLocalModelDiscoveryService";
 import { AtlasLocalEngineService } from "../services/AtlasLocalEngineService";
+import { HuggingFaceModelService } from "../services/HuggingFaceModelService";
 import { AtlasConfigManager } from "../managers/AtlasConfigManager";
 
 import { AtlasPromptAssemblyService } from "../prompt/AtlasPromptAssemblyService";
@@ -45,6 +46,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private readonly inferenceService: AtlasInferenceService;
   private readonly localModelDiscoveryService: AtlasLocalModelDiscoveryService;
   private readonly localEngineService: AtlasLocalEngineService;
+  private readonly huggingFaceModelService: HuggingFaceModelService;
 
   // Prompt
   private readonly promptPolicyService: AtlasSystemPromptPolicyService;
@@ -121,6 +123,11 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this.localModelDiscoveryService = new AtlasLocalModelDiscoveryService(
       this.context,
       this.configManager,
+    );
+
+    this.huggingFaceModelService = new HuggingFaceModelService(
+      () => this.localModelDiscoveryService.getModelsDir(),
+      () => this.apiKeyManager.getRawKey("HuggingFace"),
     );
 
     this.localEngineService = new AtlasLocalEngineService(
@@ -302,6 +309,66 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       getLocalModelsDir: () => this.localModelDiscoveryService.getModelsDir(),
 
       getLocalEnginesDir: () => this.localEngineService.getEnginesDir(),
+
+      searchHuggingFaceModels: (query: string) => {
+        return this.huggingFaceModelService.searchModels(query);
+      },
+
+      getHuggingFaceModelDetails: (modelId: string) => {
+        return this.huggingFaceModelService.getModelDetails(modelId);
+      },
+
+      downloadHuggingFaceModel: async (
+        modelId: string,
+        fileName: string,
+        webview: vscode.Webview,
+      ) => {
+        return await vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: `ATLAS: baixando ${fileName}`,
+            cancellable: true,
+          },
+          async (progress, token) => {
+            const abortController = new AbortController();
+            let previousPercent = 0;
+
+            token.onCancellationRequested(() => {
+              abortController.abort();
+            });
+
+            const targetPath =
+              await this.huggingFaceModelService.downloadGguf(
+                modelId,
+                fileName,
+                (percent) => {
+                  const increment = Math.max(0, percent - previousPercent);
+                  previousPercent = percent;
+
+                  progress.report({
+                    increment,
+                    message: `${percent}%`,
+                  });
+
+                  void webview.postMessage({
+                    type: "downloadModeloHuggingFaceProgresso",
+                    value: { modelId, fileName, percent },
+                  });
+                },
+                abortController.signal,
+              );
+
+            this.localModelDiscoveryService.refreshLocalModels();
+
+            if (this._view) {
+              await this.sendAvailableLlmsToWebview(this._view.webview);
+              this.modelWebviewService.sendModelsToWebview(this._view.webview);
+            }
+
+            return targetPath;
+          },
+        );
+      },
 
       refreshRagEmbeddingModels: () => {
         return this.embeddingModelDiscoveryService.refreshEmbeddingModels();

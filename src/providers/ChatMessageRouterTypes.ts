@@ -9,6 +9,10 @@ import { AtlasInferenceService } from "../services/AtlasInferenceService";
 import { AtlasSessionService } from "../services/AtlasSessionService";
 import { CloudApiService } from "../services/CloudApiService";
 import {
+  HuggingFaceModelDetails,
+  HuggingFaceModelSummary,
+} from "../interfaces/HuggingFaceModelTypes";
+import {
   RagContextResult,
   RagEmbeddingModelInfo,
   RagExternalDocument,
@@ -47,6 +51,17 @@ export type RouterDependencies = {
   stopLocalEngine: (options?: { force?: boolean }) => void;
   getLocalModelsDir: () => string;
   getLocalEnginesDir: () => string;
+  searchHuggingFaceModels: (
+    query: string,
+  ) => Promise<HuggingFaceModelSummary[]>;
+  getHuggingFaceModelDetails: (
+    modelId: string,
+  ) => Promise<HuggingFaceModelDetails>;
+  downloadHuggingFaceModel: (
+    modelId: string,
+    fileName: string,
+    webview: vscode.Webview,
+  ) => Promise<string>;
   refreshRagEmbeddingModels: () => RagEmbeddingModelInfo[];
   getRagEmbeddingModelsDir: () => string;
   downloadDefaultRagEmbeddingModel: (
