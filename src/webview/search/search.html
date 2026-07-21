@@ -8,6 +8,7 @@
         default-src 'none';
         style-src {{cspSource}} 'unsafe-inline';
         font-src {{cspSource}} data:;
+        img-src {{cspSource}} data:;
         script-src {{cspSource}} 'unsafe-inline';
       "
     />
@@ -21,6 +22,10 @@
   </head>
   <body>
     <main class="model-detail-view" id="model-detail-view"></main>
+    <script>
+      window.__ATLAS_INITIAL_SEARCH_MODEL_ID__ = {{initialSearchModelId}};
+      window.__ATLAS_HUGGINGFACE_ICON_URI__ = "{{huggingFaceIconUri}}";
+    </script>
     <script src="{{scriptUri}}"></script>
   </body>
 </html>

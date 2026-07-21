@@ -1646,6 +1646,22 @@ textarea {
   margin-top: 2px;
 }
 
+.model-card-description {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.muted-value {
+  color: var(--vscode-descriptionForeground) !important;
+  opacity: 0.72;
+  font-style: italic;
+}
+
 .model-card-footer span {
   display: inline-flex;
   align-items: center;
@@ -1683,9 +1699,35 @@ textarea {
 }
 
 .model-list-empty {
-  padding: 18px 14px;
+  display: flex;
+  box-sizing: border-box;
+  flex: 1;
+  min-height: 220px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px;
   color: var(--vscode-descriptionForeground);
+  text-align: center;
   font-size: 12px;
+}
+
+.model-list-empty i {
+  color: var(--vscode-textLink-foreground, var(--atlas-accent-bg));
+  font-size: 24px;
+}
+
+.model-list-empty strong {
+  color: var(--vscode-foreground);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.model-list-empty span {
+  max-width: 240px;
+  line-height: 1.4;
 }
 
 .search-error-state {

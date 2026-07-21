@@ -1,8 +1,9 @@
-// Responsabilidade: renderiza a busca funcional de modelos GGUF no Hugging Face.
+// Responsabilidade: renderiza a busca de modelos compatíveis no Hugging Face.
 const searchModelState = {
   query: "",
   models: [],
   selectedModelId: "",
+  openedModelId: "",
   loading: false,
   error: "",
 };
@@ -11,6 +12,12 @@ let searchDebounceTimer = undefined;
 
 function formatSearchNumber(value) {
   return new Intl.NumberFormat("pt-BR").format(Number(value) || 0);
+}
+
+function getSearchFieldValue(value, fallback = "Nao informado") {
+  return value === null || value === undefined || String(value).trim() === ""
+    ? fallback
+    : String(value).trim();
 }
 
 function formatSearchDate(value) {
@@ -28,6 +35,10 @@ function formatSearchDate(value) {
 }
 
 function getSearchModelBadge(model) {
+  if (model.format === "ONNX") {
+    return "ONNX";
+  }
+
   const fromName = `${model.name} ${model.id}`.match(
     /(?:^|[-_\s])(\d+(?:\.\d+)?b)(?:[-_\s]|$)/i,
   );
@@ -36,7 +47,9 @@ function getSearchModelBadge(model) {
 }
 
 function getPrimarySearchFile(model) {
-  return model.ggufFiles?.[0] || null;
+  return model.format === "ONNX"
+    ? model.onnxFiles?.[0] || null
+    : model.ggufFiles?.[0] || null;
 }
 
 function getSearchFileSizeLabel(file) {
@@ -46,10 +59,29 @@ function getSearchFileSizeLabel(file) {
 }
 
 function getSearchVariantLabel(model, file) {
-  const count = model.ggufFiles?.length || 0;
+  const count =
+    model.format === "ONNX"
+      ? model.onnxFiles?.length || 0
+      : model.ggufFiles?.length || 0;
   const size = getSearchFileSizeLabel(file);
 
   return `${count} variante(s) ${size ? ` · ${size}` : ""}`;
+}
+
+function getSearchAccessLabel(model) {
+  if (model.private) {
+    return "Privado";
+  }
+
+  if (model.gated) {
+    return "Gated";
+  }
+
+  return "Publico";
+}
+
+function getSearchModelDescription(model) {
+  return getSearchFieldValue(model.description, "Nao informado");
 }
 
 function getSearchResultsLabel() {
@@ -73,7 +105,7 @@ function requestSearchModels(query = searchModelState.query) {
 
   vscode.postMessage({
     type: "buscarModelosHuggingFace",
-    query: searchModelState.query || "gguf",
+    query: searchModelState.query,
   });
 }
 
@@ -117,12 +149,25 @@ function bindModelCardEvents() {
 
       searchModelState.selectedModelId = modelId;
       renderSearchModelCards();
-
-      vscode.postMessage({
-        type: "abrirDetalhesModelo",
-        modelId,
-      });
+      openSearchModelDetails(modelId, { force: true });
     });
+  });
+}
+
+function openSearchModelDetails(modelId, options = {}) {
+  if (!modelId) {
+    return;
+  }
+
+  if (!options.force && searchModelState.openedModelId === modelId) {
+    return;
+  }
+
+  searchModelState.openedModelId = modelId;
+
+  vscode.postMessage({
+    type: "abrirDetalhesModelo",
+    modelId,
   });
 }
 
@@ -164,6 +209,7 @@ function renderModelCards(
       .map((model) => {
         const primaryFile = getPrimarySearchFile(model);
         const active = model.id === activeModelId ? "active" : "";
+        const description = getSearchModelDescription(model);
 
         return `
           <button class="model-card ${active}" type="button" data-id="${escapeHtml(model.id)}">
@@ -177,13 +223,20 @@ function renderModelCards(
               <span class="model-card-footer">
                 <span>Atualizado em ${escapeHtml(formatSearchDate(model.updatedAt))}</span>
                 <span><i class="codicon codicon-cloud-download"></i> ${escapeHtml(formatSearchNumber(model.downloads))}</span>
+                <span><i class="codicon codicon-heart"></i> ${escapeHtml(formatSearchNumber(model.likes))}</span>
+                ${model.pipelineTag ? `<span><i class="codicon codicon-symbol-method"></i> ${escapeHtml(model.pipelineTag)}</span>` : ""}
+                ${model.gated || model.private ? `<span><i class="codicon codicon-lock"></i> ${escapeHtml(getSearchAccessLabel(model))}</span>` : ""}
               </span>
             </span>
           </button>
         `;
       })
       .join("") ||
-    '<div class="model-list-empty">Nenhum resultado foi encontrado</div>';
+    `<div class="model-list-empty">
+      <i class="codicon codicon-search-stop" aria-hidden="true"></i>
+      <strong>Nenhum resultado foi encontrado</strong>
+      <span>Tente pesquisar usando outro nome ou termo.</span>
+    </div>`;
 
   bindModelCardEvents();
 }
@@ -205,6 +258,8 @@ function handleSearchModelsLoaded(payload) {
     return;
   }
 
+  const previousSelectedModelId = searchModelState.selectedModelId;
+
   searchModelState.loading = false;
   searchModelState.error = "";
   searchModelState.models = payload?.models || [];
@@ -218,6 +273,13 @@ function handleSearchModelsLoaded(payload) {
 
   updateSearchResultsCount();
   renderSearchModelCards();
+
+  if (
+    searchModelState.selectedModelId &&
+    searchModelState.selectedModelId !== previousSelectedModelId
+  ) {
+    openSearchModelDetails(searchModelState.selectedModelId);
+  }
 }
 
 function handleSearchModelsError(message) {
@@ -258,5 +320,7 @@ function renderSearchView() {
 
   if (searchModelState.models.length === 0 && !searchModelState.loading) {
     requestSearchModels("");
+  } else {
+    openSearchModelDetails(searchModelState.selectedModelId);
   }
 }

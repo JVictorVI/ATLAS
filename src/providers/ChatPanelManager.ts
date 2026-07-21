@@ -10,6 +10,10 @@ type MessageHandler = (
   webview: vscode.Webview,
 ) => Promise<void> | void;
 
+type WebviewHtmlOptions = {
+  initialSearchModelId?: string;
+};
+
 export class ChatPanelManager {
   private chatPanel?: vscode.WebviewPanel;
   private configPanel?: vscode.WebviewPanel;
@@ -51,6 +55,7 @@ export class ChatPanelManager {
         "api-keys",
       ),
       vscode.Uri.joinPath(this.context.extensionUri, "src", "webview", "rag"),
+      vscode.Uri.joinPath(this.context.extensionUri, "assets"),
       vscode.Uri.joinPath(
         this.context.extensionUri,
         "src",
@@ -80,7 +85,10 @@ export class ChatPanelManager {
     return this.getHtmlForWebview(webview, selectedView);
   }
 
-  public openPanel(selectedView?: string): void {
+  public openPanel(
+    selectedView?: string,
+    options: WebviewHtmlOptions = {},
+  ): void {
     const normalizedView = this.normalizeSelectedView(selectedView);
     const panelGroup = this.getPanelGroup(normalizedView);
     const panelTitle = this.getPanelTitle(normalizedView);
@@ -93,6 +101,7 @@ export class ChatPanelManager {
       existingPanel.webview.html = this.getHtmlForWebview(
         existingPanel.webview,
         normalizedView,
+        options,
       );
       return;
     }
@@ -108,7 +117,11 @@ export class ChatPanelManager {
       },
     );
 
-    panel.webview.html = this.getHtmlForWebview(panel.webview, normalizedView);
+    panel.webview.html = this.getHtmlForWebview(
+      panel.webview,
+      normalizedView,
+      options,
+    );
 
     panel.webview.onDidReceiveMessage((data) => {
       this.handleMessage(data, panel.webview);
@@ -124,14 +137,7 @@ export class ChatPanelManager {
   }
 
   public openSearchModelDetails(modelId: string): void {
-    this.openPanel("search");
-
-    setTimeout(() => {
-      void this.searchPanel?.webview.postMessage({
-        type: "mostrarDetalhesModelo",
-        modelId,
-      });
-    }, 50);
+    this.openPanel("search", { initialSearchModelId: modelId });
   }
 
   public normalizeSelectedView(selectedView?: string): string {
@@ -219,6 +225,7 @@ export class ChatPanelManager {
   public getHtmlForWebview(
     webview: vscode.Webview,
     selectedView?: string,
+    options: WebviewHtmlOptions = {},
   ): string {
     const normalizedView = this.normalizeSelectedView(selectedView);
 
@@ -254,8 +261,21 @@ export class ChatPanelManager {
         ),
       ),
     );
+    const huggingFaceIconUri = webview.asWebviewUri(
+      vscode.Uri.file(
+        path.join(
+          this.context.extensionUri.fsPath,
+          "assets",
+          "hugging-face-icon.png",
+        ),
+      ),
+    );
 
     const markedUri = this.tryGetMarkedUri(webview);
+    const initialSearchModelId =
+      normalizedView === "search" && options.initialSearchModelId
+        ? JSON.stringify(options.initialSearchModelId).replace(/</g, "\\u003c")
+        : "null";
     let html = fs.readFileSync(htmlPath, "utf8");
 
     html = html
@@ -264,7 +284,9 @@ export class ChatPanelManager {
       .replace(/{{scriptUri}}/g, scriptUri.toString())
       .replace(/{{scriptTags}}/g, scriptTags)
       .replace(/{{codiconsUri}}/g, codiconsUri.toString())
-      .replace(/{{markedUri}}/g, markedUri);
+      .replace(/{{huggingFaceIconUri}}/g, huggingFaceIconUri.toString())
+      .replace(/{{markedUri}}/g, markedUri)
+      .replace(/{{initialSearchModelId}}/g, initialSearchModelId);
 
     return html;
   }

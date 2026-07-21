@@ -1741,7 +1741,7 @@ export class ChatMessageRouter {
         type: "erro",
         value: this.getErrorMessage(
           error,
-          "Erro ao carregar detalhes do modelo GGUF.",
+          "Erro ao carregar detalhes do modelo do Hugging Face.",
         ),
       });
     }

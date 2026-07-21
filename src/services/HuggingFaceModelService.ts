@@ -6,6 +6,7 @@ import {
   HuggingFaceGgufFile,
   HuggingFaceModelDetails,
   HuggingFaceModelSummary,
+  HuggingFaceOnnxFile,
 } from "../interfaces/HuggingFaceModelTypes";
 
 type HuggingFaceSibling = {
@@ -19,15 +20,27 @@ type HuggingFaceModelRaw = {
   author?: string;
   downloads?: number;
   likes?: number;
+  gated?: boolean | string;
+  private?: boolean;
+  pipeline_tag?: string;
+  description?: string;
   lastModified?: string;
   tags?: string[];
   cardData?: {
+    description?: string;
     language?: string | string[];
     license?: string;
     pretty_name?: string;
+    summary?: string;
   };
   siblings?: HuggingFaceSibling[];
 };
+
+const GENERATION_PIPELINE_TAGS = new Set(["any-to-any", "text-generation"]);
+const EMBEDDING_PIPELINE_TAGS = new Set([
+  "feature-extraction",
+  "sentence-similarity",
+]);
 
 export class HuggingFaceModelService {
   private readonly baseUrl = "https://huggingface.co";
@@ -39,25 +52,63 @@ export class HuggingFaceModelService {
 
   public async searchModels(query: string): Promise<HuggingFaceModelSummary[]> {
     try {
-      const response = await axios.get<HuggingFaceModelRaw[]>(
-        `${this.baseUrl}/api/models`,
-        {
-          headers: await this.buildHeaders(),
-          params: {
-            search: query.trim() || "gguf",
-            filter: "gguf",
-            sort: "downloads",
-            direction: -1,
-            limit: 25,
-            full: true,
-          },
-          timeout: 30000,
-        },
-      );
+      const headers = await this.buildHeaders();
+      const normalizedQuery = query.trim();
+      const commonParams = {
+        sort: "downloads",
+        direction: -1,
+        limit: 100,
+        full: true,
+      };
+      const [ggufResponse, featureExtractionResponse, similarityResponse] =
+        await Promise.all([
+          axios.get<HuggingFaceModelRaw[]>(`${this.baseUrl}/api/models`, {
+            headers,
+            params: {
+              ...commonParams,
+              search: normalizedQuery || "gguf",
+              filter: "gguf",
+            },
+            timeout: 30000,
+          }),
+          axios.get<HuggingFaceModelRaw[]>(`${this.baseUrl}/api/models`, {
+            headers,
+            params: {
+              ...commonParams,
+              search: normalizedQuery || undefined,
+              pipeline_tag: "feature-extraction",
+            },
+            timeout: 30000,
+          }),
+          axios.get<HuggingFaceModelRaw[]>(`${this.baseUrl}/api/models`, {
+            headers,
+            params: {
+              ...commonParams,
+              search: normalizedQuery || undefined,
+              pipeline_tag: "sentence-similarity",
+            },
+            timeout: 30000,
+          }),
+        ]);
+      const modelsById = new Map<string, HuggingFaceModelRaw>();
 
-      return response.data
+      for (const model of [
+        ...ggufResponse.data,
+        ...featureExtractionResponse.data,
+        ...similarityResponse.data,
+      ]) {
+        const id = model.id || model.modelId;
+
+        if (id && !modelsById.has(id)) {
+          modelsById.set(id, model);
+        }
+      }
+
+      return Array.from(modelsById.values())
+        .filter((model) => this.isSupportedModel(model))
         .map((model) => this.mapModel(model))
-        .filter((model) => model.ggufFiles.length > 0);
+        .sort((left, right) => right.downloads - left.downloads)
+        .slice(0, 25);
     } catch (error) {
       throw this.normalizeHuggingFaceError(
         error,
@@ -85,7 +136,10 @@ export class HuggingFaceModelService {
 
       return {
         ...summary,
-        description: this.buildDescription(response.data),
+        description:
+          this.buildDescription(response.data) ||
+          (await this.getReadmeSummary(modelId)) ||
+          "Modelo compatível disponível no Hugging Face.",
       };
     } catch (error) {
       throw this.normalizeHuggingFaceError(
@@ -224,6 +278,7 @@ export class HuggingFaceModelService {
   private mapModel(model: HuggingFaceModelRaw): HuggingFaceModelSummary {
     const id = model.id || model.modelId || "";
     const name = id.split("/").pop() || id;
+    const format = this.isEmbeddingModel(model) ? "ONNX" : "GGUF";
 
     return {
       id,
@@ -231,12 +286,25 @@ export class HuggingFaceModelService {
       author: model.author || id.split("/")[0] || "Hugging Face",
       downloads: model.downloads ?? 0,
       likes: model.likes ?? 0,
+      gated: model.gated === true || typeof model.gated === "string",
+      private: model.private === true,
+      pipelineTag: model.pipeline_tag || null,
       updatedAt: model.lastModified ?? null,
       tags: model.tags ?? [],
+      description: this.buildDescription(model),
+      format,
       ggufFiles: (model.siblings ?? [])
         .filter((file) => this.isRunnableGgufFile(file.rfilename ?? ""))
         .map((file) => this.mapGgufFile(id, file))
         .sort((a, b) => (b.sizeBytes ?? 0) - (a.sizeBytes ?? 0)),
+      onnxFiles: (model.siblings ?? [])
+        .filter((file) => this.isRunnableOnnxFile(file.rfilename ?? ""))
+        .map((file) => this.mapOnnxFile(id, file))
+        .sort(
+          (a, b) =>
+            Number(b.name.includes("quantized")) -
+            Number(a.name.includes("quantized")),
+        ),
     };
   }
 
@@ -256,16 +324,63 @@ export class HuggingFaceModelService {
     };
   }
 
-  private buildDescription(model: HuggingFaceModelRaw): string {
-    const parts = [
-      model.cardData?.pretty_name,
-      model.cardData?.license ? `Licenças: ${model.cardData.license}` : "",
-      model.tags?.length ? `Tags: ${model.tags.slice(0, 8).join(", ")}` : "",
-    ].filter(Boolean);
+  private mapOnnxFile(
+    modelId: string,
+    file: HuggingFaceSibling,
+  ): HuggingFaceOnnxFile {
+    const name = file.rfilename ?? "";
 
-    return parts.join("\n") || "Modelo GGUF disponivel no Hugging Face.";
+    return {
+      name,
+      sizeBytes: file.size ?? null,
+      size: this.formatBytes(file.size ?? 0),
+      quantization: name.toLowerCase().includes("quantized") ? "Q8" : "FP32",
+      downloadUrl: `${this.baseUrl}/${this.encodeRepoId(modelId)}/resolve/main/${this.encodeRepoPath(name)}`,
+      fileUrl: `${this.baseUrl}/${this.encodeRepoId(modelId)}/blob/main/${this.encodeRepoPath(name)}`,
+    };
   }
 
+  private buildDescription(model: HuggingFaceModelRaw): string {
+    const candidates = [
+      model.description,
+      model.cardData?.description,
+      model.cardData?.summary,
+      model.cardData?.pretty_name,
+    ];
+
+    return this.normalizeSummary(candidates.find(Boolean) ?? "");
+  }
+
+  private async getReadmeSummary(modelId: string): Promise<string> {
+    try {
+      const response = await axios.get<string>(
+        `${this.baseUrl}/${this.encodeRepoId(modelId)}/raw/main/README.md`,
+        {
+          headers: await this.buildHeaders(),
+          responseType: "text",
+          timeout: 15000,
+        },
+      );
+
+      return this.normalizeSummary(response.data);
+    } catch {
+      return "";
+    }
+  }
+
+  private normalizeSummary(value: string): string {
+    return String(value ?? "")
+      .replace(/^---[\s\S]*?---/m, " ")
+      .replace(/```[\s\S]*?```/g, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/!\[[^\]]*]\([^)]*\)/g, " ")
+      .replace(/\[([^\]]+)]\([^)]*\)/g, "$1")
+      .replace(/^#+\s*/gm, "")
+      .replace(/[*_`>#|]/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 360);
+  }
   private inferQuantization(fileName: string): string {
     const match = fileName.match(
       /(?:^|[-_.])((?:IQ|Q)\d(?:_\d)?(?:_[A-Z]+){0,3})(?:[-_.]|$)/i,
@@ -285,9 +400,77 @@ export class HuggingFaceModelService {
     );
   }
 
+  private isSupportedModel(model: HuggingFaceModelRaw): boolean {
+    if (this.isEmbeddingModel(model)) {
+      return this.hasCompatibleEmbeddingFiles(model);
+    }
+
+    return (
+      this.getDeclaredTasks(model).some((task) =>
+        GENERATION_PIPELINE_TAGS.has(task),
+      ) &&
+      (model.siblings ?? []).some((file) =>
+        this.isRunnableGgufFile(file.rfilename ?? ""),
+      )
+    );
+  }
+
+  private isEmbeddingModel(model: HuggingFaceModelRaw): boolean {
+    const declaredTasks = this.getDeclaredTasks(model);
+
+    return (
+      declaredTasks.some((task) => EMBEDDING_PIPELINE_TAGS.has(task)) ||
+      (!model.pipeline_tag && this.hasEmbeddingIdentity(model))
+    );
+  }
+
+  private getDeclaredTasks(model: HuggingFaceModelRaw): string[] {
+    return [model.pipeline_tag, ...(model.tags ?? [])]
+      .filter((value): value is string => typeof value === "string")
+      .map((value) => value.trim().toLowerCase());
+  }
+
+  private hasEmbeddingIdentity(model: HuggingFaceModelRaw): boolean {
+    const identity = [model.id, model.modelId, ...(model.tags ?? [])]
+      .filter((value): value is string => typeof value === "string")
+      .join(" ")
+      .toLowerCase();
+
+    return /(?:^|[\s/_:.-])(embed(?:ding|dings)?|sentence-transformers?)/.test(
+      identity,
+    );
+  }
+
+  private hasCompatibleEmbeddingFiles(model: HuggingFaceModelRaw): boolean {
+    const fileNames = new Set(
+      (model.siblings ?? []).map((file) =>
+        (file.rfilename ?? "").toLowerCase(),
+      ),
+    );
+    const hasTokenizer =
+      fileNames.has("tokenizer.json") || fileNames.has("tokenizer_config.json");
+
+    return (
+      fileNames.has("config.json") &&
+      hasTokenizer &&
+      Array.from(fileNames).some((fileName) =>
+        this.isRunnableOnnxFile(fileName),
+      )
+    );
+  }
+
+  private isRunnableOnnxFile(fileName: string): boolean {
+    const normalized = fileName.replace(/\\/g, "/").toLowerCase();
+
+    return (
+      normalized === "onnx/model.onnx" ||
+      normalized === "onnx/model_quantized.onnx"
+    );
+  }
+
   private formatBytes(bytes: number): string {
     if (!bytes) {
-      return "Tamanho nao informado";
+      return "Tamanho não informado";
     }
 
     const units = ["B", "KB", "MB", "GB", "TB"];
