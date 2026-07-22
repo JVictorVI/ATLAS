@@ -162,7 +162,7 @@ export class AtlasContextProfileService {
   private static getPresetStaticAnalysis(
     mode: AtlasPresetMode,
   ): AtlasStaticAnalysisConfig {
-    if (mode === "light") {
+    if (mode === "light" || mode === "balanced") {
       return {
         enabled: false,
         useInQuickAnalysis: false,

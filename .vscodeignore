@@ -8,6 +8,8 @@ scripts/**
 !src/webview/api-keys/scripts/**
 !src/webview/library/scripts/**
 !src/webview/rag/scripts/**
+!src/webview/atlas/scripts/**
+!src/webview/search/scripts/**
 engine/**
 docs/**
 models/**

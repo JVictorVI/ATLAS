@@ -406,6 +406,21 @@
               </label>
             </div>
 
+            <div class="note">
+              O ATLAS baixa automaticamente as engines necessárias durante a
+              primeira inicialização e ao selecionar uma das opções acima em
+              "Formas de execução". Para instalar uma versão específica da
+              engine manualmente, baixe uma versão do llama.cpp, extraia os
+              arquivos dentro da pasta de engines e mantenha os nomes das pastas
+              como llama.cpp, llama.cpp-cuda ou llama.cpp-vulkan
+              <a
+                href="https://github.com/ggml-org/llama.cpp/releases"
+                target="_blank"
+                rel="noopener noreferrer"
+                >Abrir página de downloads</a
+              >
+            </div>
+
             <div
               class="engine-download-prompt"
               id="engine-download-prompt"
@@ -475,18 +490,6 @@
                 </span>
               </label>
             </div>
-          </div>
-
-          <div class="note">
-            Para instalar uma engine, baixe uma versão do llama.cpp, extraia os
-            arquivos dentro da pasta de engines e mantenha os nomes das pastas
-            como llama.cpp, llama.cpp-cuda ou llama.cpp-vulkan
-            <a
-              href="https://github.com/ggml-org/llama.cpp/releases"
-              target="_blank"
-              rel="noopener noreferrer"
-              >Abrir página de downloads</a
-            >.
           </div>
         </section>
 
@@ -606,13 +609,9 @@
             </span>
           </label>
         </section>
-
-        <div class="row-end settings-actions">
-          <button id="save-atlas-settings" class="btn-primary">Salvar</button>
-        </div>
       </main>
     </div>
 
-    <script src="{{scriptUri}}"></script>
+    {{scriptTags}}
   </body>
 </html>

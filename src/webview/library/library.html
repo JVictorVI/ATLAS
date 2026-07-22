@@ -20,11 +20,7 @@
       </div>
     </div>
 
-    <main
-      id="library-page"
-      class="library-page"
-      aria-busy="true"
-    >
+    <main id="library-page" class="library-page" aria-busy="true">
       <header class="page-heading">
         <h1>Biblioteca</h1>
         <div class="subtitle">
@@ -35,8 +31,7 @@
 
       <div id="empty-state" class="empty-state hidden">
         Nenhum modelo encontrado. Configure uma pasta de modelos nas
-        "Configurações Gerais" ou baixe pela seção de pesquisa do ATLAS (ainda
-        não disponível).
+        "Configurações Gerais" ou baixe modelos pela seção de pesquisa do ATLAS
       </div>
 
       <div id="model-details" class="hidden">
@@ -115,7 +110,9 @@
                 </div>
                 <input type="range" id="param-gpu" min="0" max="0" value="0" />
                 <div class="gpu-slider-meta">
-                  <span id="gpu-layer-size">0 usa ajuste automático da engine</span>
+                  <span id="gpu-layer-size"
+                    >0 usa ajuste automático da engine</span
+                  >
                   <span id="gpu-vram-total">VRAM: -</span>
                 </div>
               </div>

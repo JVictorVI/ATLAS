@@ -338,6 +338,30 @@ export class ChatPanelManager {
         "scripts/message-bus.js",
         "scripts/script.js",
       ],
+      atlas: [
+        "scripts/state.js",
+        "scripts/dom-utils.js",
+        "scripts/loading.js",
+        "scripts/static-analysis.js",
+        "scripts/context-profiles.js",
+        "scripts/engine-download.js",
+        "scripts/settings.js",
+        "scripts/message-bus.js",
+        "scripts/script.js",
+      ],
+      search: [
+        "scripts/state.js",
+        "scripts/dom-utils.js",
+        "scripts/model-utils.js",
+        "scripts/render-components.js",
+        "scripts/render-sidebar.js",
+        "scripts/render-details.js",
+        "scripts/render.js",
+        "scripts/search-requests.js",
+        "scripts/events.js",
+        "scripts/message-bus.js",
+        "scripts/script.js",
+      ],
     };
     const scriptFiles = scriptsByView[selectedView] ?? ["script.js"];
 

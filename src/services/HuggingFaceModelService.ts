@@ -525,15 +525,9 @@ export class HuggingFaceModelService {
   private normalizeSummary(value: string): string {
     return String(value ?? "")
       .replace(/^---[\s\S]*?---/m, " ")
-      .replace(/```[\s\S]*?```/g, " ")
-      .replace(/<[^>]+>/g, " ")
-      .replace(/!\[[^\]]*]\([^)]*\)/g, " ")
-      .replace(/\[([^\]]+)]\([^)]*\)/g, "$1")
-      .replace(/^#+\s*/gm, "")
-      .replace(/[*_`>#|]/g, "")
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 360);
+      .replace(/\r\n/g, "\n")
+      .replace(/\n{4,}/g, "\n\n\n")
+      .trim();
   }
   private inferQuantization(fileName: string): string {
     const match = fileName.match(
