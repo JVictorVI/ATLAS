@@ -17,6 +17,15 @@ const engineVulkan = document.getElementById("engine-vulkan");
 const contextWindowDynamic = document.getElementById("context-window-dynamic");
 const contextWindowFixed = document.getElementById("context-window-fixed");
 const engineStartOnOpen = document.getElementById("engine-start-on-open");
+const enginePrepareOnOpen = document.getElementById("engine-prepare-on-open");
+const engineDownloadPrompt = document.getElementById("engine-download-prompt");
+const engineDownloadPromptText = document.getElementById(
+  "engine-download-prompt-text",
+);
+const engineDownloadStatus = document.getElementById("engine-download-status");
+const downloadSelectedEngine = document.getElementById(
+  "download-selected-engine",
+);
 const staticAnalysisEnabled = document.getElementById(
   "static-analysis-enabled",
 );
@@ -39,12 +48,19 @@ const openEnginesFolder = document.getElementById("open-engines-folder");
 const saveButton = document.getElementById("save-atlas-settings");
 let initialAtlasSettingsLoaded = false;
 let initialAtlasSettingsTimeout = undefined;
+let loadedEngineType = "cpu";
+let downloadAfterSave = false;
 
 let contextProfilePresets = {};
+const engineDownloadStateByType = {};
 
 window.addEventListener("DOMContentLoaded", () => {
   setAtlasLoading(true);
   saveButton?.addEventListener("click", saveAtlasSettings);
+  [engineCpu, engineCuda, engineVulkan].forEach((input) => {
+    input?.addEventListener("change", updateEngineDownloadPrompt);
+  });
+  downloadSelectedEngine?.addEventListener("click", downloadCurrentEngineMode);
   staticAnalysisEnabled?.addEventListener(
     "change",
     updateStaticAnalysisAvailability,
@@ -88,9 +104,27 @@ window.addEventListener("message", (event) => {
   }
 
   if (message.type === "configuracoesAtlasSalvas") {
+    const shouldDownload = downloadAfterSave;
     applyAtlasSettings(message.value);
     releaseAtlasLoading();
     showSavedFeedback();
+
+    if (shouldDownload) {
+      downloadAfterSave = false;
+      if (engineDownloadPrompt) {
+        engineDownloadPrompt.hidden = false;
+      }
+      setEngineDownloadStatus("Preparando download da engine selecionada...");
+      vscode.postMessage({ type: "baixarEngineConfigurada" });
+    }
+  }
+
+  if (message.type === "downloadEngineConfiguradaStatus") {
+    updateEngineDownloadStatus(message.value);
+  }
+
+  if (message.type === "engineModoExecucaoVerificada") {
+    applyEngineModeCheck(message.value);
   }
 });
 
@@ -140,6 +174,7 @@ function applyAtlasSettings(value) {
   const engineType = ["cuda", "vulkan"].includes(value?.engineType)
     ? value.engineType
     : "cpu";
+  loadedEngineType = engineType;
 
   if (engineCpu) {
     engineCpu.checked = engineType === "cpu";
@@ -165,6 +200,10 @@ function applyAtlasSettings(value) {
 
   if (engineStartOnOpen) {
     engineStartOnOpen.checked = value?.startOnAtlasOpen === true;
+  }
+
+  if (enginePrepareOnOpen) {
+    enginePrepareOnOpen.checked = value?.prepareOnAtlasOpen !== false;
   }
 
   if (staticAnalysisEnabled) {
@@ -201,6 +240,8 @@ function applyAtlasSettings(value) {
     enginesFolderPath.value = value?.enginesDir || "";
     enginesFolderPath.title = value?.enginesDir || "";
   }
+
+  updateEngineDownloadPrompt();
 }
 
 function saveAtlasSettings() {
@@ -217,6 +258,7 @@ function saveAtlasSettings() {
       engineType: getSelectedEngineType(),
       dynamicContextWindow: contextWindowFixed?.checked !== true,
       startOnAtlasOpen: engineStartOnOpen?.checked === true,
+      prepareOnAtlasOpen: enginePrepareOnOpen?.checked !== false,
       modelsDir: modelsFolderPath?.value || "",
       enginesDir: enginesFolderPath?.value || "",
       staticAnalysisEnabled: staticAnalysisEnabled?.checked === true,
@@ -481,6 +523,107 @@ function formatNumber(value) {
   }
 
   return new Intl.NumberFormat("pt-BR").format(parsed);
+}
+
+function updateEngineDownloadPrompt() {
+  if (!engineDownloadPrompt) {
+    return;
+  }
+
+  const selectedEngineType = getSelectedEngineType();
+  const changed = selectedEngineType !== loadedEngineType;
+
+  if (!changed) {
+    engineDownloadPrompt.hidden = true;
+    setEngineDownloadStatus("");
+    return;
+  }
+
+  const knownDownloadState = engineDownloadStateByType[selectedEngineType];
+  if (knownDownloadState === true) {
+    engineDownloadPrompt.hidden = true;
+    setEngineDownloadStatus("");
+    return;
+  }
+
+  if (knownDownloadState !== false) {
+    engineDownloadPrompt.hidden = true;
+    requestEngineModeCheck(selectedEngineType);
+    return;
+  }
+
+  engineDownloadPrompt.hidden = false;
+
+  if (engineDownloadPromptText) {
+    engineDownloadPromptText.textContent =
+      `O modo mudou de ${formatEngineType(loadedEngineType)} para ${formatEngineType(selectedEngineType)}. Salve e baixe a engine correspondente agora.`;
+  }
+}
+
+function requestEngineModeCheck(engineType) {
+  vscode.postMessage({
+    type: "verificarEngineModoExecucao",
+    engineType,
+  });
+}
+
+function applyEngineModeCheck(value) {
+  const engineType = value?.engineType;
+
+  if (!["cpu", "cuda", "vulkan"].includes(engineType)) {
+    return;
+  }
+
+  engineDownloadStateByType[engineType] = value?.downloaded === true;
+
+  if (engineType === getSelectedEngineType()) {
+    updateEngineDownloadPrompt();
+  }
+}
+
+function downloadCurrentEngineMode() {
+  downloadAfterSave = true;
+  saveAtlasSettings();
+  setEngineDownloadStatus("Salvando modo selecionado e preparando download...");
+}
+
+function updateEngineDownloadStatus(value) {
+  const message = value?.message || "";
+  setEngineDownloadStatus(message, value?.error === true);
+
+  if (downloadSelectedEngine) {
+    downloadSelectedEngine.disabled = value?.loading === true;
+    downloadSelectedEngine.textContent =
+      value?.loading === true ? "Baixando..." : "Baixar agora";
+  }
+
+  if (value?.done === true && value?.error !== true) {
+    const selectedEngineType = getSelectedEngineType();
+    engineDownloadStateByType[selectedEngineType] = true;
+    loadedEngineType = selectedEngineType;
+    updateEngineDownloadPrompt();
+  }
+}
+
+function setEngineDownloadStatus(message, isError = false) {
+  if (!engineDownloadStatus) {
+    return;
+  }
+
+  engineDownloadStatus.textContent = message;
+  engineDownloadStatus.classList.toggle("is-error", isError);
+}
+
+function formatEngineType(engineType) {
+  if (engineType === "cuda") {
+    return "GPU NVIDIA CUDA";
+  }
+
+  if (engineType === "vulkan") {
+    return "GPU Vulkan";
+  }
+
+  return "CPU";
 }
 
 function updateStaticAnalysisAvailability() {

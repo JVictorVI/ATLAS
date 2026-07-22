@@ -16,6 +16,12 @@ export function activate(context: vscode.ExtensionContext) {
     ),
   );
 
+  context.subscriptions.push(
+    vscode.commands.registerCommand("atlas.baixarEngineAi", async () => {
+      await provider.downloadEngineAI();
+    }),
+  );
+
   context.subscriptions.push({
     dispose: () => provider.dispose(),
   });

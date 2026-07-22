@@ -170,6 +170,12 @@ export class ChatMessageRouter {
       case "abrirPastaEnginesLocais":
         await this.handleOpenLocalEnginesFolder();
         return;
+      case "baixarEngineConfigurada":
+        await this.handleDownloadConfiguredEngineRequest(webview);
+        return;
+      case "verificarEngineModoExecucao":
+        await this.handleCheckConfiguredEngineRequest(data, webview);
+        return;
       case "selecionarModelo":
         await this.handleSelectModel(data, webview);
         return;
@@ -245,6 +251,9 @@ export class ChatMessageRouter {
       case "listarSessoes":
         await this.sessionController.handleListSessions(webview);
         return;
+      case "solicitarHardware":
+        await this.handleSendHardwareInfo(webview);
+        return;
     }
   }
 
@@ -276,11 +285,49 @@ export class ChatMessageRouter {
             id: model.id,
             name: model.name || model.id,
           })),
+          hardware: await this.getHardwarePayload(),
         },
       });
     } catch (error) {
       await this.postError(webview, error, "Erro ao carregar LLMs.");
     }
+  }
+
+  private async handleSendHardwareInfo(
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      await webview.postMessage({
+        type: "informarLLMsCarregados",
+        value: {
+          hardware: await this.getHardwarePayload(),
+        },
+      });
+    } catch (error) {
+      await this.postError(
+        webview,
+        error,
+        "Erro ao carregar informações de hardware.",
+      );
+    }
+  }
+
+  private async getHardwarePayload(): Promise<{
+    ram: string;
+    cpu: string;
+    gpu: string;
+    storage: string;
+  }> {
+    const hardwareInfo =
+      await this.deps.hardwareDiagnosticService.getHardwareInfo();
+
+    return {
+      ram: hardwareInfo.ram,
+      cpu: hardwareInfo.cpu,
+      gpu: hardwareInfo.gpu,
+      storage:
+        hardwareInfo.storageFreeBytes > 0 ? hardwareInfo.storage : "",
+    };
   }
 
   private async handleLoadRagStatus(webview: vscode.Webview): Promise<void> {
@@ -1029,7 +1076,7 @@ export class ChatMessageRouter {
       await this.postError(
         webview,
         error,
-        "Nao foi possivel adicionar materiais complementares ao RAG.",
+        "Não foi possível adicionar materiais complementares ao RAG.",
       );
     }
   }
@@ -1079,7 +1126,7 @@ export class ChatMessageRouter {
       await this.postError(
         webview,
         error,
-        "Nao foi possivel excluir o material complementar.",
+        "Não foi possível excluir o material complementar.",
       );
     }
   }
@@ -1122,7 +1169,7 @@ export class ChatMessageRouter {
       await this.postError(
         webview,
         error,
-        "Nao foi possivel remover os materiais complementares.",
+        "Não foi possível remover os materiais complementares.",
       );
     }
   }
@@ -1512,6 +1559,7 @@ export class ChatMessageRouter {
           : {};
       const engineType = this.normalizeLocalEngineType(payload.engineType);
       const startOnAtlasOpen = payload.startOnAtlasOpen === true;
+      const prepareOnAtlasOpen = payload.prepareOnAtlasOpen !== false;
       const saveInterruptedResponses =
         payload.saveInterruptedResponses !== false;
       const dynamicContextWindow =
@@ -1561,6 +1609,7 @@ export class ChatMessageRouter {
           ...currentLocalEngine,
           engineType,
           startOnAtlasOpen,
+          prepareOnAtlasOpen,
           dynamicContextWindow,
           stream: localStream,
           timeout: localTimeout,
@@ -1919,6 +1968,73 @@ export class ChatMessageRouter {
     );
   }
 
+  private async handleDownloadConfiguredEngineRequest(
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      await webview.postMessage({
+        type: "downloadEngineConfiguradaStatus",
+        value: {
+          loading: true,
+          done: false,
+          message: "Verificando a engine selecionada...",
+        },
+      });
+
+      await this.deps.downloadConfiguredLlamaEngine((message) => {
+        void webview.postMessage({
+          type: "downloadEngineConfiguradaStatus",
+          value: { loading: true, done: false, message },
+        });
+      });
+
+      await webview.postMessage({
+        type: "downloadEngineConfiguradaStatus",
+        value: {
+          loading: false,
+          done: true,
+          message: "Engine selecionada pronta para uso.",
+        },
+      });
+
+      await webview.postMessage({
+        type: "configuracoesAtlasCarregadas",
+        value: this.getAtlasSettingsPayload(),
+      });
+
+      vscode.window.showInformationMessage(
+        "ATLAS: engine selecionada pronta para uso.",
+      );
+    } catch (error) {
+      const message = this.getErrorMessage(
+        error,
+        "Erro ao baixar a engine selecionada.",
+      );
+
+      await webview.postMessage({
+        type: "downloadEngineConfiguradaStatus",
+        value: { loading: false, done: true, error: true, message },
+      });
+
+      vscode.window.showErrorMessage(`ATLAS: ${message}`);
+    }
+  }
+
+  private async handleCheckConfiguredEngineRequest(
+    data: any,
+    webview: vscode.Webview,
+  ): Promise<void> {
+    const requestedEngineType = this.normalizeLocalEngineType(data.engineType);
+
+    await webview.postMessage({
+      type: "engineModoExecucaoVerificada",
+      value: {
+        engineType: requestedEngineType,
+        downloaded: this.deps.isLlamaEngineTypeDownloaded(requestedEngineType),
+      },
+    });
+  }
+
   private async handleSelectLocalModelsFolder(
     webview: vscode.Webview,
   ): Promise<void> {
@@ -2253,6 +2369,7 @@ export class ChatMessageRouter {
       ),
       engineType: this.normalizeLocalEngineType(value.engineType),
       startOnAtlasOpen: value.startOnAtlasOpen === true,
+      prepareOnAtlasOpen: value.prepareOnAtlasOpen !== false,
       dynamicContextWindow: value.dynamicContextWindow !== false,
       modelsDir: this.deps.getLocalModelsDir(),
       enginesDir: this.deps.getLocalEnginesDir(),
@@ -2362,7 +2479,7 @@ export class ChatMessageRouter {
       path.extname(resolvedModelPath).toLowerCase() !== ".gguf"
     ) {
       throw new Error(
-        "Por seguranca, apenas arquivos .gguf dentro da pasta models podem ser excluidos.",
+        "Por segurança, apenas arquivos .gguf dentro da pasta models podem ser excluídos.",
       );
     }
 

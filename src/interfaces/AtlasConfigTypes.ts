@@ -168,6 +168,7 @@ export interface AtlasContextProfileSettings {
 export interface AtlasLocalEngineCustomConfig {
   engineType?: "cpu" | "cuda" | "vulkan";
   startOnAtlasOpen?: boolean;
+  prepareOnAtlasOpen?: boolean;
   enginesDir?: string;
   llamaServerPath?: string;
   dynamicContextWindow?: boolean;

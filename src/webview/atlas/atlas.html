@@ -405,6 +405,31 @@
                 </span>
               </label>
             </div>
+
+            <div
+              class="engine-download-prompt"
+              id="engine-download-prompt"
+              hidden
+            >
+              <div>
+                <strong>Modo de execução alterado</strong>
+                <small id="engine-download-prompt-text">
+                  Baixe a engine correspondente agora para deixar o ATLAS pronto
+                  para usar.
+                </small>
+                <small
+                  class="engine-download-status"
+                  id="engine-download-status"
+                ></small>
+              </div>
+              <button
+                id="download-selected-engine"
+                class="btn-secondary"
+                type="button"
+              >
+                Baixar agora
+              </button>
+            </div>
           </div>
 
           <div class="settings-section">
@@ -547,6 +572,17 @@
               <small>
                 O ATLAS inicia a engine local ao abrir, usando o modelo local
                 selecionado
+              </small>
+            </span>
+          </label>
+
+          <label class="startup-option startup-option-spaced">
+            <input type="checkbox" id="engine-prepare-on-open" />
+            <span>
+              <strong>Verificar e baixar engine ao abrir</strong>
+              <small>
+                O ATLAS verifica as especificações da máquina ao abrir e baixa a
+                engine recomendada quando ela ainda não estiver instalada
               </small>
             </span>
           </label>

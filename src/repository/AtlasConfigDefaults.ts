@@ -119,6 +119,7 @@ export class AtlasConfigDefaults {
         saveInterruptedResponses: true,
         localEngine: {
           dynamicContextWindow: true,
+          prepareOnAtlasOpen: true,
           stream: true,
           timeout: 30,
         },

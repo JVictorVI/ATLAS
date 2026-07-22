@@ -8,6 +8,7 @@ import { AtlasPromptCustomizationService } from "../prompt/AtlasPromptCustomizat
 import { AtlasInferenceService } from "../services/AtlasInferenceService";
 import { AtlasSessionService } from "../services/AtlasSessionService";
 import { CloudApiService } from "../services/CloudApiService";
+import { HardwareDiagnosticService } from "../services/HardwareDiagnosticService";
 import { HuggingFaceModelSearchFilter } from "../services/HuggingFaceModelService";
 import {
   HuggingFaceModelDetails,
@@ -32,6 +33,7 @@ export type RouterDependencies = {
   promptCustomizationService: AtlasPromptCustomizationService;
   promptAssemblyService: AtlasPromptAssemblyService;
   sessionService: AtlasSessionService;
+  hardwareDiagnosticService: HardwareDiagnosticService;
   openPanel: (selectedView?: string) => void;
   openSearchModelDetails: (modelId: string) => void;
   sendModelsToWebview: (webview: vscode.Webview) => void;
@@ -52,6 +54,16 @@ export type RouterDependencies = {
   stopLocalEngine: (options?: { force?: boolean }) => void;
   getLocalModelsDir: () => string;
   getLocalEnginesDir: () => string;
+  isLlamaEngineDownloaded: () => Promise<boolean>;
+  isLlamaEngineTypeDownloaded: (
+    engineType: "cpu" | "cuda" | "vulkan",
+  ) => boolean;
+  downloadLlamaEngine: (
+    onStatus?: (message: string) => void,
+  ) => Promise<void>;
+  downloadConfiguredLlamaEngine: (
+    onStatus?: (message: string) => void,
+  ) => Promise<void>;
   searchHuggingFaceModels: (
     query: string,
     modelFilter?: HuggingFaceModelSearchFilter,

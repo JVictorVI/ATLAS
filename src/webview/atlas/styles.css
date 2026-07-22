@@ -291,6 +291,10 @@ h1 {
   max-width: 760px;
 }
 
+.startup-option-spaced {
+  margin-top: 10px;
+}
+
 .engine-option:hover {
   border-color: var(--vscode-focusBorder);
 }
@@ -326,10 +330,39 @@ h1 {
 
 .engine-option small,
 .startup-option small,
+.engine-download-prompt small,
 .note {
   color: var(--vscode-descriptionForeground);
   font-size: 12px;
   line-height: 1.45;
+}
+
+.engine-download-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  border: 1px solid
+    var(--vscode-inputValidation-warningBorder, var(--vscode-widget-border));
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--vscode-inputValidation-warningBackground, transparent);
+}
+
+.engine-download-prompt > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.engine-download-status:empty {
+  display: none;
+}
+
+.engine-download-status.is-error {
+  color: var(--vscode-errorForeground);
 }
 
 input[type="radio"] {
@@ -452,5 +485,10 @@ button {
 
   .static-analysis-dependent {
     margin-left: 6px;
+  }
+
+  .engine-download-prompt {
+    align-items: stretch;
+    flex-direction: column;
   }
 }

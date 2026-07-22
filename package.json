@@ -15,7 +15,10 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onView:atlas-chat.view",
+    "onCommand:atlas.baixarEngineAi"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
     "viewsContainers": {
@@ -35,7 +38,13 @@
           "name": "Assistente Inteligente"
         }
       ]
-    }
+    },
+    "commands": [
+      {
+        "command": "atlas.baixarEngineAi",
+        "title": "ATLAS: Baixar engine local automaticamente"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run package",

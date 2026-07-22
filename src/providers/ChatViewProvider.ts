@@ -26,6 +26,8 @@ import { AtlasRagService } from "../services/AtlasRagService";
 import { AtlasEmbeddingService } from "../services/AtlasEmbeddingService";
 import { AtlasEmbeddingModelDiscoveryService } from "../services/AtlasEmbeddingModelDiscoveryService";
 import { AtlasRagRepository } from "../repository/AtlasRagRepository";
+import { AtlasEngineDownloadService } from "../services/AtlasEngineDownloadService";
+import { HardwareDiagnosticService } from "../services/HardwareDiagnosticService";
 import { AtlasEditorContextService } from "./AtlasEditorContextService";
 import { AtlasQuickAnalysisController } from "./AtlasQuickAnalysisController";
 import { ChatPanelManager } from "./ChatPanelManager";
@@ -46,6 +48,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private readonly localModelDiscoveryService: AtlasLocalModelDiscoveryService;
   private readonly localEngineService: AtlasLocalEngineService;
   private readonly huggingFaceModelService: HuggingFaceModelService;
+  private readonly hardwareDiagnosticService: HardwareDiagnosticService;
+  private readonly engineDownloadService: AtlasEngineDownloadService;
 
   // Prompt
   private readonly promptPolicyService: AtlasSystemPromptPolicyService;
@@ -76,12 +80,14 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private readonly panelManager: ChatPanelManager;
   private readonly modelWebviewService: ChatModelWebviewService;
   private readonly messageRouter: ChatMessageRouter;
+  private startupEngineDownloadPromise: Promise<void> | null = null;
   private startupEnginePromise: Promise<void> | null = null;
   private startupRagIndexPromise: Promise<void> | null = null;
   private startupRagIndexChecked = false;
   private notifyEngineStartup = false;
 
   constructor(private readonly context: vscode.ExtensionContext) {
+    this.hardwareDiagnosticService = new HardwareDiagnosticService();
     // Secrets & config
     const secretStorage = new SecretStorageService(context);
     this.configManager = new AtlasConfigManager(context);
@@ -133,6 +139,11 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this.localEngineService = new AtlasLocalEngineService(
       this.context,
       this.configManager,
+    );
+    this.engineDownloadService = new AtlasEngineDownloadService(
+      this.context,
+      this.configManager,
+      this.hardwareDiagnosticService,
     );
     this.localEngineService.onStatus(async (message) => {
       await this._view?.webview.postMessage({
@@ -227,6 +238,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       promptCustomizationService: this.promptCustomizationService,
       promptAssemblyService: this.promptAssemblyService,
       sessionService: this.sessionService,
+      hardwareDiagnosticService: this.hardwareDiagnosticService,
 
       openPanel: (selectedView?: string) => {
         this.panelManager.openPanel(selectedView);
@@ -310,6 +322,24 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
       getLocalEnginesDir: () => this.localEngineService.getEnginesDir(),
 
+      isLlamaEngineDownloaded: async () => {
+        return this.engineDownloadService.isEngineDownloaded();
+      },
+
+      isLlamaEngineTypeDownloaded: (engineType) => {
+        return this.engineDownloadService.isEngineDownloaded(engineType);
+      },
+
+      downloadLlamaEngine: async (onStatus) => {
+        await this.engineDownloadService.ensureEngineDownloaded(onStatus);
+      },
+
+      downloadConfiguredLlamaEngine: async (onStatus) => {
+        await this.engineDownloadService.ensureConfiguredEngineDownloaded(
+          onStatus,
+        );
+      },
+
       searchHuggingFaceModels: (query: string, modelFilter) => {
         return this.huggingFaceModelService.searchModels(query, modelFilter);
       },
@@ -339,6 +369,19 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
             const model =
               await this.huggingFaceModelService.getModelDetails(modelId);
+
+            if (model.format !== "ONNX") {
+              await this.engineDownloadService.ensureConfiguredEngineDownloaded(
+                (message) => {
+                  progress.report({ message });
+                  void webview.postMessage({
+                    type: "downloadModeloHuggingFaceProgresso",
+                    value: { modelId, fileName, percent: 0, message },
+                  });
+                },
+              );
+            }
+
             const targetPath =
               await this.huggingFaceModelService.downloadModel(
                 model,
@@ -534,6 +577,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     );
 
     void this.sendAvailableLlmsToWebview(webviewView.webview);
+    void this.ensureEngineDownloadedOnAtlasOpen();
     void this.startEngineOnAtlasOpenIfEnabled();
     void this.indexRagOnAtlasOpenIfEnabled();
 
@@ -558,6 +602,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       .getAllProviders()
       .filter((provider) => provider.id !== "HuggingFace");
     const localModels = this.localModelDiscoveryService.refreshLocalModels();
+    const hardware = await this.getHardwarePayload();
 
     await webview.postMessage({
       type: "informarLLMsCarregados",
@@ -579,8 +624,32 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           name: model.name || model.id,
           provider: model.provider || "Local",
         })),
+        hardware,
       },
     });
+  }
+
+  private async getHardwarePayload(): Promise<{
+    ram: string;
+    cpu: string;
+    gpu: string;
+    storage: string;
+  } | null> {
+    try {
+      const hardwareInfo =
+        await this.hardwareDiagnosticService.getHardwareInfo();
+
+      return {
+        ram: hardwareInfo.ram,
+        cpu: hardwareInfo.cpu,
+        gpu: hardwareInfo.gpu,
+        storage:
+          hardwareInfo.storageFreeBytes > 0 ? hardwareInfo.storage : "",
+      };
+    } catch (error) {
+      console.warn("[ATLAS] Falha ao coletar hardware da máquina:", error);
+      return null;
+    }
   }
 
   private broadcastQuickAnalysisAvailability(
@@ -640,6 +709,83 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
+  private async ensureEngineDownloadedOnAtlasOpen(): Promise<void> {
+    const localEngine = this.configManager.getConfig().custom?.localEngine;
+
+    if (
+      typeof localEngine === "object" &&
+      localEngine !== null &&
+      (localEngine as Record<string, unknown>).prepareOnAtlasOpen === false
+    ) {
+      return;
+    }
+
+    if (this.engineDownloadService.isAnyEngineDownloaded()) {
+      return;
+    }
+
+    try {
+      await this.ensureEngineDownloadedWithProgress(
+        "ATLAS: preparando engine (llama.cpp)...",
+        (onStatus) =>
+          this.engineDownloadService.ensureEngineDownloaded(onStatus),
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Erro desconhecido ao preparar engine.";
+
+      vscode.window.showErrorMessage(`ATLAS: ${message}`);
+    }
+  }
+
+  private async ensureConfiguredEngineDownloaded(): Promise<void> {
+    if (this.engineDownloadService.isEngineDownloaded()) {
+      return;
+    }
+
+    await this.ensureEngineDownloadedWithProgress(
+      "ATLAS: baixando a engine selecionada...",
+      (onStatus) =>
+        this.engineDownloadService.ensureConfiguredEngineDownloaded(onStatus),
+    );
+  }
+
+  private async ensureEngineDownloadedWithProgress(
+    title: string,
+    runner: (onStatus: (message: string) => void) => Promise<void>,
+  ): Promise<void> {
+    if (this.startupEngineDownloadPromise) {
+      return this.startupEngineDownloadPromise;
+    }
+
+    this.startupEngineDownloadPromise = Promise.resolve(
+      vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title,
+          cancellable: false,
+        },
+        async (progress) => {
+          await runner((message) => {
+            progress.report({ message });
+            void this._view?.webview.postMessage({
+              type: "engineLocalStatus",
+              value: { message },
+            });
+          });
+        },
+      ),
+    );
+
+    try {
+      await this.startupEngineDownloadPromise;
+    } finally {
+      this.startupEngineDownloadPromise = null;
+    }
+  }
+
   private async startEngineOnAtlasOpen(): Promise<void> {
     const model = this.getActiveModelForEngineStartup();
 
@@ -656,6 +802,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       vscode.window.showInformationMessage(
         `ATLAS: iniciando a engine local para ${model.name}.`,
       );
+      await this.ensureConfiguredEngineDownloaded();
       await this.localEngineService.ensureEngine(model);
     } catch (error) {
       const message =
@@ -763,6 +910,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       );
     }
 
+    await this.ensureConfiguredEngineDownloaded();
     await this.localEngineService.ensureEngine(model);
   }
 
@@ -777,6 +925,28 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this.ragService.dispose();
     this.localEngineService.stopEngine();
     this.quickAnalysisController.dispose();
+  }
+
+  public async downloadEngineAI(): Promise<void> {
+    try {
+      await this.ensureEngineDownloadedWithProgress(
+        "ATLAS: baixando a engine (llama.cpp)...",
+        (onStatus) => this.engineDownloadService.ensureEngineDownloaded(onStatus),
+      );
+
+      const enginesDir = this.engineDownloadService.getEnginesDir();
+
+      vscode.window.showInformationMessage(
+        `ATLAS: engine (llama.cpp) pronta para uso em ${enginesDir}.`,
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Erro desconhecido ao baixar a engine.";
+
+      vscode.window.showErrorMessage(`ATLAS: ${message}`);
+    }
   }
 
   private async promptStopLocalEngine(): Promise<void> {
