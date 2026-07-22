@@ -2,13 +2,19 @@ body {
   font-family: var(--vscode-font-family);
   color: var(--vscode-foreground);
   background: var(--vscode-editor-background);
-  padding: 16px;
-  --atlas-card-background: var(--vscode-editorWidget-background, var(--vscode-sideBar-background, var(--vscode-editor-background)));
-  --atlas-danger-foreground: var(--vscode-errorForeground, var(--vscode-inputValidation-errorBorder));
+  padding: 30px;
+  --atlas-card-background: var(
+    --vscode-editorWidget-background,
+    var(--vscode-sideBar-background, var(--vscode-editor-background))
+  );
+  --atlas-danger-foreground: var(
+    --vscode-errorForeground,
+    var(--vscode-inputValidation-errorBorder)
+  );
 }
 
 h1 {
-  font-size: 35px;
+  font-size: 30px;
   margin-bottom: 6px;
 }
 
@@ -328,7 +334,9 @@ textarea:disabled {
   opacity: 0.62;
 }
 
-.cloud-execution-card .cloud-toggle-list .toggle-option:has(input:disabled):hover {
+.cloud-execution-card
+  .cloud-toggle-list
+  .toggle-option:has(input:disabled):hover {
   border-color: var(--vscode-widget-border);
 }
 

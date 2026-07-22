@@ -31,6 +31,10 @@
     --vscode-inputValidation-errorBackground,
     var(--vscode-input-background)
   );
+  --atlas-embedding-foreground: #4cc2ff;
+  --atlas-embedding-background: rgba(76, 194, 255, 0.12);
+  --atlas-generation-foreground: #c586f7;
+  --atlas-generation-background: rgba(197, 134, 247, 0.12);
   --atlas-warning-fg: var(
     --vscode-editorWarning-foreground,
     var(--vscode-editorWarning-border, var(--vscode-foreground))
@@ -1511,6 +1515,43 @@ textarea {
   background: var(--atlas-surface-hover-bg);
 }
 
+.model-filter-bar {
+  display: flex;
+  gap: 4px;
+  padding: 0 14px 8px;
+  border-bottom: 1px solid var(--atlas-border);
+}
+
+.model-filter-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  min-width: 0;
+  flex: 1;
+  border: 1px solid var(--atlas-border);
+  border-radius: 4px;
+  padding: 0 6px;
+  color: var(--vscode-descriptionForeground);
+  background: var(--atlas-surface-bg);
+  cursor: pointer;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.model-filter-button:hover {
+  color: var(--vscode-foreground);
+  background: var(--atlas-surface-hover-bg);
+}
+
+.model-filter-button.active {
+  border-color: var(--atlas-accent-bg);
+  color: var(--atlas-accent-bg);
+  background: color-mix(in srgb, var(--atlas-accent-bg) 14%, transparent);
+}
+
 .search-results-info {
   padding: 8px 14px;
   font-size: 10px;
@@ -1568,13 +1609,13 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 42px;
-  min-width: 42px;
+  width: 46px;
+  min-width: 46px;
   height: 42px;
   border: 1px solid var(--atlas-border);
   border-radius: 4px;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 12px;
   color: inherit;
   background: var(--atlas-surface-bg);
 }
@@ -1600,7 +1641,8 @@ textarea {
   white-space: nowrap;
 }
 
-.model-card-author {
+.model-card-author,
+.model-kind-pill {
   display: inline-flex;
   align-items: center;
   flex: 0 1 auto;
@@ -1618,8 +1660,35 @@ textarea {
   width: fit-content;
 }
 
-.model-card-author i {
+.model-card-author i,
+.model-kind-pill i {
   flex-shrink: 0;
+}
+
+.model-kind-pill {
+  flex: 0 0 auto;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.model-card.embedding-model .model-kind-pill {
+  border-color: color-mix(
+    in srgb,
+    var(--atlas-embedding-foreground) 55%,
+    var(--atlas-border)
+  );
+  color: var(--atlas-embedding-foreground);
+  background: var(--atlas-embedding-background);
+}
+
+.model-card.generation-model .model-kind-pill {
+  border-color: color-mix(
+    in srgb,
+    var(--atlas-generation-foreground) 50%,
+    var(--atlas-border)
+  );
+  color: var(--atlas-generation-foreground);
+  background: var(--atlas-generation-background);
 }
 
 /* Transições suaves nas cores quando o item está selecionado */
@@ -1676,6 +1745,15 @@ textarea {
 
 .model-card-footer i {
   font-size: 12px;
+}
+
+.model-card-footer .model-card-likes {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 34px;
+  max-width: none;
+  padding-inline: 5px;
+  white-space: nowrap;
 }
 
 .model-card-variant {
@@ -1745,7 +1823,10 @@ textarea {
 }
 
 .search-error-state i {
-  color: var(--vscode-errorForeground, var(--vscode-inputValidation-warningBorder));
+  color: var(
+    --vscode-errorForeground,
+    var(--vscode-inputValidation-warningBorder)
+  );
   font-size: 24px;
 }
 
@@ -1781,20 +1862,20 @@ textarea {
 
 .search-loading-card {
   display: flex;
-  width: 72px;
-  height: 72px;
+  width: 48px;
+  height: 48px;
   align-items: center;
   justify-content: center;
   border: 1px solid var(--atlas-border);
-  border-radius: 14px;
-  padding: 18px;
+  border-radius: 16px;
+  padding: 14px;
   background: var(--atlas-panel-bg);
 }
 
 .search-loading-spinner {
-  width: 34px;
-  height: 34px;
-  border: 3px solid var(--vscode-progressBar-background, var(--atlas-border));
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--vscode-progressBar-background, var(--atlas-border));
   border-top-color: var(--vscode-button-background);
   border-radius: 50%;
   animation: search-loading-spin 850ms linear infinite;

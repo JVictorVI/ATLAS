@@ -1,7 +1,38 @@
 // Responsabilidade: renderiza a busca de modelos compatíveis no Hugging Face.
+const MODEL_FILTER_STORAGE_KEY = "atlas.huggingFaceModelFilter";
+const SEARCH_REQUEST_TIMEOUT_MS = 35000;
+
+function normalizeSearchModelFilter(value) {
+  return value === "all" || value === "llm" || value === "embedding"
+    ? value
+    : "llm";
+}
+
+function getSavedSearchModelFilter() {
+  try {
+    return normalizeSearchModelFilter(
+      window.localStorage.getItem(MODEL_FILTER_STORAGE_KEY),
+    );
+  } catch {
+    return "llm";
+  }
+}
+
+function saveSearchModelFilter(value) {
+  try {
+    window.localStorage.setItem(
+      MODEL_FILTER_STORAGE_KEY,
+      normalizeSearchModelFilter(value),
+    );
+  } catch {
+    // localStorage can be unavailable in restricted webview contexts.
+  }
+}
+
 const searchModelState = {
   query: "",
   models: [],
+  modelFilter: getSavedSearchModelFilter(),
   selectedModelId: "",
   openedModelId: "",
   loading: false,
@@ -9,6 +40,46 @@ const searchModelState = {
 };
 
 let searchDebounceTimer = undefined;
+let searchRequestTimer = undefined;
+let searchRequestId = 0;
+
+function getSearchErrorMessage(value) {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  return (
+    value?.message || "NÃ£o foi possÃ­vel buscar modelos no Hugging Face."
+  );
+}
+
+function clearSearchRequestTimeout() {
+  if (searchRequestTimer !== undefined) {
+    window.clearTimeout(searchRequestTimer);
+    searchRequestTimer = undefined;
+  }
+}
+
+function isCurrentSearchPayload(payload) {
+  const payloadRequestId =
+    payload?.requestId === undefined || payload?.requestId === null
+      ? ""
+      : String(payload.requestId);
+
+  return !payloadRequestId || payloadRequestId === String(searchRequestId);
+}
+
+function failSearchRequest(message) {
+  if (!searchModelState.loading) {
+    return;
+  }
+
+  clearSearchRequestTimeout();
+  searchModelState.loading = false;
+  searchModelState.error = message;
+  updateSearchResultsCount();
+  renderSearchModelCards();
+}
 
 function formatSearchNumber(value) {
   return new Intl.NumberFormat("pt-BR").format(Number(value) || 0);
@@ -36,14 +107,49 @@ function formatSearchDate(value) {
 
 function getSearchModelBadge(model) {
   if (model.format === "ONNX") {
-    return "ONNX";
+    return "EMB";
   }
 
-  const fromName = `${model.name} ${model.id}`.match(
-    /(?:^|[-_\s])(\d+(?:\.\d+)?b)(?:[-_\s]|$)/i,
-  );
+  return "LLM";
+}
 
-  return fromName?.[1]?.toUpperCase() || "GGUF";
+function getSearchModelKind(model) {
+  return model.format === "ONNX"
+    ? {
+        className: "embedding-model",
+        icon: "package",
+        label: "EMBEDDING",
+      }
+    : {
+        className: "generation-model",
+        icon: "comment-discussion",
+        label: "LLM",
+      };
+}
+
+function prioritizeSearchGenerationModels(models) {
+  return [...(models || [])].sort((left, right) => {
+    const leftRank = left?.format === "ONNX" ? 1 : 0;
+    const rightRank = right?.format === "ONNX" ? 1 : 0;
+
+    return leftRank - rightRank;
+  });
+}
+
+function matchesSearchModelFilter(model) {
+  if (searchModelState.modelFilter === "llm") {
+    return model?.format !== "ONNX";
+  }
+
+  if (searchModelState.modelFilter === "embedding") {
+    return model?.format === "ONNX";
+  }
+
+  return true;
+}
+
+function getVisibleSearchModels() {
+  return searchModelState.models.filter(matchesSearchModelFilter);
 }
 
 function getPrimarySearchFile(model) {
@@ -93,19 +199,34 @@ function getSearchResultsLabel() {
     return "ERRO AO PESQUISAR";
   }
 
-  return `${searchModelState.models.length} RESULTADOS ENCONTRADOS`;
+  return `${getVisibleSearchModels().length} RESULTADOS ENCONTRADOS`;
 }
 
 function requestSearchModels(query = searchModelState.query) {
   searchModelState.query = query.trim();
   searchModelState.loading = true;
   searchModelState.error = "";
+  searchModelState.selectedModelId = "";
+  searchRequestId += 1;
+  const requestId = String(searchRequestId);
+  clearSearchRequestTimeout();
+  searchRequestTimer = window.setTimeout(() => {
+    if (requestId !== String(searchRequestId)) {
+      return;
+    }
+
+    failSearchRequest(
+      "A busca no Hugging Face demorou demais. Verifique sua conexÃ£o e tente novamente.",
+    );
+  }, SEARCH_REQUEST_TIMEOUT_MS);
   renderSearchModelCards();
   updateSearchResultsCount();
 
   vscode.postMessage({
     type: "buscarModelosHuggingFace",
     query: searchModelState.query,
+    modelFilter: searchModelState.modelFilter,
+    requestId,
   });
 }
 
@@ -135,7 +256,25 @@ function bindSearchModelEvents() {
       requestSearchModels(modelSearch?.value || "");
     });
 
+  document.querySelectorAll(".model-filter-button").forEach((button) => {
+    button.addEventListener("click", () => {
+      const filter = button.getAttribute("data-model-filter") || "all";
+
+      searchModelState.modelFilter = normalizeSearchModelFilter(filter);
+      saveSearchModelFilter(searchModelState.modelFilter);
+      updateSearchFilterButtons();
+      requestSearchModels(searchModelState.query);
+    });
+  });
+
   bindModelCardEvents();
+}
+
+function updateSearchFilterButtons() {
+  document.querySelectorAll(".model-filter-button").forEach((button) => {
+    const filter = button.getAttribute("data-model-filter") || "all";
+    button.classList.toggle("active", filter === searchModelState.modelFilter);
+  });
 }
 
 function bindModelCardEvents() {
@@ -210,20 +349,22 @@ function renderModelCards(
         const primaryFile = getPrimarySearchFile(model);
         const active = model.id === activeModelId ? "active" : "";
         const description = getSearchModelDescription(model);
+        const kind = getSearchModelKind(model);
 
         return `
-          <button class="model-card ${active}" type="button" data-id="${escapeHtml(model.id)}">
+          <button class="model-card ${active} ${escapeHtml(kind.className)}" type="button" data-id="${escapeHtml(model.id)}">
             <span class="model-badge">${escapeHtml(getSearchModelBadge(model))}</span>
               <span class="model-card-info">
                 <span class="model-card-name" title="${escapeHtml(model.id)}">${escapeHtml(model.name)}</span>
               <span class="model-card-meta">
+                <span class="model-kind-pill"><i class="codicon codicon-${escapeHtml(kind.icon)}"></i> ${escapeHtml(kind.label)}</span>
                 <span class="model-card-author"><i class="codicon codicon-code"></i> ${escapeHtml(model.author)}</span>
                 <span class="model-card-variant">${escapeHtml(getSearchVariantLabel(model, primaryFile))}</span>
               </span>
               <span class="model-card-footer">
                 <span>Atualizado em ${escapeHtml(formatSearchDate(model.updatedAt))}</span>
                 <span><i class="codicon codicon-cloud-download"></i> ${escapeHtml(formatSearchNumber(model.downloads))}</span>
-                <span><i class="codicon codicon-heart"></i> ${escapeHtml(formatSearchNumber(model.likes))}</span>
+                <span class="model-card-likes"><i class="codicon codicon-heart"></i> ${escapeHtml(formatSearchNumber(model.likes))}</span>
                 ${model.pipelineTag ? `<span><i class="codicon codicon-symbol-method"></i> ${escapeHtml(model.pipelineTag)}</span>` : ""}
                 ${model.gated || model.private ? `<span><i class="codicon codicon-lock"></i> ${escapeHtml(getSearchAccessLabel(model))}</span>` : ""}
               </span>
@@ -242,7 +383,7 @@ function renderModelCards(
 }
 
 function renderSearchModelCards() {
-  renderModelCards(searchModelState.models);
+  renderModelCards(getVisibleSearchModels());
 }
 
 function updateSearchResultsCount() {
@@ -258,20 +399,34 @@ function handleSearchModelsLoaded(payload) {
     return;
   }
 
+  if (!isCurrentSearchPayload(payload)) {
+    return;
+  }
+
+  if (
+    payload?.modelFilter &&
+    payload.modelFilter !== searchModelState.modelFilter
+  ) {
+    return;
+  }
+
   const previousSelectedModelId = searchModelState.selectedModelId;
 
+  clearSearchRequestTimeout();
   searchModelState.loading = false;
   searchModelState.error = "";
-  searchModelState.models = payload?.models || [];
+  searchModelState.models = prioritizeSearchGenerationModels(payload?.models);
+  const visibleModels = getVisibleSearchModels();
   searchModelState.selectedModelId =
     searchModelState.selectedModelId &&
-    searchModelState.models.some(
+    visibleModels.some(
       (model) => model.id === searchModelState.selectedModelId,
     )
       ? searchModelState.selectedModelId
-      : searchModelState.models[0]?.id || "";
+      : visibleModels[0]?.id || "";
 
   updateSearchResultsCount();
+  updateSearchFilterButtons();
   renderSearchModelCards();
 
   if (
@@ -284,6 +439,19 @@ function handleSearchModelsLoaded(payload) {
 
 function handleSearchModelsError(message) {
   if (currentView !== "search") {
+    return;
+  }
+
+  if (message?.source && message.source !== "huggingFaceSearch") {
+    return;
+  }
+
+  if (!isCurrentSearchPayload(message)) {
+    return;
+  }
+
+  failSearchRequest(getSearchErrorMessage(message));
+  if (typeof message !== "string") {
     return;
   }
 
@@ -306,6 +474,11 @@ function renderSearchView() {
             <i class="codicon codicon-search"></i>
           </button>
         </form>
+        <div class="model-filter-bar" aria-label="Filtro de tipo de modelo">
+          <button class="model-filter-button ${searchModelState.modelFilter === "all" ? "active" : ""}" type="button" data-model-filter="all">Ambos</button>
+          <button class="model-filter-button ${searchModelState.modelFilter === "llm" ? "active" : ""}" type="button" data-model-filter="llm">LLM</button>
+          <button class="model-filter-button ${searchModelState.modelFilter === "embedding" ? "active" : ""}" type="button" data-model-filter="embedding">Embeddings</button>
+        </div>
         <div class="search-results-info">
           <i class="codicon codicon-chevron-right"></i>
           <span id="search-results-count">${escapeHtml(getSearchResultsLabel())}</span>

@@ -114,7 +114,7 @@ export class AtlasEmbeddingService {
 
     const extractor = await transformers.pipeline(
       "feature-extraction",
-      modelId,
+      modelPath.replace(/\\/g, "/"),
       {
         local_files_only: true,
         dtype,

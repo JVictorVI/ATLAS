@@ -4,7 +4,7 @@
 
 body {
   margin: 0;
-  padding: 16px;
+  padding: 30px;
   color: var(--vscode-foreground);
   background: var(--vscode-editor-background);
   font-family: var(--vscode-font-family);
@@ -128,6 +128,27 @@ body.rag-loading-active .rag-page {
 
 .embedding-model-grid.is-model-ready {
   grid-template-columns: minmax(0, 1fr);
+}
+
+.embedding-model-selector-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.embedding-model-selector-row select {
+  min-width: 0;
+}
+
+.embedding-model-delete-button {
+  display: inline-flex;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
 }
 
 .field {
@@ -312,8 +333,7 @@ body.rag-loading-active .rag-page {
   height: 16px;
   flex: 0 0 16px;
   margin: 2px 0 0;
-  border: 1px solid
-    var(--vscode-checkbox-border, var(--vscode-widget-border));
+  border: 1px solid var(--vscode-checkbox-border, var(--vscode-widget-border));
   border-radius: 3px;
   background: var(--vscode-checkbox-background);
   cursor: pointer;

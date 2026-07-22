@@ -158,6 +158,11 @@ window.addEventListener("message", (event) => {
     return;
   }
 
+  if (message.type === "modeloEmbeddingRagExcluido") {
+    showFeedback("Modelo de embeddings excluído.");
+    return;
+  }
+
   if (message.type !== "estadoRagCarregado") {
     return;
   }

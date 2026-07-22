@@ -1,5 +1,4 @@
 import * as vscode from "vscode";
-
 import { ApiKeyManager } from "../managers/ApiKeyManager";
 import { SecretStorageService } from "../services/SecretStorageService";
 import { CloudApiService } from "../services/CloudApiService";
@@ -128,6 +127,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this.huggingFaceModelService = new HuggingFaceModelService(
       () => this.localModelDiscoveryService.getModelsDir(),
       () => this.apiKeyManager.getRawKey("HuggingFace"),
+      () => this.embeddingModelDiscoveryService.getModelsDir(),
     );
 
     this.localEngineService = new AtlasLocalEngineService(
@@ -310,8 +310,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
       getLocalEnginesDir: () => this.localEngineService.getEnginesDir(),
 
-      searchHuggingFaceModels: (query: string) => {
-        return this.huggingFaceModelService.searchModels(query);
+      searchHuggingFaceModels: (query: string, modelFilter) => {
+        return this.huggingFaceModelService.searchModels(query, modelFilter);
       },
 
       getHuggingFaceModelDetails: (modelId: string) => {
@@ -337,9 +337,11 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
               abortController.abort();
             });
 
+            const model =
+              await this.huggingFaceModelService.getModelDetails(modelId);
             const targetPath =
-              await this.huggingFaceModelService.downloadGguf(
-                modelId,
+              await this.huggingFaceModelService.downloadModel(
+                model,
                 fileName,
                 (percent) => {
                   const increment = Math.max(0, percent - previousPercent);
@@ -358,14 +360,18 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
                 abortController.signal,
               );
 
-            this.localModelDiscoveryService.refreshLocalModels();
+            if (model.format === "ONNX") {
+              this.embeddingModelDiscoveryService.refreshEmbeddingModels();
+            } else {
+              this.localModelDiscoveryService.refreshLocalModels();
+            }
 
             if (this._view) {
               await this.sendAvailableLlmsToWebview(this._view.webview);
               this.modelWebviewService.sendModelsToWebview(this._view.webview);
             }
 
-            return targetPath;
+            return { targetPath, format: model.format };
           },
         );
       },
@@ -383,6 +389,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           onProgress,
           signal,
         );
+      },
+
+      deleteRagEmbeddingModel: (modelId) => {
+        return this.embeddingModelDiscoveryService.deleteEmbeddingModel(modelId);
       },
 
       getChatEditorContext: () =>
@@ -544,7 +554,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private async sendAvailableLlmsToWebview(
     webview: vscode.Webview,
   ): Promise<void> {
-    const providers = this.configManager.getAllProviders();
+    const providers = this.configManager
+      .getAllProviders()
+      .filter((provider) => provider.id !== "HuggingFace");
     const localModels = this.localModelDiscoveryService.refreshLocalModels();
 
     await webview.postMessage({

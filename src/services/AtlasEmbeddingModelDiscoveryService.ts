@@ -198,6 +198,33 @@ export class AtlasEmbeddingModelDiscoveryService {
     return this.refreshEmbeddingModels().some((model) => model.id === modelId);
   }
 
+  public deleteEmbeddingModel(modelId: string): RagEmbeddingModelInfo[] {
+    const model = this.refreshEmbeddingModels().find(
+      (candidate) => candidate.id === modelId,
+    );
+
+    if (!model) {
+      throw new Error("Modelo de embeddings não encontrado.");
+    }
+
+    if (model.source !== "custom") {
+      throw new Error("Modelos de embeddings empacotados não podem ser excluídos.");
+    }
+
+    const modelsDir = path.resolve(this.getModelsDir());
+    const modelPath = path.resolve(model.path);
+    const relative = path.relative(modelsDir, modelPath);
+
+    if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
+      throw new Error(
+        "Por segurança, apenas subpastas dentro da pasta de modelos de embeddings podem ser excluídas.",
+      );
+    }
+
+    fs.rmSync(modelPath, { force: true, recursive: true });
+    return this.refreshEmbeddingModels();
+  }
+
   private resolveModelSource(
     modelPath: string,
   ): RagEmbeddingModelInfo["source"] {

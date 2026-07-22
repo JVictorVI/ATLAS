@@ -4,7 +4,7 @@
 
 body {
   margin: 0;
-  padding: 16px;
+  padding: 30px;
   color: var(--vscode-foreground);
   background: var(--vscode-editor-background);
   font-family: var(--vscode-font-family);
@@ -31,10 +31,7 @@ body {
     --vscode-dropdown-background,
     var(--atlas-card-background)
   );
-  --atlas-dropdown-border: var(
-    --vscode-dropdown-border,
-    var(--atlas-border)
-  );
+  --atlas-dropdown-border: var(--vscode-dropdown-border, var(--atlas-border));
   --atlas-dropdown-shadow: var(
     --vscode-widget-shadow,
     var(--vscode-scrollbar-shadow, transparent)
@@ -490,8 +487,7 @@ input[type="radio"] {
   height: 16px;
   flex: 0 0 16px;
   margin: 2px 0 0;
-  border: 1px solid
-    var(--vscode-checkbox-border, var(--vscode-widget-border));
+  border: 1px solid var(--vscode-checkbox-border, var(--vscode-widget-border));
   border-radius: 50%;
   background: var(--vscode-checkbox-background);
   cursor: pointer;

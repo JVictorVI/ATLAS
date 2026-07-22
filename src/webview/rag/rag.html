@@ -250,7 +250,19 @@
         >
           <label class="field">
             <span>Modelo ativo</span>
-            <select id="rag-embedding-model"></select>
+            <div class="embedding-model-selector-row">
+              <select id="rag-embedding-model"></select>
+              <button
+                id="delete-embedding-model"
+                class="btn btn-danger embedding-model-delete-button"
+                type="button"
+                title="Excluir modelo de embeddings"
+                aria-label="Excluir modelo de embeddings"
+                disabled
+              >
+                <i class="codicon codicon-trash" aria-hidden="true"></i>
+              </button>
+            </div>
             <small id="embedding-model-status">
               Carregando modelos disponíveis...
             </small>

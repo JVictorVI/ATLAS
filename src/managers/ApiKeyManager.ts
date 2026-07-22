@@ -332,7 +332,7 @@ export class ApiKeyManager {
   async listCredentials(): Promise<ApiCredentialView[]> {
     const result: ApiCredentialView[] = [];
 
-    for (const provider of this.providers) {
+    for (const provider of this.getVisibleProviders()) {
       const secretKey = this.buildSecretStorageKey(provider.id);
       const storedValue = await this.secretStorage.get(secretKey);
 
@@ -428,7 +428,7 @@ export class ApiKeyManager {
   }
 
   getProvidersWithCustomProvider(): ProviderConfig[] {
-    const filtered = this.providers.filter(
+    const filtered = this.getVisibleProviders().filter(
       (p) => p.id !== "Provedor Personalizado",
     );
 
@@ -452,5 +452,9 @@ export class ApiKeyManager {
     const storedValue = await this.secretStorage.get(secretKey);
 
     return storedValue?.trim() || undefined;
+  }
+
+  private getVisibleProviders(): ProviderConfig[] {
+    return this.providers.filter((provider) => provider.id !== "HuggingFace");
   }
 }

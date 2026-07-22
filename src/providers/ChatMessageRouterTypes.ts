@@ -8,6 +8,7 @@ import { AtlasPromptCustomizationService } from "../prompt/AtlasPromptCustomizat
 import { AtlasInferenceService } from "../services/AtlasInferenceService";
 import { AtlasSessionService } from "../services/AtlasSessionService";
 import { CloudApiService } from "../services/CloudApiService";
+import { HuggingFaceModelSearchFilter } from "../services/HuggingFaceModelService";
 import {
   HuggingFaceModelDetails,
   HuggingFaceModelSummary,
@@ -53,6 +54,7 @@ export type RouterDependencies = {
   getLocalEnginesDir: () => string;
   searchHuggingFaceModels: (
     query: string,
+    modelFilter?: HuggingFaceModelSearchFilter,
   ) => Promise<HuggingFaceModelSummary[]>;
   getHuggingFaceModelDetails: (
     modelId: string,
@@ -61,7 +63,7 @@ export type RouterDependencies = {
     modelId: string,
     fileName: string,
     webview: vscode.Webview,
-  ) => Promise<string>;
+  ) => Promise<{ targetPath: string; format: "GGUF" | "ONNX" }>;
   refreshRagEmbeddingModels: () => RagEmbeddingModelInfo[];
   getRagEmbeddingModelsDir: () => string;
   downloadDefaultRagEmbeddingModel: (
@@ -73,6 +75,7 @@ export type RouterDependencies = {
     }) => void,
     signal?: AbortSignal,
   ) => Promise<RagEmbeddingModelInfo>;
+  deleteRagEmbeddingModel: (modelId: string) => RagEmbeddingModelInfo[];
   getChatEditorContext: () => AtlasEditorContext | null;
   buildEditorAnalysisContext: (context: AtlasEditorContext) => string;
   buildDocumentStructureContext: (

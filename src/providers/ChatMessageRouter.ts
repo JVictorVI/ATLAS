@@ -113,6 +113,9 @@ export class ChatMessageRouter {
       case "selecionarModeloEmbeddingRag":
         await this.handleSelectRagEmbeddingModel(data, webview);
         return;
+      case "excluirModeloEmbeddingRag":
+        await this.handleDeleteRagEmbeddingModel(data, webview);
+        return;
       case "mostrarNotificacaoRag":
         this.handleRagNotification(data);
         return;
@@ -247,7 +250,9 @@ export class ChatMessageRouter {
 
   private async handleLoadLlms(webview: vscode.Webview): Promise<void> {
     try {
-      const providers = this.deps.configManager.getAllProviders();
+      const providers = this.deps.configManager
+        .getAllProviders()
+        .filter((provider) => provider.id !== "HuggingFace");
       const localModels = this.deps.refreshLocalModels();
 
       await webview.postMessage({
@@ -703,6 +708,81 @@ export class ChatMessageRouter {
         webview,
         error,
         "Erro ao selecionar modelo de embeddings.",
+      );
+    }
+  }
+
+  private async handleDeleteRagEmbeddingModel(
+    data: any,
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      const modelId = this.normalizeEmbeddingModelId(data.modelId, "");
+      const models = this.deps.refreshRagEmbeddingModels();
+      const model = models.find((candidate) => candidate.id === modelId);
+
+      if (!model) {
+        throw new Error("Modelo de embeddings inválido ou não encontrado.");
+      }
+
+      if (model.source !== "custom") {
+        throw new Error("Modelos de embeddings empacotados não podem ser excluídos.");
+      }
+
+      const confirmation = await vscode.window.showWarningMessage(
+        `Deseja excluir o modelo de embeddings "${model.name || model.id}"? Essa ação não poderá ser desfeita.`,
+        { modal: true },
+        "Excluir",
+      );
+
+      if (confirmation !== "Excluir") {
+        await webview.postMessage({
+          type: "modelosEmbeddingRagAtualizados",
+          value: {
+            models,
+            modelsDir: this.deps.getRagEmbeddingModelsDir(),
+            selectedModelId:
+              this.deps.configManager.getSection("rag").embeddingModel,
+            silent: true,
+          },
+        });
+        return;
+      }
+
+      let nextModels = this.deps.deleteRagEmbeddingModel(modelId);
+      const current = this.deps.configManager.getSection("rag");
+      let config = this.deps.configManager.getConfig();
+
+      if (current.embeddingModel === modelId && nextModels[0]) {
+        config = this.deps.configManager.updateRagSettings({
+          embeddingModel: nextModels[0].id,
+        });
+        this.deps.markRagProjectsOutdated(
+          "O modelo de embeddings foi alterado; reindexe o projeto.",
+        );
+        nextModels = this.deps.refreshRagEmbeddingModels();
+      }
+
+      await webview.postMessage({
+        type: "estadoRagCarregado",
+        value: this.getRagStatePayload(
+          this.deps.getRagRuntimeStatus(),
+          config.rag,
+          nextModels,
+        ),
+      });
+      await webview.postMessage({
+        type: "modeloEmbeddingRagExcluido",
+      });
+
+      vscode.window.showInformationMessage(
+        "ATLAS: modelo de embeddings excluído.",
+      );
+    } catch (error) {
+      await this.postError(
+        webview,
+        error,
+        "Erro ao excluir modelo de embeddings.",
       );
     }
   }
@@ -1700,21 +1780,39 @@ export class ChatMessageRouter {
     data: any,
     webview: vscode.Webview,
   ): Promise<void> {
+    const requestId =
+      typeof data.requestId === "string" || typeof data.requestId === "number"
+        ? String(data.requestId)
+        : "";
+    const query = typeof data.query === "string" ? data.query : "";
+    const modelFilter =
+      data.modelFilter === "llm" || data.modelFilter === "embedding"
+        ? data.modelFilter
+        : "all";
+
     try {
-      const query = typeof data.query === "string" ? data.query : "";
-      const models = await this.deps.searchHuggingFaceModels(query);
+      const models = await this.deps.searchHuggingFaceModels(
+        query,
+        modelFilter,
+      );
 
       await webview.postMessage({
         type: "modelosHuggingFaceEncontrados",
-        value: { query, models },
+        value: { query, modelFilter, requestId, models },
       });
     } catch (error) {
       await webview.postMessage({
         type: "erro",
-        value: this.getErrorMessage(
-          error,
-          "Erro ao buscar modelos no Hugging Face.",
-        ),
+        value: {
+          source: "huggingFaceSearch",
+          query,
+          modelFilter,
+          requestId,
+          message: this.getErrorMessage(
+            error,
+            "Erro ao buscar modelos no Hugging Face.",
+          ),
+        },
       });
     }
   }
@@ -1756,10 +1854,10 @@ export class ChatMessageRouter {
       const fileName = typeof data.fileName === "string" ? data.fileName : "";
 
       if (!modelId || !fileName) {
-        throw new Error("Modelo ou arquivo GGUF inválido.");
+        throw new Error("Modelo ou arquivo inválido.");
       }
 
-      const targetPath = await this.deps.downloadHuggingFaceModel(
+      const downloadResult = await this.deps.downloadHuggingFaceModel(
         modelId,
         fileName,
         webview,
@@ -1767,12 +1865,19 @@ export class ChatMessageRouter {
 
       await webview.postMessage({
         type: "downloadModeloHuggingFaceConcluido",
-        value: { modelId, fileName, targetPath },
+        value: {
+          modelId,
+          fileName,
+          targetPath: downloadResult.targetPath,
+          format: downloadResult.format,
+        },
       });
 
       this.deps.sendModelsToWebview(webview);
       vscode.window.showInformationMessage(
-        `Modelo GGUF baixado para ${path.basename(targetPath)}.`,
+        downloadResult.format === "ONNX"
+          ? `Modelo de embeddings baixado para ${path.basename(downloadResult.targetPath)}.`
+          : `Modelo GGUF baixado para ${path.basename(downloadResult.targetPath)}.`,
       );
     } catch (error) {
       if (
@@ -1992,6 +2097,10 @@ export class ChatMessageRouter {
     webview: vscode.Webview,
   ): Promise<void> {
     try {
+      if (data.providerId === "HuggingFace") {
+        throw new Error("Hugging Face não é um provedor de conversa.");
+      }
+
       this.deps.configManager.setSelectedCloudProvider(data.providerId);
 
       const models =

@@ -8,6 +8,7 @@ function renderEmbeddingModels(models, selectedModelId, modelsDir) {
   }
 
   if (!embeddingModelSelect) {
+    updateDeleteEmbeddingModelButton(safeModels, "");
     return;
   }
 
@@ -26,6 +27,7 @@ function renderEmbeddingModels(models, selectedModelId, modelsDir) {
         "Nenhum modelo compatível encontrado. Escolha uma pasta ou baixe o modelo padrão.";
     }
 
+    updateDeleteEmbeddingModelButton(safeModels, "");
     return;
   }
 
@@ -60,6 +62,7 @@ function renderEmbeddingModels(models, selectedModelId, modelsDir) {
   });
 
   embeddingModelSelect.value = selectedModelId || safeModels[0]?.id || "";
+  updateDeleteEmbeddingModelButton(safeModels, embeddingModelSelect.value);
 
   if (embeddingModelStatus) {
     const selected = safeModels.find(
@@ -72,6 +75,20 @@ function renderEmbeddingModels(models, selectedModelId, modelsDir) {
         ? `Modelo configurado não encontrado: ${selectedModelId}. Escolha outro modelo disponível.`
         : `${safeModels.length} modelo(s) disponível(is).`;
   }
+}
+
+function updateDeleteEmbeddingModelButton(models, selectedModelId) {
+  if (!deleteEmbeddingModelButton) {
+    return;
+  }
+
+  const selected = models.find((model) => model.id === selectedModelId);
+  const deletable = selected?.source === "custom";
+
+  deleteEmbeddingModelButton.disabled = !deletable;
+  deleteEmbeddingModelButton.title = deletable
+    ? `Excluir ${selected.name || selected.id}`
+    : "Modelos empacotados não podem ser excluídos";
 }
 
 function setDefaultEmbeddingModelActionVisibility(visible) {

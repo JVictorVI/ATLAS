@@ -95,6 +95,9 @@ const embeddingDefaultModelAction = document.getElementById(
 );
 const embeddingModelGrid = document.getElementById("embedding-model-grid");
 const embeddingModelSelect = document.getElementById("rag-embedding-model");
+const deleteEmbeddingModelButton = document.getElementById(
+  "delete-embedding-model",
+);
 const embeddingModelStatus = document.getElementById("embedding-model-status");
 let indexingInProgress = false;
 let externalDocumentsInProgress = false;

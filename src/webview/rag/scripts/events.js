@@ -152,6 +152,20 @@ embeddingModelSelect?.addEventListener("change", () => {
   });
 });
 
+deleteEmbeddingModelButton?.addEventListener("click", () => {
+  const modelId = embeddingModelSelect?.value || "";
+
+  if (!modelId) {
+    return;
+  }
+
+  deleteEmbeddingModelButton.disabled = true;
+  vscode.postMessage({
+    type: "excluirModeloEmbeddingRag",
+    modelId,
+  });
+});
+
 addFileButton?.addEventListener("click", () => {
   setExternalDocumentsState(true);
   vscode.postMessage({ type: "adicionarDocumentoExternoRag" });

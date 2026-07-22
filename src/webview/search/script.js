@@ -1,8 +1,38 @@
 const vscode = acquireVsCodeApi();
+const MODEL_FILTER_STORAGE_KEY = "atlas.huggingFaceModelFilter";
+const SEARCH_REQUEST_TIMEOUT_MS = 35000;
+
+function normalizeModelFilter(value) {
+  return value === "all" || value === "llm" || value === "embedding"
+    ? value
+    : "llm";
+}
+
+function getSavedModelFilter() {
+  try {
+    return normalizeModelFilter(
+      window.localStorage.getItem(MODEL_FILTER_STORAGE_KEY),
+    );
+  } catch {
+    return "llm";
+  }
+}
+
+function saveModelFilter(value) {
+  try {
+    window.localStorage.setItem(
+      MODEL_FILTER_STORAGE_KEY,
+      normalizeModelFilter(value),
+    );
+  } catch {
+    // localStorage can be unavailable in restricted webview contexts.
+  }
+}
 
 const state = {
   query: "",
   models: [],
+  modelFilter: getSavedModelFilter(),
   selectedModel: null,
   selectedFileName: "",
   detailOnly: false,
@@ -15,6 +45,43 @@ const state = {
 };
 
 const root = document.getElementById("model-detail-view");
+let searchRequestTimer = undefined;
+let searchRequestId = 0;
+
+function getSearchErrorMessage(value) {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  return value?.message || "Nao foi possivel buscar modelos no Hugging Face.";
+}
+
+function clearSearchRequestTimeout() {
+  if (searchRequestTimer !== undefined) {
+    window.clearTimeout(searchRequestTimer);
+    searchRequestTimer = undefined;
+  }
+}
+
+function isCurrentSearchPayload(payload) {
+  const payloadRequestId =
+    payload?.requestId === undefined || payload?.requestId === null
+      ? ""
+      : String(payload.requestId);
+
+  return !payloadRequestId || payloadRequestId === String(searchRequestId);
+}
+
+function failSearchRequest(message) {
+  if (!state.loading) {
+    return;
+  }
+
+  clearSearchRequestTimeout();
+  state.loading = false;
+  state.error = message;
+  render();
+}
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -61,14 +128,59 @@ function formatDate(value) {
 
 function getModelBadge(model) {
   if (model.format === "ONNX") {
-    return "ONNX";
+    return "EMB";
   }
 
-  const fromName = `${model.name} ${model.id}`.match(
-    /(?:^|[-_\s])(\d+(?:\.\d+)?b)(?:[-_\s]|$)/i,
-  );
+  return "LLM";
+}
 
-  return fromName?.[1]?.toUpperCase() || "GGUF";
+function getModelKind(model) {
+  return model?.format === "ONNX"
+    ? {
+        className: "embedding-model",
+        icon: "symbol-method",
+        label: "Embedding",
+        listTag: "EMBEDDING",
+        formatLabel: "ONNX",
+        fileLabel: "Arquivo ONNX",
+        variantLabel: "arquivo(s) ONNX",
+        note: "Modelo usado para gerar vetores de busca semântica do RAG; não responde perguntas diretamente",
+      }
+    : {
+        className: "generation-model",
+        icon: "comment-discussion",
+        label: "LLM",
+        listTag: "LLM",
+        formatLabel: "GGUF",
+        fileLabel: "Arquivo GGUF",
+        variantLabel: "variante(s)",
+        note: "Modelo de geração usado pela engine local para produzir respostas",
+      };
+}
+
+function prioritizeGenerationModels(models) {
+  return [...(models || [])].sort((left, right) => {
+    const leftRank = left?.format === "ONNX" ? 1 : 0;
+    const rightRank = right?.format === "ONNX" ? 1 : 0;
+
+    return leftRank - rightRank;
+  });
+}
+
+function matchesModelFilter(model) {
+  if (state.modelFilter === "llm") {
+    return model?.format !== "ONNX";
+  }
+
+  if (state.modelFilter === "embedding") {
+    return model?.format === "ONNX";
+  }
+
+  return true;
+}
+
+function getVisibleModels() {
+  return state.models.filter(matchesModelFilter);
 }
 
 function getModelFiles(model) {
@@ -95,12 +207,29 @@ function getFileSizeLabel(file) {
 function getVariantLabel(model, file) {
   const count = getModelFiles(model).length;
   const size = getFileSizeLabel(file);
+  const kind = getModelKind(model);
+
+  if (model?.format === "ONNX") {
+    return `${count} ${kind.variantLabel}${size ? ` - ${size}` : ""}`;
+  }
 
   return `${count} variante(s) ${size ? ` · ${size}` : ""}`;
 }
 
 function getVariantOptionLabel(file) {
   return `${file.quantization}${getFileSizeLabel(file) ? ` - ${getFileSizeLabel(file)}` : ""} - ${file.name}`;
+}
+
+function getDownloadLabel(model, file) {
+  if (state.downloading) {
+    return "Baixando...";
+  }
+
+  if (model?.format === "ONNX") {
+    return `Baixar embedding${getFileSizeLabel(file) ? ` ${getFileSizeLabel(file)}` : ""}`;
+  }
+
+  return `Baixar${getFileSizeLabel(file) ? ` ${getFileSizeLabel(file)}` : ""}`;
 }
 
 function getHuggingFaceModelUrl(model) {
@@ -157,7 +286,7 @@ function renderInfoItem(label, value, wide = false) {
 
 function renderStatItem(icon, label, value) {
   return `
-    <div class="stat-item">
+    <div class="stat-item stat-item-${escapeHtml(label.toLowerCase())}">
       <i class="codicon codicon-${escapeHtml(icon)}"></i>
       <span>${escapeHtml(label)}</span>
       <strong>${escapeHtml(formatNumber(value))}</strong>
@@ -191,20 +320,25 @@ function renderPageHeading() {
 function renderModelCard(model) {
   const active = state.selectedModel?.id === model.id ? "active" : "";
   const primaryFile = getModelFiles(model)[0];
+  const kind = getModelKind(model);
 
   return `
-    <button class="model-card ${active}" type="button" data-model-id="${escapeHtml(model.id)}">
-      <span class="model-badge">${escapeHtml(getModelBadge(model))}</span>
+    <button class="model-card ${active} ${escapeHtml(kind.className)}" type="button" data-model-id="${escapeHtml(model.id)}">
+      <span class="model-badge">
+        <i class="codicon codicon-${escapeHtml(kind.icon)}" aria-hidden="true"></i>
+        ${escapeHtml(getModelBadge(model))}
+      </span>
       <span class="model-card-info">
         <span class="model-card-name" title="${escapeHtml(model.id)}">${escapeHtml(model.name)}</span>
         <span class="model-card-meta">
+          <span class="model-kind-pill"><i class="codicon codicon-${escapeHtml(kind.icon)}"></i> ${escapeHtml(kind.listTag)}</span>
           <span class="model-card-author"><i class="codicon codicon-code"></i> ${escapeHtml(model.author)}</span>
           <span class="model-card-variant">${escapeHtml(getVariantLabel(model, primaryFile))}</span>
         </span>
         <span class="model-card-footer">
           <span>Atualizado em ${escapeHtml(formatDate(model.updatedAt))}</span>
           <span><i class="codicon codicon-cloud-download"></i> ${escapeHtml(formatNumber(model.downloads))}</span>
-          <span><i class="codicon codicon-heart"></i> ${escapeHtml(formatNumber(model.likes))}</span>
+          <span class="model-card-likes"><i class="codicon codicon-heart"></i> ${escapeHtml(formatNumber(model.likes))}</span>
           ${model.pipelineTag ? `<span><i class="codicon codicon-symbol-method"></i> ${escapeHtml(model.pipelineTag)}</span>` : ""}
           ${model.gated || model.private ? `<span><i class="codicon codicon-lock"></i> ${escapeHtml(getAccessLabel(model))}</span>` : ""}
         </span>
@@ -214,11 +348,12 @@ function renderModelCard(model) {
 }
 
 function renderSidebar() {
+  const visibleModels = getVisibleModels();
   const resultLabel = state.loading
     ? '<span class="search-loading-spinner search-loading-spinner-small" aria-hidden="true"></span>'
     : state.error
       ? "ERRO AO PESQUISAR"
-      : `${state.models.length} RESULTADOS ENCONTRADOS`;
+      : `${visibleModels.length} RESULTADOS ENCONTRADOS`;
 
   return `
     <aside class="search-sidebar">
@@ -228,6 +363,11 @@ function renderSidebar() {
           <i class="codicon codicon-search"></i>
         </button>
       </form>
+      <div class="model-filter-bar" aria-label="Filtro de tipo de modelo">
+        <button class="model-filter-button ${state.modelFilter === "all" ? "active" : ""}" type="button" data-model-filter="all">Ambos</button>
+        <button class="model-filter-button ${state.modelFilter === "llm" ? "active" : ""}" type="button" data-model-filter="llm">LLM</button>
+        <button class="model-filter-button ${state.modelFilter === "embedding" ? "active" : ""}" type="button" data-model-filter="embedding">Embeddings</button>
+      </div>
       <div class="search-results-info">
         <i class="codicon codicon-chevron-right"></i>
         <span>${state.loading ? resultLabel : escapeHtml(resultLabel)}</span>
@@ -242,7 +382,7 @@ function renderSidebar() {
                   <span>${escapeHtml(state.error)}</span>
                   <button class="retry-search-button" id="retry-model-search" type="button">Tentar novamente</button>
                 </div>`
-              : state.models.map(renderModelCard).join("") ||
+              : visibleModels.map(renderModelCard).join("") ||
                 `<div class="model-list-empty">
                   <i class="codicon codicon-search-stop" aria-hidden="true"></i>
                   <strong>Nenhum resultado foi encontrado</strong>
@@ -296,11 +436,20 @@ function renderDetails() {
   const tags = (model.tags || []).slice(0, 8);
   const description = getModelDescription(model);
   const huggingFaceModelUrl = getHuggingFaceModelUrl(model);
+  const kind = getModelKind(model);
 
   return `
-    <section class="detail-header">
+    <section class="detail-header ${escapeHtml(kind.className)}">
       ${renderPageHeading()}
 
+      <div class="detail-model-kind">
+        <i class="codicon codicon-${escapeHtml(kind.icon)}"></i>
+        <span>${escapeHtml(kind.label)}</span>
+      </div>
+      <p class="detail-model-kind-description">
+        <i class="codicon codicon-${escapeHtml(kind.icon)}"></i>
+        ${escapeHtml(kind.note)}
+      </p>
       <div class="model-heading">
         <h2>${escapeHtml(model.name)}</h2>
       </div>
@@ -312,14 +461,10 @@ function renderDetails() {
       </div>
 
       <div class="detail-actions">
-        ${
-          model.format === "GGUF"
-            ? `<button class="download-button" id="download-model" type="button" ${!selectedFile || state.downloading ? "disabled" : ""}>
-                <i class="codicon codicon-arrow-down"></i>
-                ${state.downloading ? "Baixando..." : `Baixar${getFileSizeLabel(selectedFile) ? ` ${escapeHtml(getFileSizeLabel(selectedFile))}` : ""}`}
-              </button>`
-            : ""
-        }
+        <button class="download-button" id="download-model" type="button" ${!selectedFile || state.downloading ? "disabled" : ""}>
+          <i class="codicon codicon-arrow-down"></i>
+          ${escapeHtml(getDownloadLabel(model, selectedFile))}
+        </button>
         <div class="variant-picker ${state.variantMenuOpen ? "open" : ""}" title="${escapeHtml(selectedFile?.name || "Selecionar arquivo")}">
           <button class="variant-picker-trigger" id="gguf-variant-trigger" type="button" ${state.downloading || !selectedFile ? "disabled" : ""} aria-expanded="${state.variantMenuOpen ? "true" : "false"}">
             <i class="codicon codicon-versions variant-leading-icon"></i>
@@ -366,15 +511,27 @@ function renderDetails() {
     </section>
 
     <section class="detail-section">
+      <h2><i class="codicon codicon-note"></i> Descrição</h2>
+      <article class="description-panel">
+        <h3>${escapeHtml(model.name)}</h3>
+        <p class="${isMissingInfoValue(description) ? "muted-value" : ""}">${escapeHtml(description)}</p>
+        <div class="tag-row">
+          ${tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}
+        </div>
+      </article>
+    </section>
+
+    <section class="detail-section">
       <h2><i class="codicon codicon-info"></i> Informações do modelo</h2>
       <div class="info-panel">
         ${renderInfoItem("Repositório", model.id, true)}
         ${renderInfoItem("Autor", model.author)}
-        ${renderInfoItem("Formato", model.format || "GGUF")}
+        ${renderInfoItem("Tipo", kind.label)}
+        ${renderInfoItem("Formato", kind.formatLabel)}
         ${renderInfoItem("Task/pipeline", model.pipelineTag)}
         ${renderInfoItem("Acesso", getAccessLabel(model))}
         ${renderInfoItem("Atualização", formatDate(model.updatedAt))}
-        ${renderInfoItem("Arquivos", `${getModelFiles(model).length} arquivo(s)`)}
+        ${renderInfoItem("Variantes", `${getModelFiles(model).length} variante(s)`)}
       </div>
       ${
         model.gated || model.private
@@ -384,24 +541,13 @@ function renderDetails() {
     </section>
 
     <section class="detail-section">
-      <h2><i class="codicon codicon-file-binary"></i> Arquivo selecionado</h2>
+      <h2><i class="codicon codicon-file-binary"></i> Variante selecionada</h2>
       <article class="description-panel compact-panel">
         <h3>${escapeHtml(selectedFile?.name || "Nenhuma variação disponível")}</h3>
         <div class="selected-file-grid">
           ${renderInfoItem("Quantização", selectedFile?.quantization || "-")}
           ${renderInfoItem("Tamanho", getFileSizeLabel(selectedFile) || "-")}
-          ${renderInfoItem("Destino", model.format === "ONNX" ? "Pasta de modelos de embeddings" : "Pasta local de modelos do ATLAS")}
-        </div>
-      </article>
-    </section>
-
-    <section class="detail-section">
-      <h2><i class="codicon codicon-note"></i> Descrição do modelo</h2>
-      <article class="description-panel">
-        <h3>${escapeHtml(model.name)}</h3>
-        <p class="${isMissingInfoValue(description) ? "muted-value" : ""}">${escapeHtml(description)}</p>
-        <div class="tag-row">
-          ${tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}
+          ${renderInfoItem("Tipo de arquivo", kind.fileLabel)}
         </div>
       </article>
     </section>
@@ -446,6 +592,16 @@ function bindEvents() {
       state.variantMenuOpen = false;
       render();
       vscode.postMessage({ type: "detalharModeloHuggingFace", modelId });
+    });
+  });
+
+  document.querySelectorAll(".model-filter-button").forEach((button) => {
+    button.addEventListener("click", () => {
+      const filter = button.getAttribute("data-model-filter") || "all";
+
+      state.modelFilter = normalizeModelFilter(filter);
+      saveModelFilter(state.modelFilter);
+      searchModels(state.query);
     });
   });
 
@@ -548,10 +704,24 @@ function searchModels(query) {
   state.variantMenuOpen = false;
   state.error = "";
   state.detailsError = "";
+  searchRequestId += 1;
+  const requestId = String(searchRequestId);
+  clearSearchRequestTimeout();
+  searchRequestTimer = window.setTimeout(() => {
+    if (requestId !== String(searchRequestId)) {
+      return;
+    }
+
+    failSearchRequest(
+      "A busca no Hugging Face demorou demais. Verifique sua conexao e tente novamente.",
+    );
+  }, SEARCH_REQUEST_TIMEOUT_MS);
   render();
   vscode.postMessage({
     type: "buscarModelosHuggingFace",
     query: state.query,
+    modelFilter: state.modelFilter,
+    requestId,
   });
 }
 
@@ -580,6 +750,7 @@ function showModelDetails(modelId) {
     format: "GGUF",
     ggufFiles: [],
     onnxFiles: [],
+    repositoryFiles: [],
     description: "",
   };
   render();
@@ -594,10 +765,22 @@ window.addEventListener("message", (event) => {
       return;
     }
 
+    if (!isCurrentSearchPayload(message.value)) {
+      return;
+    }
+
+    if (
+      message.value?.modelFilter &&
+      message.value.modelFilter !== state.modelFilter
+    ) {
+      return;
+    }
+
+    clearSearchRequestTimeout();
     state.loading = false;
     state.error = "";
-    state.models = message.value?.models || [];
-    state.selectedModel = state.models[0] || null;
+    state.models = prioritizeGenerationModels(message.value?.models);
+    state.selectedModel = getVisibleModels()[0] || null;
     state.selectedFileName = getModelFiles(state.selectedModel)[0]?.name || "";
     state.variantMenuOpen = false;
     render();
@@ -641,20 +824,24 @@ window.addEventListener("message", (event) => {
   }
 
   if (message.type === "erro") {
-    const messageText =
-      typeof message.value === "string"
-        ? message.value
-        : "Nao foi possivel concluir a operacao.";
+    if (message.value?.source && message.value.source !== "huggingFaceSearch") {
+      return;
+    }
+
+    if (!isCurrentSearchPayload(message.value)) {
+      return;
+    }
+
+    const messageText = getSearchErrorMessage(message.value);
 
     if (state.loading) {
-      state.error = messageText;
+      failSearchRequest(messageText);
     }
 
     if (state.detailsLoading) {
       state.detailsError = messageText;
     }
 
-    state.loading = false;
     state.detailsLoading = false;
     state.downloading = false;
     state.variantMenuOpen = false;
