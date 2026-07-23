@@ -355,6 +355,7 @@ export class ChatPanelManager {
         "scripts/model-utils.js",
         "scripts/render-components.js",
         "scripts/render-sidebar.js",
+        "scripts/compatibility-diagnostics.js",
         "scripts/render-details.js",
         "scripts/render.js",
         "scripts/search-requests.js",

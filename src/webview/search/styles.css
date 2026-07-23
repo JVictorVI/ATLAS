@@ -1069,6 +1069,10 @@ body {
   gap: 14px;
 }
 
+.compatibility-grid-single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .compatibility-block {
   min-width: 0;
   padding: 12px;

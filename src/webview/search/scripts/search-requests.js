@@ -38,6 +38,16 @@ function requestModelDetails(modelId) {
   vscode.postMessage({ type: "detalharModeloHuggingFace", modelId });
 }
 
+function requestRepositoryHardware() {
+  if (state.hardware || state.hardwareLoading) {
+    return;
+  }
+
+  state.hardwareLoading = true;
+  state.hardwareError = "";
+  vscode.postMessage({ type: "solicitarHardwareRepositorio" });
+}
+
 function selectModel(model) {
   if (!model) {
     return;

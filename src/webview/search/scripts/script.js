@@ -9,3 +9,5 @@ if (initialSearchModelId) {
 } else {
   searchModels("");
 }
+
+requestRepositoryHardware();

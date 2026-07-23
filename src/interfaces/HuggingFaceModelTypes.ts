@@ -24,6 +24,7 @@ export interface HuggingFaceModelSummary {
   tags: string[];
   description: string;
   format: HuggingFaceModelFormat;
+  parameterCount: number | null;
   ggufFiles: HuggingFaceGgufFile[];
   onnxFiles: HuggingFaceOnnxFile[];
   repositoryFiles: string[];

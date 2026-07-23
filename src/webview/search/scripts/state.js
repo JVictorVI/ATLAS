@@ -38,10 +38,13 @@ const state = {
   detailOnly: false,
   loading: false,
   detailsLoading: false,
+  hardwareLoading: false,
   downloading: false,
   variantMenuOpen: false,
   error: "",
   detailsError: "",
+  hardwareError: "",
+  hardware: null,
 };
 
 const root = document.getElementById("model-detail-view");

@@ -254,6 +254,9 @@ export class ChatMessageRouter {
       case "solicitarHardware":
         await this.handleSendHardwareInfo(webview);
         return;
+      case "solicitarHardwareRepositorio":
+        await this.handleSendRepositoryHardwareInfo(webview);
+        return;
     }
   }
 
@@ -312,11 +315,35 @@ export class ChatMessageRouter {
     }
   }
 
+  private async handleSendRepositoryHardwareInfo(
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      await webview.postMessage({
+        type: "hardwareRepositorioCarregado",
+        value: await this.getHardwarePayload(),
+      });
+    } catch (error) {
+      await webview.postMessage({
+        type: "hardwareRepositorioErro",
+        value: this.getErrorMessage(
+          error,
+          "Erro ao carregar informacoes de hardware.",
+        ),
+      });
+    }
+  }
+
   private async getHardwarePayload(): Promise<{
     ram: string;
     cpu: string;
     gpu: string;
     storage: string;
+    ramBytes: number;
+    cpuCores: number;
+    gpuVramBytes: number;
+    storageFreeBytes: number;
+    storageType: string;
   }> {
     const hardwareInfo =
       await this.deps.hardwareDiagnosticService.getHardwareInfo();
@@ -327,6 +354,11 @@ export class ChatMessageRouter {
       gpu: hardwareInfo.gpu,
       storage:
         hardwareInfo.storageFreeBytes > 0 ? hardwareInfo.storage : "",
+      ramBytes: hardwareInfo.ramBytes,
+      cpuCores: hardwareInfo.cpuCores,
+      gpuVramBytes: hardwareInfo.gpuVramBytes,
+      storageFreeBytes: hardwareInfo.storageFreeBytes,
+      storageType: hardwareInfo.storageType,
     };
   }
 

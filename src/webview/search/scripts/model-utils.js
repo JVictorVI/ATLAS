@@ -168,5 +168,6 @@ function createPlaceholderModel(modelId) {
     onnxFiles: [],
     repositoryFiles: [],
     description: "",
+    parameterCount: null,
   };
 }

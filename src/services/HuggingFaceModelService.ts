@@ -33,6 +33,9 @@ type HuggingFaceModelRaw = {
     pretty_name?: string;
     summary?: string;
   };
+  safetensors?: {
+    parameters?: Record<string, number>;
+  };
   siblings?: HuggingFaceSibling[];
 };
 
@@ -392,6 +395,7 @@ export class HuggingFaceModelService {
       tags: model.tags ?? [],
       description: this.buildDescription(model),
       format,
+      parameterCount: this.getParameterCount(model),
       repositoryFiles: (model.siblings ?? [])
         .map((file) => file.rfilename ?? "")
         .filter(Boolean),
@@ -505,6 +509,21 @@ export class HuggingFaceModelService {
     return this.normalizeSummary(candidates.find(Boolean) ?? "");
   }
 
+  private getParameterCount(model: HuggingFaceModelRaw): number | null {
+    const parameters = model.safetensors?.parameters;
+
+    if (!parameters || typeof parameters !== "object") {
+      return null;
+    }
+
+    const total = Object.values(parameters)
+      .map((value) => Number(value))
+      .filter((value) => Number.isFinite(value) && value > 0)
+      .reduce((sum, value) => sum + value, 0);
+
+    return total > 0 ? total : null;
+  }
+
   private async getReadmeSummary(modelId: string): Promise<string> {
     try {
       const response = await axios.get<string>(
@@ -531,7 +550,7 @@ export class HuggingFaceModelService {
   }
   private inferQuantization(fileName: string): string {
     const match = fileName.match(
-      /(?:^|[-_.])((?:IQ|Q)\d(?:_\d)?(?:_[A-Z]+){0,3})(?:[-_.]|$)/i,
+      /(?:^|[-_.])((?:IQ|Q)[1-9](?:_\d)?(?:_[A-Z0-9]+){0,4})(?:[-_.]|$)/i,
     );
 
     return match?.[1]?.toUpperCase() ?? "GGUF";

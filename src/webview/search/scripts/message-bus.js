@@ -14,6 +14,23 @@ window.addEventListener("message", (event) => {
     showModelDetails(message.modelId);
   }
 
+  if (message.type === "hardwareRepositorioCarregado") {
+    state.hardware = message.value || null;
+    state.hardwareLoading = false;
+    state.hardwareError = "";
+    render();
+  }
+
+  if (message.type === "hardwareRepositorioErro") {
+    state.hardware = null;
+    state.hardwareLoading = false;
+    state.hardwareError =
+      typeof message.value === "string"
+        ? message.value
+        : "Nao foi possivel carregar o diagnostico de hardware.";
+    render();
+  }
+
   if (message.type === "downloadModeloHuggingFaceConcluido") {
     state.downloading = false;
     state.variantMenuOpen = false;

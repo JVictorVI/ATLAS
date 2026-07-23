@@ -71,6 +71,20 @@ function renderDetailActions(model, selectedFile, huggingFaceModelUrl) {
   `;
 }
 
+function renderCompatibilityDiagnostics(model, selectedFile) {
+  const diagnostics = window.AtlasCompatibilityDiagnostics;
+
+  if (!diagnostics?.renderCompatibilityDiagnosticsCard) {
+    return "";
+  }
+
+  return diagnostics.renderCompatibilityDiagnosticsCard(model, selectedFile, {
+    hardware: state.hardware,
+    loading: state.hardwareLoading,
+    error: state.hardwareError,
+  });
+}
+
 function renderDetails() {
   const model = state.selectedModel;
 
@@ -129,6 +143,8 @@ function renderDetails() {
       ${renderDetailActions(model, selectedFile, huggingFaceModelUrl)}
     </section>
 
+    ${renderCompatibilityDiagnostics(model, selectedFile)}
+
     <section class="detail-section">
       <h2><i class="codicon codicon-note"></i> Descrição</h2>
       <article class="description-panel">
@@ -159,18 +175,6 @@ function renderDetails() {
           ? `<p class="access-note"><i class="codicon codicon-lock"></i> ${escapeHtml(getAccessDescription(model))}</p>`
           : ""
       }
-    </section>
-
-    <section class="detail-section">
-      <h2><i class="codicon codicon-file-binary"></i> Variante selecionada</h2>
-      <article class="description-panel compact-panel">
-        <h3>${escapeHtml(selectedFile?.name || "Nenhuma variação disponível")}</h3>
-        <div class="selected-file-grid">
-          ${renderInfoItem("Quantização", selectedFile?.quantization || "-")}
-          ${renderInfoItem("Tamanho", getFileSizeLabel(selectedFile) || "-")}
-          ${renderInfoItem("Tipo de arquivo", kind.fileLabel)}
-        </div>
-      </article>
     </section>
   `;
 }
