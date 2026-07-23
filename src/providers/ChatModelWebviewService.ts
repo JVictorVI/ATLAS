@@ -163,6 +163,11 @@ export class ChatModelWebviewService {
       return nvidiaMemory;
     }
 
+    const registryMemory = this.getWindowsRegistryGpuMemoryInfo();
+    if (registryMemory) {
+      return registryMemory;
+    }
+
     try {
       const output = execFileSync(
         "powershell.exe",
@@ -179,6 +184,60 @@ export class ChatModelWebviewService {
         .map((value) => Number(value))
         .filter((value) => Number.isFinite(value) && value > 0)
         .reduce((sum, value) => sum + value, 0);
+
+      if (totalBytes <= 0) {
+        return null;
+      }
+
+      if (this.looksLikeTruncatedWmiVram(totalBytes)) {
+        return null;
+      }
+
+      return {
+        totalBytes,
+        label: this.formatBytes(totalBytes),
+        totalLabel: this.formatBytes(totalBytes),
+        usedBytes: 0,
+        usedLabel: this.formatBytes(0),
+        freeBytes: totalBytes,
+        freeLabel: this.formatBytes(totalBytes),
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private getWindowsRegistryGpuMemoryInfo(): GpuMemoryInfo | null {
+    try {
+      const script = [
+        "$ErrorActionPreference = 'SilentlyContinue'",
+        "$path = 'SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}'",
+        "$key = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey($path)",
+        "if ($key) {",
+        "  foreach ($subName in $key.GetSubKeyNames()) {",
+        "    $sub = $key.OpenSubKey($subName)",
+        "    if ($sub) {",
+        "      $mem = $sub.GetValue('HardwareInformation.qwMemorySize')",
+        "      if ($mem) { Write-Output $mem }",
+        "    }",
+        "  }",
+        "}",
+      ].join("; ");
+      const output = execFileSync(
+        "powershell.exe",
+        ["-NoProfile", "-Command", script],
+        { encoding: "utf8", timeout: 5000, windowsHide: true },
+      );
+      const values = output
+        .trim()
+        .split(/\r?\n/)
+        .map((value) => Number(value.trim()))
+        .filter((value) => Number.isFinite(value) && value > 0);
+      const realValues = values.filter((value) => value >= 512 * 1024 ** 2);
+      const totalBytes = (realValues.length > 0 ? realValues : values).reduce(
+        (sum, value) => sum + value,
+        0,
+      );
 
       if (totalBytes <= 0) {
         return null;
@@ -256,6 +315,10 @@ export class ChatModelWebviewService {
     }
 
     return "cpu";
+  }
+
+  private looksLikeTruncatedWmiVram(vram: number): boolean {
+    return vram > 3.5 * 1024 ** 3 && vram <= 4.3 * 1024 ** 3;
   }
 
   private getCachedGgufLayerCount(filePath: string): number | null {

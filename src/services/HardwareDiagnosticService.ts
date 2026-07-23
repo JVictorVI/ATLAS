@@ -121,11 +121,9 @@ export class HardwareDiagnosticService {
     let name = "";
 
     if (process.platform === "win32") {
-      const nvidia = this.getNvidiaSmiVram("nvidia-smi.exe", true);
-      vram = nvidia.vram;
-      if (nvidia.vram > 0) {
-        name = "NVIDIA";
-      }
+      const registryGpu = this.getWindowsRegistryGpuInfo();
+      vram = registryGpu.vram;
+      name = registryGpu.name;
 
       const controllers = this.getWindowsVideoControllers();
       const selected = controllers.find((gpu) =>
@@ -136,8 +134,25 @@ export class HardwareDiagnosticService {
         name = selected.name;
       }
 
+      const nvidia = this.getWindowsNvidiaSmiGpuInfo();
+      if (!name && nvidia.name) {
+        name = nvidia.name;
+      }
+
+      if (vram === 0 && nvidia.vram > 0) {
+        vram = nvidia.vram;
+      }
+
       if (vram === 0) {
-        vram = controllers.reduce((sum, gpu) => sum + gpu.vram, 0);
+        const wmiVram = controllers.reduce((sum, gpu) => sum + gpu.vram, 0);
+
+        if (!this.looksLikeTruncatedWmiVram(wmiVram)) {
+          vram = wmiVram;
+        } else {
+          console.warn(
+            "[ATLAS] AdapterRAM via WMI parece truncado em ~4GB; ignorando o valor.",
+          );
+        }
       }
     } else if (process.platform === "linux") {
       name = this.getLinuxGpuName();
@@ -154,6 +169,88 @@ export class HardwareDiagnosticService {
     }
 
     return { vram, name, vendor: this.detectGpuVendor(name) };
+  }
+
+  private getWindowsRegistryGpuInfo(): { name: string; vram: number } {
+    try {
+      const script = [
+        "$ErrorActionPreference = 'SilentlyContinue'",
+        "$path = 'SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}'",
+        "$key = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey($path)",
+        "if ($key) {",
+        "  foreach ($subName in $key.GetSubKeyNames()) {",
+        "    $sub = $key.OpenSubKey($subName)",
+        "    if ($sub) {",
+        "      $mem = $sub.GetValue('HardwareInformation.qwMemorySize')",
+        "      if ($mem) {",
+        "        $desc = $sub.GetValue('DriverDesc')",
+        "        Write-Output ('{0}|{1}' -f $desc, $mem)",
+        "      }",
+        "    }",
+        "  }",
+        "}",
+      ].join("; ");
+
+      const output = execFileSync(
+        "powershell.exe",
+        ["-NoProfile", "-Command", script],
+        { encoding: "utf8", timeout: 5000, windowsHide: true },
+      );
+
+      const adapters = output
+        .trim()
+        .split(/\r?\n/)
+        .filter((line) => line.trim())
+        .map((line) => {
+          const [adapterName, memory] = line.split("|");
+
+          return {
+            name: (adapterName ?? "").trim(),
+            vram: Number(memory) || 0,
+          };
+        })
+        .filter((adapter) => adapter.vram > 0);
+
+      const realAdapters = adapters.filter(
+        (adapter) => adapter.vram >= 512 * 1024 ** 2,
+      );
+      const best = (realAdapters.length > 0 ? realAdapters : adapters).sort(
+        (left, right) => right.vram - left.vram,
+      )[0];
+
+      return best ?? { name: "", vram: 0 };
+    } catch (error) {
+      const stderr =
+        error && typeof error === "object" && "stderr" in error
+          ? String((error as { stderr?: unknown }).stderr ?? "").trim()
+          : "";
+      console.warn(
+        "[ATLAS] Leitura de GPU via registro falhou:",
+        error instanceof Error ? error.message : error,
+        stderr ? `| stderr: ${stderr}` : "",
+      );
+
+      return { name: "", vram: 0 };
+    }
+  }
+
+  private getWindowsNvidiaSmiGpuInfo(): { name: string; vram: number } {
+    const candidates = [
+      "nvidia-smi",
+      "nvidia-smi.exe",
+      "C:\\Windows\\System32\\nvidia-smi.exe",
+      "C:\\Program Files\\NVIDIA Corporation\\NVSMI\\nvidia-smi.exe",
+    ];
+
+    for (const candidate of candidates) {
+      const gpu = this.getNvidiaSmiGpuInfo(candidate, true);
+
+      if (gpu.name || gpu.vram > 0) {
+        return gpu;
+      }
+    }
+
+    return { name: "", vram: 0 };
   }
 
   private getWindowsVideoControllers(): Array<{ name: string; vram: number }> {
@@ -222,24 +319,46 @@ export class HardwareDiagnosticService {
     command: string,
     windowsHide: boolean,
   ): { vram: number } {
+    return { vram: this.getNvidiaSmiGpuInfo(command, windowsHide).vram };
+  }
+
+  private getNvidiaSmiGpuInfo(
+    command: string,
+    windowsHide: boolean,
+  ): { name: string; vram: number } {
     try {
       const output = execFileSync(
         command,
-        ["--query-gpu=memory.total", "--format=csv,noheader,nounits"],
+        ["--query-gpu=name,memory.total", "--format=csv,noheader,nounits"],
         { encoding: "utf8", timeout: 5000, windowsHide },
       );
-      const values = output
+      const gpus = output
         .trim()
         .split(/\r?\n/)
-        .map((value) => Number(value.trim()))
-        .filter((value) => Number.isFinite(value));
+        .map((line) => {
+          const [gpuName, gpuMemory] = line
+            .split(",")
+            .map((part) => part.trim());
+          const memoryValue = Number(gpuMemory);
+
+          return {
+            name: gpuName,
+            vram: Number.isFinite(memoryValue) ? memoryValue * 1024 ** 2 : 0,
+          };
+        })
+        .filter((gpu) => gpu.name || gpu.vram > 0);
 
       return {
-        vram: values.reduce((sum, value) => sum + value * 1024 ** 2, 0),
+        name: gpus.map((gpu) => gpu.name).filter(Boolean).join(", "),
+        vram: gpus.reduce((sum, gpu) => sum + gpu.vram, 0),
       };
     } catch {
-      return { vram: 0 };
+      return { name: "", vram: 0 };
     }
+  }
+
+  private looksLikeTruncatedWmiVram(vram: number): boolean {
+    return vram > 3.5 * 1024 ** 3 && vram <= 4.3 * 1024 ** 3;
   }
 
   private detectGpuVendor(name: string): GpuVendor {

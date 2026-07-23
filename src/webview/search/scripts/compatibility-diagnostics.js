@@ -93,6 +93,9 @@
   function renderCompatibilityDiagnosticsCard(model, selectedFile, hardware) {
     const level = classifyCompatibility(model, selectedFile, hardware);
     const tone = getCompatibilityTone(level);
+    const storageItem = hardware?.storage
+      ? renderCompatibilityItem("Armazenamento", hardware.storage)
+      : "";
 
     return `
       <section class="compatibility-card ${tone.className}">
@@ -113,7 +116,7 @@
             ${renderCompatibilityItem("Memória RAM", hardware?.ram)}
             ${renderCompatibilityItem("Processador", hardware?.cpu)}
             ${renderCompatibilityItem("GPU", hardware?.gpu)}
-            ${renderCompatibilityItem("Armazenamento", hardware?.storage)}
+            ${storageItem}
           </div>
 
           <div class="compatibility-block">
