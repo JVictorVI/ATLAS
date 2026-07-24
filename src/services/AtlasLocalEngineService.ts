@@ -181,7 +181,7 @@ export class AtlasLocalEngineService {
       engineType: "cpu" | "cuda" | "vulkan";
     },
   ): string {
-    const configured = this.getConfiguredLlamaServerPath(model, engineSettings);
+    const configured = this.getConfiguredLlamaServerPath(model);
     const engineFolder = this.getEngineFolder(engineSettings.engineType);
     const enginesDir = this.getEnginesDir();
 
@@ -219,9 +219,6 @@ export class AtlasLocalEngineService {
 
   private getConfiguredLlamaServerPath(
     model: AtlasModelConfig,
-    engineSettings: {
-      engineType: "cpu" | "cuda" | "vulkan";
-    },
   ): string {
     if (typeof model.custom?.llamaServerPath === "string") {
       return model.custom.llamaServerPath;

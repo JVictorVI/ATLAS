@@ -1961,7 +1961,6 @@ export class ChatMessageRouter {
       const downloadResult = await this.deps.downloadHuggingFaceModel(
         modelId,
         fileName,
-        webview,
       );
 
       await webview.postMessage({

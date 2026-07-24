@@ -441,17 +441,6 @@ input[type="checkbox"]:checked::after {
   text-decoration: underline;
 }
 
-.row-end {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 14px;
-}
-
-.settings-actions {
-  margin-top: -4px;
-  margin-bottom: 18px;
-}
-
 button {
   border: none;
   border-radius: 5px;

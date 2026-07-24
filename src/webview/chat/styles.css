@@ -1761,22 +1761,6 @@ textarea {
   margin-top: 2px;
 }
 
-.model-card-description {
-  display: -webkit-box;
-  overflow: hidden;
-  color: var(--vscode-descriptionForeground);
-  font-size: 11px;
-  line-height: 1.4;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
-.muted-value {
-  color: var(--vscode-descriptionForeground) !important;
-  opacity: 0.72;
-  font-style: italic;
-}
-
 .model-card-footer span {
   display: inline-flex;
   align-items: center;

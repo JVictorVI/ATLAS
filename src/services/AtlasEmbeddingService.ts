@@ -96,7 +96,6 @@ export class AtlasEmbeddingService {
   private async loadPipeline(): Promise<FeatureExtractionPipeline> {
     const model = this.modelDiscoveryService.resolveActiveModelPath();
     const modelPath = model.path;
-    const modelId = path.basename(modelPath);
 
     if (!fs.existsSync(modelPath)) {
       throw new Error(

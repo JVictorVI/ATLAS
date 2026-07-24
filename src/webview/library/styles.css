@@ -130,8 +130,7 @@ textarea {
   margin-bottom: 14px;
 }
 
-.section-heading h2,
-.section-title {
+.section-heading h2 {
   margin: 0 0 10px;
   font-size: 20px;
   font-weight: 600;
@@ -462,22 +461,6 @@ input[type="number"]::-webkit-inner-spin-button {
   align-items: center;
   gap: 8px;
   cursor: pointer;
-}
-
-.checkBoxSection {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  border: 1px solid var(--atlas-border);
-  border-radius: 8px;
-  padding: 12px;
-  color: var(--vscode-foreground);
-  cursor: pointer;
-  line-height: 1.45;
-}
-
-.checkBoxSection:hover {
-  border-color: var(--vscode-focusBorder);
 }
 
 input[type="radio"] {

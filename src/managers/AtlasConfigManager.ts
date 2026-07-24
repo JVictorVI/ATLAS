@@ -46,7 +46,7 @@ export class AtlasConfigManager {
   private readonly modelRegistry: AtlasModelRegistryService;
   private readonly selectionService: AtlasSelectionService;
 
-  constructor(private readonly context: vscode.ExtensionContext) {
+  constructor(context: vscode.ExtensionContext) {
     this.defaults = new AtlasConfigDefaults();
     this.repository = new AtlasConfigRepository(context, this.defaults);
     this.settingsService = new AtlasSettingsService(this.repository);

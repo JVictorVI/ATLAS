@@ -225,12 +225,6 @@ body.rag-loading-active .rag-page {
   line-height: 1.45;
 }
 
-.settings-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 14px;
-}
-
 .option-list {
   display: grid;
   gap: 10px;
@@ -867,10 +861,6 @@ body.rag-loading-active .rag-page {
   #indexing-progress-file {
     width: 100%;
     text-align: left;
-  }
-
-  .settings-actions .btn {
-    width: 100%;
   }
 
   .external-document-controls {

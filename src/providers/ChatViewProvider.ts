@@ -356,7 +356,6 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       downloadHuggingFaceModel: async (
         modelId: string,
         fileName: string,
-        webview: vscode.Webview,
       ) => {
         return await vscode.window.withProgress(
           {
@@ -379,10 +378,6 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
               await this.engineDownloadService.ensureConfiguredEngineDownloaded(
                 (message) => {
                   progress.report({ message });
-                  void webview.postMessage({
-                    type: "downloadModeloHuggingFaceProgresso",
-                    value: { modelId, fileName, percent: 0, message },
-                  });
                 },
               );
             }
@@ -400,10 +395,6 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
                     message: `${percent}%`,
                   });
 
-                  void webview.postMessage({
-                    type: "downloadModeloHuggingFaceProgresso",
-                    value: { modelId, fileName, percent },
-                  });
                 },
                 abortController.signal,
               );

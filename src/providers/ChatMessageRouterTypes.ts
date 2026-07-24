@@ -13,10 +13,7 @@ import {
   HuggingFaceModelSearchFilter,
   HuggingFaceModelSearchResult,
 } from "../services/HuggingFaceModelService";
-import {
-  HuggingFaceModelDetails,
-  HuggingFaceModelSummary,
-} from "../interfaces/HuggingFaceModelTypes";
+import { HuggingFaceModelDetails } from "../interfaces/HuggingFaceModelTypes";
 import {
   RagContextResult,
   RagEmbeddingModelInfo,
@@ -79,7 +76,6 @@ export type RouterDependencies = {
   downloadHuggingFaceModel: (
     modelId: string,
     fileName: string,
-    webview: vscode.Webview,
   ) => Promise<{ targetPath: string; format: "GGUF" | "ONNX" }>;
   refreshRagEmbeddingModels: () => RagEmbeddingModelInfo[];
   getRagEmbeddingModelsDir: () => string;

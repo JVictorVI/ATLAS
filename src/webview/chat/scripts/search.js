@@ -88,12 +88,6 @@ function formatSearchNumber(value) {
   return new Intl.NumberFormat("pt-BR").format(Number(value) || 0);
 }
 
-function getSearchFieldValue(value, fallback = "Nao informado") {
-  return value === null || value === undefined || String(value).trim() === ""
-    ? fallback
-    : String(value).trim();
-}
-
 function formatSearchDate(value) {
   if (!value) {
     return "Não informado";
@@ -212,10 +206,6 @@ function getSearchAccessLabel(model) {
   }
 
   return "Publico";
-}
-
-function getSearchModelDescription(model) {
-  return getSearchFieldValue(model.description, "Nao informado");
 }
 
 function getSearchResultsLabel() {
@@ -443,7 +433,6 @@ function renderModelCards(
       .map((model) => {
         const primaryFile = getPrimarySearchFile(model);
         const active = model.id === activeModelId ? "active" : "";
-        const description = getSearchModelDescription(model);
         const kind = getSearchModelKind(model);
 
         return `

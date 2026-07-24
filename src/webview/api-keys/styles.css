@@ -193,13 +193,6 @@ input[type="checkbox"]:checked::after {
   font-size: 12px;
 }
 
-.checkBoxSection {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 6px;
-}
-
 input[type="radio"] {
   appearance: none;
   width: 16px;

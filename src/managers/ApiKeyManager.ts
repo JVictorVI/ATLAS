@@ -258,8 +258,6 @@ export class ApiKeyManager {
       return;
     }
 
-    const currentKey = await this.getRawKey(provider);
-
     const editedApiKey = await vscode.window.showInputBox({
       title: "Editar chave de API",
       prompt: `Digite a nova chave para ${providerConfig.label}`,
