@@ -3,6 +3,7 @@ const vscode = acquireVsCodeApi();
 const MODEL_FILTER_STORAGE_KEY = "atlas.huggingFaceModelFilter";
 const SEARCH_REQUEST_TIMEOUT_MS = 35000;
 const MODEL_FILTERS = ["all", "llm", "embedding"];
+const MODEL_LIST_PAGE_SIZE = 25;
 
 function normalizeModelFilter(value) {
   return MODEL_FILTERS.includes(value) ? value : "llm";
@@ -33,6 +34,8 @@ const state = {
   query: "",
   models: [],
   modelFilter: getSavedModelFilter(),
+  currentPage: 1,
+  hasNextPage: false,
   selectedModel: null,
   selectedFileName: "",
   detailOnly: false,

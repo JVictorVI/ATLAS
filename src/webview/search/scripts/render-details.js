@@ -150,7 +150,7 @@ function renderDetails() {
       <article class="description-panel">
         <h3>${escapeHtml(model.name)}</h3>
         <div class="markdown-description ${isMissingInfoValue(description) ? "muted-value" : ""}">
-          ${renderMarkdown(description)}
+          ${renderMarkdown(description, model.id)}
         </div>
         <div class="tag-row">
           ${tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}

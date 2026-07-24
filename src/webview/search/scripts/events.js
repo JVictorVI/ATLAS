@@ -25,7 +25,7 @@ function bindSidebarEvents() {
     }
 
     if (target.closest("#retry-model-search")) {
-      searchModels(state.query);
+      searchModels(state.query, state.currentPage);
       return;
     }
 
@@ -33,6 +33,22 @@ function bindSidebarEvents() {
     const modelId = card?.getAttribute("data-model-id");
     const model = state.models.find((item) => item.id === modelId);
     selectModel(model);
+  });
+
+  document.querySelector(".model-pagination")?.addEventListener("click", (event) => {
+    const target = event.target;
+
+    if (!(target instanceof Element)) {
+      return;
+    }
+
+    const button = target.closest(".pagination-button");
+
+    if (!button || button.hasAttribute("disabled")) {
+      return;
+    }
+
+    handlePaginationAction(button.getAttribute("data-pagination-action"));
   });
 
   document.querySelector(".model-filter-bar")?.addEventListener("click", (event) => {
@@ -53,6 +69,16 @@ function bindSidebarEvents() {
     saveModelFilter(state.modelFilter);
     searchModels(state.query);
   });
+}
+
+function handlePaginationAction(action) {
+  const direction = action === "previous" ? -1 : action === "next" ? 1 : 0;
+
+  if (!direction) {
+    return;
+  }
+
+  searchModels(state.query, clampModelPage(state.currentPage + direction));
 }
 
 function bindDetailEvents() {

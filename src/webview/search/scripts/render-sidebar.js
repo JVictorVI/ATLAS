@@ -30,11 +30,14 @@ function renderModelCard(model) {
 }
 
 function renderSearchResultsInfo(visibleModels) {
+  const pageRange = getModelPageRange(visibleModels);
   const resultLabel = state.loading
     ? renderLoadingCard(true)
     : state.error
       ? "ERRO AO PESQUISAR"
-      : `${visibleModels.length} RESULTADOS ENCONTRADOS`;
+      : visibleModels.length
+        ? `${pageRange.start}-${pageRange.end} RESULTADOS`
+        : "0 RESULTADOS ENCONTRADOS";
 
   return `
     <div class="search-results-info">
@@ -77,8 +80,33 @@ function renderModelList(visibleModels) {
   );
 }
 
+function renderPaginationButton(action, icon, label, disabled) {
+  return `
+    <button class="pagination-button" type="button" data-pagination-action="${escapeHtml(action)}" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}" ${disabled ? "disabled" : ""}>
+      <i class="codicon codicon-${escapeHtml(icon)}" aria-hidden="true"></i>
+    </button>
+  `;
+}
+
+function renderModelPagination() {
+  if (state.loading || state.error || (!state.hasNextPage && state.currentPage <= 1)) {
+    return "";
+  }
+
+  const currentPage = clampModelPage(state.currentPage);
+
+  return `
+    <div class="model-pagination" aria-label="Paginacao de modelos">
+      ${renderPaginationButton("previous", "chevron-left", "Pagina anterior", currentPage <= 1)}
+      <span class="pagination-status">Pagina ${escapeHtml(currentPage)}</span>
+      ${renderPaginationButton("next", "chevron-right", "Proxima pagina", !state.hasNextPage)}
+    </div>
+  `;
+}
+
 function renderSidebar() {
   const visibleModels = getVisibleModels();
+  const paginatedModels = getPaginatedModels(visibleModels);
 
   return `
     <aside class="search-sidebar">
@@ -95,7 +123,8 @@ function renderSidebar() {
       </div>
       ${renderSearchResultsInfo(visibleModels)}
       <div class="model-list" id="model-list">
-        ${renderModelList(visibleModels)}
+        ${renderModelList(paginatedModels)}
+        ${renderModelPagination()}
       </div>
     </aside>
   `;

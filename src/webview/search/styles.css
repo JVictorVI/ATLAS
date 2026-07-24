@@ -173,6 +173,52 @@ body {
   overflow-y: auto;
 }
 
+.model-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 42px;
+  padding: 7px 14px;
+  border-bottom: 1px solid var(--atlas-border);
+  color: var(--vscode-descriptionForeground);
+  background: transparent;
+}
+
+.pagination-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border: 1px solid var(--atlas-border);
+  border-radius: 4px;
+  color: var(--vscode-foreground);
+  background: var(--atlas-subtle-background);
+  cursor: pointer;
+  font: inherit;
+}
+
+.pagination-button:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.pagination-button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.pagination-status {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .model-card {
   display: flex;
   align-items: flex-start;
@@ -1293,6 +1339,7 @@ body {
   color: var(--vscode-descriptionForeground);
   font-size: 13px;
   line-height: 1.58;
+  overflow-x: auto;
   overflow-wrap: anywhere;
 }
 
@@ -1332,10 +1379,25 @@ body {
 .markdown-description p,
 .markdown-description ul,
 .markdown-description ol,
+.markdown-description div,
 .markdown-description blockquote,
 .markdown-description pre,
 .markdown-description table {
   margin: 0 0 12px;
+}
+
+.markdown-description img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  margin: 12px 0;
+  object-fit: contain;
+}
+
+.markdown-description div,
+.markdown-description section {
+  max-width: 100%;
 }
 
 .markdown-description ul,
@@ -1381,6 +1443,7 @@ body {
   width: 100%;
   border-collapse: collapse;
   overflow-x: auto;
+  white-space: normal;
 }
 
 .markdown-description th,

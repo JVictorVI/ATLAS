@@ -58,6 +58,13 @@ const EMBEDDING_REQUIRED_FILES = [
 
 export type HuggingFaceModelSearchFilter = "all" | "llm" | "embedding";
 
+export interface HuggingFaceModelSearchResult {
+  models: HuggingFaceModelSummary[];
+  offset: number;
+  limit: number;
+  hasNextPage: boolean;
+}
+
 export class HuggingFaceModelService {
   private readonly baseUrl = "https://huggingface.co";
 
@@ -70,14 +77,22 @@ export class HuggingFaceModelService {
   public async searchModels(
     query: string,
     modelFilter: HuggingFaceModelSearchFilter = "all",
-  ): Promise<HuggingFaceModelSummary[]> {
+    offset = 0,
+    limit = 25,
+  ): Promise<HuggingFaceModelSearchResult> {
     try {
       const headers = await this.buildHeaders();
       const normalizedQuery = query.trim();
+      const safeOffset = Math.max(0, Math.floor(offset));
+      const safeLimit = Math.min(Math.max(1, Math.floor(limit)), 50);
+      const requestLimit = Math.min(
+        Math.max(safeOffset + safeLimit + 1, 100),
+        500,
+      );
       const commonParams = {
         sort: "downloads",
         direction: -1,
-        limit: 100,
+        limit: requestLimit,
         full: true,
       };
       const requests: Promise<{ data: HuggingFaceModelRaw[] }>[] = [];
@@ -130,11 +145,17 @@ export class HuggingFaceModelService {
         }
       }
 
-      return Array.from(modelsById.values())
+      const matchedModels = Array.from(modelsById.values())
         .filter((model) => this.isSupportedModel(model))
         .map((model) => this.mapModel(model))
-        .sort((left, right) => right.downloads - left.downloads)
-        .slice(0, 25);
+        .sort((left, right) => right.downloads - left.downloads);
+
+      return {
+        models: matchedModels.slice(safeOffset, safeOffset + safeLimit),
+        offset: safeOffset,
+        limit: safeLimit,
+        hasNextPage: matchedModels.length > safeOffset + safeLimit,
+      };
     } catch (error) {
       throw this.normalizeHuggingFaceError(
         error,

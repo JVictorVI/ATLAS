@@ -1,6 +1,7 @@
 // Responsabilidade: renderiza a busca de modelos compatíveis no Hugging Face.
 const MODEL_FILTER_STORAGE_KEY = "atlas.huggingFaceModelFilter";
 const SEARCH_REQUEST_TIMEOUT_MS = 35000;
+const SEARCH_MODEL_LIST_PAGE_SIZE = 25;
 
 function normalizeSearchModelFilter(value) {
   return value === "all" || value === "llm" || value === "embedding"
@@ -33,6 +34,8 @@ const searchModelState = {
   query: "",
   models: [],
   modelFilter: getSavedSearchModelFilter(),
+  currentPage: 1,
+  hasNextPage: false,
   selectedModelId: "",
   openedModelId: "",
   loading: false,
@@ -152,6 +155,31 @@ function getVisibleSearchModels() {
   return searchModelState.models.filter(matchesSearchModelFilter);
 }
 
+function clampSearchModelPage(page) {
+  const parsedPage = Number.parseInt(page, 10);
+  const safePage = Number.isFinite(parsedPage) ? parsedPage : 1;
+
+  return Math.max(safePage, 1);
+}
+
+function getPaginatedSearchModels(models) {
+  return models || [];
+}
+
+function getSearchModelPageRange(models) {
+  const total = (models || []).length;
+
+  if (!total) {
+    return { start: 0, end: 0, total };
+  }
+
+  const start =
+    (searchModelState.currentPage - 1) * SEARCH_MODEL_LIST_PAGE_SIZE + 1;
+  const end = start + total - 1;
+
+  return { start, end, total };
+}
+
 function getPrimarySearchFile(model) {
   return model.format === "ONNX"
     ? model.onnxFiles?.[0] || null
@@ -199,13 +227,20 @@ function getSearchResultsLabel() {
     return "ERRO AO PESQUISAR";
   }
 
-  return `${getVisibleSearchModels().length} RESULTADOS ENCONTRADOS`;
+  const visibleModels = getVisibleSearchModels();
+  const pageRange = getSearchModelPageRange(visibleModels);
+
+  return visibleModels.length
+    ? `${pageRange.start}-${pageRange.end} RESULTADOS`
+    : "0 RESULTADOS ENCONTRADOS";
 }
 
-function requestSearchModels(query = searchModelState.query) {
+function requestSearchModels(query = searchModelState.query, page = 1) {
   searchModelState.query = query.trim();
   searchModelState.loading = true;
   searchModelState.error = "";
+  searchModelState.currentPage = clampSearchModelPage(page);
+  searchModelState.hasNextPage = false;
   searchModelState.selectedModelId = "";
   searchRequestId += 1;
   const requestId = String(searchRequestId);
@@ -226,6 +261,8 @@ function requestSearchModels(query = searchModelState.query) {
     type: "buscarModelosHuggingFace",
     query: searchModelState.query,
     modelFilter: searchModelState.modelFilter,
+    offset: (searchModelState.currentPage - 1) * SEARCH_MODEL_LIST_PAGE_SIZE,
+    limit: SEARCH_MODEL_LIST_PAGE_SIZE,
     requestId,
   });
 }
@@ -293,6 +330,35 @@ function bindModelCardEvents() {
   });
 }
 
+function bindSearchPaginationEvents() {
+  document.querySelectorAll(".model-pagination-button").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (button.hasAttribute("disabled")) {
+        return;
+      }
+
+      handleSearchPaginationAction(
+        button.getAttribute("data-pagination-action"),
+      );
+    });
+  });
+}
+
+function handleSearchPaginationAction(action) {
+  const direction = action === "previous" ? -1 : action === "next" ? 1 : 0;
+
+  if (!direction) {
+    return;
+  }
+
+  searchModelState.currentPage = clampSearchModelPage(
+    searchModelState.currentPage + direction,
+  );
+
+  document.getElementById("model-list")?.scrollTo({ top: 0 });
+  requestSearchModels(searchModelState.query, searchModelState.currentPage);
+}
+
 function openSearchModelDetails(modelId, options = {}) {
   if (!modelId) {
     return;
@@ -308,6 +374,34 @@ function openSearchModelDetails(modelId, options = {}) {
     type: "abrirDetalhesModelo",
     modelId,
   });
+}
+
+function renderSearchPaginationButton(action, icon, label, disabled) {
+  return `
+    <button class="model-pagination-button" type="button" data-pagination-action="${escapeHtml(action)}" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}" ${disabled ? "disabled" : ""}>
+      <i class="codicon codicon-${escapeHtml(icon)}" aria-hidden="true"></i>
+    </button>
+  `;
+}
+
+function renderSearchModelPagination() {
+  if (
+    searchModelState.loading ||
+    searchModelState.error ||
+    (!searchModelState.hasNextPage && searchModelState.currentPage <= 1)
+  ) {
+    return "";
+  }
+
+  const currentPage = clampSearchModelPage(searchModelState.currentPage);
+
+  return `
+    <div class="model-pagination" aria-label="Paginacao de modelos">
+      ${renderSearchPaginationButton("previous", "chevron-left", "Pagina anterior", currentPage <= 1)}
+      <span class="model-pagination-status">Pagina ${escapeHtml(currentPage)}</span>
+      ${renderSearchPaginationButton("next", "chevron-right", "Proxima pagina", !searchModelState.hasNextPage)}
+    </div>
+  `;
 }
 
 function renderModelCards(
@@ -338,13 +432,14 @@ function renderModelCards(
     document
       .getElementById("retry-model-search")
       ?.addEventListener("click", () => {
-        requestSearchModels(searchModelState.query);
+        requestSearchModels(searchModelState.query, searchModelState.currentPage);
       });
     return;
   }
 
-  modelList.innerHTML =
-    models
+  const paginatedModels = getPaginatedSearchModels(models);
+  const cardsHtml =
+    paginatedModels
       .map((model) => {
         const primaryFile = getPrimarySearchFile(model);
         const active = model.id === activeModelId ? "active" : "";
@@ -372,14 +467,22 @@ function renderModelCards(
           </button>
         `;
       })
-      .join("") ||
+      .join("");
+
+  modelList.innerHTML =
+    cardsHtml ||
     `<div class="model-list-empty">
       <i class="codicon codicon-search-stop" aria-hidden="true"></i>
       <strong>Nenhum resultado foi encontrado</strong>
       <span>Tente pesquisar usando outro nome ou termo.</span>
     </div>`;
 
+  if (cardsHtml) {
+    modelList.insertAdjacentHTML("beforeend", renderSearchModelPagination());
+  }
+
   bindModelCardEvents();
+  bindSearchPaginationEvents();
 }
 
 function renderSearchModelCards() {
@@ -416,6 +519,11 @@ function handleSearchModelsLoaded(payload) {
   searchModelState.loading = false;
   searchModelState.error = "";
   searchModelState.models = prioritizeSearchGenerationModels(payload?.models);
+  searchModelState.currentPage =
+    Math.floor(
+      Number(payload?.pagination?.offset || 0) / SEARCH_MODEL_LIST_PAGE_SIZE,
+    ) + 1;
+  searchModelState.hasNextPage = Boolean(payload?.pagination?.hasNextPage);
   const visibleModels = getVisibleSearchModels();
   searchModelState.selectedModelId =
     searchModelState.selectedModelId &&

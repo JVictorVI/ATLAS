@@ -58,6 +58,11 @@ function handleModelsFound(message) {
   state.loading = false;
   state.error = "";
   state.models = prioritizeGenerationModels(message.value?.models);
+  state.currentPage =
+    Math.floor(
+      Number(message.value?.pagination?.offset || 0) / MODEL_LIST_PAGE_SIZE,
+    ) + 1;
+  state.hasNextPage = Boolean(message.value?.pagination?.hasNextPage);
   state.selectedModel = getVisibleModels()[0] || null;
   state.selectedFileName = getFirstModelFileName(state.selectedModel);
   state.variantMenuOpen = false;

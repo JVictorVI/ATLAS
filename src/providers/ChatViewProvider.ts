@@ -340,8 +340,13 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         );
       },
 
-      searchHuggingFaceModels: (query: string, modelFilter) => {
-        return this.huggingFaceModelService.searchModels(query, modelFilter);
+      searchHuggingFaceModels: (query: string, modelFilter, offset, limit) => {
+        return this.huggingFaceModelService.searchModels(
+          query,
+          modelFilter,
+          offset,
+          limit,
+        );
       },
 
       getHuggingFaceModelDetails: (modelId: string) => {

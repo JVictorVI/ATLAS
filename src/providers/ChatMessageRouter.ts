@@ -1870,16 +1870,34 @@ export class ChatMessageRouter {
       data.modelFilter === "llm" || data.modelFilter === "embedding"
         ? data.modelFilter
         : "all";
+    const offset = Number.isFinite(Number(data.offset))
+      ? Math.max(0, Math.floor(Number(data.offset)))
+      : 0;
+    const limit = Number.isFinite(Number(data.limit))
+      ? Math.min(Math.max(1, Math.floor(Number(data.limit))), 50)
+      : 25;
 
     try {
-      const models = await this.deps.searchHuggingFaceModels(
+      const searchResult = await this.deps.searchHuggingFaceModels(
         query,
         modelFilter,
+        offset,
+        limit,
       );
 
       await webview.postMessage({
         type: "modelosHuggingFaceEncontrados",
-        value: { query, modelFilter, requestId, models },
+        value: {
+          query,
+          modelFilter,
+          requestId,
+          models: searchResult.models,
+          pagination: {
+            offset: searchResult.offset,
+            limit: searchResult.limit,
+            hasNextPage: searchResult.hasNextPage,
+          },
+        },
       });
     } catch (error) {
       await webview.postMessage({
@@ -1889,6 +1907,8 @@ export class ChatMessageRouter {
           query,
           modelFilter,
           requestId,
+          offset,
+          limit,
           message: this.getErrorMessage(
             error,
             "Erro ao buscar modelos no Hugging Face.",

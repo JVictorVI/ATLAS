@@ -54,6 +54,30 @@ function getVisibleModels() {
   return state.models.filter(matchesModelFilter);
 }
 
+function clampModelPage(page) {
+  const parsedPage = Number.parseInt(page, 10);
+  const safePage = Number.isFinite(parsedPage) ? parsedPage : 1;
+
+  return Math.max(safePage, 1);
+}
+
+function getPaginatedModels(models) {
+  return models || [];
+}
+
+function getModelPageRange(models) {
+  const total = (models || []).length;
+
+  if (!total) {
+    return { start: 0, end: 0, total };
+  }
+
+  const start = (state.currentPage - 1) * MODEL_LIST_PAGE_SIZE + 1;
+  const end = start + total - 1;
+
+  return { start, end, total };
+}
+
 function getModelFiles(model) {
   return model?.format === "ONNX"
     ? model.onnxFiles || []

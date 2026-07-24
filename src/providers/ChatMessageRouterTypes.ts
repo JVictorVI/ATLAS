@@ -9,7 +9,10 @@ import { AtlasInferenceService } from "../services/AtlasInferenceService";
 import { AtlasSessionService } from "../services/AtlasSessionService";
 import { CloudApiService } from "../services/CloudApiService";
 import { HardwareDiagnosticService } from "../services/HardwareDiagnosticService";
-import { HuggingFaceModelSearchFilter } from "../services/HuggingFaceModelService";
+import {
+  HuggingFaceModelSearchFilter,
+  HuggingFaceModelSearchResult,
+} from "../services/HuggingFaceModelService";
 import {
   HuggingFaceModelDetails,
   HuggingFaceModelSummary,
@@ -67,7 +70,9 @@ export type RouterDependencies = {
   searchHuggingFaceModels: (
     query: string,
     modelFilter?: HuggingFaceModelSearchFilter,
-  ) => Promise<HuggingFaceModelSummary[]>;
+    offset?: number,
+    limit?: number,
+  ) => Promise<HuggingFaceModelSearchResult>;
   getHuggingFaceModelDetails: (
     modelId: string,
   ) => Promise<HuggingFaceModelDetails>;

@@ -58,9 +58,11 @@ function selectModel(model) {
   requestModelDetails(model.id);
 }
 
-function searchModels(query) {
+function searchModels(query, page = 1) {
   state.query = query.trim();
   state.loading = true;
+  state.currentPage = clampModelPage(page);
+  state.hasNextPage = false;
   state.selectedModel = null;
   state.selectedFileName = "";
   state.variantMenuOpen = false;
@@ -85,6 +87,8 @@ function searchModels(query) {
     type: "buscarModelosHuggingFace",
     query: state.query,
     modelFilter: state.modelFilter,
+    offset: (state.currentPage - 1) * MODEL_LIST_PAGE_SIZE,
+    limit: MODEL_LIST_PAGE_SIZE,
     requestId,
   });
 }
