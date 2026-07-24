@@ -1,6 +1,6 @@
 # Build, empacotamento e distribuição
 
-Atualizado em 1 de julho de 2026 com base nos scripts e artefatos presentes no repositório.
+Atualizado em 24 de julho de 2026 com base nos scripts e artefatos presentes no repositório.
 
 Este documento descreve como preparar o ATLAS para distribuição como extensão VS Code, incluindo ChromaDB, embeddings, runtime ONNX, geração do VSIX, limitações atuais de plataforma e conteúdo esperado em `resources`.
 
@@ -281,12 +281,14 @@ O fluxo de distribuição atual não empacota `llama.cpp`.
 
 1. `model.custom.llamaServerPath`;
 2. `custom.localEngine.llamaServerPath`;
-3. pasta configurada em `custom.localEngine.enginesDir`;
-4. fallback `engine/` dentro da extensão.
+3. `<enginesDir>/<engineFolder>/llama-server.exe`;
+4. `<enginesDir>/<engineFolder>/llama-server`;
+5. fallback CPU em `<enginesDir>/bin/`;
+6. fallback final no PATH do sistema.
 
-Como `.vscodeignore` exclui `engine/`, a distribuição atual assume que o usuário configura uma pasta externa de engines ou um caminho explícito para o `llama-server`.
+Como `.vscodeignore` exclui `engine/`, o VSIX não sai com binários do `llama.cpp`. A experiência atual, porém, não depende apenas de configuração manual: `AtlasEngineDownloadService` pode baixar o release mais recente do `llama.cpp` em runtime, escolher CPU/CUDA/Vulkan por hardware ou respeitar o modo configurado e gravar os arquivos em `custom.localEngine.enginesDir` ou, por padrão, em `<extensionPath>/engine`.
 
-Para empacotar engines no futuro, será necessário:
+Para empacotar engines diretamente no VSIX no futuro, será necessário:
 
 - remover ou ajustar a exclusão de `engine/` em `.vscodeignore`;
 - separar VSIX por plataforma e aceleração;
@@ -366,11 +368,12 @@ Depois de instalar o VSIX:
 | Modelo de embeddings não encontrado | `resources/embeddings/atlas-embedding` não existe ou o usuário selecionou modelo ausente. | Rodar `npm run prepare-embedding-model` ou baixar pelo painel RAG. |
 | Erro de ONNX no VSIX | `resources/embedding-runtime/node_modules` não foi preparado ou foi podado para outra plataforma. | Rodar `npm run prepare-embedding-runtime` e validar arquitetura. |
 | VSIX muito grande | Modelo, runtime ou engines foram incluídos sem poda. | Revisar `resources`, `.vscodeignore` e artefatos por plataforma. |
-| Engine local não inicia após instalar VSIX | `llama.cpp` não está empacotado nem configurado externamente. | Configurar pasta de engines ou `llamaServerPath`. |
+| Engine local não inicia após instalar VSIX | Download automático falhou, pacote não possui `llama-server`, engine configurada não existe ou `llamaServerPath` aponta para arquivo ausente. | Rodar `ATLAS: Baixar engine local automaticamente`, conferir `custom.localEngine.enginesDir` e validar o modo CPU/CUDA/Vulkan selecionado. |
 
 ## Relação com outros documentos
 
 - [Processos de contexto, janela local e RAG](processos-contexto-rag-atlas.md)
 - [Execução local e lifecycle da engine](processo-engine-local-atlas.md)
+- [Configuração automática da engine](processo-configuracao-automatica-engine-atlas.md)
 - [Sistema de configuração](processo-configuracao-atlas.md)
 - [Plano e estado do RAG](plano-implementacao-rag-atlas.md)

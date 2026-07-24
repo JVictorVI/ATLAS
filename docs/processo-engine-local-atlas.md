@@ -1,10 +1,12 @@
 # Processo da Engine Local
 
-Atualizado em 1 de julho de 2026.
+Atualizado em 24 de julho de 2026.
 
 Este documento descreve a execução local com `llama-server`, incluindo seleção de modelo, lifecycle da engine, health check, troca de parâmetros e relação com a Biblioteca.
 
 Para o ajuste automático específico de janela de contexto, consulte também [Processos de contexto, janela local e RAG](processos-contexto-rag-atlas.md).
+
+Para a escolha, download e validação automática dos binários do `llama.cpp`, consulte também [Processo de configuração automática da engine](processo-configuracao-automatica-engine-atlas.md).
 
 ## Componentes
 
@@ -19,6 +21,7 @@ Componentes auxiliares:
 
 ```text
 AtlasLocalModelDiscoveryService
+AtlasEngineDownloadService
 ChatModelWebviewService
 ChatMessageRouter
 ```
@@ -109,6 +112,8 @@ llama.cpp-cuda
 llama.cpp-vulkan
 ```
 
+O download e a validação dessas pastas são feitos por `AtlasEngineDownloadService`, descrito em [Processo de configuração automática da engine](processo-configuracao-automatica-engine-atlas.md).
+
 ## Resolução do executável
 
 `AtlasLocalEngineService.resolveLlamaServerExecutable` tenta:
@@ -130,6 +135,8 @@ Se CUDA/Vulkan forem selecionados e a pasta esperada não existir, o serviço la
 ```text
 localEngineService.ensureEngine(model)
 ```
+
+Entradas manuais da Biblioteca e downloads de GGUF pelo Repositório de Modelos chamam antes `ensureConfiguredEngineDownloaded`, garantindo que a engine selecionada exista antes da tentativa de execução local.
 
 O serviço reutiliza o processo se:
 

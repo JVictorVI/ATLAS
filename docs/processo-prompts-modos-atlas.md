@@ -1,6 +1,6 @@
 # Processo de Prompts e Resolução de Modos
 
-Atualizado em 1 de julho de 2026.
+Atualizado em 24 de julho de 2026.
 
 Este documento descreve como o ATLAS decide o modo de resposta e monta a lista final de mensagens enviada ao modelo.
 
@@ -190,6 +190,8 @@ O modo arquitetural exige resposta em oito tópicos Markdown:
 8. Síntese crítica da decisão e prioridade de atenção.
 
 O prompt reforça que sugestões de refatoração são consequência da análise, não substituto da análise.
+
+Quando houver sugestão de mudança, o prompt também pede uma justificativa técnica explícita, indicando qual Design Pattern, princípio de modularização ou Refactoring Technique sustenta a recomendação e qual trade-off negativo ela busca reduzir.
 
 ## Análise rápida
 

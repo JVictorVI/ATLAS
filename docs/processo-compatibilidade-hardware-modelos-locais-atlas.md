@@ -1,5 +1,7 @@
 # Processo de compatibilidade de hardware para modelos locais no ATLAS
 
+Atualizado em 24 de julho de 2026.
+
 Este documento descreve como o ATLAS avalia a compatibilidade entre uma variante de modelo local disponível no repositório Hugging Face e o hardware da máquina do usuário.
 
 O diagnóstico aparece na seção **Repositório de Modelos**, ao abrir os detalhes de um modelo LLM. Modelos de embeddings em ONNX não exibem esse diagnóstico.
@@ -27,6 +29,7 @@ O serviço local coleta:
 - RAM total em bytes.
 - Número de núcleos lógicos da CPU.
 - Nome da GPU.
+- Fornecedor da GPU, inferido pelo nome quando possível.
 - VRAM total em bytes.
 - Espaço livre em disco.
 
@@ -40,6 +43,8 @@ No Windows, o ATLAS tenta usar:
 No Linux, o ATLAS tenta usar `lspci`, `nvidia-smi` e informações em `/sys/class/drm`.
 
 Esses dados são usados internamente para o cálculo, mas as especificações completas da máquina não são exibidas no cartão de compatibilidade.
+
+O mesmo `HardwareDiagnosticService` também é usado pelo fluxo de configuração automática da engine para escolher CPU, CUDA ou Vulkan. Esse outro uso está descrito em [Processo de configuração automática da engine](processo-configuracao-automatica-engine-atlas.md).
 
 ## Modelos avaliados
 

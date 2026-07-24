@@ -1,6 +1,6 @@
 # Processo de Integração Cloud
 
-Atualizado em 1 de julho de 2026.
+Atualizado em 24 de julho de 2026.
 
 Este documento descreve como o ATLAS usa provedores cloud, chaves de API, listagem de modelos, streaming, timeouts e normalização de respostas.
 
@@ -63,6 +63,20 @@ Se `kind` estiver ausente, `CloudApiService` infere pelo id:
 - id contendo `gemini` ou `google` -> Gemini;
 - caso contrário -> OpenAI-compatible.
 
+Providers padrão atuais:
+
+```text
+OpenAI
+OpenRouter
+Groq
+Claude
+Gemini
+xAI
+HuggingFace
+```
+
+`HuggingFace` fica disponível para token de repositório de modelos, mas `ChatMessageRouter` impede usá-lo como provedor de conversa.
+
 ## Chaves de API
 
 As chaves ficam no Secret Storage do VS Code, não no arquivo de configuração.
@@ -115,7 +129,7 @@ topP
 stream
 ```
 
-Default efetivo quando ausente:
+Default efetivo de timeout quando ausente:
 
 ```text
 30 segundos

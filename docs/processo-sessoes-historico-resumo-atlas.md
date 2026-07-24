@@ -1,6 +1,6 @@
 # Processo de Sessões, Histórico e Resumo Arquitetural
 
-Atualizado em 1 de julho de 2026.
+Atualizado em 24 de julho de 2026.
 
 Este documento descreve como o ATLAS cria sessões, persiste histórico, usa janela recente e gera resumo arquitetural para conversas longas.
 
@@ -75,6 +75,8 @@ O id é um UUID.
 - remove do arquivo;
 - se era a ativa, limpa `activeSessionId`.
 
+Quando a exclusão vem da Webview, `ChatSessionController` seleciona automaticamente a primeira sessão restante, se existir, e envia `activeSession` atualizado para a interface.
+
 ### Renomear
 
 `renameSession(sessionId, newTitle)`:
@@ -110,7 +112,11 @@ content
 metadata?
 ```
 
-Respostas do assistente podem carregar metadados como fontes RAG.
+Respostas do assistente podem carregar metadados como fontes RAG. Respostas interrompidas salvas pelo cancelamento de streaming carregam:
+
+```text
+metadata.interrupted = true
+```
 
 ## Título automático
 

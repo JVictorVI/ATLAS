@@ -1,6 +1,6 @@
 # Processo de Geração de Resposta
 
-Atualizado em 1 de julho de 2026.
+Atualizado em 24 de julho de 2026.
 
 Este documento descreve o fluxo completo de uma pergunta enviada pelo chat até a resposta final exibida e persistida.
 
@@ -36,7 +36,7 @@ usesLocalEngine
 forcedMode
 ```
 
-Esse snapshot permite cancelar a geração e preservar estado parcial quando a UI troca de sessão.
+Esse snapshot permite cancelar a geração, preservar estado parcial quando a UI troca de sessão e salvar uma resposta interrompida quando o usuário cancela uma geração com conteúdo parcial já recebido.
 
 ## Sessão ativa
 
@@ -207,8 +207,15 @@ cancelarGeracao -> handleCancelGeneration -> abort()
 Em caso de abort:
 
 - a Webview recebe `geracaoCancelada`;
-- a geração não persiste resposta parcial como mensagem final;
+- se `custom.saveInterruptedResponses !== false`, uma resposta parcial em streaming é salva como mensagem do assistente com `metadata.interrupted = true`;
+- se essa opção estiver desativada, ou se ainda não houver conteúdo parcial, nada é persistido como resposta final;
 - quick analysis também respeita o sinal quando chamada pelo chat.
+
+O default atual é:
+
+```text
+custom.saveInterruptedResponses = true
+```
 
 ## Erros
 

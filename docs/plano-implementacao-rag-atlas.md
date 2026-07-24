@@ -1,6 +1,6 @@
 ﻿# Plano e Estado da Implementação do RAG no ATLAS
 
-Atualizado em 1 de julho de 2026.
+Atualizado em 24 de julho de 2026.
 
 > **Nota de sincronização:** a documentação geral e os diagramas foram alinhados para tratar materiais complementares e atualização incremental como funcionalidades implementadas. As evoluções pendentes do RAG continuam sendo chunking orientado a símbolos e melhorias de qualidade da recuperação.
 
@@ -24,24 +24,24 @@ O fluxo principal já está implementado. As evoluções restantes concentram-se
 
 ## 2. Estado atual
 
-| Área | Estado |
-| --- | --- |
-| Runtime ChromaDB local | Implementado |
-| Modelo local de embeddings | Implementado com pasta configurável, seletor e download do padrão |
-| Indexação do workspace atual | Implementada |
-| Indexação manual de outra pasta | Implementada |
-| Chunking textual e metadados de linhas | Implementados |
-| Persistência por projeto | Implementada |
-| Recuperação no chat | Implementada |
-| Fontes utilizadas na resposta | Implementadas e persistidas na sessão |
-| Tela de projetos indexados | Implementada |
-| Tela RAG com carregamento inicial seguro | Implementada; spinner inicial não bloqueia acesso em caso de erro ou timeout |
-| Barra de progresso e cancelamento | Implementados |
-| Configurações de indexação e recuperação | Implementadas |
-| Watcher e debounce | Implementados |
-| Atualização incremental por arquivo | Implementada; o modo pode alternar entre completa e incremental |
-| Materiais complementares | Implementados para PDF, Office moderno, texto, Markdown, CSV/TSV, HTML e arquivos de configuracao textuais |
-| Chunking orientado a símbolos | Pendente |
+| Área                                     | Estado                                                                                                     |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Runtime ChromaDB local                   | Implementado                                                                                               |
+| Modelo local de embeddings               | Implementado com pasta configurável, seletor e download do padrão                                          |
+| Indexação do workspace atual             | Implementada                                                                                               |
+| Indexação manual de outra pasta          | Implementada                                                                                               |
+| Chunking textual e metadados de linhas   | Implementados                                                                                              |
+| Persistência por projeto                 | Implementada                                                                                               |
+| Recuperação no chat                      | Implementada                                                                                               |
+| Fontes utilizadas na resposta            | Implementadas e persistidas na sessão                                                                      |
+| Tela de projetos indexados               | Implementada                                                                                               |
+| Tela RAG com carregamento inicial seguro | Implementada; spinner inicial não bloqueia acesso em caso de erro ou timeout                               |
+| Barra de progresso e cancelamento        | Implementados                                                                                              |
+| Configurações de indexação e recuperação | Implementadas                                                                                              |
+| Watcher e debounce                       | Implementados                                                                                              |
+| Atualização incremental por arquivo      | Implementada; o modo pode alternar entre completa e incremental                                            |
+| Materiais complementares                 | Implementados para PDF, Office moderno, texto, Markdown, CSV/TSV, HTML e arquivos de configuracao textuais |
+| Chunking orientado a símbolos            | Pendente                                                                                                   |
 
 ## 3. Arquitetura implementada
 
@@ -401,9 +401,10 @@ Alterações que mudam o formato do índice marcam projetos prontos como `outdat
 5. redução ou proteção dos logs de conteúdo em builds de produção;
 6. integração opcional do RAG com análise rápida após benchmark de latência.
 
-## 13. Critérios de aceite pendentes
+## 13. Critérios de aceite e validação
 
-- material complementar indexado aparecer como fonte;
-- benchmarks demonstrarem recuperação relevante dentro do orçamento;
-- instalação em máquina limpa funcionar sem dependências externas;
-- suporte de plataforma falhar de forma clara sem derrubar o chat.
+Critérios atendidos pela implementação atual:
+
+- material complementar indexado pode aparecer como fonte quando `rag.includeExternalDocuments` e `rag.showSources` estão ativos;
+- suporte de plataforma falha de forma controlada em pontos críticos do RAG, com erro no runtime ou estado indisponível sem derrubar a tela de configurações;
+- índices interrompidos são normalizados para `outdated` na próxima inicialização do repositório RAG.

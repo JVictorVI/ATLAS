@@ -1,6 +1,6 @@
 ﻿# Processos de Contexto, Janela Local e RAG
 
-Atualizado em 1 de julho de 2026.
+Atualizado em 24 de julho de 2026.
 
 Este documento descreve três fluxos operacionais do ATLAS:
 
@@ -226,6 +226,12 @@ O modo de indexação é controlado por `rag.indexingMode`:
 - `incremental`: compara os hashes do manifesto e gera embeddings apenas para arquivos novos ou alterados, além de remover chunks de arquivos apagados.
 
 Se o projeto ainda não possui metadados compatíveis, se a coleção ativa não existe ou se a configuração que define a forma do índice mudou, a execução incremental cai automaticamente para `full`.
+
+O default atual é:
+
+```text
+rag.indexingMode = incremental
+```
 
 ### Inicialização do runtime vetorial
 
@@ -458,6 +464,8 @@ Na recuperação, materiais complementares só entram se:
 rag.includeExternalDocuments === true
 ```
 
+O default atual é `true`, mas o usuário pode desligar essa inclusão nas configurações de recuperação.
+
 ## 5. Funcionamento dos embeddings
 
 ### Descoberta do modelo
@@ -635,3 +643,19 @@ Cada fonte retornada ao chat inclui distância, relevância, tipo, caminho e lin
 | `rag.allowCloudContext` | Permite enviar contexto RAG para modelos cloud. |
 | `rag.offlineOnly` | Bloqueia RAG no modo cloud quando ativo. |
 | `rag.includeExternalDocuments` | Inclui materiais complementares na recuperação. |
+| `rag.showSources` | Persiste e mostra fontes RAG nos metadados da resposta. |
+
+Defaults atuais de recuperação:
+
+```text
+topK: 6
+maxContextCharacters: 12000
+relevanceMode: maxDistance
+relevanceThreshold: 0.9
+maxChunksPerFile: 2
+diversifyFiles: true
+excludeActiveFile: true
+includeExternalDocuments: true
+sourcePriority: balanced
+showSources: true
+```

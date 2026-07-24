@@ -1,6 +1,6 @@
 # Processo de Análise Rápida
 
-Atualizado em 1 de julho de 2026.
+Atualizado em 24 de julho de 2026.
 
 Este documento descreve como o ATLAS executa a análise rápida do arquivo atual e aplica marcações no editor.
 
@@ -51,8 +51,8 @@ Se a execução veio por botão, um novo `AbortController` é criado e a anális
 Durante a execução, a Webview recebe:
 
 ```text
-analiseRapidaStatus loading=true
-analiseRapidaStatus loading=false
+analiseRapidaStatus loading=true source=button|chat
+analiseRapidaStatus loading=false source=button|chat
 ```
 
 ## Coleta de código

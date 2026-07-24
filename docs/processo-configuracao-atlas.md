@@ -1,6 +1,6 @@
 ﻿# Processo de Configuração
 
-Atualizado em 1 de julho de 2026.
+Atualizado em 24 de julho de 2026.
 
 Este documento descreve onde as configurações do ATLAS vivem, como são normalizadas e quais fluxos da UI alteram cada seção.
 
@@ -89,6 +89,18 @@ stream
 
 `dynamicMaxTokens` permite ao `CloudApiService` tentar buscar o limite real do modelo na listagem do provedor.
 
+Defaults atuais:
+
+```text
+limitPayload: true
+dynamicMaxTokens: false
+maxTokens: 8192
+timeout: 30
+temperature: 0.4
+topP: 0.95
+stream: true
+```
+
 ## RAG
 
 Seção:
@@ -111,6 +123,20 @@ Controla:
 - fontes exibidas.
 
 O fluxo operacional detalhado está em [Processos de contexto, janela local e RAG](processos-contexto-rag-atlas.md).
+
+Defaults atuais relevantes:
+
+```text
+enabled: true
+allowLocalContext: true
+allowCloudContext: false
+offlineOnly: true
+indexingMode: incremental
+includeMarkdownFiles: true
+includeConfigFiles: true
+includeExternalDocuments: true
+showSources: true
+```
 
 ## LLMs
 
@@ -206,6 +232,7 @@ localModels
 
 ```text
 custom.localEngine.engineType
+custom.localEngine.prepareOnAtlasOpen
 custom.localEngine.startOnAtlasOpen
 custom.localEngine.enginesDir
 custom.localEngine.llamaServerPath
@@ -213,6 +240,16 @@ custom.localEngine.dynamicContextWindow
 custom.localEngine.stream
 custom.localEngine.timeout
 custom.saveInterruptedResponses
+```
+
+Defaults atuais:
+
+```text
+custom.saveInterruptedResponses: true
+custom.localEngine.dynamicContextWindow: true
+custom.localEngine.prepareOnAtlasOpen: true
+custom.localEngine.stream: true
+custom.localEngine.timeout: 30
 ```
 
 ### Local models
@@ -249,7 +286,7 @@ custom
 - memória arquitetural ativa;
 - RAG ativo;
 - contexto do editor até 20000 caracteres;
-- análise estática básica;
+- análise estática desativada por efeito do preset;
 - contexto dinâmico local ativo.
 
 ### Advanced
@@ -277,6 +314,8 @@ Preserva ajustes finos vindos das telas específicas. Campos numéricos são nor
 | `saveModelParams` | `handleSaveModelParams` | `llms.localModels[modelId].parameters`. |
 | `saveModelBehavior` | `handleSaveModelBehaviorForLocalModel` | `llms.localModels[modelId].custom.systemPrompt`. |
 | `editModelMetadata` | `handleEditModelMetadata` | nome/provedor do modelo local. |
+| `deleteModelRequest` | `handleDeleteModelRequest` | remove o arquivo `.gguf` da pasta de modelos e exclui o registro local. |
+| `baixarEngineConfigurada` | `handleDownloadConfiguredEngineRequest` | prepara a engine selecionada em `custom.localEngine.engineType`. |
 
 ## Provedores
 
@@ -305,6 +344,8 @@ gemini
 ```
 
 Se ausente, `CloudApiService` infere pelo id.
+
+O provider `HuggingFace` pode guardar token para busca/download de modelos, mas não é tratado como provedor de conversa no chat.
 
 ## Chaves de API
 
@@ -359,5 +400,6 @@ A próxima geração local reinicia a engine com a configuração atual.
 
 - Geração: [Processo de geração de resposta](processo-geracao-resposta-atlas.md).
 - Engine local: [Processo da engine local](processo-engine-local-atlas.md).
+- Configuração automática da engine: [Processo de configuração automática da engine](processo-configuracao-automatica-engine-atlas.md).
 - Cloud: [Processo de integração cloud](processo-integracao-cloud-atlas.md).
 - RAG: [Processos de contexto, janela local e RAG](processos-contexto-rag-atlas.md).

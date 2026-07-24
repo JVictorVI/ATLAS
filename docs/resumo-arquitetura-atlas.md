@@ -1,6 +1,6 @@
 ﻿# Resumo de Status Arquitetural
 
-Atualizado em 1 de julho de 2026 com base na implementação presente no repositório.
+Atualizado em 24 de julho de 2026 com base na implementação presente no repositório.
 
 Para o fluxo detalhado de ajuste automático da janela local, indexação RAG e funcionamento dos embeddings, consulte [Processos de contexto, janela local e RAG](processos-contexto-rag-atlas.md).
 
@@ -11,10 +11,12 @@ Para o fluxo detalhado de ajuste automático da janela local, indexação RAG e 
 - [Sistema de configuração](processo-configuracao-atlas.md)
 - [Análise rápida](processo-analise-rapida-atlas.md)
 - [Execução local e lifecycle da engine](processo-engine-local-atlas.md)
+- [Configuração automática da engine](processo-configuracao-automatica-engine-atlas.md)
 - [Integração cloud](processo-integracao-cloud-atlas.md)
 - [Sessões, histórico e resumo](processo-sessoes-historico-resumo-atlas.md)
 - [Build, empacotamento e distribuição](processo-build-empacotamento-distribuicao-atlas.md)
 - [Contexto, janela local, RAG e embeddings](processos-contexto-rag-atlas.md)
+- [Repositório de modelos](processo-repositorio-modelos-atlas.md)
 
 | Componente                               | Status atual                                                                                                                                                     |
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -22,8 +24,8 @@ Para o fluxo detalhado de ajuste automático da janela local, indexação RAG e 
 | Webview de chat                          | Implementada, incluindo input com autosize e botão de modo estudante com estado visual ativo                                                                     |
 | Painel de provedores em nuvem            | Implementado                                                                                                                                                     |
 | Painel de configurações gerais           | Implementado, incluindo perfis de contexto, execução local, análise estática e ajuste automático de contexto                                                     |
-| Biblioteca local de modelos              | Implementada para descoberta, seleção, parâmetros, comportamento, metadados, exclusão e controles de engine; busca/download de modelos de chat seguem planejados |
-| Repositório visual de modelos            | Implementado com dados estáticos                                                                                                                                 |
+| Biblioteca local de modelos              | Implementada para descoberta, seleção, parâmetros, comportamento, metadados, exclusão e controles de engine; recebe modelos GGUF baixados pelo repositório        |
+| Repositório visual de modelos            | Implementado com busca no Hugging Face, filtros LLM/embedding, detalhes, variantes, diagnóstico de hardware e download GGUF/ONNX                                |
 | Integração cloud                         | Implementada                                                                                                                                                     |
 | Provedores customizados                  | Implementados                                                                                                                                                    |
 | Secret Storage                           | Implementado                                                                                                                                                     |
@@ -31,9 +33,10 @@ Para o fluxo detalhado de ajuste automático da janela local, indexação RAG e 
 | `CloudApiService`                        | Implementado                                                                                                                                                     |
 | `LocalApiService`                        | Implementado com chamadas locais OpenAI-compatible, streaming, timeout, tratamento de overflow de contexto e ajuste dinâmico de `contextWindow`                  |
 | `AtlasLocalEngineService`                | Implementado com seleção de engine CPU/CUDA/Vulkan, `llama-server`, reinício para aplicar novos parâmetros, status na Webview e logs operacionais                |
+| `AtlasEngineDownloadService`             | Implementado com detecção automática CPU/CUDA/Vulkan, download do release mais recente do `llama.cpp`, extração, validação e DLLs CUDA complementares            |
 | `AtlasLocalModelDiscoveryService`        | Implementado                                                                                                                                                     |
 | Execução local `llama.cpp`               | Implementada                                                                                                                                                     |
-| CPU/CUDA/Vulkan                          | Implementado conforme binários disponíveis                                                                                                                       |
+| CPU/CUDA/Vulkan                          | Implementado com seleção manual e preparação automática por hardware                                                                                              |
 | Sessões de chat                          | Implementadas                                                                                                                                                    |
 | Histórico persistido                     | Implementado                                                                                                                                                     |
 | Resumo arquitetural                      | Implementado                                                                                                                                                     |
@@ -65,10 +68,10 @@ Para o fluxo detalhado de ajuste automático da janela local, indexação RAG e 
 | Configurações de indexação               | Implementadas, incluindo modo completo/incremental, Markdown e JSON/configuração como opções independentes                                                       |
 | Configurações de recuperação             | Implementadas: distância/relevância, diversidade, limite por arquivo, linguagem, diretório e prioridade                                                          |
 | Materiais complementares no RAG               | Implementados com ingestão, listagem, exclusão e recuperação semântica em coleção externa por workspace e modelo de embeddings                                   |
-| Hugging Face API para busca de modelos   | Planejada                                                                                                                                                        |
-| Download automatizado de modelos de chat | Planejado                                                                                                                                                        |
+| Hugging Face API para busca de modelos   | Implementada para LLMs GGUF e embeddings ONNX compatíveis                                                                                                        |
+| Download automatizado de modelos de chat | Implementado para variantes GGUF compatíveis, com progresso, cancelamento, descoberta local e atualização da biblioteca                                          |
 
-## Mapa de defasagens corrigidas em 1 de julho de 2026
+## Mapa de defasagens corrigidas em 24 de julho de 2026
 
 | Área documentada              | Situação anterior na documentação                                                                      | Estado atual mapeado                                                                                                                                                         |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -76,7 +79,10 @@ Para o fluxo detalhado de ajuste automático da janela local, indexação RAG e 
 | Reinício da engine local      | O fluxo de reinício era tratado como inicialização genérica.                                           | Quando o contexto dinâmico é salvo, a engine é reiniciada com motivo explícito de atualização de parâmetros, mensagens próprias na UI e logs com modelo, engine e contexto.  |
 | Diagramas de inferência local | `LocalApiService` aparecia com responsabilidades antigas e sem o retry por overflow.                   | Os diagramas passam a representar detecção de overflow, persistência do novo `contextWindow` e reinício do `llama-server` antes do reenvio da requisição.                    |
 | Materiais complementares no RAG    | Parte dos diagramas ainda marcava ingestão de materiais complementares como futuro.                         | Materiais complementares estão implementados via `AtlasExternalDocumentParser`, `AtlasRagService` e `AtlasRagRepository`, com suporte a PDF, Office moderno e formatos textuais.  |
-| Biblioteca local              | O resumo usava "parcial" sem delimitar o que faltava.                                                  | A biblioteca local está descrita como funcional para modelos GGUF locais; o que permanece planejado é busca real em Hugging Face e download automatizado de modelos de chat. |
+| Biblioteca local              | O resumo usava "parcial" sem delimitar o que faltava.                                                  | A biblioteca local está descrita como funcional para modelos GGUF locais e integrada ao repositório visual de modelos.                                                     |
+| Repositório de modelos        | Diagramas e status ainda marcavam busca/download Hugging Face como futuro.                              | Busca, detalhes, filtros LLM/embedding e download GGUF/ONNX estão documentados como implementados.                                                                        |
+| Engine local                  | A distribuição ainda era descrita como dependente de configuração externa manual do `llama-server`.      | A engine continua fora do VSIX, mas o ATLAS baixa e valida `llama.cpp` automaticamente em runtime.                                                                         |
+| RAG incremental               | Algumas notas antigas diziam que a atualização automática sempre reconstruía o índice completo.         | A indexação incremental é o default e só cai para `full` quando metadados, coleção ou configuração exigem reconstrução.                                                    |
 
 ## Execução local e ajuste dinâmico
 
@@ -97,7 +103,6 @@ Para o fluxo detalhado de ajuste automático da janela local, indexação RAG e 
 
 ## Limitações atuais
 
-- Alterações em arquivos são detectadas, mas a atualização automática ainda reconstrói todo o índice do projeto.
-- Formatos legados binarios do Office (`.doc`, `.xls`, `.ppt`) ainda nao possuem extrator dedicado; use `.docx`, `.xlsx` e `.pptx`.
+- Formatos legados binários do Office (`.doc`, `.xls`, `.ppt`) ainda não possuem extrator dedicado; use `.docx`, `.xlsx` e `.pptx`.
 - O empacotamento validado atualmente tem como alvo `win32-x64`.
 - O chunking é textual por caracteres e linhas; chunking orientado a símbolos permanece como evolução.

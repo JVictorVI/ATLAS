@@ -1,14 +1,16 @@
 ﻿# Diagramas por Caso de Uso - ATLAS
 
+Atualizado em 24 de julho de 2026.
+
 Este arquivo contém diagramas de classe e de sequência em PlantUML para cada caso de uso atualizado do ATLAS.
 Os blocos podem ser copiados diretamente para o PlantText.
 
-> **Nota de atualização:** os diagramas abaixo representam o ATLAS atual como extensão VS Code em TypeScript. Além dos fluxos de inferência local/cloud, sessões, análise rápida e contexto estrutural, o RAG local está implementado com `AtlasRagService`, embeddings locais, ChromaDB empacotado, indexação por projeto, materiais complementares e recuperação integrada ao chat.
-> Busca real em Hugging Face e download automatizado de modelos de chat continuam marcados como futuro. A ingestão de materiais complementares foi atualizada para o estado implementado.
+> **Nota de atualização:** os diagramas abaixo representam o ATLAS atual como extensão VS Code em TypeScript. Além dos fluxos de inferência local/cloud, sessões, análise rápida e contexto estrutural, o RAG local está implementado com `AtlasRagService`, embeddings locais, ChromaDB empacotado, indexação por projeto, materiais complementares e recuperação integrada ao chat. Busca real em Hugging Face, download de modelos GGUF/ONNX e preparação automática da engine `llama.cpp` também estão implementados.
 
 ## Mapa de defasagens corrigidas nesta atualização
 
 - UC014 agora mostra o ajuste automático de `contextWindow`, a persistência do novo parâmetro e o reinício da engine para aplicá-lo.
+- UC017 e UC018 deixaram de ser futuro e passaram a representar `HuggingFaceModelService`, `AtlasEngineDownloadService`, descoberta local e atualização de embeddings.
 - UC019 deixou de ser futuro e passou a apontar para `AtlasRagService`, `AtlasExternalDocumentParser`, `AtlasEmbeddingService` e `AtlasRagRepository`.
 - As assinaturas de `LocalApiService` e `AtlasLocalEngineService` foram ajustadas para representar o código atual, incluindo `restartEngine(model, options)`.
 
@@ -1152,7 +1154,7 @@ Router --> Webview : configuracoesAtlasSalvas
 @enduml
 ```
 
-## Casos de uso atuais e futuros
+## Casos de uso atuais
 
 ## UC016 - Indexar projeto com RAG
 
@@ -1265,7 +1267,7 @@ UI --> Usuário : exibe status, tamanho e fontes
 @enduml
 ```
 
-## UC017 - Pesquisar modelos de IA (futuro)
+## UC017 - Pesquisar modelos de IA no Hugging Face
 
 ### Diagrama de Classes
 
@@ -1274,22 +1276,37 @@ UI --> Usuário : exibe status, tamanho e fontes
 skinparam shadowing false
 skinparam classAttributeIconSize 0
 
-class ModelSearchUI <<future>>
-class HuggingFaceModelSearchService <<future>> {
-  +searchModels(query, filters)
+class "Webview Search" as ModelSearchUI {
+  +searchModels(query, page)
+  +requestModelDetails(modelId)
+  +requestRepositoryHardware()
 }
-class ModelCompatibilityService <<future>> {
-  +enrichWithCompatibility(models)
+class ChatMessageRouter {
+  -handleSearchHuggingFaceModels(data, webview)
+  -handleGetHuggingFaceModelDetails(data, webview)
+  -handleSendRepositoryHardwareInfo(webview)
+  -handleOpenHuggingFaceFile(data)
 }
-class AtlasConfigManager
-interface ModelSearchResult <<future>>
-actor "Repositório de Modelos\n(API)" as RepoAPI
+class HuggingFaceModelService {
+  +searchModels(query, modelFilter, offset, limit)
+  +getModelDetails(modelId)
+  -isSupportedModel(model)
+  -mapModel(model)
+}
+class HardwareDiagnosticService {
+  +getHardwareInfo()
+}
+class "compatibility-diagnostics.js" as Compatibility {
+  +renderCompatibilityDiagnosticsCard(model, selectedFile, context)
+}
+actor "Hugging Face API" as RepoAPI
 
-ModelSearchUI --> HuggingFaceModelSearchService
-HuggingFaceModelSearchService --> ModelCompatibilityService
-HuggingFaceModelSearchService --> RepoAPI
-HuggingFaceModelSearchService ..> ModelSearchResult
-ModelCompatibilityService --> AtlasConfigManager
+ModelSearchUI --> ChatMessageRouter : postMessage
+ChatMessageRouter --> HuggingFaceModelService
+ChatMessageRouter --> HardwareDiagnosticService
+HuggingFaceModelService --> RepoAPI : /api/models e README
+ModelSearchUI --> Compatibility : renderiza diagnóstico GGUF
+Compatibility --> ModelSearchUI : cartão de compatibilidade
 @enduml
 ```
 
@@ -1299,23 +1316,37 @@ ModelCompatibilityService --> AtlasConfigManager
 @startuml
 skinparam shadowing false
 actor Usuário
-participant "ModelSearchUI\n(futuro)" as UI
-participant "HuggingFaceModelSearchService\n(futuro)" as Search
-participant "ModelCompatibilityService\n(futuro)" as Compatibility
-participant "Repositório de Modelos\n(API)" as RepoAPI
+participant "Webview Search" as UI
+participant ChatMessageRouter as Router
+participant HuggingFaceModelService as HF
+participant HardwareDiagnosticService as Hardware
+participant "compatibility-diagnostics.js" as Compatibility
+participant "Hugging Face API" as RepoAPI
 
 Usuário -> UI : pesquisa modelo
-UI -> Search : searchModels(query, filters)
-Search -> RepoAPI : consultar repositório
-RepoAPI --> Search : resultados
-Search -> Compatibility : enrichWithCompatibility(results)
-Compatibility --> Search : resultados avaliados
-Search --> UI : ModelSearchResult[]
-UI --> Usuário : exibe modelos
+UI -> Router : buscarModelosHuggingFace(query, filter, offset, limit, requestId)
+Router -> HF : searchModels(query, filter, offset, limit)
+HF -> RepoAPI : /api/models
+RepoAPI --> HF : modelos e siblings
+HF -> HF : filtra GGUF executável e ONNX compatível
+HF --> Router : modelos paginados
+Router --> UI : modelosHuggingFaceEncontrados
+UI -> Router : detalharModeloHuggingFace(modelId)
+Router -> HF : getModelDetails(modelId)
+HF -> RepoAPI : /api/models/<repo>?blobs=true
+RepoAPI --> HF : detalhes, arquivos e metadados
+HF --> Router : HuggingFaceModelDetails
+Router --> UI : modeloHuggingFaceDetalhado
+UI -> Router : solicitarHardwareRepositorio
+Router -> Hardware : getHardwareInfo()
+Hardware --> Router : RAM, CPU, GPU, VRAM, storage
+Router --> UI : hardwareRepositorioCarregado
+UI -> Compatibility : classifica variante selecionada
+UI --> Usuário : exibe detalhes, variantes e compatibilidade
 @enduml
 ```
 
-## UC018 - Baixar modelo local (futuro)
+## UC018 - Baixar modelo GGUF ou ONNX
 
 ### Diagrama de Classes
 
@@ -1324,24 +1355,53 @@ UI --> Usuário : exibe modelos
 skinparam shadowing false
 skinparam classAttributeIconSize 0
 
-class ModelDownloadUI <<future>>
-class ModelDownloadService <<future>> {
-  +downloadModel(modelId, variant)
+class "Webview Search" as ModelDownloadUI {
+  +downloadSelectedModel()
 }
-class LocalModelStorageService <<future>> {
-  +saveModelFile(file)
+class ChatMessageRouter {
+  -handleDownloadHuggingFaceModel(data, webview)
+}
+class ChatViewProvider {
+  +downloadHuggingFaceModel(modelId, fileName, webview)
+}
+class HuggingFaceModelService {
+  +getModelDetails(modelId)
+  +downloadModel(model, fileName, onProgress, signal)
+  +downloadGguf(modelId, fileName, onProgress, signal)
+  +downloadEmbeddingModel(model, fileName, onProgress, signal)
+}
+class AtlasEngineDownloadService {
+  +ensureConfiguredEngineDownloaded(onStatus)
+}
+class AtlasLocalModelDiscoveryService {
+  +refreshLocalModels()
+  +getModelsDir()
+}
+class AtlasEmbeddingModelDiscoveryService {
+  +refreshEmbeddingModels()
+  +getModelsDir()
+}
+class ChatModelWebviewService {
+  +sendModelsToWebview(webview)
 }
 class AtlasConfigManager
 class AtlasModelRegistryService
-actor "Repositório de Modelos\n(API)" as RepoAPI
-database "Diretório local de modelos" as ModelDir
+actor "Hugging Face API" as RepoAPI
+database "Pasta de modelos GGUF" as ModelDir
+database "Pasta de embeddings ONNX" as EmbeddingDir
 
-ModelDownloadUI --> ModelDownloadService
-ModelDownloadService --> RepoAPI
-ModelDownloadService --> LocalModelStorageService
-LocalModelStorageService --> ModelDir
-ModelDownloadService --> AtlasConfigManager
+ModelDownloadUI --> ChatMessageRouter : baixarModeloHuggingFace
+ChatMessageRouter --> ChatViewProvider
+ChatViewProvider --> HuggingFaceModelService
+ChatViewProvider --> AtlasEngineDownloadService : GGUF
+HuggingFaceModelService --> RepoAPI
+HuggingFaceModelService --> ModelDir : GGUF
+HuggingFaceModelService --> EmbeddingDir : ONNX e arquivos auxiliares
+ChatViewProvider --> AtlasLocalModelDiscoveryService : GGUF
+ChatViewProvider --> AtlasEmbeddingModelDiscoveryService : ONNX
+AtlasLocalModelDiscoveryService --> AtlasConfigManager
 AtlasConfigManager --> AtlasModelRegistryService
+ChatViewProvider --> ChatModelWebviewService
 @enduml
 ```
 
@@ -1351,25 +1411,43 @@ AtlasConfigManager --> AtlasModelRegistryService
 @startuml
 skinparam shadowing false
 actor Usuário
-participant "ModelDownloadUI\n(futuro)" as UI
-participant "ModelDownloadService\n(futuro)" as Download
-participant "Repositório de Modelos\n(API)" as RepoAPI
-participant "LocalModelStorageService\n(futuro)" as Storage
-participant AtlasConfigManager as Config
-participant AtlasModelRegistryService as Registry
-database "Diretório local" as ModelDir
+participant "Webview Search" as UI
+participant ChatMessageRouter as Router
+participant ChatViewProvider as Provider
+participant AtlasEngineDownloadService as EngineDownload
+participant HuggingFaceModelService as HF
+participant AtlasLocalModelDiscoveryService as LocalDiscovery
+participant AtlasEmbeddingModelDiscoveryService as EmbeddingDiscovery
+participant ChatModelWebviewService as ModelWebview
+participant "Hugging Face API" as RepoAPI
+database "Pasta GGUF" as ModelDir
+database "Pasta ONNX" as EmbeddingDir
 
 Usuário -> UI : seleciona modelo para baixar
-UI -> Download : downloadModel(modelId, variant)
-Download -> RepoAPI : requisita artefato
-RepoAPI --> Download : arquivo/chunks
-Download -> Storage : saveModelFile(file)
-Storage -> ModelDir : grava modelo
-Storage --> Download : path local
-Download -> Config : upsertModel(modelConfig)
-Config -> Registry : upsertModel(modelConfig)
-Registry --> Config : modelo registrado
-Download --> UI : modeloBaixado
+UI -> Router : baixarModeloHuggingFace(modelId, fileName)
+Router -> Provider : downloadHuggingFaceModel(modelId, fileName, webview)
+Provider -> HF : getModelDetails(modelId)
+HF -> RepoAPI : consulta detalhes
+RepoAPI --> HF : formato GGUF ou ONNX
+alt GGUF
+  Provider -> EngineDownload : ensureConfiguredEngineDownloaded()
+  EngineDownload --> Provider : engine pronta
+  Provider -> HF : downloadGguf(...)
+  HF -> RepoAPI : resolve/main/<arquivo.gguf>
+  RepoAPI --> HF : stream do arquivo
+  HF -> ModelDir : grava GGUF
+  Provider -> LocalDiscovery : refreshLocalModels()
+  LocalDiscovery -> LocalDiscovery : cria AtlasModelConfig
+else ONNX embedding
+  Provider -> HF : downloadEmbeddingModel(...)
+  HF -> RepoAPI : ONNX + arquivos auxiliares
+  RepoAPI --> HF : arquivos do modelo
+  HF -> EmbeddingDir : grava modelo e atlas-model.json
+  Provider -> EmbeddingDiscovery : refreshEmbeddingModels()
+end
+Provider -> ModelWebview : sendModelsToWebview()
+Provider --> Router : targetPath, format
+Router --> UI : downloadModeloHuggingFaceConcluido
 UI --> Usuário : modelo disponível
 @enduml
 ```

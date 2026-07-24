@@ -1,9 +1,11 @@
 ﻿# Casos de Uso e Diagramas PlantUML - ATLAS
 
+Atualizado em 24 de julho de 2026.
+
 Este arquivo contém os casos de uso e os diagramas PlantUML atualizados com base na implementação atual do ATLAS.
 Os blocos podem ser copiados diretamente para o PlantText ou para uma extensão PlantUML compatível com UTF-8.
 
-> **Nota de atualização:** a arquitetura atual do ATLAS é uma extensão do VS Code implementada em TypeScript. O ponto central de inferência é o `AtlasInferenceService`, que decide entre execução em nuvem e execução local. O projeto possui sessões, histórico, resumo de conversas, modelos `.gguf`, análise rápida, contexto estrutural do VS Code, RAG local e materiais complementares no RAG. Em execução local, o ajuste automático de contexto recalcula e salva apenas a janela de contexto quando a requisição não cabe na configuração atual. Busca real em Hugging Face e download automatizado de modelos de chat permanecem como evolução.
+> **Nota de atualização:** a arquitetura atual do ATLAS é uma extensão do VS Code implementada em TypeScript. O ponto central de inferência é o `AtlasInferenceService`, que decide entre execução em nuvem e execução local. O projeto possui sessões, histórico, resumo de conversas, modelos `.gguf`, análise rápida, contexto estrutural do VS Code, RAG local, materiais complementares no RAG, busca real no Hugging Face, download de modelos GGUF/ONNX e preparação automática da engine `llama.cpp`. Em execução local, o ajuste automático de contexto recalcula e salva apenas a janela de contexto quando a requisição não cabe na configuração atual.
 
 ## Pontos atualizados na versão 1.6
 
@@ -12,6 +14,8 @@ Os blocos podem ser copiados diretamente para o PlantText ou para uma extensão 
 - `AtlasLocalEngineService` diferencia primeira inicialização de reinício para aplicar parâmetros, com mensagens específicas na Webview e logs estruturados do processo.
 - Materiais complementares no RAG deixam de ser evolução nos diagramas: a ingestão, listagem, exclusão e recuperação semântica estão implementadas.
 - O mapa arquitetural removeu responsabilidades obsoletas de `LocalApiService`, como `isAbortError` público e dependência direta da descoberta de modelos.
+- Busca no Hugging Face, detalhes de modelos, filtros LLM/embedding e download GGUF/ONNX passam a aparecer como fluxos implementados.
+- `AtlasEngineDownloadService` representa a escolha automática CPU/CUDA/Vulkan e o download do release atual do `llama.cpp`.
 
 ## Pontos atualizados na versão 1.5
 
@@ -20,7 +24,7 @@ Os blocos podem ser copiados diretamente para o PlantText ou para uma extensão 
 - Indexação do workspace atual ou de pasta selecionada, com coleção independente por projeto.
 - Barra de progresso por arquivos e chunks, cancelamento, reindexação e exclusão da base.
 - Configurações de indexação e recuperação, incluindo controles separados para Markdown e JSON/configurações.
-- Watcher e debounce implementados; a atualização automática atual reconstrói o índice completo.
+- Watcher e debounce implementados; a atualização automática usa o modo configurado e o default atual é incremental.
 - Recuperação com distância/relevância, diversidade, filtros por linguagem/diretório, prioridade de fonte e orçamento de contexto.
 - Tela RAG com status da base vetorial no topo, projetos indexados em destaque, materiais complementares funcionais e carregamento inicial não bloqueante.
 - Seleção de modelos de embeddings por pasta configurável, com atualização ao abrir o seletor e download do modelo padrão quando necessário.
@@ -53,44 +57,45 @@ skinparam shadowing false
 
 actor "Usuário" as Usuario
 actor "Provedor Cloud" as ProvedorCloud
-actor "llama-server\nlocal" as LlamaServer
-actor "VS Code\nSecretStorage" as SecretStorage
-actor "Provedores de Linguagem\ndo VS Code" as LanguageProviders
-actor "Sistema de\nArquivos Local" as FileSystem
-actor "Repositório de\nModelos (futuro)" as RepoModelos
-actor "ChromaDB\nlocal" as BaseVetorial
+actor "llama-server local" as LlamaServer
+actor "VS Code SecretStorage" as SecretStorage
+actor "Provedores de Linguagem do VS Code" as LanguageProviders
+actor "Sistema de Arquivos Local" as FileSystem
+actor "Hugging Face Model Hub" as RepoModelos
+actor "ChromaDB local" as BaseVetorial
 
 rectangle "ATLAS - Extensão VS Code" {
-  usecase "Perguntar sobre\no código" as UC001
-  usecase "Executar análise\nrápida" as UC002
-  usecase "Solicitar análise\narquitetural" as UC003
-  usecase "Ativar modo\nestudo" as UC004
-  usecase "Gerenciar\nchaves de API" as UC005
-  usecase "Selecionar provedor\ne modelo cloud" as UC006
-  usecase "Alternar modo\nlocal / nuvem" as UC007
-  usecase "Configurar parâmetros\ne segurança" as UC008
-  usecase "Configurar análise\nestática estrutural" as UC020
-  usecase "Alterar comportamento\ndo modelo" as UC009
-  usecase "Gerenciar biblioteca\nde modelos locais" as UC010
-  usecase "Abrir painéis\nda extensão" as UC011
-  usecase "Gerenciar sessões\ne histórico" as UC012
-  usecase "Resumir conversas\nlongas" as UC013
-  usecase "Executar inferência\nlocal" as UC014
-  usecase "Descobrir modelos\nGGUF locais" as UC015
+  usecase "Perguntar sobre o código" as UC001
+  usecase "Executar análise rápida" as UC002
+  usecase "Solicitar análise arquitetural" as UC003
+  usecase "Ativar modo estudo" as UC004
+  usecase "Gerenciar chaves de API" as UC005
+  usecase "Selecionar provedor e modelo cloud" as UC006
+  usecase "Alternar modo local / nuvem" as UC007
+  usecase "Configurar parâmetros e segurança" as UC008
+  usecase "Configurar análise estática estrutural" as UC020
+  usecase "Alterar comportamento do modelo" as UC009
+  usecase "Gerenciar biblioteca de modelos locais" as UC010
+  usecase "Abrir painéis da extensão" as UC011
+  usecase "Gerenciar sessões e histórico" as UC012
+  usecase "Resumir conversas longas" as UC013
+  usecase "Executar inferência local" as UC014
+  usecase "Descobrir modelos GGUF locais" as UC015
 
-  usecase "Indexar projeto\ncom RAG" as UC016
-  usecase "Pesquisar modelos\nde IA" as UC017
-  usecase "Baixar modelo\nlocal" as UC018
-  usecase "Adicionar documentos\nao RAG" as UC019
+  usecase "Indexar projeto com RAG" as UC016
+  usecase "Pesquisar modelos no Hugging Face" as UC017
+  usecase "Baixar modelo GGUF ou ONNX" as UC018
+  usecase "Adicionar documentos ao RAG" as UC019
+  usecase "Preparar engine local automaticamente" as UC021
 
-  usecase "Coletar contexto\ndo editor" as INC_Contexto
+  usecase "Coletar contexto do editor" as INC_Contexto
   usecase "Montar prompt" as INC_Prompt
-  usecase "Resolver modo\nde resposta" as INC_Modo
+  usecase "Resolver modo de resposta" as INC_Modo
   usecase "Consultar inferência" as INC_Inferencia
   usecase "Persistir configuração" as INC_Config
   usecase "Persistir histórico" as INC_Historico
-  usecase "Aplicar decorações\nno editor" as INC_Decoracoes
-  usecase "Coletar símbolos,\ndiagnósticos e referências" as INC_Estrutura
+  usecase "Aplicar decorações no editor" as INC_Decoracoes
+  usecase "Coletar símbolos, diagnósticos e referências" as INC_Estrutura
 }
 
 Usuario --> UC001
@@ -112,6 +117,7 @@ Usuario --> UC016
 Usuario --> UC017
 Usuario --> UC018
 Usuario --> UC019
+Usuario --> UC021
 
 UC001 ..> INC_Contexto : <<include>>
 UC001 ..> INC_Prompt : <<include>>
@@ -147,9 +153,10 @@ FileSystem --> UC015
 FileSystem --> UC014
 
 UC016 --> BaseVetorial
-UC017 ..> RepoModelos : <<future>>
-UC018 ..> RepoModelos : <<future>>
-UC018 ..> FileSystem : <<future>>
+UC017 ..> RepoModelos : <<include>>
+UC018 ..> RepoModelos : <<include>>
+UC018 ..> FileSystem : <<include>>
+UC021 ..> FileSystem : <<include>>
 UC019 ..> BaseVetorial : <<include>>
 @enduml
 ```
@@ -182,6 +189,7 @@ package "Interface / Webview" {
   class "src/webview/api-keys" as WebviewApiKeys <<webview>>
   class "src/webview/library" as WebviewLibrary <<webview>>
   class "src/webview/rag" as WebviewRag <<webview>>
+  class "src/webview/search" as WebviewSearch <<webview>>
 }
 
 package "Aplicação" {
@@ -191,6 +199,9 @@ package "Aplicação" {
     -handleCancelGeneration(webview)
     -handleSelectMode(data, webview)
     -handleSelectModel(data, webview)
+    -handleSearchHuggingFaceModels(data, webview)
+    -handleDownloadHuggingFaceModel(data, webview)
+    -handleDownloadConfiguredEngineRequest(webview)
   }
 
   class ChatResponseController {
@@ -275,6 +286,26 @@ package "Inferência" {
     +restartEngine(model, options)
     +isRunning()
     +getEnginesDir()
+  }
+
+  class AtlasEngineDownloadService {
+    +ensureEngineDownloaded(onStatus)
+    +ensureConfiguredEngineDownloaded(onStatus)
+    +downloadEngine(engineType, onStatus)
+    +isEngineDownloaded(engineType)
+  }
+}
+
+package "Repositório de Modelos" {
+  class HuggingFaceModelService {
+    +searchModels(query, modelFilter, offset, limit)
+    +getModelDetails(modelId)
+    +downloadModel(model, fileName, onProgress, signal)
+  }
+
+  class HardwareDiagnosticService {
+    +getHardwareInfo()
+    +clearCache()
   }
 }
 
@@ -371,8 +402,10 @@ ChatPanelManager --> WebviewAtlas : renderiza
 ChatPanelManager --> WebviewApiKeys : renderiza
 ChatPanelManager --> WebviewLibrary : renderiza
 ChatPanelManager --> WebviewRag : renderiza
+ChatPanelManager --> WebviewSearch : renderiza
 WebviewChat --> ChatMessageRouter : postMessage
 WebviewRag --> ChatMessageRouter : postMessage
+WebviewSearch --> ChatMessageRouter : postMessage
 
 ChatMessageRouter --> ChatResponseController
 ChatMessageRouter --> ChatSessionController
@@ -381,6 +414,9 @@ ChatMessageRouter --> AtlasQuickAnalysisController
 ChatMessageRouter --> ApiKeyManager
 ChatMessageRouter --> AtlasConfigManager
 ChatMessageRouter --> AtlasRagService : indexação e gestão
+ChatMessageRouter --> HuggingFaceModelService : busca e download
+ChatMessageRouter --> AtlasEngineDownloadService : baixar engine selecionada
+ChatMessageRouter --> HardwareDiagnosticService : diagnóstico
 
 ChatResponseController --> AtlasEditorContextService
 ChatResponseController --> AtlasDocumentStructureService : análise arquitetural
@@ -399,6 +435,7 @@ AtlasQuickAnalysisService --> AtlasDocumentStructureService
 AtlasInferenceService --> CloudApiService : modo cloud
 AtlasInferenceService --> LocalApiService : modo local
 LocalApiService --> AtlasLocalEngineService
+AtlasEngineDownloadService --> HardwareDiagnosticService
 
 AtlasRagService --> AtlasEmbeddingService
 AtlasEmbeddingService --> AtlasEmbeddingModelDiscoveryService
@@ -694,11 +731,11 @@ skinparam shadowing false
 skinparam componentStyle rectangle
 title ATLAS - Visão de Implantação Atual
 
-node "Máquina do Desenvolvedor\n(Windows + VS Code)" as DevMachine {
+node "Máquina do Desenvolvedor (Windows + VS Code)" as DevMachine {
   node "Visual Studio Code" as VSCode {
-    component "ATLAS Extension\n(TypeScript)" as Extension
-    component "Webviews\nchat / atlas / library / api-keys / rag" as Webviews
-    component "Serviços da Extensão\nChatResponseController\nAtlasInferenceService\nAtlasSessionService\nAtlasDocumentStructureService\nAtlasRagService" as ExtensionServices
+    component "ATLAS Extension (TypeScript)" as Extension
+    component "Webviews chat / atlas / library / api-keys / rag" as Webviews
+    component "Serviços da Extensão: ChatResponseController, AtlasInferenceService, AtlasSessionService, AtlasDocumentStructureService, AtlasRagService" as ExtensionServices
     database "VS Code SecretStorage" as SecretStorage
   }
 
@@ -712,16 +749,16 @@ node "Máquina do Desenvolvedor\n(Windows + VS Code)" as DevMachine {
   }
 
   folder "Engines Locais" as LocalEngines {
-    artifact "llama.cpp\nCPU / CUDA / Vulkan" as LlamaBins
+    artifact "llama.cpp CPU / CUDA / Vulkan" as LlamaBins
   }
 
   node "Processo Local" as LocalProcess {
-    component "llama-server\n127.0.0.1:8080" as LlamaServer
+    component "llama-server 127.0.0.1:8080" as LlamaServer
   }
 
   folder "Runtime RAG Empacotado" as RagRuntime {
     artifact "chromadb-binding.node" as ChromaBinding
-    artifact "Modelo atlas-embedding\nopcional no pacote" as BundledEmbedding
+    artifact "Modelo atlas-embedding opcional no pacote" as BundledEmbedding
   }
 
   folder "Pasta configurável de embeddings" as EmbeddingFolder {
@@ -733,7 +770,7 @@ node "Máquina do Desenvolvedor\n(Windows + VS Code)" as DevMachine {
   }
 
   node "Processo ChromaDB Local" as ChromaProcess {
-    component "chroma-runner.cjs\n127.0.0.1:porta dinâmica" as ChromaRunner
+    component "chroma-runner.cjs 127.0.0.1:porta dinâmica" as ChromaRunner
   }
 
   folder "VS Code globalStorageUri/rag" as RagStorage {
@@ -742,8 +779,9 @@ node "Máquina do Desenvolvedor\n(Windows + VS Code)" as DevMachine {
   }
 }
 
-cloud "Provedores de IA em Nuvem\nOpenAI-compatible / Claude / Gemini / xAI" as CloudProviders
-cloud "Repositório de Modelos\nHugging Face (futuro)" as ModelRepository
+cloud "Provedores de IA em Nuvem OpenAI-compatible / Claude / Gemini / xAI" as CloudProviders
+cloud "Repositório de Modelos Hugging Face" as ModelRepository
+cloud "GitHub Releases ggml-org/llama.cpp" as LlamaReleases
 
 Webviews --> Extension : postMessage
 Extension --> ExtensionServices : delega ações
@@ -753,10 +791,13 @@ ExtensionServices --> HistoryJson : lê/grava sessões e resumos
 ExtensionServices --> GgufModels : descobre modelos locais
 ExtensionServices --> VSCode : consulta símbolos, diagnósticos e referências
 ExtensionServices --> LlamaBins : seleciona engine
+ExtensionServices --> LlamaReleases : baixa engine recomendada/configurada
 ExtensionServices --> LlamaServer : inicia/para e envia requisições
 LlamaServer --> GgufModels : carrega modelo
 ExtensionServices --> CloudProviders : inferência cloud
-ExtensionServices ..> ModelRepository : busca/download planejado
+ExtensionServices --> ModelRepository : busca detalhes e baixa GGUF/ONNX
+ExtensionServices --> GgufModels : grava modelos GGUF baixados
+ExtensionServices --> EmbeddingModels : grava embeddings ONNX baixados
 ExtensionServices --> BundledEmbedding : descobre modelo empacotado
 ExtensionServices --> EmbeddingModels : descobre modelo selecionado
 ExtensionServices --> DownloadedEmbeddingModel : baixa modelo padrão
