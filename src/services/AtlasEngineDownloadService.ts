@@ -5,6 +5,7 @@ import * as vscode from "vscode";
 import { execFileSync } from "child_process";
 import { AtlasConfigManager } from "../managers/AtlasConfigManager";
 import { HardwareDiagnosticService } from "./HardwareDiagnosticService";
+import { getAtlasStoragePath } from "../utils/AtlasStoragePaths";
 
 export type EngineType = "cpu" | "cuda" | "vulkan";
 
@@ -48,7 +49,7 @@ export class AtlasEngineDownloadService {
       }
     }
 
-    return path.join(this.context.extensionPath, "engine");
+    return getAtlasStoragePath(this.context, "engine");
   }
 
   public getEngineType(): EngineType {

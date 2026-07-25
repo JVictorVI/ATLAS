@@ -4,6 +4,7 @@ import * as vscode from "vscode";
 import { AtlasConfigManager } from "../managers/AtlasConfigManager";
 import { AtlasModelConfig } from "../interfaces/AtlasConfigTypes";
 import { ATLAS_LOCAL_MODEL_DEFAULTS } from "./AtlasLocalModelDefaults";
+import { getAtlasStoragePath } from "../utils/AtlasStoragePaths";
 
 export class AtlasLocalModelDiscoveryService {
   constructor(
@@ -46,8 +47,7 @@ export class AtlasLocalModelDiscoveryService {
 
   public getModelsDir(): string {
     const configured = this.getConfiguredModelsDir();
-    const modelsDir =
-      configured || path.join(this.context.extensionPath, "models");
+    const modelsDir = configured || getAtlasStoragePath(this.context, "models");
 
     this.ensureModelsDir(modelsDir);
     return modelsDir;

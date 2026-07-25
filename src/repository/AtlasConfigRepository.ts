@@ -3,17 +3,24 @@ import * as path from "path";
 import * as vscode from "vscode";
 import { AtlasConfigDefaults } from "./AtlasConfigDefaults";
 import { AtlasConfigSchema } from "../interfaces/AtlasConfigTypes";
+import { getAtlasStoragePath } from "../utils/AtlasStoragePaths";
 
 export class AtlasConfigRepository {
   private readonly configDirPath: string;
   private readonly configFilePath: string;
+  private readonly legacyConfigFilePath: string;
 
   constructor(
     private readonly context: vscode.ExtensionContext,
     private readonly defaults: AtlasConfigDefaults,
   ) {
-    this.configDirPath = path.join(this.context.extensionPath, "config");
+    this.configDirPath = getAtlasStoragePath(this.context, "config");
     this.configFilePath = path.join(this.configDirPath, "atlas-config.json");
+    this.legacyConfigFilePath = path.join(
+      this.context.extensionPath,
+      "config",
+      "atlas-config.json",
+    );
   }
 
   public load(): AtlasConfigSchema {
@@ -50,6 +57,11 @@ export class AtlasConfigRepository {
     this.ensureConfigDir();
 
     if (!fs.existsSync(this.configFilePath)) {
+      if (fs.existsSync(this.legacyConfigFilePath)) {
+        fs.copyFileSync(this.legacyConfigFilePath, this.configFilePath);
+        return;
+      }
+
       this.save(this.defaults.createDefaultConfig());
     }
   }

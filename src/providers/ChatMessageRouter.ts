@@ -288,7 +288,7 @@ export class ChatMessageRouter {
             id: model.id,
             name: model.name || model.id,
           })),
-          hardware: await this.getHardwarePayload(),
+          hardware: null,
         },
       });
     } catch (error) {

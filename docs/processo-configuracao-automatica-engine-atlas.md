@@ -78,7 +78,7 @@ prepareOnAtlasOpen: true
 Quando `enginesDir` não está configurado, a pasta padrão é:
 
 ```text
-<extensionPath>/engine
+context.globalStorageUri/engine
 ```
 
 ## Pastas esperadas

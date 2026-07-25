@@ -19,12 +19,27 @@ export interface HardwareInfo {
 
 export class HardwareDiagnosticService {
   private cachedInfo: HardwareInfo | null = null;
+  private pendingInfo: Promise<HardwareInfo> | null = null;
 
   async getHardwareInfo(): Promise<HardwareInfo> {
     if (this.cachedInfo) {
       return this.cachedInfo;
     }
 
+    if (this.pendingInfo) {
+      return this.pendingInfo;
+    }
+
+    this.pendingInfo = this.collectHardwareInfo();
+
+    try {
+      return await this.pendingInfo;
+    } finally {
+      this.pendingInfo = null;
+    }
+  }
+
+  private async collectHardwareInfo(): Promise<HardwareInfo> {
     const [ramInfo, cpuInfo, gpuInfo, storageInfo] = await Promise.all([
       this.getRamInfo(),
       this.getCpuInfo(),
@@ -434,5 +449,6 @@ export class HardwareDiagnosticService {
 
   clearCache(): void {
     this.cachedInfo = null;
+    this.pendingInfo = null;
   }
 }

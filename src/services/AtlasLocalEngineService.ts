@@ -9,6 +9,7 @@ import {
 import { AtlasConfigManager } from "../managers/AtlasConfigManager";
 import { AtlasModelConfig } from "../interfaces/AtlasConfigTypes";
 import { ATLAS_LOCAL_MODEL_DEFAULTS } from "./AtlasLocalModelDefaults";
+import { getAtlasStoragePath } from "../utils/AtlasStoragePaths";
 
 type LocalEngineStartOptions = {
   reason?: "parameter-update";
@@ -249,7 +250,7 @@ export class AtlasLocalEngineService {
       }
     }
 
-    return path.join(this.context.extensionPath, "engine");
+    return getAtlasStoragePath(this.context, "engine");
   }
 
   private getEngineSettings(): {

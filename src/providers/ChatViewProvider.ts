@@ -598,7 +598,6 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       .getAllProviders()
       .filter((provider) => provider.id !== "HuggingFace");
     const localModels = this.localModelDiscoveryService.refreshLocalModels();
-    const hardware = await this.getHardwarePayload();
 
     await webview.postMessage({
       type: "informarLLMsCarregados",
@@ -620,7 +619,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           name: model.name || model.id,
           provider: model.provider || "Local",
         })),
-        hardware,
+        hardware: null,
       },
     });
   }

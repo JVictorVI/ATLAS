@@ -17,7 +17,7 @@ const bindingPath = path.join(
   projectRoot,
   "resources",
   "chroma",
-  "win32-x64",
+  `${process.platform}-${process.arch}`,
   "chromadb-binding.node",
 );
 const port = 18766;

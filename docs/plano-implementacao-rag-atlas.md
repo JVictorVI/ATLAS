@@ -1,4 +1,4 @@
-﻿# Plano e Estado da Implementação do RAG no ATLAS
+# Plano e Estado da Implementação do RAG no ATLAS
 
 Atualizado em 24 de julho de 2026.
 
@@ -92,7 +92,7 @@ Na ativação do RAG:
 6. disponibiliza um `ChromaClient`;
 7. encerra somente o processo criado pelo ATLAS.
 
-O alvo de empacotamento atualmente validado é `win32-x64`.
+O empacotamento do RAG e dos embeddings e por target. Cada VSIX contem apenas os binarios nativos da plataforma escolhida, como `win32-x64`, `linux-x64` ou `linux-arm64`; nao ha pacote universal Windows+Linux.
 
 Scripts relacionados:
 
@@ -103,6 +103,8 @@ npm run prepare-embedding-runtime
 npm run test-rag-runtime
 npm run test-rag-semantic
 npm run vsix
+npm run vsix:linux-x64
+npm run vsix:linux-arm64
 ```
 
 ## 5. Embeddings
@@ -397,7 +399,7 @@ Alterações que mudam o formato do índice marcam projetos prontos como `outdat
 1. suporte opcional a formatos Office binarios legados (`.doc`, `.xls`, `.ppt`);
 2. chunking orientado a símbolos;
 3. avaliação automatizada com `recall@k`, precisão, latência e diversidade;
-4. suporte e empacotamento validados para outras plataformas;
+4. ampliar a matriz de validacao automatizada dos targets de distribuicao;
 5. redução ou proteção dos logs de conteúdo em builds de produção;
 6. integração opcional do RAG com análise rápida após benchmark de latência.
 

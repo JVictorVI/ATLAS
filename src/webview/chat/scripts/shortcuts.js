@@ -96,7 +96,6 @@ showSessionsButton();
 closeSessionsSidebar();
 updateActiveTab("chat-btn");
 updateMainButton();
-vscode.postMessage({ type: "carregarLLMs" });
 
 function showSessionsButton() {
   expandSidebarBtn?.classList.remove("hidden");

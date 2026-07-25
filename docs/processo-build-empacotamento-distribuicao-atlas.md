@@ -38,11 +38,14 @@ Função de cada etapa:
 | `npm run check-types` | Executa `tsc --noEmit`. |
 | `npm run lint` | Executa `eslint src`. |
 | `npm run compile` | Valida tipos, roda lint e gera `dist/extension.js` em modo desenvolvimento. |
-| `npm run prepare-rag-runtime` | Copia o binding nativo do ChromaDB para `resources/chroma/<plataforma>/`. |
+| `npm run prepare-rag-runtime` | Copia o binding nativo do ChromaDB para `resources/chroma/<platform>-<arch>/` conforme o target atual. |
 | `npm run prepare-embedding-model` | Baixa o modelo padrão de embeddings para `resources/embeddings/atlas-embedding/`. |
-| `npm run prepare-embedding-runtime` | Instala dependências do runtime de embeddings em `resources/embedding-runtime` e remove plataformas não distribuídas. |
+| `npm run prepare-embedding-runtime` | Instala dependencias do runtime de embeddings em `resources/embedding-runtime` para o target atual e remove plataformas nao distribuidas. |
 | `npm run package` | Prepara RAG, embeddings, runtime, valida tipos, roda lint e gera bundle de produção. |
-| `npm run vsix` | Gera `atlas-win32-x64.vsix` com `vsce package --target win32-x64`. |
+| `npm run vsix` | Gera o pacote padrao `atlas-win32-x64.vsix`. |
+| `npm run vsix:win32-x64` | Gera `atlas-win32-x64.vsix`. |
+| `npm run vsix:linux-x64` | Gera `atlas-linux-x64.vsix`. |
+| `npm run vsix:linux-arm64` | Gera `atlas-linux-arm64.vsix`. |
 
 `vscode:prepublish` aponta para `npm run package`, então a geração por `vsce` também passa pelo fluxo de preparação antes de montar o VSIX.
 
@@ -53,7 +56,7 @@ Função de cada etapa:
 3. Rodar `npm run package`.
 4. Rodar `npm run test-rag-runtime`.
 5. Rodar `npm run test-rag-semantic` quando o modelo padrão de embeddings estiver disponível.
-6. Gerar o VSIX com `npm run vsix`.
+6. Gerar o VSIX do target desejado com `npm run vsix`, `npm run vsix:win32-x64`, `npm run vsix:linux-x64` ou `npm run vsix:linux-arm64`.
 7. Instalar o VSIX localmente em um VS Code limpo.
 8. Validar abertura da Webview, chat cloud, chat local, RAG, indexação e análise rápida.
 
@@ -61,6 +64,8 @@ Para instalar manualmente o pacote gerado:
 
 ```bash
 code --install-extension atlas-win32-x64.vsix
+# ou
+code --install-extension atlas-linux-x64.vsix
 ```
 
 Também é possível instalar pelo VS Code em `Extensions > Install from VSIX...`.
@@ -79,10 +84,12 @@ Esse script executa `scripts/copy-chroma-runtime.mjs`.
 
 Comportamento atual:
 
-1. Resolve o pacote nativo `chromadb-js-bindings-win32-x64-msvc`.
-2. Cria `resources/chroma/win32-x64/`.
-3. Copia o binding para `resources/chroma/win32-x64/chromadb-binding.node`.
-4. Evita cópia quando o arquivo de destino já existe com o mesmo tamanho.
+1. Resolve o target solicitado por `--target`, `ATLAS_PACKAGE_TARGET`, `npm_config_atlas_target`, `npm_config_target` ou pela plataforma corrente.
+2. Resolve o pacote nativo do ChromaDB correspondente ao target, como `chromadb-js-bindings-win32-x64-msvc`, `chromadb-js-bindings-linux-x64-gnu` ou `chromadb-js-bindings-linux-arm64-gnu`.
+3. Cria `resources/chroma/<platform>-<arch>/`.
+4. Copia o binding para `resources/chroma/<platform>-<arch>/chromadb-binding.node`.
+5. Evita copia quando o arquivo de destino ja existe com o mesmo tamanho.
+6. Falha o build se o binding nativo do target solicitado nao estiver disponivel, para evitar um VSIX quebrado silenciosamente.
 
 O runner empacotado fica em:
 
@@ -164,12 +171,11 @@ O script responsável é:
 npm run prepare-embedding-runtime
 ```
 
-Esse script executa:
+Esse script executa `scripts/prepare-embedding-runtime.mjs`, que:
 
-```bash
-npm install --prefix resources/embedding-runtime --omit=dev --no-package-lock
-node scripts/prune-embedding-runtime.mjs
-```
+1. resolve o target de plataforma;
+2. roda `npm install --prefix resources/embedding-runtime --omit=dev --no-package-lock --os=<os> --cpu=<cpu>`;
+3. executa `scripts/prune-embedding-runtime.mjs --target <platform>-<arch>` para manter somente os binarios nativos do target.
 
 O `package.json` local de `resources/embedding-runtime` instala:
 
@@ -193,17 +199,17 @@ O runtime é local:
 
 ## Poda de plataformas do runtime de embeddings
 
-`scripts/prune-embedding-runtime.mjs` remove do `onnxruntime-node`:
+`scripts/prune-embedding-runtime.mjs` mantem no `onnxruntime-node` apenas o diretorio nativo do target atual:
 
 ```text
-resources/embedding-runtime/node_modules/onnxruntime-node/bin/napi-v3/darwin/
-resources/embedding-runtime/node_modules/onnxruntime-node/bin/napi-v3/linux/
-resources/embedding-runtime/node_modules/onnxruntime-node/bin/napi-v3/win32/arm64/
+resources/embedding-runtime/node_modules/onnxruntime-node/bin/napi-v3/<os>/<arch>/
 ```
 
-Depois da poda, o runtime distribuído fica reduzido para `win32-x64`.
+Tambem remove pacotes `@img/sharp-*` e `@img/sharp-libvips-*` que nao pertencem ao target, preservando apenas os artefatos necessarios para aquela plataforma.
 
-Essa poda é importante para reduzir tamanho do VSIX, mas fixa a distribuição atual em Windows x64.
+Depois da poda, o runtime distribuido fica reduzido ao target selecionado, por exemplo `win32-x64`, `linux-x64` ou `linux-arm64`.
+
+Essa poda reduz o tamanho do VSIX sem transformar o pacote em universal. Cada VSIX deve conter os binarios nativos de uma unica plataforma.
 
 ## Conteúdo esperado em resources
 
@@ -225,7 +231,7 @@ Depois de `npm run package`, o conteúdo esperado para o alvo atual inclui:
 resources/
 ├── chroma/
 │   ├── chroma-runner.cjs
-│   └── win32-x64/
+│   └── <platform>-<arch>/
 │       └── chromadb-binding.node
 ├── embedding-runtime/
 │   ├── package.json
@@ -286,7 +292,7 @@ O fluxo de distribuição atual não empacota `llama.cpp`.
 5. fallback CPU em `<enginesDir>/bin/`;
 6. fallback final no PATH do sistema.
 
-Como `.vscodeignore` exclui `engine/`, o VSIX não sai com binários do `llama.cpp`. A experiência atual, porém, não depende apenas de configuração manual: `AtlasEngineDownloadService` pode baixar o release mais recente do `llama.cpp` em runtime, escolher CPU/CUDA/Vulkan por hardware ou respeitar o modo configurado e gravar os arquivos em `custom.localEngine.enginesDir` ou, por padrão, em `<extensionPath>/engine`.
+Como `.vscodeignore` exclui `engine/`, o VSIX nao sai com binarios do `llama.cpp`. A experiencia atual, porem, nao depende apenas de configuracao manual: `AtlasEngineDownloadService` pode baixar o release mais recente do `llama.cpp` em runtime, escolher CPU/CUDA/Vulkan por hardware ou respeitar o modo configurado e gravar os arquivos em `custom.localEngine.enginesDir` ou, por padrao, em `context.globalStorageUri/engine`.
 
 Para empacotar engines diretamente no VSIX no futuro, será necessário:
 
@@ -296,42 +302,33 @@ Para empacotar engines diretamente no VSIX no futuro, será necessário:
 - validar CPU, CUDA e Vulkan por artefato;
 - atualizar o seletor e a documentação de plataforma.
 
-## Limitações atuais de plataforma
+## Distribuicao por plataforma
 
-O alvo validado hoje é:
+O ATLAS nao gera um pacote universal contendo Windows e Linux ao mesmo tempo. Cada VSIX deve ser produzido para um unico target, porque ChromaDB, ONNX Runtime e Sharp dependem de binarios nativos especificos por sistema operacional e arquitetura.
 
-```text
-win32-x64
-```
-
-Limitações práticas:
-
-- `npm run vsix` gera `atlas-win32-x64.vsix`;
-- `scripts/copy-chroma-runtime.mjs` copia somente `chromadb-js-bindings-win32-x64-msvc`;
-- `scripts/prune-embedding-runtime.mjs` remove Darwin, Linux e Windows ARM64;
-- o VSIX atual não deve ser distribuído como pacote universal;
-- o runner do ChromaDB conhece outras plataformas, mas o pipeline de empacotamento ainda não prepara os bindings delas;
-- engines `llama.cpp` não são distribuídas no VSIX atual.
-
-Para publicar outras plataformas, o pipeline precisa preparar artefatos específicos para:
+Targets com scripts de release no `package.json`:
 
 ```text
-win32-x64
-win32-arm64
-linux-x64
-linux-arm64
-darwin-x64
-darwin-arm64
+win32-x64      -> npm run vsix:win32-x64   -> atlas-win32-x64.vsix
+linux-x64      -> npm run vsix:linux-x64   -> atlas-linux-x64.vsix
+linux-arm64    -> npm run vsix:linux-arm64 -> atlas-linux-arm64.vsix
 ```
 
-Cada plataforma precisa de:
+`npm run vsix` permanece como atalho para `win32-x64`.
 
-- binding ChromaDB próprio em `resources/chroma/<platform>-<arch>/`;
-- runtime ONNX compatível em `resources/embedding-runtime`;
+Cada target precisa de:
+
+- binding ChromaDB proprio em `resources/chroma/<platform>-<arch>/`;
+- runtime ONNX compativel em `resources/embedding-runtime`;
+- pacotes Sharp nativos compativeis;
 - alvo VSCE correspondente;
-- validação do ChromaDB;
-- validação de embeddings;
-- validação do tamanho final do VSIX.
+- validacao do ChromaDB;
+- validacao de embeddings;
+- validacao do tamanho final do VSIX.
+
+O runner do ChromaDB e o codigo da extensao conhecem multiplas plataformas, mas o artefato final distribuido deve carregar somente os binarios do target escolhido.
+
+Engines `llama.cpp` continuam fora do VSIX. Elas sao baixadas em runtime ou configuradas manualmente pelo usuario.
 
 ## Validações recomendadas
 

@@ -104,5 +104,5 @@ Para o fluxo detalhado de ajuste automático da janela local, indexação RAG e 
 ## Limitações atuais
 
 - Formatos legados binários do Office (`.doc`, `.xls`, `.ppt`) ainda não possuem extrator dedicado; use `.docx`, `.xlsx` e `.pptx`.
-- O empacotamento validado atualmente tem como alvo `win32-x64`.
+- O empacotamento e a distribuicao sao por target: `win32-x64`, `linux-x64` e `linux-arm64` possuem VSIX separados; nao ha pacote universal Windows+Linux.
 - O chunking é textual por caracteres e linhas; chunking orientado a símbolos permanece como evolução.
