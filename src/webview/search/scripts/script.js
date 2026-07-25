@@ -10,4 +10,5 @@ if (initialSearchModelId) {
   searchModels("");
 }
 
+vscode.postMessage({ type: "solicitarStatusDownloadHuggingFace" });
 requestRepositoryHardware();

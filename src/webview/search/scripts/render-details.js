@@ -37,12 +37,22 @@ function renderVariantSelectOptions(model, selectedFile) {
 }
 
 function renderDetailActions(model, selectedFile, huggingFaceModelUrl) {
+  const selectedDownloadActive = isModelFileDownloading(model, selectedFile);
+
   return `
     <div class="detail-actions">
       <button class="download-button" id="download-model" type="button" ${!selectedFile || state.downloading ? "disabled" : ""}>
         <i class="codicon codicon-arrow-down"></i>
         ${escapeHtml(getDownloadLabel(model, selectedFile))}
       </button>
+      ${
+        selectedDownloadActive
+          ? `<button class="cancel-download-button" id="cancel-download-model" type="button">
+              <i class="codicon codicon-close"></i>
+              Cancelar
+            </button>`
+          : ""
+      }
       <div class="variant-picker ${state.variantMenuOpen ? "open" : ""}" title="${escapeHtml(selectedFile?.name || "Selecionar arquivo")}">
         <button class="variant-picker-trigger" id="gguf-variant-trigger" type="button" ${state.downloading || !selectedFile ? "disabled" : ""} aria-expanded="${state.variantMenuOpen ? "true" : "false"}">
           <i class="codicon codicon-versions variant-leading-icon"></i>

@@ -31,7 +31,7 @@ function renderLibraryView() {
         </div>
         <div>
           <h2>Ambiente Local</h2>
-          <p>Saude da execução dos modelos locais</p>
+          <p>Saúde da execução dos modelos locais</p>
         </div>
       </div>
 

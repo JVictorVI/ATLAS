@@ -76,6 +76,7 @@ export type RouterDependencies = {
   downloadHuggingFaceModel: (
     modelId: string,
     fileName: string,
+    signal?: AbortSignal,
   ) => Promise<{ targetPath: string; format: "GGUF" | "ONNX" }>;
   refreshRagEmbeddingModels: () => RagEmbeddingModelInfo[];
   getRagEmbeddingModelsDir: () => string;

@@ -816,6 +816,21 @@ body {
   background: var(--vscode-button-hoverBackground);
 }
 
+.cancel-download-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border: 1px solid var(--vscode-inputValidation-errorBorder, #f14c4c);
+  background: transparent;
+  color: var(--vscode-inputValidation-errorForeground, var(--vscode-foreground));
+  font-weight: 600;
+}
+
+.cancel-download-button:hover {
+  background: var(--vscode-inputValidation-errorBackground, rgba(241, 76, 76, 0.12));
+}
+
 .variant-select,
 .quant-button,
 .icon-button {

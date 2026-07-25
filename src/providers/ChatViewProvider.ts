@@ -356,6 +356,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       downloadHuggingFaceModel: async (
         modelId: string,
         fileName: string,
+        signal?: AbortSignal,
       ) => {
         return await vscode.window.withProgress(
           {
@@ -366,51 +367,72 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           async (progress, token) => {
             const abortController = new AbortController();
             let previousPercent = 0;
+            const abortDownload = () => {
+              abortController.abort();
+            };
 
             token.onCancellationRequested(() => {
-              abortController.abort();
+              abortDownload();
             });
+            signal?.addEventListener("abort", abortDownload, { once: true });
 
-            const model =
-              await this.huggingFaceModelService.getModelDetails(modelId);
+            try {
+              if (signal?.aborted) {
+                throw new Error("Download cancelado.");
+              }
 
-            if (model.format !== "ONNX") {
-              await this.engineDownloadService.ensureConfiguredEngineDownloaded(
-                (message) => {
-                  progress.report({ message });
-                },
-              );
+              const model =
+                await this.huggingFaceModelService.getModelDetails(modelId);
+
+              if (signal?.aborted) {
+                throw new Error("Download cancelado.");
+              }
+
+              if (model.format !== "ONNX") {
+                await this.engineDownloadService.ensureConfiguredEngineDownloaded(
+                  (message) => {
+                    progress.report({ message });
+                  },
+                );
+              }
+
+              if (signal?.aborted) {
+                throw new Error("Download cancelado.");
+              }
+
+              const targetPath =
+                await this.huggingFaceModelService.downloadModel(
+                  model,
+                  fileName,
+                  (percent) => {
+                    const increment = Math.max(0, percent - previousPercent);
+                    previousPercent = percent;
+
+                    progress.report({
+                      increment,
+                      message: `${percent}%`,
+                    });
+                  },
+                  abortController.signal,
+                );
+
+              if (model.format === "ONNX") {
+                this.embeddingModelDiscoveryService.refreshEmbeddingModels();
+              } else {
+                this.localModelDiscoveryService.refreshLocalModels();
+              }
+
+              if (this._view) {
+                await this.sendAvailableLlmsToWebview(this._view.webview);
+                this.modelWebviewService.sendModelsToWebview(
+                  this._view.webview,
+                );
+              }
+
+              return { targetPath, format: model.format };
+            } finally {
+              signal?.removeEventListener("abort", abortDownload);
             }
-
-            const targetPath =
-              await this.huggingFaceModelService.downloadModel(
-                model,
-                fileName,
-                (percent) => {
-                  const increment = Math.max(0, percent - previousPercent);
-                  previousPercent = percent;
-
-                  progress.report({
-                    increment,
-                    message: `${percent}%`,
-                  });
-
-                },
-                abortController.signal,
-              );
-
-            if (model.format === "ONNX") {
-              this.embeddingModelDiscoveryService.refreshEmbeddingModels();
-            } else {
-              this.localModelDiscoveryService.refreshLocalModels();
-            }
-
-            if (this._view) {
-              await this.sendAvailableLlmsToWebview(this._view.webview);
-              this.modelWebviewService.sendModelsToWebview(this._view.webview);
-            }
-
-            return { targetPath, format: model.format };
           },
         );
       },

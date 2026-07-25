@@ -93,6 +93,14 @@ function getSelectedFile() {
   );
 }
 
+function isModelFileDownloading(model, file) {
+  return (
+    state.downloading &&
+    state.downloadingModelId === model?.id &&
+    state.downloadingFileName === file?.name
+  );
+}
+
 function getFirstModelFileName(model) {
   return getModelFiles(model)[0]?.name || "";
 }
@@ -123,7 +131,7 @@ function getVariantOptionLabel(file) {
 function getDownloadLabel(model, file) {
   const size = getFileSizeLabel(file);
 
-  if (state.downloading) {
+  if (isModelFileDownloading(model, file)) {
     return "Baixando...";
   }
 

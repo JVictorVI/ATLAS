@@ -94,6 +94,11 @@ function bindDetailEvents() {
       return;
     }
 
+    if (target.closest("#cancel-download-model")) {
+      cancelSelectedDownload();
+      return;
+    }
+
     if (target.closest("#retry-model-details")) {
       requestModelDetails(state.selectedModel?.id);
       return;
@@ -152,10 +157,26 @@ function downloadSelectedModel() {
   }
 
   state.downloading = true;
+  state.downloadingModelId = state.selectedModel.id;
+  state.downloadingFileName = selectedFile.name;
   state.variantMenuOpen = false;
   render();
   vscode.postMessage({
     type: "baixarModeloHuggingFace",
+    modelId: state.selectedModel.id,
+    fileName: selectedFile.name,
+  });
+}
+
+function cancelSelectedDownload() {
+  const selectedFile = getSelectedFile();
+
+  if (!state.selectedModel || !selectedFile || !state.downloading) {
+    return;
+  }
+
+  vscode.postMessage({
+    type: "cancelarDownloadModeloHuggingFace",
     modelId: state.selectedModel.id,
     fileName: selectedFile.name,
   });

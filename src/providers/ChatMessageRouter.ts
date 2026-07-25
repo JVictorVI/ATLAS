@@ -22,6 +22,11 @@ import { AtlasContextProfileService } from "../services/AtlasContextProfileServi
 export class ChatMessageRouter {
   private activeWebviewRoute = "chat";
   private ragIndexController: AbortController | null = null;
+  private activeHuggingFaceDownload: {
+    modelId: string;
+    fileName: string;
+    controller: AbortController;
+  } | null = null;
   private readonly responseController: ChatResponseController;
   private readonly sessionController: ChatSessionController;
 
@@ -211,6 +216,12 @@ export class ChatMessageRouter {
         return;
       case "baixarModeloHuggingFace":
         await this.handleDownloadHuggingFaceModel(data, webview);
+        return;
+      case "cancelarDownloadModeloHuggingFace":
+        await this.handleCancelHuggingFaceModelDownload(data, webview);
+        return;
+      case "solicitarStatusDownloadHuggingFace":
+        await this.sendHuggingFaceDownloadStatus(webview);
         return;
       case "abrirArquivoHuggingFace":
         await this.handleOpenHuggingFaceFile(data);
@@ -1950,6 +1961,14 @@ export class ChatMessageRouter {
     data: any,
     webview: vscode.Webview,
   ): Promise<void> {
+    let downloadContext:
+      | {
+          modelId: string;
+          fileName: string;
+          controller: AbortController;
+        }
+      | null = null;
+
     try {
       const modelId = typeof data.modelId === "string" ? data.modelId : "";
       const fileName = typeof data.fileName === "string" ? data.fileName : "";
@@ -1958,10 +1977,31 @@ export class ChatMessageRouter {
         throw new Error("Modelo ou arquivo inválido.");
       }
 
+      if (this.activeHuggingFaceDownload) {
+        await this.sendHuggingFaceDownloadStatus(webview);
+        vscode.window.showWarningMessage(
+          "ATLAS: já existe um download de modelo em andamento.",
+        );
+        return;
+      }
+
+      downloadContext = {
+        modelId,
+        fileName,
+        controller: new AbortController(),
+      };
+      this.activeHuggingFaceDownload = downloadContext;
+      await this.sendHuggingFaceDownloadStatus(webview);
+
       const downloadResult = await this.deps.downloadHuggingFaceModel(
         modelId,
         fileName,
+        downloadContext.controller.signal,
       );
+
+      if (this.activeHuggingFaceDownload === downloadContext) {
+        this.activeHuggingFaceDownload = null;
+      }
 
       await webview.postMessage({
         type: "downloadModeloHuggingFaceConcluido",
@@ -1980,6 +2020,10 @@ export class ChatMessageRouter {
           : `Modelo GGUF baixado para ${path.basename(downloadResult.targetPath)}.`,
       );
     } catch (error) {
+      if (this.activeHuggingFaceDownload === downloadContext) {
+        this.activeHuggingFaceDownload = null;
+      }
+
       if (
         error instanceof Error &&
         error.message.toLowerCase().includes("download cancelado")
@@ -1999,6 +2043,53 @@ export class ChatMessageRouter {
         "Erro ao baixar modelo GGUF do Hugging Face.",
       );
     }
+  }
+
+  private async handleCancelHuggingFaceModelDownload(
+    data: any,
+    webview: vscode.Webview,
+  ): Promise<void> {
+    const activeDownload = this.activeHuggingFaceDownload;
+    const modelId = typeof data.modelId === "string" ? data.modelId : "";
+    const fileName = typeof data.fileName === "string" ? data.fileName : "";
+
+    if (!activeDownload) {
+      await this.sendHuggingFaceDownloadStatus(webview);
+      return;
+    }
+
+    if (
+      modelId &&
+      fileName &&
+      (activeDownload.modelId !== modelId || activeDownload.fileName !== fileName)
+    ) {
+      await this.sendHuggingFaceDownloadStatus(webview);
+      return;
+    }
+
+    activeDownload.controller.abort();
+    await this.sendHuggingFaceDownloadStatus(webview);
+  }
+
+  private async sendHuggingFaceDownloadStatus(
+    webview: vscode.Webview,
+  ): Promise<void> {
+    const activeDownload = this.activeHuggingFaceDownload;
+
+    await webview.postMessage({
+      type: "statusDownloadModeloHuggingFace",
+      value: activeDownload
+        ? {
+            downloading: true,
+            modelId: activeDownload.modelId,
+            fileName: activeDownload.fileName,
+          }
+        : {
+            downloading: false,
+            modelId: "",
+            fileName: "",
+          },
+    });
   }
 
   private async handleOpenHuggingFaceFile(data: any): Promise<void> {

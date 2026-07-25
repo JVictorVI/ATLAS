@@ -43,6 +43,8 @@ const state = {
   detailsLoading: false,
   hardwareLoading: false,
   downloading: false,
+  downloadingModelId: "",
+  downloadingFileName: "",
   variantMenuOpen: false,
   error: "",
   detailsError: "",

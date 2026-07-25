@@ -31,9 +31,12 @@ window.addEventListener("message", (event) => {
     render();
   }
 
+  if (message.type === "statusDownloadModeloHuggingFace") {
+    applyDownloadStatus(message.value);
+  }
+
   if (message.type === "downloadModeloHuggingFaceConcluido") {
-    state.downloading = false;
-    state.variantMenuOpen = false;
+    clearDownloadStatus();
     render();
   }
 
@@ -73,11 +76,41 @@ function handleModelsFound(message) {
   }
 }
 
+function applyDownloadStatus(value) {
+  state.downloading = Boolean(value?.downloading);
+  state.downloadingModelId =
+    typeof value?.modelId === "string" ? value.modelId : "";
+  state.downloadingFileName =
+    typeof value?.fileName === "string" ? value.fileName : "";
+
+  if (
+    state.downloading &&
+    state.selectedModel?.id === state.downloadingModelId &&
+    state.downloadingFileName
+  ) {
+    state.selectedFileName = state.downloadingFileName;
+  }
+
+  state.variantMenuOpen = false;
+  render();
+}
+
+function clearDownloadStatus() {
+  state.downloading = false;
+  state.downloadingModelId = "";
+  state.downloadingFileName = "";
+  state.variantMenuOpen = false;
+}
+
 function handleModelDetailed(detailed) {
   if (detailed) {
     state.selectedModel = detailed;
     state.selectedFileName =
-      state.selectedFileName || getFirstModelFileName(detailed);
+      state.downloading &&
+      detailed.id === state.downloadingModelId &&
+      state.downloadingFileName
+        ? state.downloadingFileName
+        : state.selectedFileName || getFirstModelFileName(detailed);
   }
 
   state.detailsLoading = false;
@@ -106,7 +139,7 @@ function handleSearchError(value) {
   }
 
   state.detailsLoading = false;
-  state.downloading = false;
+  clearDownloadStatus();
   state.variantMenuOpen = false;
   render();
 }
