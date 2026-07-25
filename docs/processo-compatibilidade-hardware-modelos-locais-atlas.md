@@ -1,6 +1,6 @@
 # Processo de compatibilidade de hardware para modelos locais no ATLAS
 
-Atualizado em 24 de julho de 2026.
+Atualizado em 25 de julho de 2026.
 
 Este documento descreve como o ATLAS avalia a compatibilidade entre uma variante de modelo local disponível no repositório Hugging Face e o hardware da máquina do usuário.
 
@@ -42,7 +42,7 @@ No Windows, o ATLAS tenta usar:
 
 No Linux, o ATLAS tenta usar `lspci`, `nvidia-smi` e informações em `/sys/class/drm`.
 
-Esses dados são usados internamente para o cálculo, mas as especificações completas da máquina não são exibidas no cartão de compatibilidade.
+RAM, CPU e VRAM são usadas internamente para o cálculo. O armazenamento livre ainda pode ser coletado e enviado no payload geral de hardware, mas não participa do veredito de compatibilidade do modelo.
 
 O mesmo `HardwareDiagnosticService` também é usado pelo fluxo de configuração automática da engine para escolher CPU, CUDA ou Vulkan. Esse outro uso está descrito em [Processo de configuração automática da engine](processo-configuracao-automatica-engine-atlas.md).
 
@@ -82,7 +82,6 @@ Cada perfil define valores aproximados para:
 - Bytes por parâmetro.
 - Multiplicador de RAM mínima.
 - Multiplicador de RAM recomendada.
-- Multiplicador de armazenamento.
 - Fração mínima de VRAM para offload parcial.
 - Fração recomendada de VRAM para melhor velocidade.
 - Núcleos mínimos de CPU.
@@ -138,13 +137,19 @@ O peso estimado dos pesos do modelo é calculado assim:
 peso_por_parametros = parâmetros * bytes_por_parâmetro
 ```
 
-O ATLAS também considera o tamanho real do arquivo da variante:
+O ATLAS usa o tamanho real do arquivo da variante como base principal quando esse dado existe:
 
 ```text
-peso_em_memória = maior_valor(tamanho_do_arquivo, peso_por_parametros)
+peso_em_memória = tamanho_do_arquivo
 ```
 
-Esse `maior_valor` evita subestimar variantes quando a inferência de parâmetros é incompleta, quando há metadados extras no arquivo ou quando o tamanho baixado já representa melhor o custo prático da variante.
+Quando o tamanho do arquivo não está disponível, usa a estimativa por parâmetros como fallback:
+
+```text
+peso_em_memória = peso_por_parametros
+```
+
+Isso evita que uma inferência ampla de parâmetros, vinda do nome do modelo ou do repositório, torne uma variante pequena artificialmente pior que outra variante maior. Para GGUF, o arquivo selecionado costuma ser o melhor sinal prático do peso que o usuário vai baixar e executar.
 
 ## Cálculos internos de compatibilidade
 
@@ -153,39 +158,38 @@ Mesmo que a UI não mostre os números detalhados, o diagnóstico calcula intern
 ```text
 ram_mínima = peso_em_memória * multiplicador_de_ram_mínima
 ram_recomendada = peso_em_memória * multiplicador_de_ram_recomendada
-armazenamento_necessário = tamanho_do_arquivo * multiplicador_de_armazenamento
 vram_mínima = peso_em_memória * fração_mínima_de_vram
-vram_recomendada = peso_em_memória * fração_recomendada_de_vram
+vram_recomendada = peso_em_memória * maior_valor(fração_recomendada_de_vram, 0.55)
 ```
 
-Esses valores servem apenas para classificar o modelo. Eles não são exibidos no cartão.
+O piso de `0.55` evita que quantizações muito agressivas, como Q2/IQ2, sejam classificadas como plenamente compatíveis apenas por exigirem uma fração teórica baixa de VRAM. Esses valores servem apenas para classificar o modelo. Eles não são exibidos no cartão.
 
 ## Regras de classificação
 
 O resultado pode ser:
 
-- **Compatível**: RAM, armazenamento, CPU e VRAM atingem as margens recomendadas.
+- **Compatível**: RAM, CPU e VRAM atingem as margens recomendadas.
 - **Com ressalvas**: o modelo provavelmente roda, mas com risco de lentidão, especialmente por baixa VRAM ou uso maior de CPU.
-- **Não recomendado**: RAM mínima ou armazenamento livre não parecem suficientes.
+- **Não recomendado**: RAM mínima ou a pontuação ponderada de recursos não parecem suficientes.
 
 A lógica atual segue esta ordem:
 
 1. Se não houver peso estimado ou RAM local, retorna **Com ressalvas**.
-2. Se o armazenamento livre for menor que o necessário, retorna **Não recomendado**.
-3. Se a RAM total for menor que a RAM mínima, retorna **Não recomendado**.
-4. Se a VRAM existir, mas for menor que a VRAM mínima e a RAM também estiver abaixo da recomendada, retorna **Com ressalvas**.
-5. Se a CPU tiver menos núcleos que o mínimo do perfil, retorna **Com ressalvas**.
-6. Se a RAM estiver abaixo da recomendada, retorna **Com ressalvas**.
-7. Se a VRAM estiver abaixo da recomendada, retorna **Com ressalvas**.
-8. Caso contrário, retorna **Compatível**.
+2. Se a RAM total for menor que a RAM mínima, retorna **Não recomendado**.
+3. Se o peso estimado da variante for maior que a VRAM disponível em até 12,5%, retorna **Com ressalvas**.
+4. Se o peso estimado da variante ultrapassar essa margem de 12,5% sobre a VRAM disponível, retorna **Não recomendado**.
+5. Calcula uma pontuação ponderada de recursos: VRAM pesa 80%, RAM pesa 10% e CPU pesa 10%.
+6. Retorna **Compatível** somente quando RAM e VRAM atingem as margens recomendadas e a CPU atinge o mínimo do perfil.
+7. Se a pontuação for muito baixa e a RAM também estiver abaixo da recomendada, retorna **Não recomendado**.
+8. Nos demais casos intermediários, retorna **Com ressalvas**.
 
 ## Ênfase em VRAM
 
 A VRAM tem peso alto no veredito final.
 
-Um modelo de 5 GB, por exemplo, pode rodar com pouca VRAM usando CPU ou offload parcial, mas isso tende a tornar a geração mais lenta. Por isso, o ATLAS só classifica como **Compatível** quando a VRAM atinge a faixa recomendada do perfil de quantização.
+Um modelo de 5 GB, por exemplo, pode rodar com pouca VRAM usando CPU ou offload parcial, mas isso tende a tornar a geração mais lenta. Por isso, o ATLAS só classifica como **Compatível** quando a VRAM atinge uma faixa confortável para a variante selecionada.
 
-Se a variante cabe em RAM, mas a VRAM é baixa, o resultado tende a ser **Com ressalvas** em vez de **Compatível**.
+Se a variante cabe em RAM, mas a VRAM é baixa, o resultado tende a ser **Com ressalvas** em vez de **Compatível**. Se o peso da variante passar da VRAM disponível por uma margem pequena, como 8 GB de VRAM para uma variante entre 8 GB e 9 GB, o resultado fica **Com ressalvas**. Acima dessa margem, fica **Não recomendado**. A RAM e a CPU ainda influenciam o resultado, mas baixa VRAM impede o veredito positivo.
 
 ## O que aparece na interface
 
@@ -204,7 +208,6 @@ O cartão não mostra:
 - Peso em memória.
 - RAM mínima ou recomendada.
 - VRAM mínima ou recomendada.
-- Armazenamento necessário.
 
 ## Limitações atuais
 
@@ -214,6 +217,7 @@ O cálculo ainda é uma estimativa. Algumas limitações importantes:
 - O tamanho da janela de contexto configurada não entra diretamente na fórmula.
 - A inferência de parâmetros por nome pode errar em nomes ambíguos.
 - Modelos MoE são tratados de forma conservadora quando aparecem como `8x7B`.
+- Espaço livre em disco não entra no veredito; a compatibilidade avalia execução, não disponibilidade para download.
 - O desempenho real depende também da engine local, do número de camadas descarregadas para GPU, drivers, largura de banda de memória e outras configurações.
 
 ## Arquivos relacionados

@@ -1,6 +1,6 @@
 # Processo do Repositório de Modelos
 
-Atualizado em 24 de julho de 2026.
+Atualizado em 25 de julho de 2026.
 
 Este documento descreve como o ATLAS apresenta o repositório visual de modelos, consulta modelos compatíveis no Hugging Face, detalha variantes disponíveis, baixa arquivos e integra o resultado com a biblioteca local, a engine local e o RAG.
 
@@ -226,7 +226,7 @@ ou:
 hardwareRepositorioErro
 ```
 
-Esses dados alimentam o cartão de compatibilidade para LLMs GGUF. O cálculo e suas limitações estão detalhados em [Processo de compatibilidade de hardware para modelos locais](processo-compatibilidade-hardware-modelos-locais-atlas.md).
+Esses dados alimentam o cartão de compatibilidade para LLMs GGUF. O veredito considera principalmente VRAM, com menor peso para RAM e CPU. Espaço livre em disco não participa dessa classificação; ele pertence ao fluxo prático de download, não à estimativa de execução local. O cálculo e suas limitações estão detalhados em [Processo de compatibilidade de hardware para modelos locais](processo-compatibilidade-hardware-modelos-locais-atlas.md).
 
 Modelos ONNX de embeddings não exibem o diagnóstico de compatibilidade de geração.
 

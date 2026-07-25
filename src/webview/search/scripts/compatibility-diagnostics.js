@@ -1,5 +1,8 @@
 // Responsabilidade: avalia a compatibilidade local entre hardware e variante do modelo.
 (function () {
+  const MINIMUM_COMFORTABLE_VRAM_RATIO = 0.55;
+  const VRAM_OVERFLOW_WARNING_RATIO = 1.125;
+
   function escapeHtml(value) {
     return String(value ?? "")
       .replace(/&/g, "&amp;")
@@ -25,7 +28,7 @@
         icon: "pass",
         label: "Compatível",
         message:
-          "A variante parece adequada para execução local com aceleração por GPU suficiente.",
+          "A variante parece adequada para execução local com RAM e VRAM confortáveis.",
       };
     }
 
@@ -35,7 +38,7 @@
         icon: "warning",
         label: "Com ressalvas",
         message:
-          "A variante pode funcionar, mas baixa VRAM tende a deixar a execução bem mais lenta.",
+          "A variante pode funcionar, mas algum recurso local está abaixo da faixa ideal.",
       };
     }
 
@@ -44,7 +47,7 @@
       icon: "error",
       label: "Não recomendado",
       message:
-        "A variante parece pesada para execução local nesta quantização. Considere uma quantização menor.",
+        "A variante parece pesada para os recursos locais disponíveis. Considere uma opção menor.",
     };
   }
 
@@ -78,7 +81,6 @@
         bytesPerParameter: 4,
         minimumRamMultiplier: 1.75,
         recommendedRamMultiplier: 2.8,
-        storageMultiplier: 1.2,
         minimumVramRatio: 0.45,
         recommendedVramRatio: 0.85,
         minimumCpuCores: 8,
@@ -92,7 +94,6 @@
         bytesPerParameter: 2,
         minimumRamMultiplier: 1.55,
         recommendedRamMultiplier: 2.45,
-        storageMultiplier: 1.18,
         minimumVramRatio: 0.38,
         recommendedVramRatio: 0.75,
         minimumCpuCores: 6,
@@ -106,7 +107,6 @@
         bytesPerParameter: 1,
         minimumRamMultiplier: 1.45,
         recommendedRamMultiplier: 2.25,
-        storageMultiplier: 1.16,
         minimumVramRatio: 0.32,
         recommendedVramRatio: 0.68,
         minimumCpuCores: 6,
@@ -120,7 +120,6 @@
         bytesPerParameter: 0.78,
         minimumRamMultiplier: 1.38,
         recommendedRamMultiplier: 2.1,
-        storageMultiplier: 1.15,
         minimumVramRatio: 0.28,
         recommendedVramRatio: 0.62,
         minimumCpuCores: 4,
@@ -134,7 +133,6 @@
         bytesPerParameter: 0.68,
         minimumRamMultiplier: 1.32,
         recommendedRamMultiplier: 1.95,
-        storageMultiplier: 1.15,
         minimumVramRatio: 0.24,
         recommendedVramRatio: 0.55,
         minimumCpuCores: 4,
@@ -148,7 +146,6 @@
         bytesPerParameter: 0.56,
         minimumRamMultiplier: 1.25,
         recommendedRamMultiplier: 1.75,
-        storageMultiplier: 1.15,
         minimumVramRatio: 0.2,
         recommendedVramRatio: 0.5,
         minimumCpuCores: 4,
@@ -162,7 +159,6 @@
         bytesPerParameter: 0.5,
         minimumRamMultiplier: 1.2,
         recommendedRamMultiplier: 1.6,
-        storageMultiplier: 1.14,
         minimumVramRatio: 0.18,
         recommendedVramRatio: 0.45,
         minimumCpuCores: 2,
@@ -176,7 +172,6 @@
         bytesPerParameter: 0.45,
         minimumRamMultiplier: 1.18,
         recommendedRamMultiplier: 1.55,
-        storageMultiplier: 1.14,
         minimumVramRatio: 0.16,
         recommendedVramRatio: 0.42,
         minimumCpuCores: 2,
@@ -190,7 +185,6 @@
         bytesPerParameter: 0.35,
         minimumRamMultiplier: 1.12,
         recommendedRamMultiplier: 1.4,
-        storageMultiplier: 1.12,
         minimumVramRatio: 0.12,
         recommendedVramRatio: 0.35,
         minimumCpuCores: 2,
@@ -204,7 +198,6 @@
         bytesPerParameter: 0.22,
         minimumRamMultiplier: 1.08,
         recommendedRamMultiplier: 1.28,
-        storageMultiplier: 1.1,
         minimumVramRatio: 0.08,
         recommendedVramRatio: 0.25,
         minimumCpuCores: 2,
@@ -217,7 +210,6 @@
       bytesPerParameter: 0.75,
       minimumRamMultiplier: 1.35,
       recommendedRamMultiplier: 2.1,
-      storageMultiplier: 1.15,
       minimumVramRatio: 0.25,
       recommendedVramRatio: 0.58,
       minimumCpuCores: 4,
@@ -291,15 +283,47 @@
     const parameterSizeBytes =
       parameterCount > 0 ? parameterCount * quantization.bytesPerParameter : 0;
 
-    return Math.max(fileSizeBytes, parameterSizeBytes);
+    return fileSizeBytes || parameterSizeBytes;
+  }
+
+  function getRangeScore(availableBytes, minimumBytes, recommendedBytes) {
+    if (recommendedBytes <= 0) {
+      return 1;
+    }
+
+    if (availableBytes <= 0) {
+      return 0.25;
+    }
+
+    if (minimumBytes > 0 && availableBytes < minimumBytes) {
+      return Math.max(0.1, (availableBytes / minimumBytes) * 0.4);
+    }
+
+    if (availableBytes < recommendedBytes) {
+      const range = Math.max(recommendedBytes - minimumBytes, 1);
+      const position = Math.max(0, availableBytes - minimumBytes) / range;
+      return 0.55 + Math.min(position, 1) * 0.3;
+    }
+
+    return 1;
+  }
+
+  function getCpuScore(cpuCores, minimumCpuCores) {
+    if (minimumCpuCores <= 0 || cpuCores >= minimumCpuCores) {
+      return 1;
+    }
+
+    if (cpuCores <= 0) {
+      return 0.6;
+    }
+
+    return Math.max(0.25, (cpuCores / minimumCpuCores) * 0.65);
   }
 
   function classifyCompatibility(model, selectedFile, hardware) {
     const weightsBytes = getEstimatedWeightsBytes(model, selectedFile);
-    const fileSizeBytes = getModelFileSizeBytes(model, selectedFile);
     const ramBytes = Number(hardware?.ramBytes) || 0;
     const gpuVramBytes = Number(hardware?.gpuVramBytes) || 0;
-    const storageFreeBytes = Number(hardware?.storageFreeBytes) || 0;
     const cpuCores = Number(hardware?.cpuCores) || 0;
     const quantization = getQuantizationProfile(model, selectedFile);
 
@@ -309,40 +333,48 @@
 
     const minimumRam = weightsBytes * quantization.minimumRamMultiplier;
     const recommendedRam = weightsBytes * quantization.recommendedRamMultiplier;
-    const storageNeeded = fileSizeBytes * quantization.storageMultiplier;
     const minimumVram = weightsBytes * quantization.minimumVramRatio;
-    const recommendedVram = weightsBytes * quantization.recommendedVramRatio;
-
-    if (storageFreeBytes > 0 && storageFreeBytes < storageNeeded) {
-      return "danger";
-    }
+    const recommendedVram =
+      weightsBytes *
+      Math.max(
+        quantization.recommendedVramRatio,
+        MINIMUM_COMFORTABLE_VRAM_RATIO,
+      );
 
     if (ramBytes < minimumRam) {
       return "danger";
     }
 
-    if (
-      minimumVram > 0 &&
-      gpuVramBytes > 0 &&
-      gpuVramBytes < minimumVram &&
-      ramBytes < recommendedRam
-    ) {
-      return "warning";
+    if (gpuVramBytes > 0 && weightsBytes > gpuVramBytes) {
+      return weightsBytes <= gpuVramBytes * VRAM_OVERFLOW_WARNING_RATIO
+        ? "warning"
+        : "danger";
     }
 
-    if (cpuCores > 0 && cpuCores < quantization.minimumCpuCores) {
-      return "warning";
+    const ramScore = getRangeScore(ramBytes, minimumRam, recommendedRam);
+    const vramScore = getRangeScore(
+      gpuVramBytes,
+      minimumVram,
+      recommendedVram,
+    );
+    const cpuScore = getCpuScore(cpuCores, quantization.minimumCpuCores);
+    const resourceScore =
+      vramScore * 0.8 + ramScore * 0.1 + cpuScore * 0.1;
+    const hasRecommendedRam = ramBytes >= recommendedRam;
+    const hasRecommendedVram =
+      recommendedVram <= 0 || gpuVramBytes >= recommendedVram;
+    const hasMinimumCpu =
+      cpuCores <= 0 || cpuCores >= quantization.minimumCpuCores;
+
+    if (hasRecommendedRam && hasRecommendedVram && hasMinimumCpu) {
+      return "good";
     }
 
-    if (ramBytes < recommendedRam) {
-      return "warning";
+    if (resourceScore < 0.5 && !hasRecommendedRam) {
+      return "danger";
     }
 
-    if (recommendedVram > 0 && gpuVramBytes < recommendedVram) {
-      return "warning";
-    }
-
-    return "good";
+    return "warning";
   }
 
   function formatParameterCount(model, selectedFile) {
