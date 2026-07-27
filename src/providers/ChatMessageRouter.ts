@@ -22,11 +22,14 @@ import { AtlasContextProfileService } from "../services/AtlasContextProfileServi
 export class ChatMessageRouter {
   private activeWebviewRoute = "chat";
   private ragIndexController: AbortController | null = null;
-  private activeHuggingFaceDownload: {
-    modelId: string;
-    fileName: string;
-    controller: AbortController;
-  } | null = null;
+  private readonly activeHuggingFaceDownloads = new Map<
+    string,
+    {
+      modelId: string;
+      fileName: string;
+      controller: AbortController;
+    }
+  >();
   private readonly responseController: ChatResponseController;
   private readonly sessionController: ChatSessionController;
 
@@ -1977,10 +1980,20 @@ export class ChatMessageRouter {
         throw new Error("Modelo ou arquivo inválido.");
       }
 
-      if (this.activeHuggingFaceDownload) {
+      const downloadKey = this.getHuggingFaceDownloadKey(modelId, fileName);
+
+      if (this.activeHuggingFaceDownloads.has(downloadKey)) {
         await this.sendHuggingFaceDownloadStatus(webview);
         vscode.window.showWarningMessage(
-          "ATLAS: já existe um download de modelo em andamento.",
+          "ATLAS: este download de modelo já está em andamento.",
+        );
+        return;
+      }
+
+      if (this.hasActiveEmbeddingDownloadForModel(modelId, fileName)) {
+        await this.sendHuggingFaceDownloadStatus(webview);
+        vscode.window.showWarningMessage(
+          "ATLAS: já existe um download de variante deste embedding em andamento.",
         );
         return;
       }
@@ -1990,7 +2003,7 @@ export class ChatMessageRouter {
         fileName,
         controller: new AbortController(),
       };
-      this.activeHuggingFaceDownload = downloadContext;
+      this.activeHuggingFaceDownloads.set(downloadKey, downloadContext);
       await this.sendHuggingFaceDownloadStatus(webview);
 
       const downloadResult = await this.deps.downloadHuggingFaceModel(
@@ -1999,9 +2012,7 @@ export class ChatMessageRouter {
         downloadContext.controller.signal,
       );
 
-      if (this.activeHuggingFaceDownload === downloadContext) {
-        this.activeHuggingFaceDownload = null;
-      }
+      this.activeHuggingFaceDownloads.delete(downloadKey);
 
       await webview.postMessage({
         type: "downloadModeloHuggingFaceConcluido",
@@ -2012,6 +2023,7 @@ export class ChatMessageRouter {
           format: downloadResult.format,
         },
       });
+      await this.sendHuggingFaceDownloadStatus(webview);
 
       this.deps.sendModelsToWebview(webview);
       vscode.window.showInformationMessage(
@@ -2020,8 +2032,13 @@ export class ChatMessageRouter {
           : `Modelo GGUF baixado para ${path.basename(downloadResult.targetPath)}.`,
       );
     } catch (error) {
-      if (this.activeHuggingFaceDownload === downloadContext) {
-        this.activeHuggingFaceDownload = null;
+      if (downloadContext) {
+        this.activeHuggingFaceDownloads.delete(
+          this.getHuggingFaceDownloadKey(
+            downloadContext.modelId,
+            downloadContext.fileName,
+          ),
+        );
       }
 
       if (
@@ -2030,18 +2047,33 @@ export class ChatMessageRouter {
       ) {
         await webview.postMessage({
           type: "downloadModeloHuggingFaceConcluido",
-          value: { canceled: true },
+          value: {
+            modelId: downloadContext?.modelId ?? "",
+            fileName: downloadContext?.fileName ?? "",
+            canceled: true,
+          },
         });
+        await this.sendHuggingFaceDownloadStatus(webview);
 
         vscode.window.showInformationMessage("Download do modelo cancelado.");
         return;
       }
 
-      await this.postError(
-        webview,
+      const message = this.getErrorMessage(
         error,
-        "Erro ao baixar modelo GGUF do Hugging Face.",
+        "Erro ao baixar modelo do Hugging Face.",
       );
+
+      await webview.postMessage({
+        type: "downloadModeloHuggingFaceConcluido",
+        value: {
+          modelId: downloadContext?.modelId ?? "",
+          fileName: downloadContext?.fileName ?? "",
+          error: message,
+        },
+      });
+      await this.sendHuggingFaceDownloadStatus(webview);
+      vscode.window.showErrorMessage(`ATLAS: ${message}`);
     }
   }
 
@@ -2049,20 +2081,16 @@ export class ChatMessageRouter {
     data: any,
     webview: vscode.Webview,
   ): Promise<void> {
-    const activeDownload = this.activeHuggingFaceDownload;
     const modelId = typeof data.modelId === "string" ? data.modelId : "";
     const fileName = typeof data.fileName === "string" ? data.fileName : "";
+    const activeDownload =
+      modelId && fileName
+        ? this.activeHuggingFaceDownloads.get(
+            this.getHuggingFaceDownloadKey(modelId, fileName),
+          )
+        : null;
 
     if (!activeDownload) {
-      await this.sendHuggingFaceDownloadStatus(webview);
-      return;
-    }
-
-    if (
-      modelId &&
-      fileName &&
-      (activeDownload.modelId !== modelId || activeDownload.fileName !== fileName)
-    ) {
       await this.sendHuggingFaceDownloadStatus(webview);
       return;
     }
@@ -2074,22 +2102,49 @@ export class ChatMessageRouter {
   private async sendHuggingFaceDownloadStatus(
     webview: vscode.Webview,
   ): Promise<void> {
-    const activeDownload = this.activeHuggingFaceDownload;
+    const downloads = Array.from(this.activeHuggingFaceDownloads.values()).map(
+      (download) => ({
+        modelId: download.modelId,
+        fileName: download.fileName,
+      }),
+    );
+    const firstDownload = downloads[0];
 
     await webview.postMessage({
       type: "statusDownloadModeloHuggingFace",
-      value: activeDownload
+      value: firstDownload
         ? {
             downloading: true,
-            modelId: activeDownload.modelId,
-            fileName: activeDownload.fileName,
+            modelId: firstDownload.modelId,
+            fileName: firstDownload.fileName,
+            downloads,
           }
         : {
             downloading: false,
             modelId: "",
             fileName: "",
+            downloads,
           },
     });
+  }
+
+  private getHuggingFaceDownloadKey(modelId: string, fileName: string): string {
+    return `${modelId}\n${fileName}`;
+  }
+
+  private hasActiveEmbeddingDownloadForModel(
+    modelId: string,
+    fileName: string,
+  ): boolean {
+    if (!fileName.toLowerCase().endsWith(".onnx")) {
+      return false;
+    }
+
+    return Array.from(this.activeHuggingFaceDownloads.values()).some(
+      (download) =>
+        download.modelId === modelId &&
+        download.fileName.toLowerCase().endsWith(".onnx"),
+    );
   }
 
   private async handleOpenHuggingFaceFile(data: any): Promise<void> {

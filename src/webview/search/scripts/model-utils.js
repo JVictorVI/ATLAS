@@ -21,6 +21,18 @@ const embeddingModelKind = {
   note: "Modelo usado para gerar vetores de busca semântica do RAG; não responde perguntas diretamente",
 };
 
+const EMBEDDING_REQUIRED_DOWNLOAD_FILES = [
+  "config.json",
+  "special_tokens_map.json",
+  "tokenizer.json",
+  "tokenizer_config.json",
+  "vocab.txt",
+  "merges.txt",
+  "sentencepiece.bpe.model",
+  "spiece.model",
+  "unigram.json",
+];
+
 function getModelKind(model) {
   return model?.format === "ONNX" ? embeddingModelKind : generationModelKind;
 }
@@ -93,11 +105,22 @@ function getSelectedFile() {
   );
 }
 
+function shouldShowVariantSelector(model) {
+  const files = getModelFiles(model);
+
+  return model?.format !== "ONNX" || files.length > 1;
+}
+
+function getDownloadKey(modelId, fileName) {
+  return `${modelId || ""}\n${fileName || ""}`;
+}
+
 function isModelFileDownloading(model, file) {
-  return (
-    state.downloading &&
-    state.downloadingModelId === model?.id &&
-    state.downloadingFileName === file?.name
+  const downloads = Array.isArray(state.downloads) ? state.downloads : [];
+  const key = getDownloadKey(model?.id, file?.name);
+
+  return downloads.some(
+    (download) => getDownloadKey(download.modelId, download.fileName) === key,
   );
 }
 
@@ -109,6 +132,146 @@ function getFileSizeLabel(file) {
   const size = file?.size || "";
 
   return size && !/informado/i.test(size) ? size : "";
+}
+
+function normalizeRepoPath(filePath) {
+  return String(filePath || "")
+    .replace(/\\/g, "/")
+    .split("/")
+    .filter(Boolean)
+    .join("/");
+}
+
+function getRepositoryFileMap(model) {
+  const details = Array.isArray(model?.repositoryFileDetails)
+    ? model.repositoryFileDetails
+    : [];
+
+  return new Map(
+    details
+      .map((file) => {
+        const name = normalizeRepoPath(file?.name);
+        const sizeBytes = Number(file?.sizeBytes);
+
+        return [
+          name.toLowerCase(),
+          {
+            name,
+            sizeBytes:
+              Number.isFinite(sizeBytes) && sizeBytes > 0 ? sizeBytes : 0,
+          },
+        ];
+      })
+      .filter((entry) => entry[1].name),
+  );
+}
+
+function getRepoDir(filePath) {
+  const normalized = normalizeRepoPath(filePath);
+
+  return normalized.includes("/")
+    ? normalized.slice(0, normalized.lastIndexOf("/"))
+    : "";
+}
+
+function getRepoBasename(filePath) {
+  return normalizeRepoPath(filePath).split("/").pop() || "";
+}
+
+function isEmbeddingOnnxCompanionFile(candidatePath, selectedOnnxFile) {
+  const candidateName = getRepoBasename(candidatePath);
+  const selectedName = getRepoBasename(selectedOnnxFile);
+  const lowerCandidateName = candidateName.toLowerCase();
+  const lowerSelectedName = selectedName.toLowerCase();
+
+  if (!getRepoDir(selectedOnnxFile)) {
+    return false;
+  }
+
+  if (getRepoDir(candidatePath) !== getRepoDir(selectedOnnxFile)) {
+    return false;
+  }
+
+  if (lowerCandidateName.endsWith(".onnx")) {
+    return false;
+  }
+
+  return (
+    lowerCandidateName.startsWith(`${lowerSelectedName}_`) ||
+    lowerCandidateName.startsWith(`${lowerSelectedName}.`) ||
+    (lowerSelectedName === "model.onnx" && !/\.(md|txt)$/i.test(candidateName))
+  );
+}
+
+function getEmbeddingDownloadFiles(model, selectedFile) {
+  if (model?.format !== "ONNX" || !selectedFile?.name) {
+    return [];
+  }
+
+  const repositoryFiles = getRepositoryFileMap(model);
+  const selectedPath = normalizeRepoPath(selectedFile.name);
+  const selectedEntry = repositoryFiles.get(selectedPath.toLowerCase());
+
+  if (!selectedEntry) {
+    return [
+      { name: selectedPath, sizeBytes: Number(selectedFile.sizeBytes) || 0 },
+    ];
+  }
+
+  const selectedDir = getRepoDir(selectedEntry.name);
+  const files = EMBEDDING_REQUIRED_DOWNLOAD_FILES.map((file) =>
+    repositoryFiles.get(file.toLowerCase()),
+  ).filter(Boolean);
+
+  if (selectedDir) {
+    for (const file of EMBEDDING_REQUIRED_DOWNLOAD_FILES) {
+      const nestedFile = repositoryFiles.get(
+        `${selectedDir}/${file}`.toLowerCase(),
+      );
+
+      if (nestedFile) {
+        files.push(nestedFile);
+      }
+    }
+  }
+
+  files.push(selectedEntry);
+
+  for (const file of repositoryFiles.values()) {
+    if (isEmbeddingOnnxCompanionFile(file.name, selectedEntry.name)) {
+      files.push(file);
+    }
+  }
+
+  return Array.from(
+    new Map(files.map((file) => [file.name.toLowerCase(), file])).values(),
+  );
+}
+
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0) {
+    return "";
+  }
+
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let value = bytes;
+  let unitIndex = 0;
+
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+
+  return `${value.toFixed(value >= 10 || unitIndex === 0 ? 1 : 2)} ${units[unitIndex]}`;
+}
+
+function getEmbeddingDownloadSizeLabel(model, file) {
+  const totalBytes = getEmbeddingDownloadFiles(model, file).reduce(
+    (sum, item) => sum + (Number(item.sizeBytes) || 0),
+    0,
+  );
+
+  return formatBytes(totalBytes) || getFileSizeLabel(file);
 }
 
 function getVariantLabel(model, file) {
@@ -129,16 +292,16 @@ function getVariantOptionLabel(file) {
 }
 
 function getDownloadLabel(model, file) {
-  const size = getFileSizeLabel(file);
-
   if (isModelFileDownloading(model, file)) {
     return "Baixando...";
   }
 
   if (model?.format === "ONNX") {
-    return `Baixar embedding${size ? ` ${size}` : ""}`;
+    const size = getEmbeddingDownloadSizeLabel(model, file);
+    return `Baixar ${size ? ` ${size}` : ""}`;
   }
 
+  const size = getFileSizeLabel(file);
   return `Baixar${size ? ` ${size}` : ""}`;
 }
 
@@ -199,6 +362,7 @@ function createPlaceholderModel(modelId) {
     ggufFiles: [],
     onnxFiles: [],
     repositoryFiles: [],
+    repositoryFileDetails: [],
     description: "",
     parameterCount: null,
   };

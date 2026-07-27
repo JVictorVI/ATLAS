@@ -61,6 +61,44 @@ export class ChatModelWebviewService {
     }, 250);
   }
 
+  public applySafeGpuLayersForModelPath(modelPath: string): number | null {
+    const resolvedModelPath = path.resolve(modelPath);
+    const model = this.configManager
+      .getLocalModels()
+      .find(
+        (candidate) =>
+          candidate.path &&
+          path.resolve(candidate.path) === resolvedModelPath,
+      );
+
+    if (!model?.path) {
+      return null;
+    }
+
+    const totalLayers =
+      this.getCachedGgufLayerCount(model.path) ??
+      this.inferLayerCountFromModelLabel(model.name, model.metadata?.tags?.[0]);
+    const layerBytes = this.getEstimatedLayerBytes(model.path, totalLayers);
+    const gpuMemory = this.getCachedGpuMemoryInfo();
+    const safeLayers = this.calculateSafeGpuLayers(
+      gpuMemory?.totalBytes ?? 0,
+      layerBytes,
+      totalLayers,
+    );
+
+    this.configManager.updateModel(model.id, {
+      parameters: {
+        gpuLayers: safeLayers,
+      },
+      metadata: {
+        gpuLayersAutoConfiguredAt: new Date().toISOString(),
+        gpuLayersAutoConfiguredMode: "safe",
+      },
+    });
+
+    return safeLayers;
+  }
+
   private postModelsToWebview(
     webview: vscode.Webview,
     options: {
@@ -135,6 +173,69 @@ export class ChatModelWebviewService {
     } catch {
       return 0;
     }
+  }
+
+  private getEstimatedLayerBytes(filePath: string, totalLayers: number): number {
+    const sizeBytes = this.getFileSizeBytes(filePath);
+
+    if (!sizeBytes || !totalLayers) {
+      return 0;
+    }
+
+    return sizeBytes / totalLayers;
+  }
+
+  private calculateSafeGpuLayers(
+    totalVramBytes: number,
+    layerBytes: number,
+    totalLayers: number,
+  ): number {
+    if (!totalVramBytes || !layerBytes || !totalLayers) {
+      return 0;
+    }
+
+    const safeReserveBytes = Math.max(
+      512 * 1024 ** 2,
+      totalVramBytes * 0.14,
+    );
+    const safeUsableBytes = Math.max(
+      0,
+      totalVramBytes * 0.86 - safeReserveBytes,
+    );
+
+    return this.clamp(
+      Math.floor(safeUsableBytes / layerBytes),
+      0,
+      totalLayers,
+    );
+  }
+
+  private inferLayerCountFromModelLabel(name?: string, tag?: string): number {
+    const label = `${name || ""} ${tag || ""}`.toLowerCase();
+    const match = label.match(/(\d+(?:\.\d+)?)\s*b/);
+    const params = match ? Number(match[1]) : 8;
+
+    if (params >= 65) {
+      return 80;
+    }
+
+    if (params >= 30) {
+      return 64;
+    }
+
+    if (params >= 13) {
+      return 40;
+    }
+
+    return 32;
+  }
+
+  private clamp(value: number, min: number, max: number): number {
+    if (!Number.isFinite(value)) {
+      return min;
+    }
+
+    return Math.max(min, Math.min(max, value));
   }
 
   private getCachedGpuMemoryInfo(): GpuMemoryInfo | null {

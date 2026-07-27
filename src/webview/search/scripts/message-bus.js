@@ -36,7 +36,7 @@ window.addEventListener("message", (event) => {
   }
 
   if (message.type === "downloadModeloHuggingFaceConcluido") {
-    clearDownloadStatus();
+    clearDownloadStatus(message.value);
     render();
   }
 
@@ -77,28 +77,44 @@ function handleModelsFound(message) {
 }
 
 function applyDownloadStatus(value) {
-  state.downloading = Boolean(value?.downloading);
-  state.downloadingModelId =
-    typeof value?.modelId === "string" ? value.modelId : "";
-  state.downloadingFileName =
-    typeof value?.fileName === "string" ? value.fileName : "";
+  const downloads = Array.isArray(value?.downloads)
+    ? value.downloads
+    : value?.downloading
+      ? [{ modelId: value.modelId, fileName: value.fileName }]
+      : [];
 
-  if (
-    state.downloading &&
-    state.selectedModel?.id === state.downloadingModelId &&
-    state.downloadingFileName
-  ) {
-    state.selectedFileName = state.downloadingFileName;
-  }
+  state.downloads = downloads
+    .map((download) => ({
+      modelId: typeof download?.modelId === "string" ? download.modelId : "",
+      fileName: typeof download?.fileName === "string" ? download.fileName : "",
+    }))
+    .filter((download) => download.modelId && download.fileName);
+  state.downloading = state.downloads.length > 0;
+  state.downloadingModelId = state.downloads[0]?.modelId || "";
+  state.downloadingFileName = state.downloads[0]?.fileName || "";
 
   state.variantMenuOpen = false;
   render();
 }
 
-function clearDownloadStatus() {
-  state.downloading = false;
-  state.downloadingModelId = "";
-  state.downloadingFileName = "";
+function clearDownloadStatus(value = {}) {
+  const modelId = typeof value?.modelId === "string" ? value.modelId : "";
+  const fileName = typeof value?.fileName === "string" ? value.fileName : "";
+
+  if (modelId && fileName) {
+    const completedKey = getDownloadKey(modelId, fileName);
+    state.downloads = (Array.isArray(state.downloads) ? state.downloads : [])
+      .filter(
+        (download) =>
+          getDownloadKey(download.modelId, download.fileName) !== completedKey,
+      );
+  } else {
+    state.downloads = [];
+  }
+
+  state.downloading = state.downloads.length > 0;
+  state.downloadingModelId = state.downloads[0]?.modelId || "";
+  state.downloadingFileName = state.downloads[0]?.fileName || "";
   state.variantMenuOpen = false;
 }
 
@@ -106,11 +122,7 @@ function handleModelDetailed(detailed) {
   if (detailed) {
     state.selectedModel = detailed;
     state.selectedFileName =
-      state.downloading &&
-      detailed.id === state.downloadingModelId &&
-      state.downloadingFileName
-        ? state.downloadingFileName
-        : state.selectedFileName || getFirstModelFileName(detailed);
+      state.selectedFileName || getFirstModelFileName(detailed);
   }
 
   state.detailsLoading = false;
@@ -139,7 +151,6 @@ function handleSearchError(value) {
   }
 
   state.detailsLoading = false;
-  clearDownloadStatus();
   state.variantMenuOpen = false;
   render();
 }

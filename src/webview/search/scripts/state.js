@@ -45,6 +45,7 @@ const state = {
   downloading: false,
   downloadingModelId: "",
   downloadingFileName: "",
+  downloads: [],
   variantMenuOpen: false,
   error: "",
   detailsError: "",

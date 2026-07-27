@@ -156,9 +156,20 @@ function downloadSelectedModel() {
     return;
   }
 
+  if (isModelFileDownloading(state.selectedModel, selectedFile)) {
+    return;
+  }
+
+  state.downloads = [
+    ...(Array.isArray(state.downloads) ? state.downloads : []),
+    {
+      modelId: state.selectedModel.id,
+      fileName: selectedFile.name,
+    },
+  ];
   state.downloading = true;
-  state.downloadingModelId = state.selectedModel.id;
-  state.downloadingFileName = selectedFile.name;
+  state.downloadingModelId = state.downloads[0]?.modelId || "";
+  state.downloadingFileName = state.downloads[0]?.fileName || "";
   state.variantMenuOpen = false;
   render();
   vscode.postMessage({
@@ -171,7 +182,11 @@ function downloadSelectedModel() {
 function cancelSelectedDownload() {
   const selectedFile = getSelectedFile();
 
-  if (!state.selectedModel || !selectedFile || !state.downloading) {
+  if (
+    !state.selectedModel ||
+    !selectedFile ||
+    !isModelFileDownloading(state.selectedModel, selectedFile)
+  ) {
     return;
   }
 

@@ -1,6 +1,7 @@
 import axios from "axios";
 import * as fs from "fs";
 import * as path from "path";
+import { Transform } from "stream";
 import { pipeline } from "stream/promises";
 import {
   HuggingFaceGgufFile,
@@ -55,6 +56,22 @@ const EMBEDDING_REQUIRED_FILES = [
   "spiece.model",
   "unigram.json",
 ];
+
+export type HuggingFaceDownloadProgress = {
+  percent: number;
+  fileName: string;
+  fileIndex: number;
+  totalFiles: number;
+  downloadedBytes: number;
+  totalBytes: number;
+  fileDownloadedBytes: number;
+  fileTotalBytes: number;
+};
+
+type FileDownloadProgress = {
+  downloadedBytes: number;
+  totalBytes: number;
+};
 
 export type HuggingFaceModelSearchFilter = "all" | "llm" | "embedding";
 
@@ -199,7 +216,7 @@ export class HuggingFaceModelService {
   public async downloadGguf(
     modelId: string,
     fileName: string,
-    onProgress?: (percent: number) => void,
+    onProgress?: (progress: HuggingFaceDownloadProgress) => void,
     signal?: AbortSignal,
   ): Promise<string> {
     if (!fileName.toLowerCase().endsWith(".gguf")) {
@@ -220,6 +237,7 @@ export class HuggingFaceModelService {
 
     const modelsDir = this.getModelsDir();
     const targetPath = path.join(modelsDir, safeFileName);
+    const partialPath = `${targetPath}.part`;
 
     try {
       const response = await axios.get(
@@ -234,20 +252,39 @@ export class HuggingFaceModelService {
 
       const totalBytes = Number(response.headers["content-length"]) || 0;
       let downloadedBytes = 0;
+      const progressStream = this.createProgressTransform((chunkBytes) => {
+        downloadedBytes += chunkBytes;
 
-      response.data.on("data", (chunk: Buffer) => {
-        downloadedBytes += chunk.length;
-
-        if (totalBytes > 0) {
-          onProgress?.(Math.round((downloadedBytes / totalBytes) * 100));
+        if (totalBytes <= 0) {
+          return;
         }
+
+        onProgress?.({
+          percent: Math.round((downloadedBytes / totalBytes) * 100),
+          fileName,
+          fileIndex: 1,
+          totalFiles: 1,
+          downloadedBytes,
+          totalBytes,
+          fileDownloadedBytes: downloadedBytes,
+          fileTotalBytes: totalBytes,
+        });
       });
 
-      await pipeline(response.data, fs.createWriteStream(targetPath));
+      await fs.promises.mkdir(path.dirname(targetPath), { recursive: true });
+      await this.removePath(partialPath);
+      await pipeline(
+        response.data,
+        progressStream,
+        fs.createWriteStream(partialPath),
+      );
+      this.validateDownloadedSize(partialPath, totalBytes);
+      await this.replaceFile(partialPath, targetPath);
       return targetPath;
     } catch (error) {
+      this.deletePartialDownload(partialPath);
+
       if (signal?.aborted || axios.isCancel(error)) {
-        this.deletePartialDownload(targetPath);
         throw new Error("Download cancelado.");
       }
 
@@ -261,7 +298,7 @@ export class HuggingFaceModelService {
   public async downloadModel(
     model: HuggingFaceModelDetails,
     fileName: string,
-    onProgress?: (percent: number) => void,
+    onProgress?: (progress: HuggingFaceDownloadProgress) => void,
     signal?: AbortSignal,
   ): Promise<string> {
     if (model.format === "ONNX") {
@@ -274,7 +311,7 @@ export class HuggingFaceModelService {
   public async downloadEmbeddingModel(
     model: HuggingFaceModelDetails,
     fileName: string,
-    onProgress?: (percent: number) => void,
+    onProgress?: (progress: HuggingFaceDownloadProgress) => void,
     signal?: AbortSignal,
   ): Promise<string> {
     if (!this.isRunnableOnnxFile(fileName)) {
@@ -286,24 +323,89 @@ export class HuggingFaceModelService {
     }
 
     const files = this.getEmbeddingDownloadFiles(model, fileName);
+    const fileSizes = new Map(
+      files.map((file) => [file, this.getRepositoryFileSize(model, file) ?? 0]),
+    );
+    const totalBytes = Array.from(fileSizes.values()).reduce(
+      (sum, size) => sum + size,
+      0,
+    );
+    let downloadedBytes = 0;
     const modelDir = path.join(
       this.getEmbeddingModelsDir(),
       this.getSafeModelDirectoryName(model.id),
     );
+    const stagingDir = `${modelDir}.download`;
 
     try {
+      await this.removePath(stagingDir);
+
       for (let index = 0; index < files.length; index += 1) {
         this.throwIfAborted(signal);
         const relativePath = files[index];
-        const targetPath = path.join(modelDir, relativePath);
+        const targetPath = this.resolveSafeDownloadTarget(
+          stagingDir,
+          relativePath,
+        );
+        const expectedSize = this.getRepositoryFileSize(model, relativePath);
+        const completedBytesBeforeFile = downloadedBytes;
 
         await fs.promises.mkdir(path.dirname(targetPath), { recursive: true });
-        await this.downloadFile(model.id, relativePath, targetPath, signal);
-        onProgress?.(Math.round(((index + 1) / files.length) * 100));
+        const actualSize = await this.downloadFile(
+          model.id,
+          relativePath,
+          targetPath,
+          signal,
+          expectedSize,
+          (fileProgress) => {
+            const aggregateDownloadedBytes =
+              completedBytesBeforeFile + fileProgress.downloadedBytes;
+            const fileRatio =
+              fileProgress.totalBytes > 0
+                ? fileProgress.downloadedBytes / fileProgress.totalBytes
+                : 0;
+            const percent =
+              totalBytes > 0
+                ? Math.min(
+                    99,
+                    Math.round((aggregateDownloadedBytes / totalBytes) * 100),
+                  )
+                : Math.min(99, Math.round(((index + fileRatio) / files.length) * 100));
+
+            onProgress?.({
+              percent,
+              fileName: relativePath,
+              fileIndex: index + 1,
+              totalFiles: files.length,
+              downloadedBytes: aggregateDownloadedBytes,
+              totalBytes,
+              fileDownloadedBytes: fileProgress.downloadedBytes,
+              fileTotalBytes: fileProgress.totalBytes,
+            });
+          },
+        );
+        downloadedBytes +=
+          expectedSize || fileSizes.get(relativePath) || actualSize;
+
+        onProgress?.({
+          percent:
+            index === files.length - 1
+              ? 100
+              : totalBytes > 0
+                ? Math.min(99, Math.round((downloadedBytes / totalBytes) * 100))
+                : Math.round(((index + 1) / files.length) * 100),
+          fileName: relativePath,
+          fileIndex: index + 1,
+          totalFiles: files.length,
+          downloadedBytes,
+          totalBytes,
+          fileDownloadedBytes: actualSize,
+          fileTotalBytes: expectedSize || actualSize,
+        });
       }
 
       await fs.promises.writeFile(
-        path.join(modelDir, "atlas-model.json"),
+        path.join(stagingDir, "atlas-model.json"),
         JSON.stringify(
           {
             name: model.name || model.id,
@@ -313,6 +415,10 @@ export class HuggingFaceModelService {
             quantization: fileName.toLowerCase().includes("quantized")
               ? "int8"
               : "fp32",
+            files: files.map((name) => ({
+              name,
+              sizeBytes: this.getRepositoryFileSize(model, name),
+            })),
           },
           null,
           2,
@@ -320,10 +426,13 @@ export class HuggingFaceModelService {
         "utf8",
       );
 
+      await this.removePath(modelDir);
+      await fs.promises.rename(stagingDir, modelDir);
       return modelDir;
     } catch (error) {
+      this.deletePartialDownload(stagingDir);
+
       if (signal?.aborted || axios.isCancel(error)) {
-        this.deletePartialDownload(modelDir);
         throw new Error("Download cancelado.");
       }
 
@@ -420,6 +529,15 @@ export class HuggingFaceModelService {
       repositoryFiles: (model.siblings ?? [])
         .map((file) => file.rfilename ?? "")
         .filter(Boolean),
+      repositoryFileDetails: (model.siblings ?? [])
+        .map((file) => ({
+          name: file.rfilename ?? "",
+          sizeBytes:
+            typeof file.size === "number" && Number.isFinite(file.size)
+              ? file.size
+              : null,
+        }))
+        .filter((file) => Boolean(file.name)),
       ggufFiles: (model.siblings ?? [])
         .filter((file) => this.isRunnableGgufFile(file.rfilename ?? ""))
         .map((file) => this.mapGgufFile(id, file))
@@ -472,13 +590,48 @@ export class HuggingFaceModelService {
     selectedOnnxFile: string,
   ): string[] {
     const repositoryFiles = new Map(
-      model.repositoryFiles.map((file) => [file.toLowerCase(), file]),
+      model.repositoryFiles.map((file) => [
+        this.normalizeRepoPath(file).toLowerCase(),
+        this.normalizeRepoPath(file),
+      ]),
     );
+    const normalizedSelectedOnnx = this.normalizeRepoPath(selectedOnnxFile);
+    const selectedOnnxFileName = repositoryFiles.get(
+      normalizedSelectedOnnx.toLowerCase(),
+    );
+
+    if (!selectedOnnxFileName) {
+      throw new Error("Arquivo ONNX selecionado nao existe no repositorio.");
+    }
+
+    const selectedOnnxDir = path.posix.dirname(selectedOnnxFileName);
+    const isNestedOnnx = selectedOnnxDir !== ".";
     const files = EMBEDDING_REQUIRED_FILES.map((file) =>
       repositoryFiles.get(file.toLowerCase()),
     ).filter((file): file is string => Boolean(file));
 
-    files.push(selectedOnnxFile);
+    if (isNestedOnnx) {
+      for (const file of EMBEDDING_REQUIRED_FILES) {
+        const nestedFile = repositoryFiles.get(
+          `${selectedOnnxDir}/${file}`.toLowerCase(),
+        );
+
+        if (nestedFile) {
+          files.push(nestedFile);
+        }
+      }
+    }
+
+    files.push(selectedOnnxFileName);
+
+    for (const file of repositoryFiles.values()) {
+      if (!this.isEmbeddingOnnxCompanionFile(file, selectedOnnxFileName)) {
+        continue;
+      }
+
+      files.push(file);
+    }
+
     return Array.from(new Set(files));
   }
 
@@ -487,7 +640,10 @@ export class HuggingFaceModelService {
     relativePath: string,
     targetPath: string,
     signal?: AbortSignal,
-  ): Promise<void> {
+    expectedSize?: number | null,
+    onProgress?: (progress: FileDownloadProgress) => void,
+  ): Promise<number> {
+    const partialPath = `${targetPath}.part`;
     const response = await axios.get(
       `${this.baseUrl}/${this.encodeRepoId(modelId)}/resolve/main/${this.encodeRepoPath(relativePath)}`,
       {
@@ -497,8 +653,146 @@ export class HuggingFaceModelService {
         timeout: 30000,
       },
     );
+    const responseSize = Number(response.headers["content-length"]) || 0;
+    const sizeToValidate = expectedSize || responseSize;
+    let downloadedBytes = 0;
+    const progressStream = this.createProgressTransform((chunkBytes) => {
+      downloadedBytes += chunkBytes;
+      onProgress?.({
+        downloadedBytes,
+        totalBytes: sizeToValidate,
+      });
+    });
 
-    await pipeline(response.data, fs.createWriteStream(targetPath));
+    try {
+      await this.removePath(partialPath);
+      await pipeline(
+        response.data,
+        progressStream,
+        fs.createWriteStream(partialPath),
+      );
+      this.validateDownloadedSize(partialPath, sizeToValidate);
+      await this.replaceFile(partialPath, targetPath);
+      return downloadedBytes || fs.statSync(targetPath).size;
+    } catch (error) {
+      this.deletePartialDownload(partialPath);
+      throw error;
+    }
+  }
+
+  private createProgressTransform(onChunk: (chunkBytes: number) => void): Transform {
+    return new Transform({
+      transform(chunk: Buffer, _encoding, callback) {
+        onChunk(chunk.length);
+        callback(null, chunk);
+      },
+    });
+  }
+
+  private isEmbeddingOnnxCompanionFile(
+    candidatePath: string,
+    selectedOnnxFile: string,
+  ): boolean {
+    const normalizedCandidate = this.normalizeRepoPath(candidatePath);
+    const normalizedSelected = this.normalizeRepoPath(selectedOnnxFile);
+    const selectedDir = path.posix.dirname(normalizedSelected);
+
+    if (selectedDir === ".") {
+      return false;
+    }
+
+    if (path.posix.dirname(normalizedCandidate) !== selectedDir) {
+      return false;
+    }
+
+    const candidateName = path.posix.basename(normalizedCandidate);
+    const selectedName = path.posix.basename(normalizedSelected);
+    const lowerCandidateName = candidateName.toLowerCase();
+    const lowerSelectedName = selectedName.toLowerCase();
+
+    if (lowerCandidateName.endsWith(".onnx")) {
+      return false;
+    }
+
+    return (
+      lowerCandidateName.startsWith(`${lowerSelectedName}_`) ||
+      lowerCandidateName.startsWith(`${lowerSelectedName}.`) ||
+      (lowerSelectedName === "model.onnx" && !/\.(md|txt)$/i.test(candidateName))
+    );
+  }
+
+  private getRepositoryFileSize(
+    model: HuggingFaceModelDetails,
+    relativePath: string,
+  ): number | null {
+    const normalizedPath = this.normalizeRepoPath(relativePath).toLowerCase();
+    const file = model.repositoryFileDetails.find(
+      (item) => this.normalizeRepoPath(item.name).toLowerCase() === normalizedPath,
+    );
+
+    return file?.sizeBytes ?? null;
+  }
+
+  private resolveSafeDownloadTarget(
+    rootDir: string,
+    relativePath: string,
+  ): string {
+    const normalizedPath = this.normalizeRepoPath(relativePath);
+
+    if (
+      !normalizedPath ||
+      normalizedPath.startsWith("../") ||
+      normalizedPath.includes("/../") ||
+      path.posix.isAbsolute(normalizedPath)
+    ) {
+      throw new Error("Caminho de arquivo invalido no repositorio Hugging Face.");
+    }
+
+    const resolvedRoot = path.resolve(rootDir);
+    const resolvedTarget = path.resolve(rootDir, ...normalizedPath.split("/"));
+    const relative = path.relative(resolvedRoot, resolvedTarget);
+
+    if (relative.startsWith("..") || path.isAbsolute(relative)) {
+      throw new Error("Caminho de arquivo invalido no repositorio Hugging Face.");
+    }
+
+    return resolvedTarget;
+  }
+
+  private validateDownloadedSize(targetPath: string, expectedSize: number): void {
+    if (expectedSize <= 0) {
+      return;
+    }
+
+    const actualSize = fs.statSync(targetPath).size;
+
+    if (actualSize !== expectedSize) {
+      throw new Error(
+        `Download incompleto para ${path.basename(targetPath)}: esperado ${this.formatDownloadedBytes(
+          expectedSize,
+        )}, recebido ${this.formatDownloadedBytes(actualSize)}.`,
+      );
+    }
+  }
+
+  private async replaceFile(sourcePath: string, targetPath: string): Promise<void> {
+    await this.removePath(targetPath);
+    await fs.promises.rename(sourcePath, targetPath);
+  }
+
+  private async removePath(targetPath: string): Promise<void> {
+    await fs.promises.rm(targetPath, {
+      force: true,
+      recursive: true,
+    });
+  }
+
+  private normalizeRepoPath(filePath: string): string {
+    return filePath
+      .replace(/\\/g, "/")
+      .split("/")
+      .filter((part) => part.length > 0)
+      .join("/");
   }
 
   private getSafeModelDirectoryName(modelId: string): string {
@@ -671,6 +965,14 @@ export class HuggingFaceModelService {
     }
 
     return `${value.toFixed(value >= 10 || unitIndex === 0 ? 1 : 2)} ${units[unitIndex]}`;
+  }
+
+  private formatDownloadedBytes(bytes: number): string {
+    if (!Number.isFinite(bytes) || bytes <= 0) {
+      return "0 B";
+    }
+
+    return this.formatBytes(bytes);
   }
 
   private async buildHeaders(): Promise<Record<string, string>> {

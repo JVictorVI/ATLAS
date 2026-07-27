@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import * as path from "path";
 import { ApiKeyManager } from "../managers/ApiKeyManager";
 import { SecretStorageService } from "../services/SecretStorageService";
 import { CloudApiService } from "../services/CloudApiService";
@@ -6,7 +7,10 @@ import { LocalApiService } from "../services/LocalApiService";
 import { AtlasInferenceService } from "../services/AtlasInferenceService";
 import { AtlasLocalModelDiscoveryService } from "../services/AtlasLocalModelDiscoveryService";
 import { AtlasLocalEngineService } from "../services/AtlasLocalEngineService";
-import { HuggingFaceModelService } from "../services/HuggingFaceModelService";
+import {
+  HuggingFaceDownloadProgress,
+  HuggingFaceModelService,
+} from "../services/HuggingFaceModelService";
 import { AtlasConfigManager } from "../managers/AtlasConfigManager";
 
 import { AtlasPromptAssemblyService } from "../prompt/AtlasPromptAssemblyService";
@@ -383,6 +387,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
               const model =
                 await this.huggingFaceModelService.getModelDetails(modelId);
+              const wasKnownLocalModel =
+                model.format !== "ONNX" &&
+                this.isKnownLocalModelDownloadTarget(fileName);
 
               if (signal?.aborted) {
                 throw new Error("Download cancelado.");
@@ -404,13 +411,19 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
                 await this.huggingFaceModelService.downloadModel(
                   model,
                   fileName,
-                  (percent) => {
-                    const increment = Math.max(0, percent - previousPercent);
-                    previousPercent = percent;
+                  (downloadProgress) => {
+                    const increment = Math.max(
+                      0,
+                      downloadProgress.percent - previousPercent,
+                    );
+                    previousPercent = downloadProgress.percent;
 
                     progress.report({
                       increment,
-                      message: `${percent}%`,
+                      message:
+                        this.formatHuggingFaceDownloadProgress(
+                          downloadProgress,
+                        ),
                     });
                   },
                   abortController.signal,
@@ -420,6 +433,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
                 this.embeddingModelDiscoveryService.refreshEmbeddingModels();
               } else {
                 this.localModelDiscoveryService.refreshLocalModels();
+
+                if (!wasKnownLocalModel) {
+                  this.modelWebviewService.applySafeGpuLayersForModelPath(
+                    targetPath,
+                  );
+                }
               }
 
               if (this._view) {
@@ -936,6 +955,61 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     const model = this.configManager.getActiveLocalModel();
 
     return model;
+  }
+
+  private formatHuggingFaceDownloadProgress(
+    progress: HuggingFaceDownloadProgress,
+  ): string {
+    const percent = `${progress.percent}%`;
+    const fileCounter =
+      progress.totalFiles > 1
+        ? `${progress.fileIndex}/${progress.totalFiles}`
+        : "";
+    const fileName = path.basename(progress.fileName.replace(/\\/g, "/"));
+    const totalLabel =
+      progress.totalBytes > 0
+        ? `${this.formatBytes(progress.downloadedBytes)} de ${this.formatBytes(
+            progress.totalBytes,
+          )}`
+        : "";
+
+    return [percent, fileCounter, fileName, totalLabel]
+      .filter(Boolean)
+      .join(" · ");
+  }
+
+  private isKnownLocalModelDownloadTarget(fileName: string): boolean {
+    const safeFileName = path.basename(fileName.replace(/\\/g, "/"));
+    const expectedPath = path.resolve(
+      this.localModelDiscoveryService.getModelsDir(),
+      safeFileName,
+    );
+
+    return this.configManager
+      .getLocalModels()
+      .some(
+        (model) =>
+          model.path && path.resolve(model.path) === expectedPath,
+      );
+  }
+
+  private formatBytes(bytes: number): string {
+    if (!Number.isFinite(bytes) || bytes <= 0) {
+      return "0 B";
+    }
+
+    const units = ["B", "KB", "MB", "GB", "TB"];
+    let value = bytes;
+    let unitIndex = 0;
+
+    while (value >= 1024 && unitIndex < units.length - 1) {
+      value /= 1024;
+      unitIndex += 1;
+    }
+
+    return `${value.toFixed(value >= 10 || unitIndex === 0 ? 0 : 1)} ${
+      units[unitIndex]
+    }`;
   }
 
   public dispose(): void {

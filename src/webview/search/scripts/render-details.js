@@ -38,10 +38,11 @@ function renderVariantSelectOptions(model, selectedFile) {
 
 function renderDetailActions(model, selectedFile, huggingFaceModelUrl) {
   const selectedDownloadActive = isModelFileDownloading(model, selectedFile);
+  const showVariantSelector = shouldShowVariantSelector(model);
 
   return `
     <div class="detail-actions">
-      <button class="download-button" id="download-model" type="button" ${!selectedFile || state.downloading ? "disabled" : ""}>
+      <button class="download-button" id="download-model" type="button" ${!selectedFile || selectedDownloadActive ? "disabled" : ""}>
         <i class="codicon codicon-arrow-down"></i>
         ${escapeHtml(getDownloadLabel(model, selectedFile))}
       </button>
@@ -53,27 +54,31 @@ function renderDetailActions(model, selectedFile, huggingFaceModelUrl) {
             </button>`
           : ""
       }
-      <div class="variant-picker ${state.variantMenuOpen ? "open" : ""}" title="${escapeHtml(selectedFile?.name || "Selecionar arquivo")}">
-        <button class="variant-picker-trigger" id="gguf-variant-trigger" type="button" ${state.downloading || !selectedFile ? "disabled" : ""} aria-expanded="${state.variantMenuOpen ? "true" : "false"}">
-          <i class="codicon codicon-versions variant-leading-icon"></i>
-          <span class="variant-selected-label">${escapeHtml(selectedFile ? getVariantOptionLabel(selectedFile) : "Selecionar arquivo")}</span>
-          <i class="codicon codicon-chevron-down variant-chevron-icon"></i>
-        </button>
-        ${
-          state.variantMenuOpen
-            ? `<div class="variant-options" role="listbox">
-                ${renderVariantOptions(model, selectedFile)}
-              </div>`
-            : ""
-        }
-      </div>
-      <label class="variant-select" title="${escapeHtml(selectedFile?.name || "Selecionar arquivo")}">
-        <i class="codicon codicon-versions variant-leading-icon"></i>
-        <select id="gguf-variant-select" ${state.downloading ? "disabled" : ""}>
-          ${renderVariantSelectOptions(model, selectedFile)}
-        </select>
-        <i class="codicon codicon-chevron-down variant-chevron-icon"></i>
-      </label>
+      ${
+        showVariantSelector
+          ? `<div class="variant-picker ${state.variantMenuOpen ? "open" : ""}" title="${escapeHtml(selectedFile?.name || "Selecionar arquivo")}">
+              <button class="variant-picker-trigger" id="gguf-variant-trigger" type="button" ${!selectedFile ? "disabled" : ""} aria-expanded="${state.variantMenuOpen ? "true" : "false"}>
+                <i class="codicon codicon-versions variant-leading-icon"></i>
+                <span class="variant-selected-label">${escapeHtml(selectedFile ? getVariantOptionLabel(selectedFile) : "Selecionar arquivo")}</span>
+                <i class="codicon codicon-chevron-down variant-chevron-icon"></i>
+              </button>
+              ${
+                state.variantMenuOpen
+                  ? `<div class="variant-options" role="listbox">
+                      ${renderVariantOptions(model, selectedFile)}
+                    </div>`
+                  : ""
+              }
+            </div>
+            <label class="variant-select" title="${escapeHtml(selectedFile?.name || "Selecionar arquivo")}">
+              <i class="codicon codicon-versions variant-leading-icon"></i>
+              <select id="gguf-variant-select">
+                ${renderVariantSelectOptions(model, selectedFile)}
+              </select>
+              <i class="codicon codicon-chevron-down variant-chevron-icon"></i>
+            </label>`
+          : ""
+      }
       <button class="icon-button" id="open-huggingface-file" type="button" title="Abrir modelo no Hugging Face" ${!huggingFaceModelUrl ? "disabled" : ""}>
         <i class="codicon codicon-link-external"></i>
       </button>

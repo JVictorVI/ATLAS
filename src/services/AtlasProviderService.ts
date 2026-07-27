@@ -88,7 +88,7 @@ export class AtlasProviderService {
     const filteredProviders = providers.filter((p) => p.id !== providerId);
 
     if (filteredProviders.length === providers.length) {
-      throw new Error(`Provedor "${providerId}" nÃ£o encontrado.`);
+      throw new Error(`Provedor "${providerId}" não encontrado.`);
     }
 
     config.providers = filteredProviders;

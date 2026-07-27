@@ -11,6 +11,11 @@ export interface HuggingFaceOnnxFile extends HuggingFaceGgufFile {}
 
 export type HuggingFaceModelFormat = "GGUF" | "ONNX";
 
+export interface HuggingFaceRepositoryFile {
+  name: string;
+  sizeBytes: number | null;
+}
+
 export interface HuggingFaceModelSummary {
   id: string;
   name: string;
@@ -28,6 +33,7 @@ export interface HuggingFaceModelSummary {
   ggufFiles: HuggingFaceGgufFile[];
   onnxFiles: HuggingFaceOnnxFile[];
   repositoryFiles: string[];
+  repositoryFileDetails: HuggingFaceRepositoryFile[];
 }
 
 export interface HuggingFaceModelDetails extends HuggingFaceModelSummary {}

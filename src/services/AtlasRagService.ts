@@ -191,7 +191,7 @@ export class AtlasRagService {
     const source = this.repository.getSource(sourceId);
 
     if (!source || source.externalDocument !== true) {
-      throw new Error("Material complementar RAG nao encontrado.");
+      throw new Error("Material complementar RAG não encontrado.");
     }
 
     await this.repository.deleteSource(

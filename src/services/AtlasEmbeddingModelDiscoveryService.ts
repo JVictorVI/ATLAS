@@ -345,9 +345,38 @@ export class AtlasEmbeddingModelDiscoveryService {
       this.isDirectory(onnxPath) &&
       fs
         .readdirSync(onnxPath)
-        .some((fileName) => fileName.toLowerCase().endsWith(".onnx"));
+        .some(
+          (fileName) =>
+            fileName.toLowerCase().endsWith(".onnx") &&
+            this.hasRequiredOnnxExternalData(path.join(onnxPath, fileName)),
+        );
 
     return hasConfig && hasTokenizer && hasOnnx;
+  }
+
+  private hasRequiredOnnxExternalData(onnxFilePath: string): boolean {
+    try {
+      const stat = fs.statSync(onnxFilePath);
+
+      if (!stat.isFile()) {
+        return false;
+      }
+
+      if (stat.size > 10 * 1024 * 1024) {
+        return true;
+      }
+
+      const content = fs.readFileSync(onnxFilePath).toString("utf8");
+      const externalDataFiles = Array.from(
+        new Set(content.match(/[A-Za-z0-9_.-]+\.onnx_data/g) ?? []),
+      );
+
+      return externalDataFiles.every((fileName) =>
+        this.isFile(path.join(path.dirname(onnxFilePath), fileName)),
+      );
+    } catch {
+      return false;
+    }
   }
 
   private readModelMetadata(modelPath: string): AtlasEmbeddingModelMetadata {

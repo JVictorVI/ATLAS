@@ -239,7 +239,7 @@ export class LocalApiService {
 
     if (!updatedModel) {
       throw new Error(
-        `O contexto foi ajustado, mas o modelo "${model.id}" nao foi encontrado no arquivo de configuracao.`,
+        `O contexto foi ajustado, mas o modelo "${model.id}" não foi encontrado no arquivo de configuracao.`,
       );
     }
 
@@ -277,10 +277,7 @@ export class LocalApiService {
     return Math.floor(normalized);
   }
 
-  private resolveMaxTokens(
-    model: AtlasModelConfig,
-    fallback: number,
-  ): number {
+  private resolveMaxTokens(model: AtlasModelConfig, fallback: number): number {
     return this.normalizePositiveInteger(model.parameters.maxTokens, fallback);
   }
 
@@ -613,9 +610,7 @@ export class LocalApiService {
     );
   }
 
-  private getContextOverflow(
-    data?: any,
-  ): LocalContextOverflow | null {
+  private getContextOverflow(data?: any): LocalContextOverflow | null {
     const message = String(
       data?.error?.message || data?.error?.details || data?.message || "",
     );
