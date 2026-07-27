@@ -1370,9 +1370,6 @@ class HuggingFaceModelService {
   +downloadGguf(modelId, fileName, onProgress, signal)
   +downloadEmbeddingModel(model, fileName, onProgress, signal)
 }
-class AtlasEngineDownloadService {
-  +ensureConfiguredEngineDownloaded(onStatus)
-}
 class AtlasLocalModelDiscoveryService {
   +refreshLocalModels()
   +getModelsDir()
@@ -1393,7 +1390,6 @@ database "Pasta de embeddings ONNX" as EmbeddingDir
 ModelDownloadUI --> ChatMessageRouter : baixarModeloHuggingFace
 ChatMessageRouter --> ChatViewProvider
 ChatViewProvider --> HuggingFaceModelService
-ChatViewProvider --> AtlasEngineDownloadService : GGUF
 HuggingFaceModelService --> RepoAPI
 HuggingFaceModelService --> ModelDir : GGUF
 HuggingFaceModelService --> EmbeddingDir : ONNX e arquivos auxiliares
@@ -1414,7 +1410,6 @@ actor Usuário
 participant "Webview Search" as UI
 participant ChatMessageRouter as Router
 participant ChatViewProvider as Provider
-participant AtlasEngineDownloadService as EngineDownload
 participant HuggingFaceModelService as HF
 participant AtlasLocalModelDiscoveryService as LocalDiscovery
 participant AtlasEmbeddingModelDiscoveryService as EmbeddingDiscovery
@@ -1430,8 +1425,6 @@ Provider -> HF : getModelDetails(modelId)
 HF -> RepoAPI : consulta detalhes
 RepoAPI --> HF : formato GGUF ou ONNX
 alt GGUF
-  Provider -> EngineDownload : ensureConfiguredEngineDownloaded()
-  EngineDownload --> Provider : engine pronta
   Provider -> HF : downloadGguf(...)
   HF -> RepoAPI : resolve/main/<arquivo.gguf>
   RepoAPI --> HF : stream do arquivo

@@ -395,18 +395,6 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
                 throw new Error("Download cancelado.");
               }
 
-              if (model.format !== "ONNX") {
-                await this.engineDownloadService.ensureConfiguredEngineDownloaded(
-                  (message) => {
-                    progress.report({ message });
-                  },
-                );
-              }
-
-              if (signal?.aborted) {
-                throw new Error("Download cancelado.");
-              }
-
               const targetPath =
                 await this.huggingFaceModelService.downloadModel(
                   model,

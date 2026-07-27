@@ -240,17 +240,13 @@ baixarModeloHuggingFace
 
 `ChatViewProvider.downloadHuggingFaceModel` executa o download dentro de `vscode.window.withProgress`, com cancelamento via `AbortController`.
 
-Antes de baixar um LLM, o ATLAS garante que a engine local configurada esteja disponível:
-
-```text
-AtlasEngineDownloadService.ensureConfiguredEngineDownloaded
-```
-
-Depois chama:
+O fluxo chama diretamente:
 
 ```text
 HuggingFaceModelService.downloadModel
 ```
+
+A engine continua sendo preparada pelos fluxos próprios de engine, como abertura do ATLAS com preparo habilitado, início automático configurado ou comando explícito de download da engine.
 
 Para GGUF, o destino é a pasta retornada por:
 
@@ -410,14 +406,14 @@ vscode.env.openExternal
 
 `HuggingFaceModelService.normalizeHuggingFaceError` transforma falhas comuns em mensagens de usuário:
 
-| Caso | Mensagem geral |
-| --- | --- |
-| Sem conexão ou erro de rede | Verificar conexão com a internet |
-| Timeout | Tentar novamente em instantes |
-| 401/403 | Verificar chave de API ou acesso a modelos privados |
-| 404 | Modelo ou arquivo não encontrado |
-| 429 | Aguardar limite temporário do Hugging Face |
-| 5xx | Hugging Face indisponível |
+| Caso                        | Mensagem geral                                      |
+| --------------------------- | --------------------------------------------------- |
+| Sem conexão ou erro de rede | Verificar conexão com a internet                    |
+| Timeout                     | Tentar novamente em instantes                       |
+| 401/403                     | Verificar chave de API ou acesso a modelos privados |
+| 404                         | Modelo ou arquivo não encontrado                    |
+| 429                         | Aguardar limite temporário do Hugging Face          |
+| 5xx                         | Hugging Face indisponível                           |
 
 Quando o download é cancelado, downloads parciais são removidos.
 

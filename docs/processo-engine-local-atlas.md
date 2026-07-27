@@ -136,8 +136,6 @@ Se CUDA/Vulkan forem selecionados e a pasta esperada não existir, o serviço la
 localEngineService.ensureEngine(model)
 ```
 
-Entradas manuais da Biblioteca e downloads de GGUF pelo Repositório de Modelos chamam antes `ensureConfiguredEngineDownloaded`, garantindo que a engine selecionada exista antes da tentativa de execução local.
-
 O serviço reutiliza o processo se:
 
 - já existe processo;

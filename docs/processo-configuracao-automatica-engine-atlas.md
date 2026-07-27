@@ -85,10 +85,10 @@ context.globalStorageUri/engine
 
 Cada tipo de engine usa uma subpasta própria:
 
-| Tipo | Pasta |
-| --- | --- |
-| CPU | `llama.cpp` |
-| CUDA | `llama.cpp-cuda` |
+| Tipo   | Pasta              |
+| ------ | ------------------ |
+| CPU    | `llama.cpp`        |
+| CUDA   | `llama.cpp-cuda`   |
 | Vulkan | `llama.cpp-vulkan` |
 
 Dentro da subpasta, o ATLAS procura:
@@ -314,17 +314,7 @@ Nesse caso, `ChatViewProvider.startEngineOnAtlasOpenIfEnabled`:
 
 Se não houver modelo local ativo, a engine não pode ser iniciada.
 
-## Relação com download de modelos GGUF
-
-Ao baixar um LLM no Repositório de Modelos, o ATLAS prepara a engine configurada antes de baixar o GGUF:
-
-```text
-AtlasEngineDownloadService.ensureConfiguredEngineDownloaded()
-```
-
-Isso evita que o usuário baixe um modelo de chat local e depois descubra que ainda falta o runtime básico para executá-lo.
-
-Embeddings ONNX não disparam esse preparo, porque são usados pelo RAG e não pelo `llama-server`.
+A preparação da engine fica concentrada nos fluxos próprios de engine: abertura do ATLAS com `custom.localEngine.prepareOnAtlasOpen`, início automático com `custom.localEngine.startOnAtlasOpen`, inicialização efetiva de um modelo local e comando explícito de download da engine configurada.
 
 ## Resolução do executável em tempo de execução
 
