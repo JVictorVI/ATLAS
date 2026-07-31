@@ -7,6 +7,8 @@ function registerAtlasSettingsAutosave() {
   localEngineTimeout?.addEventListener("input", () => {
     scheduleAtlasSettingsSave();
   });
+
+  refactoringEnabled?.addEventListener("change", updateStaticAnalysisAvailability);
 }
 
 function scheduleAtlasSettingsSave(delay = 600) {
@@ -38,6 +40,7 @@ function applyAtlasSettings(value) {
   setChecked(contextWindowFixed, value?.dynamicContextWindow === false);
   setChecked(engineStartOnOpen, value?.startOnAtlasOpen === true);
   setChecked(enginePrepareOnOpen, value?.prepareOnAtlasOpen !== false);
+  setChecked(refactoringEnabled, value?.refactoringEnabled !== false);
 
   setStaticAnalysisFromSettings(value);
   applyContextProfileSettings(value);
@@ -66,6 +69,7 @@ function saveAtlasSettings() {
       dynamicContextWindow: contextWindowFixed?.checked !== true,
       startOnAtlasOpen: engineStartOnOpen?.checked === true,
       prepareOnAtlasOpen: enginePrepareOnOpen?.checked !== false,
+      refactoringEnabled: refactoringEnabled?.checked !== false,
       modelsDir: modelsFolderPath?.value || "",
       enginesDir: enginesFolderPath?.value || "",
       ...getStaticAnalysisPayload(),

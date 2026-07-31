@@ -1,4 +1,4 @@
-// Responsabilidade: controla sidebar, lista de sessoes, renomeacao e troca de conversa.
+// Responsabilidade: controla sidebar, lista de sessões, renomeação e troca de conversa.
 const sidebar = document.getElementById("chat-sidebar");
 const toggleSidebarBtn = document.getElementById("toggle-sidebar-btn");
 const expandSidebarBtn = document.getElementById("expand-sidebar-btn");
@@ -56,7 +56,7 @@ function renderSessionList() {
 
     const pendingIndicator =
       isPending && !isGenerating
-        ? `<span class="session-loading" title="Carregando sessao"><span class="spinner small"></span></span>`
+        ? `<span class="session-loading" title="Carregando sessão"><span class="spinner small"></span></span>`
         : "";
 
     li.innerHTML = `
@@ -178,6 +178,7 @@ function loadChatMessages(session, activeGeneration = null) {
       div.textContent = msg.content;
     }
     appendRagSources(div, msg.metadata?.ragSources);
+    appendArchitecturalRefactorAction(div, msg.metadata);
     appendInterruptedStatus(div, msg.metadata?.interrupted === true);
     chatContainer.appendChild(div);
   }

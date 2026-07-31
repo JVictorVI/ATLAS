@@ -50,7 +50,7 @@
         <div
           class="toggle-suboptions rag-destination-suboptions"
           role="group"
-          aria-label="Destinos do contexto recuperado"
+          aria-label="Permissões e usos do contexto recuperado"
         >
           <label class="toggle-option toggle-suboption">
             <input id="local-rag-enabled" type="checkbox" checked />
@@ -66,6 +66,11 @@
               >Permite o envio de contexto recuperado para modelos em
               nuvem</span
             >
+          </label>
+          <label class="toggle-option toggle-suboption">
+            <input id="rag-code-editing" type="checkbox" />
+            <span class="checkbox" aria-hidden="true"></span>
+            <span>Usar RAG em edições aplicadas e refatorações</span>
           </label>
         </div>
       </section>

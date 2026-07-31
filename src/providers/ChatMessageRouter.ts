@@ -2,6 +2,8 @@
 import * as fs from "fs";
 import * as path from "path";
 
+import { ChatMessage } from "../interfaces/ApiTypes";
+import { AtlasSession } from "../interfaces/AtlasHistoryTypes";
 import { ChatResponseController } from "./ChatResponseController";
 import { ChatSessionController } from "./ChatSessionController";
 import { RouterDependencies } from "./ChatMessageRouterTypes";
@@ -18,6 +20,7 @@ import {
 } from "../interfaces/AtlasConfigTypes";
 import { AtlasExternalDocumentParser } from "../services/AtlasExternalDocumentParser";
 import { AtlasContextProfileService } from "../services/AtlasContextProfileService";
+import { AtlasInferenceService } from "../services/AtlasInferenceService";
 
 export class ChatMessageRouter {
   private activeWebviewRoute = "chat";
@@ -77,6 +80,7 @@ export class ChatMessageRouter {
         return;
       case "cancelarGeracao":
         this.deps.cancelQuickAnalysis();
+        this.deps.cancelCodeEdit();
         await this.responseController.handleCancelGeneration(webview);
         return;
       case "abrirPainelConfig":
@@ -240,6 +244,9 @@ export class ChatMessageRouter {
         return;
       case "executarAnaliseRapida":
         await this.deps.executeQuickAnalysis(webview);
+        return;
+      case "executarRefatoracaoArquitetural":
+        await this.handleArchitectureGuidedRefactor(data, webview);
         return;
       case "limparMarcacoesAnaliseRapida":
         this.deps.clearQuickAnalysisDecorations();
@@ -553,6 +560,7 @@ export class ChatMessageRouter {
         diversifyFiles: payload.diversifyFiles === true,
         excludeActiveFile: payload.excludeActiveFile === true,
         includeExternalDocuments: payload.includeExternalDocuments === true,
+        useInCodeEditing: payload.useInCodeEditing === true,
         sourcePriority,
         languageFilters,
         directoryFilters,
@@ -1135,7 +1143,7 @@ export class ChatMessageRouter {
       const sourceId = typeof data.sourceId === "string" ? data.sourceId : "";
 
       if (!sourceId) {
-        throw new Error("Material complementar RAG invalido.");
+        throw new Error("Material complementar RAG inválido.");
       }
 
       const answer = await vscode.window.showWarningMessage(
@@ -1606,6 +1614,7 @@ export class ChatMessageRouter {
       const engineType = this.normalizeLocalEngineType(payload.engineType);
       const startOnAtlasOpen = payload.startOnAtlasOpen === true;
       const prepareOnAtlasOpen = payload.prepareOnAtlasOpen !== false;
+      const refactoringEnabled = payload.refactoringEnabled !== false;
       const saveInterruptedResponses =
         payload.saveInterruptedResponses !== false;
       const dynamicContextWindow =
@@ -1622,6 +1631,8 @@ export class ChatMessageRouter {
       const staticAnalysisQuick = payload.staticAnalysisQuick === true;
       const staticAnalysisArchitectural =
         payload.staticAnalysisArchitectural === true;
+      const staticAnalysisRefactoring =
+        payload.staticAnalysisRefactoring === true;
       const staticAnalysisDiagnostics =
         payload.staticAnalysisDiagnostics === true;
       const staticAnalysisRelations = payload.staticAnalysisRelations === true;
@@ -1629,6 +1640,7 @@ export class ChatMessageRouter {
         enabled: staticAnalysisEnabled,
         useInQuickAnalysis: staticAnalysisQuick,
         useInArchitecturalAnalysis: staticAnalysisArchitectural,
+        useInRefactoring: staticAnalysisRefactoring,
         includeDiagnostics: staticAnalysisDiagnostics,
         includeSymbolRelations: staticAnalysisRelations,
       };
@@ -1646,6 +1658,9 @@ export class ChatMessageRouter {
         ...currentCustom,
         contextProfile,
         saveInterruptedResponses,
+        refactoring: {
+          enabled: refactoringEnabled,
+        },
         staticAnalysis,
         localModels: {
           ...localModels,
@@ -2448,6 +2463,184 @@ export class ChatMessageRouter {
     }
   }
 
+  private async handleArchitectureGuidedRefactor(
+    data: any,
+    webview: vscode.Webview,
+  ): Promise<void> {
+    let refactorSessionId: string | undefined;
+
+    try {
+      if (!this.deps.configManager.isRefactoringEnabled()) {
+        throw new Error(
+          "A refatoração aplicada está desativada nas configurações do ATLAS.",
+        );
+      }
+
+      const sessionId =
+        typeof data.sessionId === "string" && data.sessionId.trim()
+          ? data.sessionId.trim()
+          : this.deps.sessionService.getActiveSessionId();
+      const generationId =
+        typeof data.generationId === "string" && data.generationId.trim()
+          ? data.generationId.trim()
+          : undefined;
+
+      if (!sessionId) {
+        throw new Error("Nenhuma sessão ativa encontrada para refatoração.");
+      }
+
+      refactorSessionId = sessionId;
+
+      const session = this.deps.sessionService.getSession(sessionId);
+
+      if (!session) {
+        throw new Error(`Sessão "${sessionId}" não encontrada.`);
+      }
+
+      const analysisMessage = this.findRefactorableArchitecturalMessage(
+        session,
+        generationId,
+      );
+
+      if (!analysisMessage?.metadata?.refactorContext) {
+        throw new Error(
+          "Não foi possível localizar a análise arquitetural usada como base.",
+        );
+      }
+
+      const userMessage =
+        "Refatorar com base na análise arquitetural anterior.";
+      const ragContext = await this.getCodeEditRagContext(
+        analysisMessage.content,
+      );
+      const result = await this.deps.executeArchitectureGuidedEdit(webview, {
+        sessionId,
+        analysisContent: analysisMessage.content,
+        refactorMetadata: analysisMessage.metadata.refactorContext,
+        ragContext,
+      });
+
+      if (!result.approved) {
+        await webview.postMessage({
+          type: "edicaoCodigoCancelada",
+          sessionId,
+        });
+        return;
+      }
+
+      const content = this.deps.formatCodeEditResult(result);
+      const metadata = {
+        mode: "developer-assistant" as const,
+        sessionId,
+        ragSources: [],
+      };
+
+      await this.deps.sessionService.appendMessage(sessionId, {
+        role: "user",
+        content: userMessage,
+      });
+
+      await this.deps.sessionService.appendMessage(sessionId, {
+        role: "assistant",
+        content,
+        metadata,
+      });
+
+      await webview.postMessage({
+        type: "novaResposta",
+        sessionId,
+        value: content,
+        metadata,
+      });
+
+      await webview.postMessage({
+        type: "sessoesAtualizadas",
+        value: this.deps.sessionService.listSessions(),
+      });
+    } catch (error) {
+      if (AtlasInferenceService.isAbortError(error)) {
+        await webview.postMessage({
+          type: "geracaoCancelada",
+          sessionId: refactorSessionId,
+        });
+        return;
+      }
+
+      await this.postError(
+        webview,
+        error,
+        "Erro ao aplicar refatoração arquitetural.",
+      );
+    }
+  }
+
+  private findRefactorableArchitecturalMessage(
+    session: AtlasSession,
+    generationId?: string,
+  ): ChatMessage | null {
+    const assistantMessages = session.messages
+      .filter((message) => {
+        return (
+          message.role === "assistant" &&
+          message.metadata?.mode === "architectural-analysis" &&
+          message.metadata.refactorable === true &&
+          Boolean(message.metadata.refactorContext)
+        );
+      })
+      .reverse();
+
+    if (!generationId) {
+      return assistantMessages[0] ?? null;
+    }
+
+    return (
+      assistantMessages.find(
+        (message) => message.metadata?.generationId === generationId,
+      ) ?? null
+    );
+  }
+
+  private async getCodeEditRagContext(query: string): Promise<string[]> {
+    const settings = this.deps.configManager.getSection("rag");
+    const contextProfile = this.deps.configManager.getContextProfile();
+    const usesLocalEngine = this.deps.configManager.isLocalMode();
+    const ragDestinationAllowed = this.isRagDestinationAllowed(
+      settings,
+      usesLocalEngine,
+    );
+
+    if (
+      settings.enabled !== true ||
+      settings.useInCodeEditing !== true ||
+      contextProfile.includeRagContext !== true ||
+      !ragDestinationAllowed
+    ) {
+      return [];
+    }
+
+    try {
+      const retrieval = await this.deps.getRagContext(query);
+      return retrieval.context;
+    } catch (error) {
+      console.warn(
+        "[ATLAS RAG] Recuperação indisponível para refatoração aplicada; continuando sem RAG:",
+        error,
+      );
+      return [];
+    }
+  }
+
+  private isRagDestinationAllowed(
+    settings: AtlasRagSettings,
+    usesLocalEngine: boolean,
+  ): boolean {
+    if (usesLocalEngine) {
+      return settings.allowLocalContext !== false;
+    }
+
+    return settings.offlineOnly !== true && settings.allowCloudContext === true;
+  }
+
   private async handleToggleStudyMode(
     data: any,
     webview: vscode.Webview,
@@ -2558,6 +2751,7 @@ export class ChatMessageRouter {
       localStream: value.stream !== false,
       saveInterruptedResponses:
         config.custom?.saveInterruptedResponses !== false,
+      refactoringEnabled: config.custom?.refactoring?.enabled !== false,
       localTimeout: this.normalizeInteger(
         value.timeout,
         0,
@@ -2577,6 +2771,9 @@ export class ChatMessageRouter {
         contextProfile.includeStaticAnalysis,
       staticAnalysisArchitectural:
         staticAnalysis.useInArchitecturalAnalysis &&
+        contextProfile.includeStaticAnalysis,
+      staticAnalysisRefactoring:
+        staticAnalysis.useInRefactoring &&
         contextProfile.includeStaticAnalysis,
       staticAnalysisDiagnostics:
         staticAnalysis.includeDiagnostics &&
@@ -2606,6 +2803,7 @@ export class ChatMessageRouter {
               quick: staticAnalysis?.useInQuickAnalysis === true,
               architectural:
                 staticAnalysis?.useInArchitecturalAnalysis === true,
+              refactoring: staticAnalysis?.useInRefactoring === true,
               diagnostics: staticAnalysis?.includeDiagnostics === true,
               relations: staticAnalysis?.includeSymbolRelations === true,
             },

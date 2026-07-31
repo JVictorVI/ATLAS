@@ -1,4 +1,4 @@
-// Responsabilidade: estado global do webview, referencias estaticas e setup do Markdown.
+// Responsabilidade: estado global do webview, referências estáticas e setup do Markdown.
 const vscode = acquireVsCodeApi();
 
 const contentContainer = document.getElementById("content-container");
@@ -12,6 +12,7 @@ let loadingElement = null;
 let loadingDefaultMessage = "Pensando";
 let mensagemAtualBot = null;
 let bufferResposta = "";
+let pendingCodeEditUserMessage = null;
 let isLoadingCloudModels = false;
 let cloudModelLoadError = null;
 let isGeneratingResponse = false;
@@ -24,6 +25,7 @@ let fadeFramePending = false;
 let shortcutLoadingState = {
   quickAnalysis: false,
   architectureAnalysis: false,
+  codeEdit: false,
 };
 let hasEditorContextForAnalysis = false;
 

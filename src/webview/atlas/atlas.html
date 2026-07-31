@@ -494,6 +494,26 @@
         </section>
 
         <section class="card">
+          <div class="section-title">Refatoração Aplicada</div>
+          <div class="section-description">
+            Controle se o ATLAS pode transformar pedidos operacionais em
+            alterações reais no código
+          </div>
+
+          <label class="startup-option">
+            <input type="checkbox" id="refactoring-enabled" />
+            <span>
+              <strong>Ativar refatoração aplicada</strong>
+              <small>
+                Permite aplicar alterações no arquivo atual, abrir prévia/diff
+                antes da confirmação e exibir o botão de refatoração nas
+                análises arquiteturais elegíveis
+              </small>
+            </span>
+          </label>
+        </section>
+
+        <section class="card">
           <div class="section-title">Análise Estática Estrutural</div>
           <div class="section-description">
             Use a estrutura fornecida pelas extensões de linguagem do VS Code
@@ -531,6 +551,17 @@
                 <small>
                   Inclui a estrutura coletada nas avaliações arquiteturais
                   formais solicitadas pelo chat
+                </small>
+              </span>
+            </label>
+
+            <label class="startup-option static-analysis-dependent">
+              <input type="checkbox" id="static-analysis-refactoring" />
+              <span>
+                <strong>Usar em refatorações aplicadas</strong>
+                <small>
+                  Inclui a estrutura coletada como contexto auxiliar quando o
+                  ATLAS for aplicar uma refatoração no código
                 </small>
               </span>
             </label>

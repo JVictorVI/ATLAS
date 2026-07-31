@@ -1,4 +1,4 @@
-// Responsabilidade: conecta controles da tela a comandos enviados para a extensao.
+// Responsabilidade: conecta controles da tela a comandos enviados para a extensão.
 let ragSettingsSaveTimeout = null;
 
 function scheduleRagSettingsSave(delay = 600) {
@@ -36,6 +36,7 @@ function registerRagSettingsAutosave() {
     sourcePriorityInput,
     diversifyFilesInput,
     excludeActiveFileInput,
+    codeEditingRagInput,
     showSourcesInput,
   ];
 

@@ -86,6 +86,7 @@ export class AtlasConfigDefaults {
         diversifyFiles: true,
         excludeActiveFile: true,
         includeExternalDocuments: true,
+        useInCodeEditing: false,
         sourcePriority: "balanced",
         languageFilters: [],
         directoryFilters: [],
@@ -117,6 +118,9 @@ export class AtlasConfigDefaults {
       custom: {
         contextProfile: AtlasContextProfileService.getDefaultProfile(),
         saveInterruptedResponses: true,
+        refactoring: {
+          enabled: true,
+        },
         localEngine: {
           dynamicContextWindow: true,
           prepareOnAtlasOpen: true,
@@ -127,6 +131,7 @@ export class AtlasConfigDefaults {
           enabled: true,
           useInQuickAnalysis: true,
           useInArchitecturalAnalysis: true,
+          useInRefactoring: true,
           includeDiagnostics: false,
           includeSymbolRelations: false,
         },
@@ -231,6 +236,12 @@ export class AtlasConfigDefaults {
             defaultLocalEngine.dynamicContextWindow ??
             true,
         },
+        refactoring: {
+          enabled:
+            partial.custom?.refactoring?.enabled ??
+            defaults.custom?.refactoring?.enabled ??
+            true,
+        },
         staticAnalysis: {
           enabled:
             partial.custom?.staticAnalysis?.enabled ??
@@ -243,6 +254,10 @@ export class AtlasConfigDefaults {
           useInArchitecturalAnalysis:
             partial.custom?.staticAnalysis?.useInArchitecturalAnalysis ??
             defaults.custom?.staticAnalysis?.useInArchitecturalAnalysis ??
+            true,
+          useInRefactoring:
+            partial.custom?.staticAnalysis?.useInRefactoring ??
+            defaults.custom?.staticAnalysis?.useInRefactoring ??
             true,
           includeDiagnostics:
             partial.custom?.staticAnalysis?.includeDiagnostics ??

@@ -1,4 +1,4 @@
-// Responsabilidade: processa mensagens recebidas da extensao VS Code.
+// Responsabilidade: processa mensagens recebidas da extensão VS Code.
 function isMessageForActiveSession(message) {
   const sessionId = message.sessionId || message.metadata?.sessionId;
 
@@ -65,8 +65,11 @@ window.addEventListener("message", (event) => {
       removeLoading();
       setGenerationState(false);
       clearShortcutLoadingState("architecture-analysis");
+      clearShortcutLoadingState("code-edit");
+      pendingCodeEditUserMessage = null;
       const responseElement = addMessage(message.value, "bot", true, false);
       appendRagSources(responseElement, message.metadata?.ragSources);
+      appendArchitecturalRefactorAction(responseElement, message.metadata);
       break;
     }
 
@@ -180,6 +183,7 @@ window.addEventListener("message", (event) => {
 
         renderMarkdownContent(mensagemAtualBot, bufferResposta, false);
         appendRagSources(mensagemAtualBot, message.metadata?.ragSources);
+        appendArchitecturalRefactorAction(mensagemAtualBot, message.metadata);
       }
 
       mensagemAtualBot = null;
@@ -189,6 +193,7 @@ window.addEventListener("message", (event) => {
       scrollChatToBottom();
       setGenerationState(false);
       clearShortcutLoadingState("architecture-analysis");
+      clearShortcutLoadingState("code-edit");
 
       break;
     }
@@ -284,6 +289,38 @@ window.addEventListener("message", (event) => {
       clearShortcutLoadingState("quick-analysis");
       break;
     }
+    case "edicaoCodigoStatus": {
+      const isLoading = !!message.value?.loading;
+      shortcutLoadingState.codeEdit = isLoading;
+
+      if (isLoading) {
+        const statusMessage =
+          message.value?.message || "Aplicando alteração no código...";
+
+        if (!loadingElement) {
+          showLoading(statusMessage);
+        }
+
+        setLoadingDefaultMessage(statusMessage);
+        setGenerationState(true);
+      } else if (!hasActiveShortcutLoading()) {
+        removeLoading();
+        clearShortcutLoadingState("code-edit");
+        setGenerationState(false);
+      }
+      break;
+    }
+    case "edicaoCodigoCancelada": {
+      if (!isMessageForActiveSession(message)) {
+        break;
+      }
+
+      removeLoading();
+      removePendingCodeEditUserMessage();
+      clearShortcutLoadingState("code-edit");
+      setGenerationState(false);
+      break;
+    }
     case "disponibilidadeMarcacoesAnaliseRapida": {
       hasEditorContextForAnalysis = message.value?.hasEditorContext === true;
       const clearQuickAnalysisBtn = document.getElementById(
@@ -335,7 +372,7 @@ window.addEventListener("message", (event) => {
       if (!providerId || selectedProvider === providerId) {
         isLoadingCloudModels = false;
         cloudModelLoadError =
-          errorMessage || "Nao foi possivel carregar modelos deste provedor.";
+          errorMessage || "Não foi possível carregar modelos deste provedor.";
         selectedModel = null;
         updateMainButton();
 

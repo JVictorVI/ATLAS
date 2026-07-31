@@ -81,12 +81,19 @@ export class AtlasSessionService {
   // ── Active session ────────────────────────────────────────────────────────
 
   public getActiveSession(): AtlasSession | null {
-    if (!this.activeSessionId) return null;
+    if (!this.activeSessionId) {
+      return null;
+    }
+
     return this.historyRepository.getSession(this.activeSessionId);
   }
 
   public getActiveSessionId(): string | null {
     return this.activeSessionId;
+  }
+
+  public getSession(sessionId: string): AtlasSession | null {
+    return this.historyRepository.getSession(sessionId);
   }
 
   public ensureActiveSession(): AtlasSession {
@@ -162,10 +169,14 @@ export class AtlasSessionService {
     windowSize: number = WINDOW_SIZE,
   ): Promise<AtlasSession> {
     const session = this.historyRepository.getSession(sessionId);
-    if (!session) throw new Error(`Sessão "${sessionId}" não encontrada.`);
+    if (!session) {
+      throw new Error(`Sessão "${sessionId}" não encontrada.`);
+    }
 
     const toSummarize = this.getMessagesToSummarize(session, windowSize);
-    if (toSummarize.length === 0) return session;
+    if (toSummarize.length === 0) {
+      return session;
+    }
 
     try {
       const conversationText = toSummarize

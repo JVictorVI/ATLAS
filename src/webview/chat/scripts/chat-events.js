@@ -1,4 +1,4 @@
-// Responsabilidade: envia perguntas, controla geracao, loading e mensagens.
+// Responsabilidade: envia perguntas, controla geração, loading e mensagens.
 function createGenerationId() {
   generationSequence += 1;
   return `generation-${Date.now()}-${generationSequence}`;
@@ -256,6 +256,52 @@ function appendRagSources(messageElement, sources) {
   messageElement.appendChild(details);
 }
 
+function appendArchitecturalRefactorAction(messageElement, metadata) {
+  if (
+    !messageElement ||
+    metadata?.mode !== "architectural-analysis" ||
+    metadata?.refactorable !== true ||
+    !metadata?.refactorContext
+  ) {
+    return;
+  }
+
+  messageElement.querySelector(".message-actions")?.remove();
+
+  const actions = document.createElement("div");
+  actions.className = "message-actions";
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "message-action-btn";
+  button.title = "Aplicar refatoração guiada pela análise arquitetural";
+  button.innerHTML =
+    '<i class="codicon codicon-tools" aria-hidden="true"></i><span>Refatorar com base nesta análise</span>';
+
+  button.addEventListener("click", () => {
+    if (hasActiveShortcutLoading() || isGeneratingResponse) {
+      return;
+    }
+
+    shortcutLoadingState.codeEdit = true;
+    pendingCodeEditUserMessage = addMessage(
+      "Refatorar com base na análise arquitetural anterior.",
+      "user",
+    );
+    showLoading("Refatorando");
+    setGenerationState(true);
+
+    vscode.postMessage({
+      type: "executarRefatoracaoArquitetural",
+      sessionId: activeSessionId,
+      generationId: metadata.generationId,
+    });
+  });
+
+  actions.appendChild(button);
+  messageElement.appendChild(actions);
+}
+
 function appendInterruptedStatus(messageElement, interrupted) {
   if (!messageElement || interrupted !== true) {
     return;
@@ -328,6 +374,15 @@ function removeLoading() {
   loadingDefaultMessage = "Pensando";
 }
 
+function removePendingCodeEditUserMessage() {
+  if (!pendingCodeEditUserMessage) {
+    return;
+  }
+
+  pendingCodeEditUserMessage.remove();
+  pendingCodeEditUserMessage = null;
+}
+
 function setGenerationState(isGenerating) {
   isGeneratingResponse = isGenerating;
 
@@ -352,7 +407,8 @@ function setGenerationState(isGenerating) {
 function hasActiveShortcutLoading() {
   return (
     shortcutLoadingState.quickAnalysis ||
-    shortcutLoadingState.architectureAnalysis
+    shortcutLoadingState.architectureAnalysis ||
+    shortcutLoadingState.codeEdit
   );
 }
 
@@ -367,6 +423,10 @@ function hydrateChatControlState() {
     showLoading("Analisando");
   }
 
+  if (shortcutLoadingState.codeEdit && !loadingElement) {
+    showLoading("Refatorando");
+  }
+
   setGenerationState(isGeneratingResponse || hasShortcutLoading);
   setShortcutLoading("quick-analysis", shortcutLoadingState.quickAnalysis);
   setShortcutLoading(
@@ -379,6 +439,7 @@ function hydrateChatControlState() {
 function clearShortcutLoadingStates() {
   shortcutLoadingState.quickAnalysis = false;
   shortcutLoadingState.architectureAnalysis = false;
+  shortcutLoadingState.codeEdit = false;
   hydrateChatControlState();
 }
 
@@ -389,6 +450,10 @@ function clearShortcutLoadingState(action) {
 
   if (action === "architecture-analysis") {
     shortcutLoadingState.architectureAnalysis = false;
+  }
+
+  if (action === "code-edit") {
+    shortcutLoadingState.codeEdit = false;
   }
 
   hydrateChatControlState();

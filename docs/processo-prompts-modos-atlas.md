@@ -25,6 +25,22 @@ study-mode
 
 Na prática, `study-mode` é tratado como modo de prompt especializado quando ativado pelo fluxo de estudo; os modos mais comuns do resolver são assistente dev, análise arquitetural e análise rápida.
 
+## Camada de ação aplicada
+
+A refatoração aplicada não é tratada como um modo principal de prompt. Ela funciona como uma capacidade de ação sobre os modos existentes:
+
+```text
+answer-only
+apply-edit
+architecture-guided-edit
+```
+
+No `developer-assistant`, pedidos operacionais claros como corrigir, alterar, implementar, renomear, extrair ou refatorar podem ser desviados para edição aplicada do arquivo atual quando `custom.refactoring.enabled !== false`.
+
+No `architectural-analysis`, a resposta continua sendo a análise formal. Quando a resposta for elegível, a Webview pode exibir a ação `Refatorar com base nesta análise`, usando a análise recém-gerada como critério para a mudança.
+
+O modo `quick-analysis` permanece parseável e não aplica edições automaticamente.
+
 ## Entrada da montagem
 
 `AtlasPromptAssemblyService.buildMessages` recebe:

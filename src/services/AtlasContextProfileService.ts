@@ -167,6 +167,7 @@ export class AtlasContextProfileService {
         enabled: false,
         useInQuickAnalysis: false,
         useInArchitecturalAnalysis: false,
+        useInRefactoring: false,
         includeDiagnostics: false,
         includeSymbolRelations: false,
       };
@@ -177,6 +178,7 @@ export class AtlasContextProfileService {
         enabled: true,
         useInQuickAnalysis: true,
         useInArchitecturalAnalysis: true,
+        useInRefactoring: true,
         includeDiagnostics: true,
         includeSymbolRelations: true,
       };
@@ -186,6 +188,7 @@ export class AtlasContextProfileService {
       enabled: true,
       useInQuickAnalysis: true,
       useInArchitecturalAnalysis: true,
+      useInRefactoring: true,
       includeDiagnostics: false,
       includeSymbolRelations: false,
     };

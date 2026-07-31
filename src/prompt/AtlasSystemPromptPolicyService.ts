@@ -44,11 +44,11 @@ export class AtlasSystemPromptPolicyService {
     }
 
     return [
-      "Politica de idioma das respostas:",
-      "- Responda em portugues do Brasil.",
-      "- Mantenha schemas, chaves JSON e identificadores de codigo inalterados.",
-      "- Em estruturas Markdown obrigatorias, preserve a estrutura, usando titulos e texto em portugues do Brasil.",
-      "- Na analise rapida em JSON, escreva os valores legiveis de message, impact e suggestion em portugues do Brasil.",
+      "Política de idioma das respostas:",
+      "- Responda em português do Brasil.",
+      "- Mantenha schemas, chaves JSON e identificadores de código inalterados.",
+      "- Em estruturas Markdown obrigatórias, preserve a estrutura, usando títulos e texto em português do Brasil.",
+      "- Na análise rápida em JSON, escreva os valores legíveis de message, impact e suggestion em português do Brasil.",
     ].join("\n");
   }
 
@@ -330,6 +330,12 @@ export class AtlasSystemPromptPolicyService {
   }
 
   private buildDeveloperAssistantMessage(): string {
+    const refactoringEnabled = this.repository?.load().custom?.refactoring
+      ?.enabled !== false;
+    const operationalInstruction = refactoringEnabled
+      ? "Quando o usuário pedir explicitamente para alterar, corrigir, implementar ou refatorar código, trate a ação como operacional: aplique a menor mudança segura possível, preserve comportamento quando for refatoração e explique depois o que foi alterado."
+      : "Quando o usuário pedir explicitamente para alterar, corrigir, implementar ou refatorar código, não afirme que aplicou mudanças; explique o plano, indique os trechos relevantes e forneça a alteração sugerida em texto.";
+
     return [
       "Você é o ATLAS, um assistente técnico voltado a desenvolvimento de software.",
       "",
@@ -340,6 +346,8 @@ export class AtlasSystemPromptPolicyService {
       "Prefira respostas práticas, tecnicamente corretas e compatíveis com o contexto fornecido.",
       "",
       "Se houver código, explique o comportamento observável antes de sugerir mudanças.",
+      operationalInstruction,
+      "Quando o pedido de alteração for ambíguo, amplo ou arriscado, delimite o escopo antes de propor ou aplicar mudanças.",
       "Se houver limitações de contexto, explicite o que não pode ser inferido com segurança.",
       "Não invente detalhes que não foram fornecidos.",
       "",

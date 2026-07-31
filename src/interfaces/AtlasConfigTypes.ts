@@ -50,6 +50,7 @@ export interface AtlasRagSettings {
   diversifyFiles: boolean;
   excludeActiveFile: boolean;
   includeExternalDocuments: boolean;
+  useInCodeEditing: boolean;
   sourcePriority: "code" | "documentation" | "balanced";
   languageFilters: string[];
   directoryFilters: string[];
@@ -139,10 +140,15 @@ export interface AtlasStudyModeConfig {
   enabled: boolean;
 }
 
+export interface AtlasRefactoringConfig {
+  enabled: boolean;
+}
+
 export interface AtlasStaticAnalysisConfig {
   enabled: boolean;
   useInQuickAnalysis: boolean;
   useInArchitecturalAnalysis: boolean;
+  useInRefactoring: boolean;
   includeDiagnostics: boolean;
   includeSymbolRelations: boolean;
 }
@@ -179,6 +185,7 @@ export interface AtlasLocalEngineCustomConfig {
 
 export interface AtlasCustomSettings {
   studyMode?: AtlasStudyModeConfig;
+  refactoring?: AtlasRefactoringConfig;
   staticAnalysis?: AtlasStaticAnalysisConfig;
   contextProfile?: AtlasContextProfileSettings;
   localEngine?: AtlasLocalEngineCustomConfig;

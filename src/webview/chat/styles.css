@@ -1411,6 +1411,43 @@ textarea {
   font-style: italic;
 }
 
+.message-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  border-top: 1px solid var(--atlas-border);
+  padding-top: 10px;
+}
+
+.message-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 28px;
+  border: 1px solid var(--atlas-accent-bg);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--atlas-accent-bg);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1.2;
+  padding: 5px 9px;
+}
+
+.message-action-btn:hover {
+  background: var(
+    --vscode-toolbar-hoverBackground,
+    var(--atlas-surface-hover-bg)
+  );
+}
+
+.message-action-btn i {
+  flex-shrink: 0;
+}
+
 .rag-sources {
   margin-top: 12px;
   border-top: 1px solid var(--atlas-border);

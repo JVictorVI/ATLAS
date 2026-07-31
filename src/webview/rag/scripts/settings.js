@@ -1,4 +1,4 @@
-// Responsabilidade: valida e salva configuracoes gerais, indexacao e recuperacao.
+// Responsabilidade: valida e salva configurações gerais, indexação e recuperação.
 function updateStartupIndexPromptAvailability() {
   if (!promptStartupIndexInput) {
     return;
@@ -187,6 +187,7 @@ function saveRagSettings() {
       diversifyFiles: diversifyFilesInput?.checked === true,
       excludeActiveFile: excludeActiveFileInput?.checked === true,
       includeExternalDocuments: externalDocumentsInput?.checked === true,
+      useInCodeEditing: codeEditingRagInput?.checked === true,
       sourcePriority: sourcePriorityInput?.value ?? "balanced",
       languageFilters: parseSimpleList(languageFiltersInput?.value ?? ""),
       directoryFilters: parseIgnoredPaths(directoryFiltersInput?.value ?? ""),

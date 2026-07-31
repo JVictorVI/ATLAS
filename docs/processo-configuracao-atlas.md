@@ -222,6 +222,7 @@ Campos usados hoje:
 
 ```text
 studyMode
+refactoring
 staticAnalysis
 contextProfile
 localEngine
@@ -242,10 +243,32 @@ custom.localEngine.timeout
 custom.saveInterruptedResponses
 ```
 
+### Refatoração aplicada
+
+```text
+custom.refactoring.enabled
+```
+
+Quando `enabled` está `false`, o ATLAS não aplica edições diretamente, não exibe novas ações de refatoração em análises arquiteturais e responde pedidos operacionais em modo textual.
+
+### Análise estática
+
+```text
+custom.staticAnalysis.enabled
+custom.staticAnalysis.useInQuickAnalysis
+custom.staticAnalysis.useInArchitecturalAnalysis
+custom.staticAnalysis.useInRefactoring
+custom.staticAnalysis.includeDiagnostics
+custom.staticAnalysis.includeSymbolRelations
+```
+
+`useInRefactoring` controla se a estrutura coletada pelo VS Code pode ser usada como contexto auxiliar quando o ATLAS aplica uma refatoração.
+
 Defaults atuais:
 
 ```text
 custom.saveInterruptedResponses: true
+custom.refactoring.enabled: true
 custom.localEngine.dynamicContextWindow: true
 custom.localEngine.prepareOnAtlasOpen: true
 custom.localEngine.stream: true
@@ -307,7 +330,7 @@ Preserva ajustes finos vindos das telas específicas. Campos numéricos são nor
 | Mensagem Webview | Handler | O que altera |
 | --- | --- | --- |
 | `salvarConfiguracoesCloud` | `handleSaveCloudConfigs` | `cloudConfigs`. |
-| `salvarConfiguracoesAtlas` | `handleSaveAtlasSettings` | `general`, `custom.contextProfile`, `custom.localEngine`, `custom.staticAnalysis`, `rag.topK`, `rag.maxContextCharacters`. |
+| `salvarConfiguracoesAtlas` | `handleSaveAtlasSettings` | `general`, `custom.contextProfile`, `custom.localEngine`, `custom.refactoring`, `custom.staticAnalysis`, `rag.topK`, `rag.maxContextCharacters`. |
 | `salvarConfiguracoesRag` | `handleSaveRagSettings` | `rag`. |
 | `selecionarModo` | `handleSelectMode` | `llms.selection.mode`. |
 | `selecionarModelo` | `handleSelectModel` | modelo local ou cloud ativo. |

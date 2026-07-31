@@ -24,6 +24,10 @@ import {
   RagProjectIndex,
   RagRuntimeStatus,
 } from "../interfaces/AtlasRagTypes";
+import {
+  AtlasCodeEditRefactorMetadata,
+  AtlasCodeEditResult,
+} from "../interfaces/AtlasCodeEditTypes";
 
 export type RouterDependencies = {
   apiKeyManager: ApiKeyManager;
@@ -46,6 +50,28 @@ export type RouterDependencies = {
     },
   ) => Promise<void>;
   cancelQuickAnalysis: () => void;
+  isOperationalCodeEditRequest: (userRequest: string) => boolean;
+  executeDirectCodeEdit: (
+    webview: vscode.Webview | undefined,
+    options: {
+      userRequest: string;
+      sessionId?: string;
+      ragContext?: string[];
+      signal?: AbortSignal;
+    },
+  ) => Promise<AtlasCodeEditResult>;
+  executeArchitectureGuidedEdit: (
+    webview: vscode.Webview | undefined,
+    options: {
+      analysisContent: string;
+      refactorMetadata: AtlasCodeEditRefactorMetadata;
+      sessionId?: string;
+      ragContext?: string[];
+      signal?: AbortSignal;
+    },
+  ) => Promise<AtlasCodeEditResult>;
+  formatCodeEditResult: (result: AtlasCodeEditResult) => string;
+  cancelCodeEdit: () => void;
   clearQuickAnalysisDecorations: () => void;
   sendQuickAnalysisAvailability: (webview: vscode.Webview) => Promise<void>;
   refreshLocalModels: () => ReturnType<AtlasConfigManager["getLocalModels"]>;

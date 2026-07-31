@@ -1,4 +1,8 @@
 import { RagContextSource } from "./AtlasRagTypes";
+import {
+  AtlasCodeEditResponseMetadata,
+} from "./AtlasCodeEditTypes";
+import { AtlasPromptMode } from "./AtlasPromptTypes";
 
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
@@ -6,7 +10,10 @@ export interface ChatMessage {
   metadata?: {
     ragSources?: RagContextSource[];
     interrupted?: boolean;
-  };
+    mode?: AtlasPromptMode;
+    generationId?: string;
+    sessionId?: string;
+  } & AtlasCodeEditResponseMetadata;
 }
 
 export interface OpenAiCompatibleResponse {

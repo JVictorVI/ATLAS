@@ -23,6 +23,7 @@ import { AtlasConfigDefaults } from "../repository/AtlasConfigDefaults";
 import { AtlasHistoryRepository } from "../repository/AtlasHistoryRepository";
 
 import { AtlasQuickAnalysisService } from "../services/AtlasQuickAnalysisService";
+import { AtlasCodeEditService } from "../services/AtlasCodeEditService";
 import { AtlasDocumentStructureService } from "../services/AtlasDocumentStructureService";
 import { AtlasSessionService } from "../services/AtlasSessionService";
 import { AtlasChromaService } from "../services/AtlasChromaService";
@@ -34,6 +35,7 @@ import { AtlasEngineDownloadService } from "../services/AtlasEngineDownloadServi
 import { HardwareDiagnosticService } from "../services/HardwareDiagnosticService";
 import { AtlasEditorContextService } from "./AtlasEditorContextService";
 import { AtlasQuickAnalysisController } from "./AtlasQuickAnalysisController";
+import { AtlasCodeEditController } from "./AtlasCodeEditController";
 import { ChatPanelManager } from "./ChatPanelManager";
 import { ChatMessageRouter } from "./ChatMessageRouter";
 import { ChatModelWebviewService } from "./ChatModelWebviewService";
@@ -74,6 +76,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private readonly documentStructureService: AtlasDocumentStructureService;
   private readonly quickAnalysisService: AtlasQuickAnalysisService;
   private readonly quickAnalysisController: AtlasQuickAnalysisController;
+  private readonly codeEditService: AtlasCodeEditService;
+  private readonly codeEditController: AtlasCodeEditController;
   private readonly chromaService: AtlasChromaService;
   private readonly embeddingModelDiscoveryService: AtlasEmbeddingModelDiscoveryService;
   private readonly embeddingService: AtlasEmbeddingService;
@@ -210,6 +214,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       this.configManager,
     );
 
+    this.codeEditService = new AtlasCodeEditService(this.inferenceService);
+
     // UI / Panels
     this.panelManager = new ChatPanelManager(this.context, this.apiKeyManager);
     this.ragService.onProjectsChanged((projects) => {
@@ -225,6 +231,13 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       (available, hasEditorContext) => {
         this.broadcastQuickAnalysisAvailability(available, hasEditorContext);
       },
+    );
+
+    this.codeEditController = new AtlasCodeEditController(
+      this.codeEditService,
+      this.editorContextService,
+      this.documentStructureService,
+      this.configManager,
     );
 
     this.modelWebviewService = new ChatModelWebviewService(
@@ -269,6 +282,32 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
       cancelQuickAnalysis: () => {
         this.quickAnalysisController.cancelActiveAnalysis();
+      },
+
+      isOperationalCodeEditRequest: (userRequest: string) => {
+        return (
+          this.configManager.isRefactoringEnabled() &&
+          this.codeEditController.isOperationalEditRequest(userRequest)
+        );
+      },
+
+      executeDirectCodeEdit: (webview, options) => {
+        return this.codeEditController.executeDirectEdit(webview, options);
+      },
+
+      executeArchitectureGuidedEdit: (webview, options) => {
+        return this.codeEditController.executeArchitectureGuidedEdit(
+          webview,
+          options,
+        );
+      },
+
+      formatCodeEditResult: (result) => {
+        return this.codeEditService.formatResultMessage(result);
+      },
+
+      cancelCodeEdit: () => {
+        this.codeEditController.cancelActiveEdit();
       },
 
       clearQuickAnalysisDecorations: () => {
@@ -317,7 +356,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           loading: false,
           running: false,
           message: options?.force
-            ? "Geracao local interrompida. Engine parada."
+            ? "Geração local interrompida. Engine parada."
             : "Engine parada.",
         });
       },
@@ -1004,6 +1043,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this.ragService.dispose();
     this.localEngineService.stopEngine();
     this.quickAnalysisController.dispose();
+    this.codeEditService.dispose();
   }
 
   public async downloadEngineAI(): Promise<void> {

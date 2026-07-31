@@ -27,12 +27,16 @@ const engineDownloadStatus = document.getElementById("engine-download-status");
 const downloadSelectedEngine = document.getElementById(
   "download-selected-engine",
 );
+const refactoringEnabled = document.getElementById("refactoring-enabled");
 const staticAnalysisEnabled = document.getElementById(
   "static-analysis-enabled",
 );
 const staticAnalysisQuick = document.getElementById("static-analysis-quick");
 const staticAnalysisArchitectural = document.getElementById(
   "static-analysis-architectural",
+);
+const staticAnalysisRefactoring = document.getElementById(
+  "static-analysis-refactoring",
 );
 const staticAnalysisDiagnostics = document.getElementById(
   "static-analysis-diagnostics",
@@ -54,6 +58,7 @@ const engineTypeInputs = [engineCpu, engineCuda, engineVulkan];
 const staticAnalysisOptionInputs = [
   staticAnalysisQuick,
   staticAnalysisArchitectural,
+  staticAnalysisRefactoring,
   staticAnalysisDiagnostics,
   staticAnalysisRelations,
 ];
@@ -65,6 +70,7 @@ const atlasDirectAutosaveInputs = [
   contextWindowFixed,
   engineStartOnOpen,
   enginePrepareOnOpen,
+  refactoringEnabled,
   ...staticAnalysisOptionInputs,
 ];
 

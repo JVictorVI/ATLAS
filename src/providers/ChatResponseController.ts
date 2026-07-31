@@ -2,8 +2,10 @@ import * as vscode from "vscode";
 
 import { AtlasSession } from "../interfaces/AtlasHistoryTypes";
 import { AtlasEditorContext } from "../interfaces/AtlasEditorTypes";
+import { AtlasPromptMode } from "../interfaces/AtlasPromptTypes";
 import { RagContextSource } from "../interfaces/AtlasRagTypes";
 import { AtlasInferenceService } from "../services/AtlasInferenceService";
+import { AtlasCodeEditController } from "./AtlasCodeEditController";
 import {
   AtlasContextProfileSettings,
   AtlasRagSettings,
@@ -100,6 +102,30 @@ export class ChatResponseController {
 
       this.activeResponseSnapshot = responseSnapshot;
 
+      if (
+        !data.forcedMode &&
+        rawEditorContext &&
+        this.deps.isOperationalCodeEditRequest(String(data.value ?? ""))
+      ) {
+        const codeEditRagContext = await this.getCodeEditRagContext(
+          String(data.value ?? ""),
+          config.rag,
+          promptContextProfile,
+          ragDestinationAllowed,
+          responseController.signal,
+        );
+
+        await this.handleDirectCodeEdit(
+          session,
+          String(data.value ?? ""),
+          webview,
+          responseController.signal,
+          generationId,
+          codeEditRagContext,
+        );
+        return;
+      }
+
       const baseAnalysisContext = editorContext
         ? [this.deps.buildEditorAnalysisContext(editorContext)]
         : [];
@@ -128,6 +154,12 @@ export class ChatResponseController {
         (config.rag.offlineOnly || !config.rag.allowCloudContext);
       const ragBlockedInLocalMode =
         usesLocalEngine && config.rag.allowLocalContext === false;
+      const staticAnalysisWillRun =
+        promptResult.mode === "architectural-analysis" &&
+        Boolean(editorContext) &&
+        this.deps.configManager.isStaticAnalysisEnabledFor(
+          "architectural-analysis",
+        );
 
       if (
         promptResult.mode !== "quick-analysis" &&
@@ -185,21 +217,15 @@ export class ChatResponseController {
         }
       } else if (ragBlockedInCloudMode) {
         console.log(
-          "[ATLAS RAG] Recuperacao ignorada: contexto RAG nao autorizado para o modo cloud.",
+          "[ATLAS RAG] Recuperação ignorada: contexto RAG não autorizado para o modo cloud.",
         );
       } else if (ragBlockedInLocalMode) {
         console.log(
-          "[ATLAS RAG] Recuperacao ignorada: contexto RAG nao autorizado para o modo local.",
+          "[ATLAS RAG] Recuperação ignorada: contexto RAG não autorizado para o modo local.",
         );
       }
 
-      if (
-        promptResult.mode === "architectural-analysis" &&
-        editorContext &&
-        this.deps.configManager.isStaticAnalysisEnabledFor(
-          "architectural-analysis",
-        )
-      ) {
+      if (staticAnalysisWillRun && editorContext) {
         const structureContext =
           await this.deps.buildDocumentStructureContext(editorContext.document);
 
@@ -265,6 +291,14 @@ export class ChatResponseController {
 
       this.throwIfAborted(responseController);
 
+      const assistantMetadata = this.buildAssistantMetadata(
+        promptResult.mode,
+        session.id,
+        generationId,
+        ragSources,
+        rawEditorContext,
+      );
+
       await this.deps.sessionService.appendMessage(session.id, {
         role: "user",
         content: data.value,
@@ -273,11 +307,7 @@ export class ChatResponseController {
       await this.deps.sessionService.appendMessage(session.id, {
         role: "assistant",
         content: response.content,
-        metadata: {
-          ragSources: this.deps.configManager.getConfig().rag.showSources
-            ? ragSources
-            : [],
-        },
+        metadata: assistantMetadata,
       });
 
       this.deps.sessionService
@@ -294,10 +324,7 @@ export class ChatResponseController {
           value: response.content,
           metadata: {
             ...this.buildResponseMetadata(promptResult.mode, response),
-            sessionId: session.id,
-            ragSources: this.deps.configManager.getConfig().rag.showSources
-              ? ragSources
-              : [],
+            ...assistantMetadata,
           },
         });
       } else {
@@ -307,10 +334,7 @@ export class ChatResponseController {
           generationId,
           metadata: {
             ...this.buildResponseMetadata(promptResult.mode, response),
-            sessionId: session.id,
-            ragSources: this.deps.configManager.getConfig().rag.showSources
-              ? ragSources
-              : [],
+            ...assistantMetadata,
           },
         });
       }
@@ -477,6 +501,106 @@ export class ChatResponseController {
     });
   }
 
+  private async handleDirectCodeEdit(
+    session: AtlasSession,
+    userContent: string,
+    webview: vscode.Webview,
+    signal: AbortSignal,
+    generationId?: string,
+    ragContext?: string[],
+  ): Promise<void> {
+    const result = await this.deps.executeDirectCodeEdit(webview, {
+      userRequest: userContent,
+      sessionId: session.id,
+      ragContext,
+      signal,
+    });
+
+    if (!result.approved) {
+      await webview.postMessage({
+        type: "edicaoCodigoCancelada",
+        sessionId: session.id,
+        generationId,
+      });
+      return;
+    }
+
+    const content = this.deps.formatCodeEditResult(result);
+    const metadata = {
+      mode: "developer-assistant" as const,
+      sessionId: session.id,
+      generationId,
+      ragSources: [],
+    };
+
+    await this.deps.sessionService.appendMessage(session.id, {
+      role: "user",
+      content: userContent,
+    });
+
+    await this.deps.sessionService.appendMessage(session.id, {
+      role: "assistant",
+      content,
+      metadata,
+    });
+
+    this.deps.sessionService
+      .summarizeIfNeeded(
+        session.id,
+        this.deps.configManager.getContextProfile().historyWindowSize,
+      )
+      .catch((error) => {
+        console.warn("[ATLAS] Background summarization error:", error);
+      });
+
+    await webview.postMessage({
+      type: "novaResposta",
+      sessionId: session.id,
+      generationId,
+      value: content,
+      metadata,
+    });
+
+    await webview.postMessage({
+      type: "sessoesAtualizadas",
+      value: this.deps.sessionService.listSessions(),
+    });
+
+    await this.notifyResponseCompletedIfAway(session);
+  }
+
+  private async getCodeEditRagContext(
+    query: string,
+    settings: AtlasRagSettings,
+    contextProfile: AtlasContextProfileSettings,
+    ragDestinationAllowed: boolean,
+    signal: AbortSignal,
+  ): Promise<string[]> {
+    if (
+      settings.enabled !== true ||
+      settings.useInCodeEditing !== true ||
+      contextProfile.includeRagContext !== true ||
+      !ragDestinationAllowed
+    ) {
+      return [];
+    }
+
+    try {
+      const retrieval = await this.deps.getRagContext(query, signal);
+      return retrieval.context;
+    } catch (error) {
+      if (AtlasInferenceService.isAbortError(error) || signal.aborted) {
+        throw error;
+      }
+
+      console.warn(
+        "[ATLAS RAG] Recuperação indisponível para edição aplicada; continuando sem RAG:",
+        error,
+      );
+      return [];
+    }
+  }
+
   private limitEditorContext(
     editorContext: AtlasEditorContext | null,
     maxCharacters: number,
@@ -558,6 +682,32 @@ export class ChatResponseController {
       finishReason: response.finishReason,
       usage: response.usage,
       createdAt: response.createdAt,
+    };
+  }
+
+  private buildAssistantMetadata(
+    mode: AtlasPromptMode,
+    sessionId: string,
+    generationId: string | undefined,
+    ragSources: RagContextSource[],
+    rawEditorContext: AtlasEditorContext | null,
+  ) {
+    const refactorContext =
+      this.deps.configManager.isRefactoringEnabled() &&
+      mode === "architectural-analysis" &&
+      rawEditorContext
+        ? AtlasCodeEditController.buildRefactorMetadata(rawEditorContext)
+        : undefined;
+
+    return {
+      mode,
+      sessionId,
+      generationId,
+      ragSources: this.deps.configManager.getConfig().rag.showSources
+        ? ragSources
+        : [],
+      refactorable: Boolean(refactorContext),
+      refactorContext,
     };
   }
 

@@ -1,4 +1,4 @@
-// Responsabilidade: centraliza referencias DOM, estado da tela e notificacoes.
+// Responsabilidade: centraliza referências DOM, estado da tela e notificações.
 const vscode = acquireVsCodeApi();
 const ragPage = document.getElementById("rag-page");
 const ragLoading = document.getElementById("rag-loading");
@@ -77,6 +77,7 @@ const excludeActiveFileInput = document.getElementById(
 const externalDocumentsInput = document.getElementById(
   "rag-external-documents",
 );
+const codeEditingRagInput = document.getElementById("rag-code-editing");
 const showSourcesInput = document.getElementById("rag-show-sources");
 const embeddingModelsFolderInput = document.getElementById(
   "embedding-models-folder-path",

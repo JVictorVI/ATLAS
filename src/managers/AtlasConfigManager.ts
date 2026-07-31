@@ -260,6 +260,10 @@ export class AtlasConfigManager {
     this.saveConfig(config);
   }
 
+  public isRefactoringEnabled(): boolean {
+    return this.getConfig().custom?.refactoring?.enabled !== false;
+  }
+
   public getStaticAnalysisConfig(): AtlasStaticAnalysisConfig {
     const configured = this.getConfig().custom?.staticAnalysis;
 
@@ -268,6 +272,7 @@ export class AtlasConfigManager {
       useInQuickAnalysis: configured?.useInQuickAnalysis !== false,
       useInArchitecturalAnalysis:
         configured?.useInArchitecturalAnalysis !== false,
+      useInRefactoring: configured?.useInRefactoring !== false,
       includeDiagnostics: configured?.includeDiagnostics === true,
       includeSymbolRelations: configured?.includeSymbolRelations === true,
     };

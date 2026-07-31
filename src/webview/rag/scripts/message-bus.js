@@ -1,4 +1,4 @@
-// Responsabilidade: roteia mensagens recebidas da extensao e atualiza a tela.
+// Responsabilidade: roteia mensagens recebidas da extensão e atualiza a tela.
 window.addEventListener("message", (event) => {
   const message = event.data;
 
@@ -311,6 +311,10 @@ window.addEventListener("message", (event) => {
   if (externalDocumentsInput) {
     externalDocumentsInput.checked =
       settings.includeExternalDocuments !== false;
+  }
+
+  if (codeEditingRagInput) {
+    codeEditingRagInput.checked = settings.useInCodeEditing === true;
   }
 
   if (showSourcesInput) {

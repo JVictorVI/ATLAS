@@ -45,4 +45,8 @@ function updateRagDestinationAvailability() {
   if (cloudRagEnabledInput) {
     cloudRagEnabledInput.disabled = !enabled;
   }
+
+  if (codeEditingRagInput) {
+    codeEditingRagInput.disabled = !enabled;
+  }
 }

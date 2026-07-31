@@ -13,6 +13,8 @@ Webview Chat
         -> AtlasEditorContextService
         -> AtlasRagService
         -> AtlasPromptAssemblyService
+        -> AtlasCodeEditController
+           -> AtlasCodeEditService
         -> AtlasInferenceService
            -> CloudApiService ou LocalApiService
         -> AtlasSessionService
@@ -112,6 +114,27 @@ O modo pode ser:
 - `quick-analysis`;
 - `study-mode`.
 
+## Desvio para edição aplicada
+
+Antes da geração textual comum, `ChatResponseController` pode desviar pedidos operacionais claros para edição aplicada quando:
+
+- não há modo forçado;
+- existe contexto válido do editor;
+- `custom.refactoring.enabled !== false`;
+- o texto do usuário pede ação direta, como corrigir, alterar, implementar, renomear, extrair ou refatorar.
+
+Nesse caso:
+
+1. `AtlasCodeEditController` coleta o contexto do editor;
+2. `AtlasCodeEditService` solicita ao modelo um plano JSON de edições por linhas;
+3. os ranges são validados contra o documento atual;
+4. a prévia das mudanças é exibida em um diff do VS Code;
+5. a confirmação é feita por notificação nativa do VS Code;
+6. as mudanças são aplicadas via `vscode.WorkspaceEdit` somente após confirmação;
+7. o chat recebe uma resposta resumindo o que foi alterado e como validar.
+
+Se a intenção for analítica, ampla ou ambígua, o fluxo permanece como resposta textual normal.
+
 ## Recuperação RAG
 
 O RAG só é tentado quando:
@@ -138,6 +161,31 @@ Quando o modo resolvido é `architectural-analysis` e a análise estática está
 3. o prompt é remontado.
 
 O texto instrui o modelo a usar a estrutura como evidência auxiliar e a não inventar relações.
+
+Em refatorações aplicadas, a estrutura estática só é enviada ao modelo quando `custom.staticAnalysis.useInRefactoring === true`.
+
+## Ação de refatoração arquitetural
+
+Quando a resposta final tem modo `architectural-analysis` e `custom.refactoring.enabled !== false`, o controller persiste metadados de refatoração junto da mensagem do assistente:
+
+```text
+mode=architectural-analysis
+generationId
+sessionId
+refactorable=true
+refactorContext(documentUri, fileName, languageId, contentHash)
+```
+
+A Webview usa esses metadados para renderizar o botão `Refatorar com base nesta análise`.
+
+Quando o usuário aciona o botão:
+
+1. `ChatMessageRouter` localiza a mensagem arquitetural no histórico pelo `generationId`;
+2. o arquivo aberto é comparado ao `documentUri` e ao `contentHash` da análise;
+3. se o arquivo mudou, a refatoração é bloqueada e o usuário deve refazer a análise;
+4. se o RAG estiver habilitado para edições aplicadas, o contexto recuperado é incluído como apoio;
+5. se o arquivo ainda corresponde, `AtlasCodeEditController` abre uma prévia/diff e solicita confirmação por notificação do VS Code;
+6. após confirmação, a edição guiada pela análise anterior é aplicada.
 
 ## Desvio para análise rápida
 
