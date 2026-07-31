@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
 import * as vscode from "vscode";
+import { ChatMessage } from "../interfaces/ApiTypes";
 import { AtlasConfigManager } from "../managers/AtlasConfigManager";
 import {
   AtlasCodeEditRefactorMetadata,
@@ -8,6 +9,7 @@ import {
 import { AtlasEditorContext } from "../interfaces/AtlasEditorTypes";
 import { AtlasCodeEditService } from "../services/AtlasCodeEditService";
 import { AtlasDocumentStructureService } from "../services/AtlasDocumentStructureService";
+import { AtlasInferenceService } from "../services/AtlasInferenceService";
 import { AtlasEditorContextService } from "./AtlasEditorContextService";
 
 type AtlasDirectCodeEditOptions = {
@@ -26,6 +28,20 @@ type AtlasArchitectureGuidedEditOptions = {
 };
 
 type AtlasCodeEditStatusSource = "developer-assistant" | "architectural-analysis";
+
+type AtlasOperationalEditDecisionOptions = {
+  editorContext?: AtlasEditorContext | null;
+  history?: ChatMessage[];
+  signal?: AbortSignal;
+};
+
+type AtlasCodeEditIntentConfidence = "low" | "medium" | "high";
+
+type AtlasCodeEditIntentDecision = {
+  shouldApplyCodeEdit: boolean;
+  confidence: AtlasCodeEditIntentConfidence;
+  reason: string;
+};
 
 export class AtlasCodeEditController {
   private activeController: AbortController | null = null;
@@ -384,12 +400,13 @@ export class AtlasCodeEditController {
     private readonly editorContextService: AtlasEditorContextService,
     private readonly documentStructureService: AtlasDocumentStructureService,
     private readonly configManager: AtlasConfigManager,
+    private readonly inferenceService?: AtlasInferenceService,
   ) {}
 
   public isOperationalEditRequest(userRequest: string): boolean {
     const normalized = this.normalize(userRequest);
 
-    if (this.hasAnyTerm(normalized, this.explicitNoEditTerms)) {
+    if (!this.passesDeterministicEditGuards(normalized)) {
       return false;
     }
 
@@ -425,6 +442,36 @@ export class AtlasCodeEditController {
     }
 
     return true;
+  }
+
+  public async shouldApplyDirectEditRequest(
+    userRequest: string,
+    options: AtlasOperationalEditDecisionOptions = {},
+  ): Promise<boolean> {
+    const normalized = this.normalize(userRequest);
+
+    if (!this.configManager.isRefactoringEnabled()) {
+      return false;
+    }
+
+    if (!this.passesDeterministicEditGuards(normalized)) {
+      return false;
+    }
+
+    if (!this.configManager.useModelIntentDetectionForCodeEditing()) {
+      return this.isOperationalEditRequest(userRequest);
+    }
+
+    const modelDecision = await this.classifyEditIntentWithModel(
+      userRequest,
+      options,
+    );
+
+    if (typeof modelDecision === "boolean") {
+      return modelDecision;
+    }
+
+    return this.isOperationalEditRequest(userRequest);
   }
 
   public async executeDirectEdit(
@@ -640,6 +687,190 @@ export class AtlasCodeEditController {
     const normalized = this.normalize(userRequest);
 
     return normalized.includes("refator");
+  }
+
+  private passesDeterministicEditGuards(normalizedUserRequest: string): boolean {
+    if (this.hasAnyTerm(normalizedUserRequest, this.explicitNoEditTerms)) {
+      return false;
+    }
+
+    if (
+      this.hasAnyTerm(normalizedUserRequest, this.broadScopeTerms) &&
+      !this.hasAnyTerm(normalizedUserRequest, this.localScopeTerms)
+    ) {
+      return false;
+    }
+
+    return true;
+  }
+
+  private async classifyEditIntentWithModel(
+    userRequest: string,
+    options: AtlasOperationalEditDecisionOptions,
+  ): Promise<boolean | null> {
+    if (!this.inferenceService) {
+      return null;
+    }
+
+    try {
+      const response = await this.inferenceService.sendChat(
+        this.buildEditIntentMessages(userRequest, options),
+        undefined,
+        { signal: options.signal },
+      );
+      const decision = this.parseEditIntentDecision(response.content);
+
+      if (!decision) {
+        return null;
+      }
+
+      return decision.shouldApplyCodeEdit && decision.confidence !== "low";
+    } catch (error) {
+      if (
+        AtlasInferenceService.isAbortError(error) ||
+        options.signal?.aborted
+      ) {
+        throw error;
+      }
+
+      console.warn(
+        "[ATLAS] Falha ao classificar intenção de edição; usando heurística local:",
+        error,
+      );
+      return null;
+    }
+  }
+
+  private buildEditIntentMessages(
+    userRequest: string,
+    options: AtlasOperationalEditDecisionOptions,
+  ): ChatMessage[] {
+    return [
+      {
+        role: "system",
+        content: [
+          "Você é o classificador de intenção operacional do ATLAS.",
+          "",
+          "Decida se a mensagem atual do usuário deve acionar edição aplicada no arquivo aberto ou apenas resposta textual no chat.",
+          "",
+          "Retorne exclusivamente JSON válido, sem Markdown e sem texto fora do JSON.",
+          "",
+          "Use shouldApplyCodeEdit=true somente quando o usuário pedir que o ATLAS altere, implemente, corrija, refatore, remova, crie, ajuste, formate ou aplique mudanças no código agora.",
+          "Use shouldApplyCodeEdit=false para dúvidas, explicações, análises, brainstorm, planejamento, revisão, perguntas de possibilidade ou pedidos explícitos para não editar.",
+          "Quando a mensagem for curta, como 'faça isso' ou 'vamos fazer essas', use o histórico recente para decidir se ela retoma sugestões de alteração no código.",
+          "Se houver incerteza relevante, escolha shouldApplyCodeEdit=false e confidence='low'.",
+          "",
+          "Schema obrigatório:",
+          "{",
+          '  "shouldApplyCodeEdit": true | false,',
+          '  "confidence": "low" | "medium" | "high",',
+          '  "reason": "motivo curto em português"',
+          "}",
+        ].join("\n"),
+      },
+      {
+        role: "user",
+        content: this.buildEditIntentUserMessage(userRequest, options),
+      },
+    ];
+  }
+
+  private buildEditIntentUserMessage(
+    userRequest: string,
+    options: AtlasOperationalEditDecisionOptions,
+  ): string {
+    const editorContext = options.editorContext;
+    const editorBlock = editorContext
+      ? [
+          "Arquivo aberto:",
+          `- Nome: ${editorContext.fileName}`,
+          `- Linguagem: ${editorContext.languageId}`,
+          `- Linhas: ${editorContext.lineCount}`,
+          `- Contexto enviado: ${
+            editorContext.source === "selection" ? "seleção" : "arquivo"
+          }`,
+        ]
+      : ["Arquivo aberto: indisponível"];
+    const historyBlock = this.buildEditIntentHistoryBlock(
+      options.history ?? [],
+    );
+
+    return [
+      ...editorBlock,
+      "",
+      "Histórico recente:",
+      historyBlock || "- nenhum",
+      "",
+      "Mensagem atual do usuário:",
+      this.limitText(userRequest, 2000),
+      "",
+      "Classifique apenas a intenção desta mensagem atual.",
+    ].join("\n");
+  }
+
+  private buildEditIntentHistoryBlock(history: ChatMessage[]): string {
+    return history
+      .slice(-6)
+      .map((message) => {
+        return `- ${message.role}: ${this.limitText(message.content, 1200)}`;
+      })
+      .join("\n");
+  }
+
+  private parseEditIntentDecision(
+    content: string,
+  ): AtlasCodeEditIntentDecision | null {
+    const jsonText = this.extractJsonObject(content);
+
+    if (!jsonText) {
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(jsonText) as Record<string, unknown>;
+
+      if (typeof parsed !== "object" || parsed === null) {
+        return null;
+      }
+
+      return {
+        shouldApplyCodeEdit: parsed.shouldApplyCodeEdit === true,
+        confidence: this.normalizeIntentConfidence(parsed.confidence),
+        reason:
+          typeof parsed.reason === "string"
+            ? this.limitText(parsed.reason, 300)
+            : "",
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private extractJsonObject(content: string): string | null {
+    const start = content.indexOf("{");
+    const end = content.lastIndexOf("}");
+
+    if (start < 0 || end <= start) {
+      return null;
+    }
+
+    return content.slice(start, end + 1);
+  }
+
+  private normalizeIntentConfidence(
+    value: unknown,
+  ): AtlasCodeEditIntentConfidence {
+    return value === "high" || value === "medium" || value === "low"
+      ? value
+      : "low";
+  }
+
+  private limitText(value: string, maxCharacters: number): string {
+    if (value.length <= maxCharacters) {
+      return value;
+    }
+
+    return `${value.slice(0, maxCharacters)}...`;
   }
 
   private async postStatus(

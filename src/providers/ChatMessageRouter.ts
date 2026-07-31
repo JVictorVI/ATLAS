@@ -1615,6 +1615,8 @@ export class ChatMessageRouter {
       const startOnAtlasOpen = payload.startOnAtlasOpen === true;
       const prepareOnAtlasOpen = payload.prepareOnAtlasOpen !== false;
       const refactoringEnabled = payload.refactoringEnabled !== false;
+      const refactoringModelIntent =
+        payload.refactoringModelIntent === true;
       const saveInterruptedResponses =
         payload.saveInterruptedResponses !== false;
       const dynamicContextWindow =
@@ -1660,6 +1662,7 @@ export class ChatMessageRouter {
         saveInterruptedResponses,
         refactoring: {
           enabled: refactoringEnabled,
+          useModelIntentDetection: refactoringModelIntent,
         },
         staticAnalysis,
         localModels: {
@@ -2752,6 +2755,8 @@ export class ChatMessageRouter {
       saveInterruptedResponses:
         config.custom?.saveInterruptedResponses !== false,
       refactoringEnabled: config.custom?.refactoring?.enabled !== false,
+      refactoringModelIntent:
+        config.custom?.refactoring?.useModelIntentDetection === true,
       localTimeout: this.normalizeInteger(
         value.timeout,
         0,

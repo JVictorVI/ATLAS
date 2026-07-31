@@ -123,7 +123,19 @@ Antes da geração textual comum, `ChatResponseController` pode desviar pedidos 
 - `custom.refactoring.enabled !== false`;
 - o texto do usuário pede ação direta, como ajustar, criar, corrigir, alterar, implementar, renomear, extrair ou refatorar.
 
-A detecção aceita formas imperativas e informais em português, incluindo frases como `coloque`, `deixe`, `vamos implementar`, `comece a implementação` e `aplique as mudanças`. A normalização também tolera acentos ausentes e pequenas duplicações acidentais de letras, como `applicar` ou `colloque`.
+A detecção padrão aceita formas imperativas e informais em português, incluindo frases como `coloque`, `deixe`, `vamos implementar`, `comece a implementação` e `aplique as mudanças`. A normalização também tolera acentos ausentes e pequenas duplicações acidentais de letras, como `applicar` ou `colloque`.
+
+Quando `custom.refactoring.useModelIntentDetection === true`, o `AtlasCodeEditController` chama o modelo ativo antes da resposta normal para gerar uma decisão JSON interna:
+
+```json
+{
+  "shouldApplyCodeEdit": true,
+  "confidence": "medium",
+  "reason": "pedido retoma sugestões de alteração no código"
+}
+```
+
+Se a decisão indicar edição com confiança `medium` ou `high`, o fluxo aplica a prévia/diff. Se a confiança for `low`, se a decisão for negativa ou se houver pedido explícito de não edição, a mensagem continua como resposta textual. Se a classificação por modelo falhar, o ATLAS volta para a heurística padrão.
 
 Frases explicitamente analíticas ou de não edição mantêm a resposta no chat, por exemplo `tem como...`, `como faço...`, `quais seriam...`, `só explique...` e `sem editar...`.
 
@@ -135,7 +147,8 @@ Nesse caso:
 4. a prévia das mudanças é exibida em um diff do VS Code;
 5. a confirmação é feita por notificação nativa do VS Code;
 6. as mudanças são aplicadas via `vscode.WorkspaceEdit` somente após confirmação;
-7. o chat recebe uma resposta resumindo o que foi alterado e como validar.
+7. em edição direta do `developer-assistant`, o fluxo encerra sem gerar resposta de bot;
+8. em refatoração guiada por análise arquitetural, o chat recebe a mensagem `Refatoração aplicada` com resumo, justificativa e validação sugerida.
 
 Se a intenção for analítica, ampla ou ambígua, o fluxo permanece como resposta textual normal.
 

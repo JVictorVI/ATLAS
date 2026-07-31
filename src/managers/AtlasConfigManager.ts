@@ -264,6 +264,12 @@ export class AtlasConfigManager {
     return this.getConfig().custom?.refactoring?.enabled !== false;
   }
 
+  public useModelIntentDetectionForCodeEditing(): boolean {
+    return (
+      this.getConfig().custom?.refactoring?.useModelIntentDetection === true
+    );
+  }
+
   public getStaticAnalysisConfig(): AtlasStaticAnalysisConfig {
     const configured = this.getConfig().custom?.staticAnalysis;
 

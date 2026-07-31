@@ -120,6 +120,7 @@ export class AtlasConfigDefaults {
         saveInterruptedResponses: true,
         refactoring: {
           enabled: true,
+          useModelIntentDetection: false,
         },
         localEngine: {
           dynamicContextWindow: true,
@@ -241,6 +242,10 @@ export class AtlasConfigDefaults {
             partial.custom?.refactoring?.enabled ??
             defaults.custom?.refactoring?.enabled ??
             true,
+          useModelIntentDetection:
+            partial.custom?.refactoring?.useModelIntentDetection ??
+            defaults.custom?.refactoring?.useModelIntentDetection ??
+            false,
         },
         staticAnalysis: {
           enabled:

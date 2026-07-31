@@ -28,6 +28,9 @@ const downloadSelectedEngine = document.getElementById(
   "download-selected-engine",
 );
 const refactoringEnabled = document.getElementById("refactoring-enabled");
+const refactoringModelIntent = document.getElementById(
+  "refactoring-model-intent",
+);
 const staticAnalysisEnabled = document.getElementById(
   "static-analysis-enabled",
 );
@@ -71,6 +74,7 @@ const atlasDirectAutosaveInputs = [
   engineStartOnOpen,
   enginePrepareOnOpen,
   refactoringEnabled,
+  refactoringModelIntent,
   ...staticAnalysisOptionInputs,
 ];
 

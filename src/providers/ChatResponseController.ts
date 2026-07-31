@@ -102,11 +102,20 @@ export class ChatResponseController {
 
       this.activeResponseSnapshot = responseSnapshot;
 
-      if (
-        !data.forcedMode &&
-        rawEditorContext &&
-        this.deps.isOperationalCodeEditRequest(String(data.value ?? ""))
-      ) {
+      let shouldApplyDirectCodeEdit = false;
+
+      if (!data.forcedMode && rawEditorContext) {
+        shouldApplyDirectCodeEdit = await this.deps.isOperationalCodeEditRequest(
+          String(data.value ?? ""),
+          {
+            editorContext: rawEditorContext,
+            history: windowMessages,
+            signal: responseController.signal,
+          },
+        );
+      }
+
+      if (shouldApplyDirectCodeEdit) {
         const codeEditRagContext = await this.getCodeEditRagContext(
           String(data.value ?? ""),
           config.rag,
@@ -525,23 +534,9 @@ export class ChatResponseController {
       return;
     }
 
-    const content = this.deps.formatCodeEditResult(result);
-    const metadata = {
-      mode: "developer-assistant" as const,
-      sessionId: session.id,
-      generationId,
-      ragSources: [],
-    };
-
     await this.deps.sessionService.appendMessage(session.id, {
       role: "user",
       content: userContent,
-    });
-
-    await this.deps.sessionService.appendMessage(session.id, {
-      role: "assistant",
-      content,
-      metadata,
     });
 
     this.deps.sessionService
@@ -554,11 +549,9 @@ export class ChatResponseController {
       });
 
     await webview.postMessage({
-      type: "novaResposta",
+      type: "edicaoCodigoConcluida",
       sessionId: session.id,
       generationId,
-      value: content,
-      metadata,
     });
 
     await webview.postMessage({

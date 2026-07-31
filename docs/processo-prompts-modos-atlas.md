@@ -35,7 +35,7 @@ apply-edit
 architecture-guided-edit
 ```
 
-No `developer-assistant`, pedidos operacionais claros como ajustar, criar, corrigir, alterar, implementar, renomear, extrair ou refatorar podem ser desviados para edição aplicada do arquivo atual quando `custom.refactoring.enabled !== false`. Perguntas exploratórias e pedidos explícitos de não edição permanecem como resposta textual.
+No `developer-assistant`, pedidos operacionais claros como ajustar, criar, corrigir, alterar, implementar, renomear, extrair ou refatorar podem ser desviados para edição aplicada do arquivo atual quando `custom.refactoring.enabled !== false`. Por padrão, essa decisão usa a heurística local; quando `custom.refactoring.useModelIntentDetection === true`, o modelo ativo classifica a intenção antes da resposta normal. Perguntas exploratórias e pedidos explícitos de não edição permanecem como resposta textual.
 
 No `architectural-analysis`, a resposta continua sendo a análise formal. Quando a resposta for elegível, a Webview pode exibir a ação `Refatorar com base nesta análise`, usando a análise recém-gerada como critério para a mudança.
 

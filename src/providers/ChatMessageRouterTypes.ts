@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 
+import { ChatMessage } from "../interfaces/ApiTypes";
 import { ApiKeyManager } from "../managers/ApiKeyManager";
 import { AtlasConfigManager } from "../managers/AtlasConfigManager";
 import { AtlasEditorContext } from "../interfaces/AtlasEditorTypes";
@@ -50,7 +51,14 @@ export type RouterDependencies = {
     },
   ) => Promise<void>;
   cancelQuickAnalysis: () => void;
-  isOperationalCodeEditRequest: (userRequest: string) => boolean;
+  isOperationalCodeEditRequest: (
+    userRequest: string,
+    options?: {
+      editorContext?: AtlasEditorContext | null;
+      history?: ChatMessage[];
+      signal?: AbortSignal;
+    },
+  ) => boolean | Promise<boolean>;
   executeDirectCodeEdit: (
     webview: vscode.Webview | undefined,
     options: {

@@ -321,6 +321,23 @@ window.addEventListener("message", (event) => {
       setGenerationState(false);
       break;
     }
+    case "edicaoCodigoConcluida": {
+      clearGenerationForMessage(message);
+
+      if (shouldIgnoreGenerationMessage(message)) {
+        break;
+      }
+
+      if (!isMessageForActiveSession(message)) {
+        break;
+      }
+
+      removeLoading();
+      clearShortcutLoadingState("code-edit");
+      pendingCodeEditUserMessage = null;
+      setGenerationState(false);
+      break;
+    }
     case "disponibilidadeMarcacoesAnaliseRapida": {
       hasEditorContextForAnalysis = message.value?.hasEditorContext === true;
       const clearQuickAnalysisBtn = document.getElementById(

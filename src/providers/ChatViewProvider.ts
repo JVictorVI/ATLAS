@@ -238,6 +238,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       this.editorContextService,
       this.documentStructureService,
       this.configManager,
+      this.inferenceService,
     );
 
     this.modelWebviewService = new ChatModelWebviewService(
@@ -284,10 +285,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         this.quickAnalysisController.cancelActiveAnalysis();
       },
 
-      isOperationalCodeEditRequest: (userRequest: string) => {
-        return (
-          this.configManager.isRefactoringEnabled() &&
-          this.codeEditController.isOperationalEditRequest(userRequest)
+      isOperationalCodeEditRequest: (userRequest, options) => {
+        return this.codeEditController.shouldApplyDirectEditRequest(
+          userRequest,
+          options,
         );
       },
 

@@ -142,6 +142,7 @@ export interface AtlasStudyModeConfig {
 
 export interface AtlasRefactoringConfig {
   enabled: boolean;
+  useModelIntentDetection: boolean;
 }
 
 export interface AtlasStaticAnalysisConfig {

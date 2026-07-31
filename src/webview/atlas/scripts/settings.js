@@ -8,7 +8,7 @@ function registerAtlasSettingsAutosave() {
     scheduleAtlasSettingsSave();
   });
 
-  refactoringEnabled?.addEventListener("change", updateStaticAnalysisAvailability);
+  refactoringEnabled?.addEventListener("change", updateRefactoringAvailability);
 }
 
 function scheduleAtlasSettingsSave(delay = 600) {
@@ -20,6 +20,17 @@ function scheduleAtlasSettingsSave(delay = 600) {
     atlasSettingsSaveTimeout = null;
     saveAtlasSettings();
   }, delay);
+}
+
+function updateRefactoringAvailability() {
+  const enabled = refactoringEnabled?.checked !== false;
+
+  setInputsDisabled([refactoringModelIntent], !enabled);
+  document.querySelectorAll(".refactoring-dependent").forEach((option) => {
+    option.classList.toggle("is-disabled", !enabled);
+  });
+
+  updateStaticAnalysisAvailability();
 }
 
 function applyAtlasSettings(value) {
@@ -41,10 +52,11 @@ function applyAtlasSettings(value) {
   setChecked(engineStartOnOpen, value?.startOnAtlasOpen === true);
   setChecked(enginePrepareOnOpen, value?.prepareOnAtlasOpen !== false);
   setChecked(refactoringEnabled, value?.refactoringEnabled !== false);
+  setChecked(refactoringModelIntent, value?.refactoringModelIntent === true);
 
   setStaticAnalysisFromSettings(value);
   applyContextProfileSettings(value);
-  updateStaticAnalysisAvailability();
+  updateRefactoringAvailability();
 
   setPathValue(modelsFolderPath, value?.modelsDir);
   setPathValue(enginesFolderPath, value?.enginesDir);
@@ -70,6 +82,7 @@ function saveAtlasSettings() {
       startOnAtlasOpen: engineStartOnOpen?.checked === true,
       prepareOnAtlasOpen: enginePrepareOnOpen?.checked !== false,
       refactoringEnabled: refactoringEnabled?.checked !== false,
+      refactoringModelIntent: refactoringModelIntent?.checked === true,
       modelsDir: modelsFolderPath?.value || "",
       enginesDir: enginesFolderPath?.value || "",
       ...getStaticAnalysisPayload(),

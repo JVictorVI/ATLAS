@@ -247,9 +247,12 @@ custom.saveInterruptedResponses
 
 ```text
 custom.refactoring.enabled
+custom.refactoring.useModelIntentDetection
 ```
 
 Quando `enabled` está `false`, o ATLAS não aplica edições diretamente, não exibe novas ações de refatoração em análises arquiteturais e responde pedidos operacionais em modo textual.
+
+Quando `useModelIntentDetection` está `true`, o ATLAS pede ao modelo ativo para classificar se a mensagem atual deve virar edição aplicada antes da resposta textual comum. Quando está `false`, usa a heurística local padrão.
 
 ### Análise estática
 
@@ -269,6 +272,7 @@ Defaults atuais:
 ```text
 custom.saveInterruptedResponses: true
 custom.refactoring.enabled: true
+custom.refactoring.useModelIntentDetection: false
 custom.localEngine.dynamicContextWindow: true
 custom.localEngine.prepareOnAtlasOpen: true
 custom.localEngine.stream: true
