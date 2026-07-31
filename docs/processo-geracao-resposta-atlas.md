@@ -121,7 +121,11 @@ Antes da geração textual comum, `ChatResponseController` pode desviar pedidos 
 - não há modo forçado;
 - existe contexto válido do editor;
 - `custom.refactoring.enabled !== false`;
-- o texto do usuário pede ação direta, como corrigir, alterar, implementar, renomear, extrair ou refatorar.
+- o texto do usuário pede ação direta, como ajustar, criar, corrigir, alterar, implementar, renomear, extrair ou refatorar.
+
+A detecção aceita formas imperativas e informais em português, incluindo frases como `coloque`, `deixe`, `vamos implementar`, `comece a implementação` e `aplique as mudanças`. A normalização também tolera acentos ausentes e pequenas duplicações acidentais de letras, como `applicar` ou `colloque`.
+
+Frases explicitamente analíticas ou de não edição mantêm a resposta no chat, por exemplo `tem como...`, `como faço...`, `quais seriam...`, `só explique...` e `sem editar...`.
 
 Nesse caso:
 

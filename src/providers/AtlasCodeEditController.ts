@@ -33,44 +33,156 @@ export class AtlasCodeEditController {
   private readonly operationalEditTerms = [
     "aplique",
     "aplicar",
+    "aplicar isso",
+    "aplica",
+    "aplica isso",
+    "aplicar as mudancas",
+    "aplique as mudancas",
     "altere",
     "alterar",
+    "altera",
+    "ajuste",
+    "ajustar",
+    "ajusta",
+    "arrume",
+    "arrumar",
+    "arruma",
     "atualize",
     "atualizar",
+    "atualiza",
     "corrija",
     "corrigir",
+    "corrige",
     "conserte",
     "consertar",
+    "conserta",
+    "coloque",
+    "colocar",
+    "coloca",
+    "configure",
+    "configurar",
+    "configura",
+    "crie",
+    "criar",
+    "cria",
+    "deixe",
+    "deixar",
+    "deixa",
     "edite",
     "editar",
+    "edita",
+    "exclua",
+    "excluir",
+    "exiba",
+    "exibir",
+    "faça",
+    "faca",
+    "formate",
+    "formatar",
+    "gere",
+    "gerar",
+    "fazer essas",
+    "fazer isso",
+    "vamos aplicar",
+    "vamos editar",
+    "vamos fazer",
+    "vamos implementar",
+    "comece a implementacao",
+    "comece a implementar",
+    "comecar a implementacao",
+    "comecar a implementar",
     "implemente",
     "implementar",
+    "implementa",
+    "inclua",
+    "incluir",
+    "inclui",
+    "insira",
+    "inserir",
+    "insere",
+    "limpe",
+    "limpar",
+    "limpa",
+    "melhore",
+    "melhorar",
+    "melhora",
+    "modifique",
+    "modificar",
+    "modifica",
+    "mova",
+    "mover",
+    "move",
+    "otimize",
+    "otimizar",
+    "otimiza",
+    "pare de",
     "adicione",
     "adicionar",
+    "adiciona",
+    "reescreva",
+    "reescrever",
+    "reorganize",
+    "reorganizar",
+    "reorganiza",
     "remova",
     "remover",
+    "remove",
     "renomeie",
     "renomear",
+    "renomeia",
+    "retire",
+    "retirar",
+    "retira",
+    "resolva",
+    "resolver",
+    "simplifique",
+    "simplificar",
+    "simplifica",
     "extraia",
     "extrair",
+    "extrai",
     "refatore",
     "refatorar",
+    "refatora",
+    "comece a refatoracao",
+    "comecar a refatoracao",
     "mude",
     "mudar",
+    "muda",
     "troque",
     "trocar",
+    "troca",
     "substitua",
     "substituir",
+    "substitui",
+    "torne",
+    "tornar",
+    "torna",
+    "transforme",
+    "transformar",
+    "transforma",
   ];
 
   private readonly analyticalBlockers = [
     "como ",
+    "como eu",
+    "como faço",
+    "como faco",
+    "dá pra",
+    "da pra",
+    "dá para",
+    "da para",
     "explique",
     "explica",
     "analise",
     "analisar",
     "avaliar",
     "avaliacao",
+    "devo",
+    "deveria",
+    "me diga",
+    "me explique",
+    "o que ",
     "revisao",
     "review",
     "o que acha",
@@ -78,8 +190,57 @@ export class AtlasCodeEditController {
     "pensar",
     "planeje",
     "plano",
+    "por que",
+    "porque",
+    "qual ",
+    "qual é",
+    "qual e",
+    "quais ",
+    "quais seriam",
     "sugira",
     "sugerir",
+    "vale a pena",
+    "tem como",
+    "é possível",
+    "e possivel",
+    "seria possível",
+    "seria possivel",
+  ];
+
+  private readonly explicitNoEditTerms = [
+    "apenas explique",
+    "apenas responda",
+    "apenas diga",
+    "somente explique",
+    "somente responda",
+    "somente diga",
+    "só explique",
+    "so explique",
+    "so responda",
+    "so diga",
+    "apenas analise",
+    "somente analise",
+    "só analise",
+    "so analise",
+    "não altere",
+    "nao altere",
+    "não aplique",
+    "nao aplique",
+    "não edite",
+    "nao edite",
+    "não mexa",
+    "nao mexa",
+    "não mude",
+    "nao mude",
+    "sem alterar",
+    "sem aplicar",
+    "sem editar",
+    "sem modificar",
+    "sem refatorar",
+    "sem implementar",
+    "sem corrigir",
+    "sem mexer",
+    "sem mudar",
   ];
 
   private readonly broadScopeTerms = [
@@ -99,16 +260,29 @@ export class AtlasCodeEditController {
   private readonly localScopeTerms = [
     "neste arquivo",
     "nesse arquivo",
+    "arquivo aberto",
     "no arquivo atual",
+    "no editor",
     "codigo atual",
+    "código atual",
     "neste codigo",
+    "neste código",
     "nesse codigo",
+    "nesse código",
     "nesta funcao",
+    "nesta função",
     "nessa funcao",
+    "nessa função",
     "neste metodo",
+    "neste método",
     "nesse metodo",
+    "nesse método",
     "nesta classe",
     "nessa classe",
+    "neste trecho",
+    "nesse trecho",
+    "nesta selecao",
+    "nessa selecao",
     "trecho selecionado",
     "selecao",
   ];
@@ -116,17 +290,93 @@ export class AtlasCodeEditController {
   private readonly strongApplyTerms = [
     "aplique",
     "aplicar",
+    "aplica",
+    "ajuste",
+    "ajusta",
+    "arrume",
+    "arruma",
+    "atualize",
+    "atualiza",
+    "coloque",
+    "coloca",
+    "configure",
+    "configura",
+    "crie",
+    "cria",
+    "deixe",
+    "deixa",
     "faca",
+    "faça",
     "fazer agora",
+    "fazer isso",
+    "fazer essas",
+    "vamos aplicar",
+    "vamos editar",
+    "vamos fazer",
+    "vamos implementar",
+    "comece a implementacao",
+    "comece a implementar",
     "edite",
     "editar",
+    "edita",
     "altere",
+    "altera",
     "corrija",
+    "corrige",
     "implemente",
+    "implementa",
     "adicione",
+    "adiciona",
+    "inclua",
+    "inclui",
+    "insira",
+    "insere",
+    "limpe",
+    "limpa",
+    "melhore",
+    "melhora",
+    "modifique",
+    "modifica",
+    "mova",
+    "move",
+    "otimize",
+    "otimiza",
+    "reescreva",
+    "reorganize",
+    "reorganiza",
     "remova",
+    "remove",
     "renomeie",
+    "renomeia",
+    "retire",
+    "retira",
+    "resolva",
+    "simplifique",
+    "simplifica",
     "substitua",
+    "substitui",
+    "torne",
+    "torna",
+    "transforme",
+    "transforma",
+  ];
+
+  private readonly exploratoryQuestionPrefixes = [
+    "como eu",
+    "como faco",
+    "como fazer",
+    "como posso",
+    "como voce",
+    "como o atlas",
+    "da pra",
+    "da para",
+    "e possivel",
+    "existe como",
+    "o que",
+    "qual",
+    "quais",
+    "seria possivel",
+    "tem como",
   ];
 
   constructor(
@@ -138,6 +388,14 @@ export class AtlasCodeEditController {
 
   public isOperationalEditRequest(userRequest: string): boolean {
     const normalized = this.normalize(userRequest);
+
+    if (this.hasAnyTerm(normalized, this.explicitNoEditTerms)) {
+      return false;
+    }
+
+    if (this.startsWithAnyTerm(normalized, this.exploratoryQuestionPrefixes)) {
+      return false;
+    }
 
     if (!this.hasAnyTerm(normalized, this.operationalEditTerms)) {
       return false;
@@ -155,7 +413,10 @@ export class AtlasCodeEditController {
       this.strongApplyTerms,
     );
 
-    if (!hasStrongApplyTerm && this.hasAnyTerm(normalized, this.analyticalBlockers)) {
+    if (
+      !hasStrongApplyTerm &&
+      this.hasAnyTerm(normalized, this.analyticalBlockers)
+    ) {
       return false;
     }
 
@@ -418,11 +679,29 @@ export class AtlasCodeEditController {
     return terms.some((term) => question.includes(this.normalize(term)));
   }
 
+  private startsWithAnyTerm(question: string, terms: string[]): boolean {
+    return terms.some((term) => {
+      const normalizedTerm = this.normalize(term);
+
+      if (question === normalizedTerm) {
+        return true;
+      }
+
+      if (!question.startsWith(normalizedTerm)) {
+        return false;
+      }
+
+      const nextCharacter = question.charAt(normalizedTerm.length);
+      return !nextCharacter || !/[a-z0-9]/.test(nextCharacter);
+    });
+  }
+
   private normalize(value: string): string {
     return value
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase()
+      .replace(/([a-z])\1+/g, "$1")
       .replace(/\s+/g, " ")
       .trim();
   }
