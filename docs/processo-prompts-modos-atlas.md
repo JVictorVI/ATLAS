@@ -1,6 +1,6 @@
 # Processo de Prompts e Resolução de Modos
 
-Atualizado em 24 de julho de 2026.
+Atualizado em 4 de agosto de 2026.
 
 Este documento descreve como o ATLAS decide o modo de resposta e monta a lista final de mensagens enviada ao modelo.
 
@@ -40,6 +40,8 @@ No `developer-assistant`, pedidos operacionais claros como ajustar, criar, corri
 No `architectural-analysis`, a resposta continua sendo a análise formal. Quando a resposta for elegível, a Webview pode exibir a ação `Refatorar com base nesta análise`, usando a análise recém-gerada como critério para a mudança.
 
 O modo `quick-analysis` permanece parseável e não aplica edições automaticamente.
+
+A montagem do plano de edição usa um prompt próprio, externo ao `AtlasPromptAssemblyService`, e exige um objeto JSON com resumo, justificativa, risco, validações e intervalos de linhas. O processo detalhado está em [Processo de refatoração e edição aplicada](processo-refatoracao-edicao-aplicada-atlas.md).
 
 ## Entrada da montagem
 
@@ -273,6 +275,7 @@ O assembly registra log:
 ## Relações com outros processos
 
 - Geração: [Processo de geração de resposta](processo-geracao-resposta-atlas.md).
+- Refatoração: [Processo de refatoração e edição aplicada](processo-refatoracao-edicao-aplicada-atlas.md).
 - Sessões e memória: [Processo de sessões, histórico e resumo](processo-sessoes-historico-resumo-atlas.md).
 - Análise rápida: [Processo de análise rápida](processo-analise-rapida-atlas.md).
 - Configuração: [Processo de configuração](processo-configuracao-atlas.md).

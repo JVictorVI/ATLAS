@@ -20,6 +20,8 @@ O projeto também busca apoiar estudo e evolução técnica, oferecendo modos di
 - Análise rápida do arquivo atual com marcações diretamente no editor, acionada pelo botão da interface ou por intenção textual no chat.
 - Normalização de achados da análise rápida, com categorias arquiteturais, severidade (`low`, `medium`, `high`), sanitização de linhas e hover explicativo no editor.
 - Modo de análise arquitetural com foco em decisões de design, trade-offs, evolução do risco, testabilidade e custo de mudança.
+- Edição aplicada do arquivo aberto para pedidos operacionais, com detecção de intenção por heurística ou pelo modelo ativo, plano JSON validado, prévia em diff e confirmação obrigatória antes da alteração.
+- Refatoração guiada por análise arquitetural, protegida pela identidade e pelo hash do arquivo analisado, com apoio opcional de análise estática e RAG.
 - Modo estudo para explicações mais didáticas, com pistas progressivas e botão dedicado no chat.
 - RAG local com ChromaDB gerenciado pela extensão, embeddings locais, indexação do workspace atual ou de uma pasta escolhida, materiais complementares e recuperação semântica integrada ao chat.
 - Tela RAG com projetos indexados, materiais complementares, status da base vetorial, progresso por arquivos/chunks, cancelamento, seleção de modelo de embeddings e carregamento inicial não bloqueante.
@@ -44,6 +46,7 @@ O projeto também busca apoiar estudo e evolução técnica, oferecendo modos di
 
 - [Resumo arquitetural](docs/resumo-arquitetura-atlas.md)
 - [Fluxo completo de geração de resposta](docs/processo-geracao-resposta-atlas.md)
+- [Refatoração e edição aplicada](docs/processo-refatoracao-edicao-aplicada-atlas.md)
 - [Montagem de prompt e resolução de modo](docs/processo-prompts-modos-atlas.md)
 - [Sistema de configuração](docs/processo-configuracao-atlas.md)
 - [Análise rápida](docs/processo-analise-rapida-atlas.md)

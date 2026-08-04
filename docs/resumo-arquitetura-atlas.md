@@ -1,12 +1,15 @@
 ﻿# Resumo de Status Arquitetural
 
-Atualizado em 24 de julho de 2026 com base na implementação presente no repositório.
+Atualizado em 4 de agosto de 2026 com base na implementação presente no repositório.
 
 Para o fluxo detalhado de ajuste automático da janela local, indexação RAG e funcionamento dos embeddings, consulte [Processos de contexto, janela local e RAG](processos-contexto-rag-atlas.md).
+
+Para o fluxo de alteração do arquivo aberto, incluindo decisão de intenção, plano JSON, prévia em diff e confirmação, consulte [Processo de refatoração e edição aplicada](processo-refatoracao-edicao-aplicada-atlas.md).
 
 ## Documentação de processos
 
 - [Fluxo completo de geração de resposta](processo-geracao-resposta-atlas.md)
+- [Refatoração e edição aplicada](processo-refatoracao-edicao-aplicada-atlas.md)
 - [Montagem de prompt e resolução de modo](processo-prompts-modos-atlas.md)
 - [Sistema de configuração](processo-configuracao-atlas.md)
 - [Análise rápida](processo-analise-rapida-atlas.md)
@@ -23,7 +26,7 @@ Para o fluxo detalhado de ajuste automático da janela local, indexação RAG e 
 | Extensão VS Code                         | Implementada                                                                                                                                                     |
 | Webview de chat                          | Implementada, incluindo input com autosize e botão de modo estudante com estado visual ativo                                                                     |
 | Painel de provedores em nuvem            | Implementado                                                                                                                                                     |
-| Painel de configurações gerais           | Implementado, incluindo perfis de contexto, execução local, análise estática e ajuste automático de contexto                                                     |
+| Painel de configurações gerais           | Implementado, incluindo perfis de contexto, execução local, refatoração, decisão de intenção pelo modelo, análise estática e ajuste automático de contexto       |
 | Biblioteca local de modelos              | Implementada para descoberta, seleção, parâmetros, comportamento, metadados, exclusão e controles de engine; recebe modelos GGUF baixados pelo repositório        |
 | Repositório visual de modelos            | Implementado com busca no Hugging Face, filtros LLM/embedding, detalhes, variantes, diagnóstico de hardware e download GGUF/ONNX                                |
 | Integração cloud                         | Implementada                                                                                                                                                     |
@@ -42,14 +45,18 @@ Para o fluxo detalhado de ajuste automático da janela local, indexação RAG e 
 | Resumo arquitetural                      | Implementado                                                                                                                                                     |
 | Streaming                                | Implementado para OpenAI-compatible e local; fallback em Claude/Gemini                                                                                           |
 | Cancelamento de geração                  | Implementado                                                                                                                                                     |
-| `ChatResponseController`                 | Implementado com snapshot da geração ativa, cancelamento, RAG e delegação para análise rápida                                                                    |
+| `ChatResponseController`                 | Implementado com snapshot da geração ativa, cancelamento, RAG e desvios para análise rápida ou edição aplicada                                                   |
+| `AtlasCodeEditController`                | Implementado com guardas determinísticas, heurística local, classificação opcional pelo modelo, validação de hash e controle de cancelamento                    |
+| `AtlasCodeEditService`                   | Implementado com plano JSON por linhas, validação de intervalos, prévia em diff, confirmação humana e aplicação via `vscode.WorkspaceEdit`                      |
+| Edição aplicada pelo chat                | Implementada para o arquivo ou seleção atual, sem resposta textual redundante após a conclusão                                                                    |
+| Refatoração guiada por análise           | Implementada a partir de resposta arquitetural elegível, com verificação de URI e hash SHA-256 do arquivo                                                        |
 | `AtlasPromptModeResolver`                | Implementado com heurística pontuada para os modos desenvolvedor, arquitetural e análise rápida                                                                  |
 | `AtlasSystemPromptPolicyService`         | Implementado com prompts especializados, análise arquitetural em oito tópicos e política JSON para análise rápida                                                |
 | `AtlasQuickAnalysisService`              | Implementado com numeração de linhas, contexto estrutural opcional, extração de JSON e normalização dos achados                                                  |
 | `AtlasQuickAnalysisController`           | Implementado com origem da execução, `sessionId`, sanitização de linhas, decorações por severidade e estado por documento                                        |
 | Análise rápida com marcações             | Implementada via botão e intenção textual no chat                                                                                                                |
 | `AtlasDocumentStructureService`          | Implementado com símbolos, diagnósticos e referências fornecidos pelo VS Code                                                                                    |
-| Análise estática estrutural              | Implementada como contexto auxiliar configurável para análises rápida e arquitetural                                                                             |
+| Análise estática estrutural              | Implementada como contexto auxiliar configurável para análises rápida, arquitetural e refatoração                                                                |
 | Persistência visual das marcações        | Implementada por documento durante a sessão                                                                                                                      |
 | Modo estudo                              | Implementado com prompt especializado, estado persistido, botão dedicado e tooltip explicativo                                                                   |
 | RAG local                                | Implementado para projetos e workspaces                                                                                                                          |
@@ -64,14 +71,14 @@ Para o fluxo detalhado de ajuste automático da janela local, indexação RAG e 
 | Progresso da indexação                   | Implementado por etapa, arquivos e chunks, com cancelamento                                                                                                      |
 | Tela RAG                                 | Implementada com status da base vetorial no topo, projetos indexados em destaque, materiais complementares funcionais e loading inicial não bloqueante                |
 | Atualização automática                   | Implementada por watcher e debounce; usa modo configurável completo ou incremental                                                                               |
-| Recuperação semântica no chat            | Implementada com fontes, relevância, filtros e limite de contexto                                                                                                |
+| Recuperação semântica no chat            | Implementada com fontes, relevância, filtros e limite de contexto; pode apoiar edições quando `rag.useInCodeEditing` está habilitado                            |
 | Configurações de indexação               | Implementadas, incluindo modo completo/incremental, Markdown e JSON/configuração como opções independentes                                                       |
 | Configurações de recuperação             | Implementadas: distância/relevância, diversidade, limite por arquivo, linguagem, diretório e prioridade                                                          |
 | Materiais complementares no RAG               | Implementados com ingestão, listagem, exclusão e recuperação semântica em coleção externa por workspace e modelo de embeddings                                   |
 | Hugging Face API para busca de modelos   | Implementada para LLMs GGUF e embeddings ONNX compatíveis                                                                                                        |
 | Download automatizado de modelos de chat | Implementado para variantes GGUF compatíveis, com progresso, cancelamento, descoberta local e atualização da biblioteca                                          |
 
-## Mapa de defasagens corrigidas em 24 de julho de 2026
+## Mapa de defasagens corrigidas
 
 | Área documentada              | Situação anterior na documentação                                                                      | Estado atual mapeado                                                                                                                                                         |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -83,6 +90,9 @@ Para o fluxo detalhado de ajuste automático da janela local, indexação RAG e 
 | Repositório de modelos        | Diagramas e status ainda marcavam busca/download Hugging Face como futuro.                              | Busca, detalhes, filtros LLM/embedding e download GGUF/ONNX estão documentados como implementados.                                                                        |
 | Engine local                  | A distribuição ainda era descrita como dependente de configuração externa manual do `llama-server`.      | A engine continua fora do VSIX, mas o ATLAS baixa e valida `llama.cpp` automaticamente em runtime.                                                                         |
 | RAG incremental               | Algumas notas antigas diziam que a atualização automática sempre reconstruía o índice completo.         | A indexação incremental é o default e só cai para `full` quando metadados, coleção ou configuração exigem reconstrução.                                                    |
+| Refatoração e edição aplicada | A funcionalidade aparecia apenas em trechos dos documentos de geração, prompts e configuração.           | O fluxo agora possui documento próprio, entradas no README e no status arquitetural, eventos, configurações, limitações e diagramas atualizados.                             |
+| Decisão de intenção           | Não havia visão consolidada das guardas, da heurística e da classificação opcional pelo modelo.          | A ordem das guardas, o fallback para heurística e os níveis de confiança aceitos estão documentados.                                                                         |
+| RAG em edição                 | `rag.useInCodeEditing` estava implementado, mas ausente dos documentos de configuração e recuperação.    | A opção, o default `false` e as permissões de destino local/cloud foram adicionados aos processos relacionados.                                                               |
 
 ## Execução local e ajuste dinâmico
 
@@ -104,5 +114,6 @@ Para o fluxo detalhado de ajuste automático da janela local, indexação RAG e 
 ## Limitações atuais
 
 - Formatos legados binários do Office (`.doc`, `.xls`, `.ppt`) ainda não possuem extrator dedicado; use `.docx`, `.xlsx` e `.pptx`.
-- O empacotamento e a distribuicao sao por target: `win32-x64`, `linux-x64` e `linux-arm64` possuem VSIX separados; nao ha pacote universal Windows+Linux.
+- O empacotamento e a distribuição são por target: `win32-x64`, `linux-x64` e `linux-arm64` possuem VSIX separados; não há pacote universal Windows+Linux.
 - O chunking é textual por caracteres e linhas; chunking orientado a símbolos permanece como evolução.
+- A edição aplicada altera somente o arquivo aberto, usa intervalos de linhas inteiras e não executa automaticamente testes, build ou lint após a confirmação.

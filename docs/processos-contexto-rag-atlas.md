@@ -1,6 +1,6 @@
 ﻿# Processos de Contexto, Janela Local e RAG
 
-Atualizado em 24 de julho de 2026.
+Atualizado em 4 de agosto de 2026.
 
 Este documento descreve três fluxos operacionais do ATLAS:
 
@@ -619,6 +619,17 @@ Se o orçamento de caracteres for atingido, a seleção para antes de adicionar 
 
 Cada fonte retornada ao chat inclui distância, relevância, tipo, caminho e linhas quando disponíveis.
 
+### RAG em edições aplicadas
+
+O RAG também pode orientar edição direta e refatoração arquitetural. Esse uso exige simultaneamente:
+
+- `rag.enabled === true`;
+- `rag.useInCodeEditing === true`;
+- perfil de contexto com RAG habilitado;
+- permissão para o destino local ou cloud.
+
+Na edição direta, a consulta usa o pedido do usuário. Na refatoração guiada, usa o conteúdo da análise arquitetural. Os trechos recuperados são evidência auxiliar: o arquivo atual e o pedido operacional têm prioridade. Se a recuperação falhar, a edição continua sem RAG.
+
 ## 7. Configurações principais
 
 | Configuração | Uso |
@@ -643,6 +654,7 @@ Cada fonte retornada ao chat inclui distância, relevância, tipo, caminho e lin
 | `rag.allowCloudContext` | Permite enviar contexto RAG para modelos cloud. |
 | `rag.offlineOnly` | Bloqueia RAG no modo cloud quando ativo. |
 | `rag.includeExternalDocuments` | Inclui materiais complementares na recuperação. |
+| `rag.useInCodeEditing` | Permite usar RAG em edições aplicadas e refatorações. |
 | `rag.showSources` | Persiste e mostra fontes RAG nos metadados da resposta. |
 
 Defaults atuais de recuperação:
@@ -656,6 +668,7 @@ maxChunksPerFile: 2
 diversifyFiles: true
 excludeActiveFile: true
 includeExternalDocuments: true
+useInCodeEditing: false
 sourcePriority: balanced
 showSources: true
 ```

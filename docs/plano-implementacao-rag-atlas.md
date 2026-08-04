@@ -40,7 +40,7 @@ O fluxo principal já está implementado. As evoluções restantes concentram-se
 | Configurações de indexação e recuperação | Implementadas                                                                                              |
 | Watcher e debounce                       | Implementados                                                                                              |
 | Atualização incremental por arquivo      | Implementada; o modo pode alternar entre completa e incremental                                            |
-| Materiais complementares                 | Implementados para PDF, Office moderno, texto, Markdown, CSV/TSV, HTML e arquivos de configuracao textuais |
+| Materiais complementares                 | Implementados para PDF, Office moderno, texto, Markdown, CSV/TSV, HTML e arquivos de configuração textuais |
 | Chunking orientado a símbolos            | Pendente                                                                                                   |
 
 ## 3. Arquitetura implementada
@@ -92,7 +92,7 @@ Na ativação do RAG:
 6. disponibiliza um `ChromaClient`;
 7. encerra somente o processo criado pelo ATLAS.
 
-O empacotamento do RAG e dos embeddings e por target. Cada VSIX contem apenas os binarios nativos da plataforma escolhida, como `win32-x64`, `linux-x64` ou `linux-arm64`; nao ha pacote universal Windows+Linux.
+O empacotamento do RAG e dos embeddings é por target. Cada VSIX contém apenas os binários nativos da plataforma escolhida, como `win32-x64`, `linux-x64` ou `linux-arm64`; não há pacote universal Windows+Linux.
 
 Scripts relacionados:
 
@@ -396,10 +396,10 @@ Alterações que mudam o formato do índice marcam projetos prontos como `outdat
 
 ### Próximas evoluções
 
-1. suporte opcional a formatos Office binarios legados (`.doc`, `.xls`, `.ppt`);
+1. suporte opcional a formatos Office binários legados (`.doc`, `.xls`, `.ppt`);
 2. chunking orientado a símbolos;
 3. avaliação automatizada com `recall@k`, precisão, latência e diversidade;
-4. ampliar a matriz de validacao automatizada dos targets de distribuicao;
+4. ampliar a matriz de validação automatizada dos targets de distribuição;
 5. redução ou proteção dos logs de conteúdo em builds de produção;
 6. integração opcional do RAG com análise rápida após benchmark de latência.
 

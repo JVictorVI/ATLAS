@@ -1,6 +1,6 @@
 ﻿# Processo de Configuração
 
-Atualizado em 24 de julho de 2026.
+Atualizado em 4 de agosto de 2026.
 
 Este documento descreve onde as configurações do ATLAS vivem, como são normalizadas e quais fluxos da UI alteram cada seção.
 
@@ -120,6 +120,7 @@ Controla:
 - recuperação;
 - filtros;
 - materiais complementares;
+- uso em edições aplicadas e refatorações;
 - fontes exibidas.
 
 O fluxo operacional detalhado está em [Processos de contexto, janela local e RAG](processos-contexto-rag-atlas.md).
@@ -135,6 +136,7 @@ indexingMode: incremental
 includeMarkdownFiles: true
 includeConfigFiles: true
 includeExternalDocuments: true
+useInCodeEditing: false
 showSources: true
 ```
 
@@ -253,6 +255,8 @@ custom.refactoring.useModelIntentDetection
 Quando `enabled` está `false`, o ATLAS não aplica edições diretamente, não exibe novas ações de refatoração em análises arquiteturais e responde pedidos operacionais em modo textual.
 
 Quando `useModelIntentDetection` está `true`, o ATLAS pede ao modelo ativo para classificar se a mensagem atual deve virar edição aplicada antes da resposta textual comum. Quando está `false`, usa a heurística local padrão.
+
+O contexto recuperado pelo RAG só pode ser incluído nesse fluxo quando `rag.useInCodeEditing` está `true`, além das permissões do perfil e do destino local/cloud.
 
 ### Análise estática
 
@@ -426,6 +430,7 @@ A próxima geração local reinicia a engine com a configuração atual.
 ## Relações com outros processos
 
 - Geração: [Processo de geração de resposta](processo-geracao-resposta-atlas.md).
+- Refatoração: [Processo de refatoração e edição aplicada](processo-refatoracao-edicao-aplicada-atlas.md).
 - Engine local: [Processo da engine local](processo-engine-local-atlas.md).
 - Configuração automática da engine: [Processo de configuração automática da engine](processo-configuracao-automatica-engine-atlas.md).
 - Cloud: [Processo de integração cloud](processo-integracao-cloud-atlas.md).

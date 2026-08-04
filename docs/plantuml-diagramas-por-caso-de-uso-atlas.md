@@ -1,17 +1,18 @@
 ﻿# Diagramas por Caso de Uso - ATLAS
 
-Atualizado em 24 de julho de 2026.
+Atualizado em 4 de agosto de 2026.
 
 Este arquivo contém diagramas de classe e de sequência em PlantUML para cada caso de uso atualizado do ATLAS.
 Os blocos podem ser copiados diretamente para o PlantText.
 
-> **Nota de atualização:** os diagramas abaixo representam o ATLAS atual como extensão VS Code em TypeScript. Além dos fluxos de inferência local/cloud, sessões, análise rápida e contexto estrutural, o RAG local está implementado com `AtlasRagService`, embeddings locais, ChromaDB empacotado, indexação por projeto, materiais complementares e recuperação integrada ao chat. Busca real em Hugging Face, download de modelos GGUF/ONNX e preparação automática da engine `llama.cpp` também estão implementados.
+> **Nota de atualização:** os diagramas abaixo representam o ATLAS atual como extensão VS Code em TypeScript. Além dos fluxos de inferência local/cloud, sessões, análise rápida e contexto estrutural, o ATLAS possui edição aplicada com prévia e confirmação, refatoração guiada por análise arquitetural e RAG local com `AtlasRagService`, embeddings locais, ChromaDB empacotado, indexação por projeto, materiais complementares e recuperação integrada ao chat. Busca real em Hugging Face, download de modelos GGUF/ONNX e preparação automática da engine `llama.cpp` também estão implementados.
 
 ## Mapa de defasagens corrigidas nesta atualização
 
 - UC014 agora mostra o ajuste automático de `contextWindow`, a persistência do novo parâmetro e o reinício da engine para aplicá-lo.
 - UC017 e UC018 deixaram de ser futuro e passaram a representar `HuggingFaceModelService`, `AtlasEngineDownloadService`, descoberta local e atualização de embeddings.
 - UC019 deixou de ser futuro e passou a apontar para `AtlasRagService`, `AtlasExternalDocumentParser`, `AtlasEmbeddingService` e `AtlasRagRepository`.
+- UC022 documenta a edição direta e a refatoração baseada em análise, incluindo detecção de intenção, validação do arquivo, plano JSON, diff, confirmação e aplicação.
 - As assinaturas de `LocalApiService` e `AtlasLocalEngineService` foram ajustadas para representar o código atual, incluindo `restartEngine(model, options)`.
 
 ## UC001 - Perguntar sobre o código pelo chat
@@ -1519,5 +1520,208 @@ Repository --> RAG : concluído
 RAG --> Router : documentos importados / ignorados
 Router --> UI : documentosExternosRagAtualizados
 UI --> Usuário : confirma inclusão
+@enduml
+```
+
+## UC022 - Aplicar edição ou refatoração no arquivo atual
+
+### Diagrama de Classes
+
+```plantuml
+@startuml
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+
+class ChatMessageRouter {
+  -handleArchitectureGuidedRefactor(data, webview)
+}
+class ChatResponseController {
+  +handleSendQuestion(data, webview)
+  -handleDirectCodeEdit(session, userContent, webview, signal)
+  -getCodeEditRagContext(query, settings, profile, destination, signal)
+}
+class AtlasCodeEditController {
+  +shouldApplyDirectEditRequest(userRequest, options)
+  +executeDirectEdit(webview, options)
+  +executeArchitectureGuidedEdit(webview, options)
+  +cancelActiveEdit()
+  +buildRefactorMetadata(editorContext)
+  -passesDeterministicEditGuards(normalizedUserRequest)
+  -classifyEditIntentWithModel(userRequest, options)
+  -assertDocumentStillMatches(editorContext, metadata)
+}
+class AtlasCodeEditService {
+  +applyEdit(request)
+  +formatResultMessage(result)
+  -buildEditMessages(request)
+  -parsePlan(raw)
+  -validatePlan(plan, document)
+  -previewAndConfirm(document, plan, signal)
+  -applyLineEdits(document, edits)
+}
+class AtlasCodeEditPreviewProvider {
+  +setContent(uri, content)
+  +provideTextDocumentContent(uri)
+}
+class AtlasEditorContextService {
+  +getChatEditorContext()
+  +getFullDocumentContext()
+}
+class AtlasDocumentStructureService {
+  +collect(document)
+  +buildSummary(structure)
+}
+class AtlasRagService {
+  +retrieveContext(query, signal)
+}
+class AtlasInferenceService {
+  +sendChat(messages, onChunk, options)
+}
+class AtlasSessionService {
+  +appendMessage(sessionId, message)
+  +getSession(sessionId)
+}
+class AtlasConfigManager {
+  +isRefactoringEnabled()
+  +useModelIntentDetectionForCodeEditing()
+  +getStaticAnalysisConfig()
+}
+class "vscode.WorkspaceEdit" as WorkspaceEdit
+
+ChatMessageRouter --> AtlasCodeEditController : análise arquitetural
+ChatMessageRouter --> AtlasRagService : contexto opcional
+ChatMessageRouter --> AtlasSessionService
+ChatResponseController --> AtlasCodeEditController : edição direta
+ChatResponseController --> AtlasRagService : contexto opcional
+ChatResponseController --> AtlasSessionService
+AtlasCodeEditController --> AtlasEditorContextService
+AtlasCodeEditController --> AtlasDocumentStructureService : contexto opcional
+AtlasCodeEditController --> AtlasConfigManager
+AtlasCodeEditController --> AtlasInferenceService : classificar intenção
+AtlasCodeEditController --> AtlasCodeEditService
+AtlasCodeEditService --> AtlasInferenceService : gerar plano JSON
+AtlasCodeEditService *-- AtlasCodeEditPreviewProvider
+AtlasCodeEditService --> WorkspaceEdit : aplicar após confirmação
+@enduml
+```
+
+### Diagrama de Sequência - Edição Direta
+
+```plantuml
+@startuml
+skinparam shadowing false
+actor Usuário
+participant "Webview Chat" as UI
+participant ChatMessageRouter as Router
+participant ChatResponseController as Response
+participant AtlasCodeEditController as EditController
+participant AtlasRagService as RAG
+participant AtlasEditorContextService as EditorContext
+participant AtlasCodeEditService as EditService
+participant AtlasInferenceService as Inference
+participant "vscode.diff" as Diff
+participant "vscode.WorkspaceEdit" as WorkspaceEdit
+participant AtlasSessionService as Session
+
+Usuário -> UI : pede correção, implementação ou refatoração
+UI -> Router : enviarPergunta
+Router -> Response : handleSendQuestion(data, webview)
+Response -> EditController : shouldApplyDirectEditRequest(pedido, contexto, histórico)
+opt classificação pelo modelo habilitada
+  EditController -> Inference : sendChat(classificação JSON)
+  Inference --> EditController : intenção + confiança
+end
+EditController --> Response : editar ou responder em texto
+alt pedido permanece textual
+  Response -> Response : monta prompt e gera resposta normal
+else edição aplicada
+  opt RAG habilitado para edição
+    Response -> RAG : retrieveContext(pedido, signal)
+    RAG --> Response : trechos recuperados
+  end
+  Response -> EditController : executeDirectEdit(pedido, RAG, signal)
+  EditController -> EditorContext : getChatEditorContext()
+  EditorContext --> EditController : arquivo ou seleção
+  EditController -> EditService : applyEdit(request)
+  EditService -> Inference : sendChat(prompt do plano JSON)
+  Inference --> EditService : summary, rationale, risk, verification, edits
+  EditService -> EditService : validar linhas e sobreposições
+  EditService -> Diff : abrir original x prévia
+  Diff --> Usuário : revisar alterações
+  alt usuário confirma
+    Usuário -> EditService : Aplicar alterações
+    EditService -> WorkspaceEdit : applyEdit(edits)
+    WorkspaceEdit --> EditService : aplicado
+    EditService --> EditController : resultado aprovado
+    EditController --> Response : edição concluída
+    Response -> Session : appendMessage(pedido do usuário)
+    Response --> UI : edicaoCodigoConcluida
+  else usuário cancela
+    Usuário -> EditService : Cancelar
+    EditService --> EditController : resultado não aprovado
+    EditController --> Response : edição cancelada
+    Response --> UI : edicaoCodigoCancelada
+  end
+end
+@enduml
+```
+
+### Diagrama de Sequência - Refatoração Guiada por Análise
+
+```plantuml
+@startuml
+skinparam shadowing false
+actor Usuário
+participant "Webview Chat" as UI
+participant ChatMessageRouter as Router
+participant AtlasSessionService as Session
+participant AtlasRagService as RAG
+participant AtlasCodeEditController as EditController
+participant AtlasEditorContextService as EditorContext
+participant AtlasDocumentStructureService as Structure
+participant AtlasCodeEditService as EditService
+participant AtlasInferenceService as Inference
+participant "vscode.diff" as Diff
+participant "vscode.WorkspaceEdit" as WorkspaceEdit
+
+Usuário -> UI : Refatorar com base nesta análise
+UI -> Router : executarRefatoracaoArquitetural(sessionId, generationId)
+Router -> Session : localizar análise arquitetural refatorável
+Session --> Router : conteúdo + documentUri + contentHash
+opt RAG habilitado para edição
+  Router -> RAG : retrieveContext(análise)
+  RAG --> Router : trechos recuperados
+end
+Router -> EditController : executeArchitectureGuidedEdit(análise, metadados, RAG)
+EditController -> EditorContext : getFullDocumentContext()
+EditorContext --> EditController : documento atual
+EditController -> EditController : validar documentUri e SHA-256
+alt arquivo diferente ou alterado
+  EditController --> Router : erro; nova análise necessária
+  Router --> UI : erro
+else arquivo ainda corresponde
+  opt análise estática habilitada para refatoração
+    EditController -> Structure : collect(document)
+    Structure --> EditController : resumo estrutural
+  end
+  EditController -> EditService : applyEdit(análise + código + contextos)
+  EditService -> Inference : sendChat(prompt do plano JSON)
+  Inference --> EditService : plano de edições
+  EditService -> EditService : validar plano
+  EditService -> Diff : abrir original x prévia
+  Diff --> Usuário : revisar alterações
+  alt usuário confirma
+    Usuário -> EditService : Aplicar alterações
+    EditService -> WorkspaceEdit : applyEdit(edits)
+    WorkspaceEdit --> EditService : aplicado
+    EditService --> Router : resultado aprovado
+    Router -> Session : persistir pedido + resumo da refatoração
+    Router --> UI : novaResposta + sessoesAtualizadas
+  else usuário cancela
+    Usuário -> EditService : Cancelar
+    EditService --> Router : resultado não aprovado
+    Router --> UI : edicaoCodigoCancelada
+  end
+end
 @enduml
 ```

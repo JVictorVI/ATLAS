@@ -1,6 +1,6 @@
 # Processo de Geração de Resposta
 
-Atualizado em 24 de julho de 2026.
+Atualizado em 4 de agosto de 2026.
 
 Este documento descreve o fluxo completo de uma pergunta enviada pelo chat até a resposta final exibida e persistida.
 
@@ -115,6 +115,8 @@ O modo pode ser:
 - `study-mode`.
 
 ## Desvio para edição aplicada
+
+O fluxo completo, incluindo guardas, classificação opcional pelo modelo, contrato JSON, prévia, confirmação e persistência, está em [Processo de refatoração e edição aplicada](processo-refatoracao-edicao-aplicada-atlas.md).
 
 Antes da geração textual comum, `ChatResponseController` pode desviar pedidos operacionais claros para edição aplicada quando:
 
@@ -309,12 +311,16 @@ Erros reais são enviados à Webview como `erro` e também exibidos via `vscode.
 | `fimResposta` | Streaming finalizado. |
 | `novaResposta` | Resposta completa sem streaming. |
 | `geracaoCancelada` | Abort solicitado ou propagado. |
+| `edicaoCodigoStatus` | Início ou fim da aplicação de uma edição. |
+| `edicaoCodigoCancelada` | Prévia de edição não confirmada pelo usuário. |
+| `edicaoCodigoConcluida` | Edição direta concluída sem resposta textual redundante no chat. |
 | `erro` | Falha real na geração. |
 | `sessoesAtualizadas` | Sessão recebeu mensagem ou mudou estado. |
 
 ## Relações com outros processos
 
 - Modos e prompt: [Processo de prompts e modos](processo-prompts-modos-atlas.md).
+- Refatoração: [Processo de refatoração e edição aplicada](processo-refatoracao-edicao-aplicada-atlas.md).
 - Engine local: [Processo da engine local](processo-engine-local-atlas.md).
 - Cloud: [Processo de integração cloud](processo-integracao-cloud-atlas.md).
 - Sessões: [Processo de sessões, histórico e resumo](processo-sessoes-historico-resumo-atlas.md).

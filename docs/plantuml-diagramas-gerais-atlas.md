@@ -1,11 +1,18 @@
 ﻿# Casos de Uso e Diagramas PlantUML - ATLAS
 
-Atualizado em 24 de julho de 2026.
+Atualizado em 4 de agosto de 2026.
 
 Este arquivo contém os casos de uso e os diagramas PlantUML atualizados com base na implementação atual do ATLAS.
 Os blocos podem ser copiados diretamente para o PlantText ou para uma extensão PlantUML compatível com UTF-8.
 
-> **Nota de atualização:** a arquitetura atual do ATLAS é uma extensão do VS Code implementada em TypeScript. O ponto central de inferência é o `AtlasInferenceService`, que decide entre execução em nuvem e execução local. O projeto possui sessões, histórico, resumo de conversas, modelos `.gguf`, análise rápida, contexto estrutural do VS Code, RAG local, materiais complementares no RAG, busca real no Hugging Face, download de modelos GGUF/ONNX e preparação automática da engine `llama.cpp`. Em execução local, o ajuste automático de contexto recalcula e salva apenas a janela de contexto quando a requisição não cabe na configuração atual.
+> **Nota de atualização:** a arquitetura atual do ATLAS é uma extensão do VS Code implementada em TypeScript. O ponto central de inferência é o `AtlasInferenceService`, que decide entre execução em nuvem e execução local. O projeto possui sessões, histórico, resumo de conversas, modelos `.gguf`, análise rápida, contexto estrutural do VS Code, edição aplicada com prévia e confirmação, refatoração guiada por análise, RAG local, materiais complementares no RAG, busca real no Hugging Face, download de modelos GGUF/ONNX e preparação automática da engine `llama.cpp`. Em execução local, o ajuste automático de contexto recalcula e salva apenas a janela de contexto quando a requisição não cabe na configuração atual.
+
+## Pontos atualizados na versão 1.7
+
+- `AtlasCodeEditController` representa guardas determinísticas, heurística local, classificação opcional de intenção pelo modelo e validação do arquivo analisado por URI e hash.
+- `AtlasCodeEditService` representa o plano JSON por linhas, a prévia via `vscode.diff`, a confirmação humana e a aplicação com `vscode.WorkspaceEdit`.
+- O novo UC022 cobre tanto a edição direta pedida no chat quanto a refatoração guiada por uma análise arquitetural.
+- A configuração passa a incluir `custom.refactoring`, `custom.staticAnalysis.useInRefactoring` e `rag.useInCodeEditing`.
 
 ## Pontos atualizados na versão 1.6
 
@@ -87,6 +94,7 @@ rectangle "ATLAS - Extensão VS Code" {
   usecase "Baixar modelo GGUF ou ONNX" as UC018
   usecase "Adicionar documentos ao RAG" as UC019
   usecase "Preparar engine local automaticamente" as UC021
+  usecase "Aplicar edição ou refatoração no arquivo atual" as UC022
 
   usecase "Coletar contexto do editor" as INC_Contexto
   usecase "Montar prompt" as INC_Prompt
@@ -118,6 +126,7 @@ Usuario --> UC017
 Usuario --> UC018
 Usuario --> UC019
 Usuario --> UC021
+Usuario --> UC022
 
 UC001 ..> INC_Contexto : <<include>>
 UC001 ..> INC_Prompt : <<include>>
@@ -130,6 +139,12 @@ UC002 ..> INC_Decoracoes : <<include>>
 UC002 ..> INC_Estrutura : <<include>>
 UC003 ..> UC001 : <<extend>>
 UC003 ..> INC_Estrutura : <<include>>
+UC022 ..> UC001 : <<extend>>
+UC022 ..> UC003 : <<extend>>
+UC022 ..> INC_Contexto : <<include>>
+UC022 ..> INC_Inferencia : <<include>>
+UC022 ..> INC_Historico : <<include>>
+UC022 ..> INC_Estrutura : <<include>> opcional
 UC004 ..> INC_Config : <<include>>
 UC005 ..> INC_Config : <<include>>
 UC006 ..> INC_Config : <<include>>
@@ -151,6 +166,7 @@ SecretStorage --> UC005
 LanguageProviders --> INC_Estrutura
 FileSystem --> UC015
 FileSystem --> UC014
+FileSystem --> UC022
 
 UC016 --> BaseVetorial
 UC017 ..> RepoModelos : <<include>>
@@ -202,6 +218,7 @@ package "Aplicação" {
     -handleSearchHuggingFaceModels(data, webview)
     -handleDownloadHuggingFaceModel(data, webview)
     -handleDownloadConfiguredEngineRequest(webview)
+    -handleArchitectureGuidedRefactor(data, webview)
   }
 
   class ChatResponseController {
@@ -209,7 +226,27 @@ package "Aplicação" {
     +handleCancelGeneration(webview)
     +serializeActiveGeneration()
     -handleQuickAnalysisFromChat(sessionId, userContent, webview)
+    -handleDirectCodeEdit(session, userContent, webview, signal)
     -notifyResponseCompletedIfAway(session)
+  }
+
+  class AtlasCodeEditController {
+    +shouldApplyDirectEditRequest(userRequest, options)
+    +executeDirectEdit(webview, options)
+    +executeArchitectureGuidedEdit(webview, options)
+    +cancelActiveEdit()
+    +buildRefactorMetadata(editorContext)
+    -assertDocumentStillMatches(editorContext, metadata)
+    -classifyEditIntentWithModel(userRequest, options)
+  }
+
+  class AtlasCodeEditService {
+    +applyEdit(request)
+    +formatResultMessage(result)
+    -parsePlan(raw)
+    -validatePlan(plan, document)
+    -previewAndConfirm(document, plan, signal)
+    -applyLineEdits(document, edits)
   }
 
   class ChatSessionController {
@@ -394,6 +431,8 @@ ExtensionEntry --> ChatViewProvider : registra view
 ChatViewProvider *-- ChatPanelManager
 ChatViewProvider *-- ChatMessageRouter
 ChatViewProvider *-- ChatResponseController
+ChatViewProvider *-- AtlasCodeEditController
+ChatViewProvider *-- AtlasCodeEditService
 ChatViewProvider *-- ChatSessionController
 ChatViewProvider *-- ChatModelWebviewService
 
@@ -411,6 +450,7 @@ ChatMessageRouter --> ChatResponseController
 ChatMessageRouter --> ChatSessionController
 ChatMessageRouter --> ChatModelWebviewService
 ChatMessageRouter --> AtlasQuickAnalysisController
+ChatMessageRouter --> AtlasCodeEditController : refatoração arquitetural
 ChatMessageRouter --> ApiKeyManager
 ChatMessageRouter --> AtlasConfigManager
 ChatMessageRouter --> AtlasRagService : indexação e gestão
@@ -425,6 +465,14 @@ ChatResponseController --> AtlasPromptAssemblyService
 ChatResponseController --> AtlasInferenceService
 ChatResponseController --> AtlasSessionService
 ChatResponseController --> AtlasQuickAnalysisController : modo quick-analysis
+ChatResponseController --> AtlasCodeEditController : edição direta
+
+AtlasCodeEditController --> AtlasEditorContextService
+AtlasCodeEditController --> AtlasDocumentStructureService : refatoração
+AtlasCodeEditController --> AtlasCodeEditService
+AtlasCodeEditController --> AtlasConfigManager
+AtlasCodeEditController --> AtlasInferenceService : classificar intenção
+AtlasCodeEditService --> AtlasInferenceService : gerar plano JSON
 
 AtlasQuickAnalysisController --> AtlasEditorContextService
 AtlasQuickAnalysisController --> AtlasQuickAnalysisService
@@ -479,6 +527,8 @@ package "Gerência de Configuração" {
     +getLocalModels()
     +isStudyModeEnabled()
     +setStudyModeEnabled(enabled)
+    +isRefactoringEnabled()
+    +useModelIntentDetectionForCodeEditing()
     +getStaticAnalysisConfig()
     +isStaticAnalysisEnabledFor(mode)
   }
@@ -516,8 +566,22 @@ package "Gerência de Configuração" {
     enabled
     useInQuickAnalysis
     useInArchitecturalAnalysis
+    useInRefactoring
     includeDiagnostics
     includeSymbolRelations
+  }
+
+  interface AtlasRefactoringConfig {
+    enabled
+    useModelIntentDetection
+  }
+
+  interface AtlasRagSettings {
+    enabled
+    allowLocalContext
+    allowCloudContext
+    offlineOnly
+    useInCodeEditing
   }
 }
 
@@ -584,6 +648,8 @@ AtlasConfigManager *-- AtlasProviderService
 AtlasConfigManager *-- AtlasModelRegistryService
 AtlasConfigManager --> AtlasConfigRepository
 AtlasConfigManager ..> AtlasStaticAnalysisConfig
+AtlasConfigManager ..> AtlasRefactoringConfig
+AtlasConfigManager ..> AtlasRagSettings
 AtlasConfigRepository --> AtlasConfigDefaults
 AtlasConfigRepository --> ConfigFile : lê/grava
 
@@ -687,6 +753,21 @@ package "Contexto Estrutural" {
   interface AtlasCodeSymbol
 }
 
+package "Edição Aplicada" {
+  class AtlasCodeEditController {
+    +shouldApplyDirectEditRequest(userRequest, options)
+    +executeDirectEdit(webview, options)
+    +executeArchitectureGuidedEdit(webview, options)
+  }
+
+  class AtlasCodeEditService {
+    +applyEdit(request)
+    -buildEditMessages(request)
+    -validatePlan(plan, document)
+    -previewAndConfirm(document, plan, signal)
+  }
+}
+
 package "Tipos" {
   enum AtlasPromptMode {
     developer-assistant
@@ -699,6 +780,8 @@ package "Tipos" {
   interface AtlasCloudChatResponse
   interface AtlasLocalEngineHealth
   interface AtlasModelSummary
+  interface AtlasCodeEditPlan
+  interface AtlasCodeEditResult
 }
 
 AtlasPromptAssemblyService --> AtlasPromptModeResolver
@@ -718,6 +801,14 @@ LocalApiService --> AtlasLocalEngineService
 AtlasDocumentStructureService ..> AtlasDocumentStructure
 AtlasDocumentStructureService ..> AtlasCodeSymbol
 
+AtlasCodeEditController --> AtlasCodeEditService
+AtlasCodeEditController --> AtlasInferenceService : classificar intenção
+AtlasCodeEditController --> AtlasDocumentStructureService : contexto opcional
+AtlasCodeEditController --> AtlasConfigManager
+AtlasCodeEditService --> AtlasInferenceService : gerar plano
+AtlasCodeEditService ..> AtlasCodeEditPlan
+AtlasCodeEditService ..> AtlasCodeEditResult
+
 CloudApiService ..> AtlasCloudChatResponse
 CloudApiService ..> AtlasModelSummary
 @enduml
@@ -735,7 +826,7 @@ node "Máquina do Desenvolvedor (Windows + VS Code)" as DevMachine {
   node "Visual Studio Code" as VSCode {
     component "ATLAS Extension (TypeScript)" as Extension
     component "Webviews chat / atlas / library / api-keys / rag" as Webviews
-    component "Serviços da Extensão: ChatResponseController, AtlasInferenceService, AtlasSessionService, AtlasDocumentStructureService, AtlasRagService" as ExtensionServices
+    component "Serviços da Extensão: ChatResponseController, AtlasCodeEditController, AtlasCodeEditService, AtlasInferenceService, AtlasSessionService, AtlasDocumentStructureService, AtlasRagService" as ExtensionServices
     database "VS Code SecretStorage" as SecretStorage
   }
 
