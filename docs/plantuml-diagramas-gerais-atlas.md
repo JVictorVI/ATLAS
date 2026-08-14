@@ -1,6 +1,6 @@
 ﻿# Casos de Uso e Diagramas PlantUML - ATLAS
 
-Atualizado em 4 de agosto de 2026.
+Atualizado em 14 de agosto de 2026.
 
 Este arquivo contém os casos de uso e os diagramas PlantUML atualizados com base na implementação atual do ATLAS.
 Os blocos podem ser copiados diretamente para o PlantText ou para uma extensão PlantUML compatível com UTF-8.
@@ -11,7 +11,7 @@ Os blocos podem ser copiados diretamente para o PlantText ou para uma extensão 
 
 - `AtlasCodeEditController` representa guardas determinísticas, heurística local, classificação opcional de intenção pelo modelo e validação do arquivo analisado por URI e hash.
 - `AtlasCodeEditService` representa o plano JSON por linhas, a prévia via `vscode.diff`, a confirmação humana e a aplicação com `vscode.WorkspaceEdit`.
-- O novo UC022 cobre tanto a edição direta pedida no chat quanto a refatoração guiada por uma análise arquitetural.
+- O UC020 cobre tanto a edição direta pedida no chat quanto a refatoração guiada por uma análise arquitetural.
 - A configuração passa a incluir `custom.refactoring`, `custom.staticAnalysis.useInRefactoring` e `rag.useInCodeEditing`.
 
 ## Pontos atualizados na versão 1.6
@@ -78,23 +78,20 @@ rectangle "ATLAS - Extensão VS Code" {
   usecase "Ativar modo estudo" as UC004
   usecase "Gerenciar chaves de API" as UC005
   usecase "Selecionar provedor e modelo cloud" as UC006
-  usecase "Alternar modo local / nuvem" as UC007
-  usecase "Configurar parâmetros e segurança" as UC008
-  usecase "Configurar análise estática estrutural" as UC020
-  usecase "Alterar comportamento do modelo" as UC009
-  usecase "Gerenciar biblioteca de modelos locais" as UC010
-  usecase "Abrir painéis da extensão" as UC011
-  usecase "Gerenciar sessões e histórico" as UC012
-  usecase "Resumir conversas longas" as UC013
-  usecase "Executar inferência local" as UC014
-  usecase "Descobrir modelos GGUF locais" as UC015
-
-  usecase "Indexar projeto com RAG" as UC016
-  usecase "Pesquisar modelos no Hugging Face" as UC017
-  usecase "Baixar modelo GGUF ou ONNX" as UC018
-  usecase "Adicionar documentos ao RAG" as UC019
-  usecase "Preparar engine local automaticamente" as UC021
-  usecase "Aplicar edição ou refatoração no arquivo atual" as UC022
+  usecase "Alternar execução local ou cloud" as UC007
+  usecase "Configurar execução, contexto e segurança" as UC008
+  usecase "Personalizar comportamento" as UC009
+  usecase "Gerenciar biblioteca local" as UC010
+  usecase "Navegar pelos painéis" as UC011
+  usecase "Gerenciar sessões" as UC012
+  usecase "Executar inferência local" as UC013
+  usecase "Descobrir modelos GGUF" as UC014
+  usecase "Indexar projeto com RAG" as UC015
+  usecase "Pesquisar modelos no Hugging Face" as UC016
+  usecase "Baixar modelo GGUF ou ONNX" as UC017
+  usecase "Gerenciar materiais complementares" as UC018
+  usecase "Configurar análise estrutural" as UC019
+  usecase "Aplicar edição direta" as UC020
 
   usecase "Coletar contexto do editor" as INC_Contexto
   usecase "Montar prompt" as INC_Prompt
@@ -114,19 +111,18 @@ Usuario --> UC005
 Usuario --> UC006
 Usuario --> UC007
 Usuario --> UC008
-Usuario --> UC020
 Usuario --> UC009
 Usuario --> UC010
 Usuario --> UC011
 Usuario --> UC012
+Usuario --> UC013
 Usuario --> UC014
 Usuario --> UC015
 Usuario --> UC016
 Usuario --> UC017
 Usuario --> UC018
 Usuario --> UC019
-Usuario --> UC021
-Usuario --> UC022
+Usuario --> UC020
 
 UC001 ..> INC_Contexto : <<include>>
 UC001 ..> INC_Prompt : <<include>>
@@ -139,41 +135,39 @@ UC002 ..> INC_Decoracoes : <<include>>
 UC002 ..> INC_Estrutura : <<include>>
 UC003 ..> UC001 : <<extend>>
 UC003 ..> INC_Estrutura : <<include>>
-UC022 ..> UC001 : <<extend>>
-UC022 ..> UC003 : <<extend>>
-UC022 ..> INC_Contexto : <<include>>
-UC022 ..> INC_Inferencia : <<include>>
-UC022 ..> INC_Historico : <<include>>
-UC022 ..> INC_Estrutura : <<include>> opcional
+UC020 ..> UC001 : <<extend>>
+UC020 ..> UC003 : <<extend>>
+UC020 ..> INC_Contexto : <<include>>
+UC020 ..> INC_Inferencia : <<include>>
+UC020 ..> INC_Historico : <<include>>
+UC020 ..> INC_Estrutura : <<include>> opcional
 UC004 ..> INC_Config : <<include>>
 UC005 ..> INC_Config : <<include>>
 UC006 ..> INC_Config : <<include>>
 UC007 ..> INC_Config : <<include>>
 UC008 ..> INC_Config : <<include>>
-UC020 ..> INC_Config : <<include>>
-UC020 ..> INC_Estrutura : <<configure>>
+UC019 ..> INC_Config : <<include>>
+UC019 ..> INC_Estrutura : <<configure>>
 UC009 ..> INC_Prompt : <<include>>
 UC010 ..> INC_Config : <<include>>
 UC012 ..> INC_Historico : <<include>>
-UC013 ..> INC_Historico : <<include>>
-UC014 ..> INC_Inferencia : <<include>>
-UC015 ..> UC010 : <<include>>
+UC013 ..> INC_Inferencia : <<include>>
+UC014 ..> UC010 : <<include>>
 INC_Prompt ..> INC_Modo : <<include>>
 
 ProvedorCloud --> INC_Inferencia
-LlamaServer --> UC014
+LlamaServer --> UC013
 SecretStorage --> UC005
 LanguageProviders --> INC_Estrutura
-FileSystem --> UC015
 FileSystem --> UC014
-FileSystem --> UC022
+FileSystem --> UC013
+FileSystem --> UC020
 
-UC016 --> BaseVetorial
+UC015 --> BaseVetorial
+UC016 ..> RepoModelos : <<include>>
 UC017 ..> RepoModelos : <<include>>
-UC018 ..> RepoModelos : <<include>>
-UC018 ..> FileSystem : <<include>>
-UC021 ..> FileSystem : <<include>>
-UC019 ..> BaseVetorial : <<include>>
+UC017 ..> FileSystem : <<include>>
+UC018 ..> BaseVetorial : <<include>>
 @enduml
 ```
 

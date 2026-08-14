@@ -1,6 +1,6 @@
 ﻿# Diagramas por Caso de Uso - ATLAS
 
-Atualizado em 4 de agosto de 2026.
+Atualizado em 14 de agosto de 2026.
 
 Este arquivo contém diagramas de classe e de sequência em PlantUML para cada caso de uso atualizado do ATLAS.
 Os blocos podem ser copiados diretamente para o PlantText.
@@ -9,13 +9,14 @@ Os blocos podem ser copiados diretamente para o PlantText.
 
 ## Mapa de defasagens corrigidas nesta atualização
 
-- UC014 agora mostra o ajuste automático de `contextWindow`, a persistência do novo parâmetro e o reinício da engine para aplicá-lo.
-- UC017 e UC018 deixaram de ser futuro e passaram a representar `HuggingFaceModelService`, `AtlasEngineDownloadService`, descoberta local e atualização de embeddings.
-- UC019 deixou de ser futuro e passou a apontar para `AtlasRagService`, `AtlasExternalDocumentParser`, `AtlasEmbeddingService` e `AtlasRagRepository`.
-- UC022 documenta a edição direta e a refatoração baseada em análise, incluindo detecção de intenção, validação do arquivo, plano JSON, diff, confirmação e aplicação.
+- UC013 mostra o ajuste automático de `contextWindow`, a persistência do novo parâmetro, a preparação e o reinício da engine para aplicá-lo.
+- UC016 e UC017 representam `HuggingFaceModelService`, `AtlasEngineDownloadService`, descoberta local e atualização de embeddings.
+- UC018 aponta para `AtlasRagService`, `AtlasExternalDocumentParser`, `AtlasEmbeddingService` e `AtlasRagRepository`.
+- UC019 documenta a configuração e o consumo da análise estrutural por finalidade e perfil.
+- UC020 documenta a edição direta e a refatoração baseada em análise, incluindo detecção de intenção, validação do arquivo, plano JSON, diff, confirmação e aplicação.
 - As assinaturas de `LocalApiService` e `AtlasLocalEngineService` foram ajustadas para representar o código atual, incluindo `restartEngine(model, options)`.
 
-## UC001 - Perguntar sobre o código pelo chat
+## UC001 - Perguntar sobre o código
 
 ### Diagrama de Classes
 
@@ -134,7 +135,7 @@ Webview --> Usuário : exibe resposta
 @enduml
 ```
 
-## UC002 - Executar análise rápida do arquivo atual
+## UC002 - Executar análise rápida
 
 ### Diagrama de Classes
 
@@ -255,7 +256,7 @@ end note
 @enduml
 ```
 
-## UC003 - Solicitar análise arquitetural formal
+## UC003 - Solicitar análise arquitetural
 
 ### Diagrama de Classes
 
@@ -528,7 +529,7 @@ Router --> Webview : modeloSelecionado
 @enduml
 ```
 
-## UC007 - Alternar modo local ou nuvem
+## UC007 - Alternar execução local ou cloud
 
 ### Diagrama de Classes
 
@@ -594,7 +595,7 @@ end
 @enduml
 ```
 
-## UC008 - Configurar parâmetros de execução e segurança
+## UC008 - Configurar execução, contexto e segurança
 
 ### Diagrama de Classes
 
@@ -663,7 +664,7 @@ end
 @enduml
 ```
 
-## UC009 - Alterar comportamento do modelo
+## UC009 - Personalizar comportamento
 
 ### Diagrama de Classes
 
@@ -715,7 +716,7 @@ Router --> Webview : comportamentoModeloSalvo
 @enduml
 ```
 
-## UC010 - Gerenciar biblioteca e registro de modelos locais
+## UC010 - Gerenciar biblioteca local
 
 ### Diagrama de Classes
 
@@ -774,7 +775,7 @@ ModelWebview --> Library : updateModelsList(models)
 @enduml
 ```
 
-## UC011 - Abrir painéis da extensão
+## UC011 - Navegar pelos painéis
 
 ### Diagrama de Classes
 
@@ -827,7 +828,7 @@ Panel --> Usuário : painel aberto
 @enduml
 ```
 
-## UC012 - Gerenciar sessões e histórico
+## UC012 - Gerenciar sessões
 
 ### Diagrama de Classes
 
@@ -888,9 +889,9 @@ Controller --> Webview : sessoesAtualizadas
 @enduml
 ```
 
-## UC013 - Resumir conversas longas
+### Fluxo complementar do UC012 — resumir conversas longas
 
-### Diagrama de Classes
+#### Diagrama de Classes
 
 ```plantuml
 @startuml
@@ -914,7 +915,7 @@ AtlasPromptAssemblyService --> AtlasSessionService
 @enduml
 ```
 
-### Diagrama de Sequência
+#### Diagrama de Sequência
 
 ```plantuml
 @startuml
@@ -937,7 +938,7 @@ Repository -> HistoryFile : grava resumo e mensagens recentes
 @enduml
 ```
 
-## UC014 - Executar inferência local com llama-server
+## UC013 - Executar inferência local
 
 ### Diagrama de Classes
 
@@ -1020,7 +1021,7 @@ Response --> Webview : respostaParcial/fimResposta
 @enduml
 ```
 
-## UC015 - Descobrir modelos GGUF locais
+## UC014 - Descobrir modelos GGUF
 
 ### Diagrama de Classes
 
@@ -1079,85 +1080,7 @@ Router --> Webview : updateModelsList(models)
 @enduml
 ```
 
-## Caso de uso implementado na versão 1.4
-
-## UC020 - Configurar análise estática estrutural
-
-### Diagrama de Classes
-
-```plantuml
-@startuml
-skinparam shadowing false
-skinparam classAttributeIconSize 0
-
-class "src/webview/atlas/script.js" as AtlasSettingsWebview <<webview>>
-class ChatMessageRouter {
-  -handleLoadAtlasSettings(webview)
-  -handleSaveAtlasSettings(data, webview)
-  -getAtlasSettingsPayload()
-}
-class AtlasConfigManager {
-  +getStaticAnalysisConfig()
-  +isStaticAnalysisEnabledFor(mode)
-  +updateCustomRoot(customData)
-}
-class AtlasSettingsService
-class AtlasConfigRepository
-class AtlasDocumentStructureService {
-  +collect(document)
-  +buildSummary(structure)
-  +buildDiagnosticsSummary(document)
-  +buildSymbolRelationsSummary(document)
-}
-class AtlasQuickAnalysisService
-class ChatResponseController
-interface AtlasStaticAnalysisConfig
-
-AtlasSettingsWebview --> ChatMessageRouter
-ChatMessageRouter --> AtlasConfigManager
-AtlasConfigManager --> AtlasSettingsService
-AtlasSettingsService --> AtlasConfigRepository
-AtlasConfigManager ..> AtlasStaticAnalysisConfig
-AtlasQuickAnalysisService --> AtlasConfigManager : consulta configuração
-AtlasQuickAnalysisService --> AtlasDocumentStructureService
-ChatResponseController --> AtlasConfigManager : consulta configuração
-ChatResponseController --> AtlasDocumentStructureService
-@enduml
-```
-
-### Diagrama de Sequência
-
-```plantuml
-@startuml
-skinparam shadowing false
-actor Usuário
-participant "Configurações Gerais" as Webview
-participant ChatMessageRouter as Router
-participant AtlasConfigManager as Config
-participant AtlasSettingsService as Settings
-participant AtlasConfigRepository as Repository
-database "config/atlas-config.json" as ConfigFile
-
-Usuário -> Webview : abre Configurações Gerais
-Webview -> Router : carregarConfiguracoesAtlas
-Router -> Config : getStaticAnalysisConfig()
-Config --> Router : configuração efetiva
-Router --> Webview : configuracoesAtlasCarregadas
-Usuário -> Webview : ativa coleta e escolhe opções
-Webview -> Webview : habilita/desabilita opções dependentes
-Usuário -> Webview : salvar
-Webview -> Router : salvarConfiguracoesAtlas(payload)
-Router -> Config : updateCustomRoot(staticAnalysis)
-Config -> Settings : updateCustomRoot(...)
-Settings -> Repository : save(config)
-Repository -> ConfigFile : grava custom.staticAnalysis
-Router --> Webview : configuracoesAtlasSalvas
-@enduml
-```
-
-## Casos de uso atuais
-
-## UC016 - Indexar projeto com RAG
+## UC015 - Indexar projeto com RAG
 
 ### Diagrama de Classes
 
@@ -1268,7 +1191,7 @@ UI --> Usuário : exibe status, tamanho e fontes
 @enduml
 ```
 
-## UC017 - Pesquisar modelos de IA no Hugging Face
+## UC016 - Pesquisar modelos no Hugging Face
 
 ### Diagrama de Classes
 
@@ -1347,7 +1270,7 @@ UI --> Usuário : exibe detalhes, variantes e compatibilidade
 @enduml
 ```
 
-## UC018 - Baixar modelo GGUF ou ONNX
+## UC017 - Baixar modelo GGUF ou ONNX
 
 ### Diagrama de Classes
 
@@ -1446,7 +1369,7 @@ UI --> Usuário : modelo disponível
 @enduml
 ```
 
-## UC019 - Adicionar materiais complementares ao RAG
+## UC018 - Gerenciar materiais complementares
 
 ### Diagrama de Classes
 
@@ -1523,7 +1446,116 @@ UI --> Usuário : confirma inclusão
 @enduml
 ```
 
-## UC022 - Aplicar edição ou refatoração no arquivo atual
+## UC019 - Configurar análise estrutural
+
+### Diagrama de Classes
+
+```plantuml
+@startuml
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+
+class "Configurações Gerais" as AtlasSettingsWebview <<webview>>
+class ChatMessageRouter {
+  -handleLoadAtlasSettings(webview)
+  -handleSaveAtlasSettings(data, webview)
+  -getAtlasSettingsPayload()
+}
+class AtlasConfigManager {
+  +getStaticAnalysisConfig()
+  +getContextProfile()
+  +isStaticAnalysisEnabledFor(mode)
+  +updateCustomRoot(customData)
+}
+class AtlasSettingsService
+class AtlasConfigRepository
+class AtlasDocumentStructureService {
+  +collect(document)
+  +buildSummary(structure)
+  +buildDiagnosticsSummary(document)
+  +buildSymbolRelationsSummary(document)
+}
+class AtlasQuickAnalysisService
+class ChatResponseController
+class AtlasCodeEditController
+interface AtlasStaticAnalysisConfig
+interface AtlasContextProfileSettings
+class "Provedores de linguagem do VS Code" as LanguageProviders <<external>>
+
+AtlasSettingsWebview --> ChatMessageRouter
+ChatMessageRouter --> AtlasConfigManager
+AtlasConfigManager --> AtlasSettingsService
+AtlasSettingsService --> AtlasConfigRepository
+AtlasConfigManager ..> AtlasStaticAnalysisConfig
+AtlasConfigManager ..> AtlasContextProfileSettings
+AtlasQuickAnalysisService --> AtlasConfigManager : finalidade + perfil
+ChatResponseController --> AtlasConfigManager : finalidade + perfil
+AtlasCodeEditController --> AtlasConfigManager : finalidade + perfil
+AtlasQuickAnalysisService --> AtlasDocumentStructureService
+ChatResponseController --> AtlasDocumentStructureService
+AtlasCodeEditController --> AtlasDocumentStructureService
+AtlasDocumentStructureService --> LanguageProviders : símbolos, diagnósticos e referências
+@enduml
+```
+
+### Diagrama de Sequência
+
+```plantuml
+@startuml
+skinparam shadowing false
+actor Usuário
+participant "Configurações Gerais" as Webview
+participant ChatMessageRouter as Router
+participant AtlasConfigManager as Config
+participant AtlasSettingsService as Settings
+participant AtlasConfigRepository as Repository
+database "config/atlas-config.json" as ConfigFile
+participant "Fluxo solicitante\n(QuickAnalysis / Architecture / Edit)" as Consumer
+participant AtlasDocumentStructureService as Structure
+participant "Provedores de linguagem do VS Code" as LanguageProviders
+
+== Configuração ==
+Usuário -> Webview : abre Configurações Gerais
+Webview -> Router : carregarConfiguracoesAtlas
+Router -> Config : getStaticAnalysisConfig()\ngetContextProfile()
+Config --> Router : configuração efetiva + perfil
+Router --> Webview : configuracoesAtlasCarregadas
+Usuário -> Webview : ativa análise estrutural e escolhe finalidades
+Webview -> Webview : valida opções dependentes
+Usuário -> Webview : salvar
+Webview -> Router : salvarConfiguracoesAtlas(payload)
+Router -> Config : updateCustomRoot(staticAnalysis)
+Config -> Settings : updateCustomRoot(...)
+Settings -> Repository : save(config)
+Repository -> ConfigFile : grava custom.staticAnalysis
+Router --> Webview : configuracoesAtlasSalvas
+
+== Consumo da configuração ==
+Usuário -> Consumer : inicia análise rápida,\nanálise arquitetural ou refatoração
+Consumer -> Config : consulta enabled + finalidade + perfil
+Config -> Config : combina opção global, uso na finalidade\ne includeStaticAnalysis do perfil
+Config --> Consumer : habilitada ou desabilitada
+alt análise estrutural habilitada para a finalidade e o perfil
+  Consumer -> Structure : collect(document)
+  Structure -> LanguageProviders : executeDocumentSymbolProvider
+  LanguageProviders --> Structure : símbolos e intervalos
+  opt incluir diagnósticos
+    Structure -> LanguageProviders : getDiagnostics(document)
+    LanguageProviders --> Structure : diagnósticos publicados
+  end
+  opt incluir relações entre símbolos
+    Structure -> LanguageProviders : executeReferenceProvider
+    LanguageProviders --> Structure : referências externas
+  end
+  Structure --> Consumer : resumo estrutural limitado às evidências
+  Consumer -> Consumer : acrescenta contexto ao prompt ou à análise
+else desabilitada ou incompatível com o perfil
+  Consumer -> Consumer : continua somente com o contexto textual permitido
+end
+@enduml
+```
+
+## UC020 - Aplicar edição direta
 
 ### Diagrama de Classes
 
