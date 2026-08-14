@@ -21,6 +21,7 @@ export class AtlasConfigDefaults {
       cloudConfigs: {
         limitPayload: true,
         dynamicMaxTokens: false,
+        sendOnlyRequiredParameters: false,
         maxTokens: 8192,
         timeout: 30,
         temperature: 0.4,

@@ -13,6 +13,7 @@ export interface AtlasGeneralSettings {
 export interface AtlasCloudConfigs {
   limitPayload: boolean;
   dynamicMaxTokens?: boolean;
+  sendOnlyRequiredParameters?: boolean;
   maxTokens: number;
   timeout: number;
   temperature: number;

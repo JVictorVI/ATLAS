@@ -80,6 +80,7 @@ Campos:
 ```text
 limitPayload
 dynamicMaxTokens
+sendOnlyRequiredParameters
 maxTokens
 timeout
 temperature
@@ -94,6 +95,7 @@ Defaults atuais:
 ```text
 limitPayload: true
 dynamicMaxTokens: false
+sendOnlyRequiredParameters: false
 maxTokens: 8192
 timeout: 30
 temperature: 0.4

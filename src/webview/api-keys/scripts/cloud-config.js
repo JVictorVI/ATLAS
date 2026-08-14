@@ -12,6 +12,7 @@ function setupCloudConfigEvents() {
   const toggleInputs = [
     apiKeyElements.limitPayload,
     apiKeyElements.dynamicMaxTokens,
+    apiKeyElements.sendOnlyRequiredParameters,
     apiKeyElements.stream,
   ];
 
@@ -38,6 +39,10 @@ function fillCloudConfigs(settings) {
   isApplyingCloudConfig = true;
   setChecked(apiKeyElements.limitPayload, settings.limitPayload);
   setChecked(apiKeyElements.dynamicMaxTokens, settings.dynamicMaxTokens === true);
+  setChecked(
+    apiKeyElements.sendOnlyRequiredParameters,
+    settings.sendOnlyRequiredParameters === true,
+  );
   setChecked(apiKeyElements.stream, settings.stream);
   setInputValue(apiKeyElements.maxTokens, settings.maxTokens);
   setInputValue(apiKeyElements.timeout, settings.timeout);
@@ -51,6 +56,7 @@ function saveCloudConfigs() {
     dynamicMaxTokens,
     limitPayload,
     maxTokens,
+    sendOnlyRequiredParameters,
     stream,
     temperature,
     timeout,
@@ -62,6 +68,9 @@ function saveCloudConfigs() {
     payload: {
       limitPayload: Boolean(limitPayload?.checked),
       dynamicMaxTokens: Boolean(dynamicMaxTokens?.checked),
+      sendOnlyRequiredParameters: Boolean(
+        sendOnlyRequiredParameters?.checked,
+      ),
       maxTokens: readOptionalNumber(maxTokens),
       timeout: readOptionalNumber(timeout),
       temperature: readOptionalNumber(temperature),
@@ -92,22 +101,42 @@ function scheduleCloudConfigAutosave(delay = 500) {
 }
 
 function deactivateInputs() {
-  const { dynamicMaxTokens, limitPayload, maxTokens } = apiKeyElements;
-  const inputs = [
-    apiKeyElements.timeout,
-    apiKeyElements.temperature,
-    apiKeyElements.topP,
-  ];
-  const enabled = Boolean(limitPayload?.checked);
+  const {
+    dynamicMaxTokens,
+    limitPayload,
+    maxTokens,
+    sendOnlyRequiredParameters,
+    stream,
+  } = apiKeyElements;
+  const sendsOnlyRequiredParameters = Boolean(
+    sendOnlyRequiredParameters?.checked,
+  );
+  const limitsOutputTokens = Boolean(limitPayload?.checked);
   const usesDynamicMaxTokens = Boolean(dynamicMaxTokens?.checked);
 
-  inputs.forEach((input) => {
+  if (limitPayload) {
+    limitPayload.disabled = sendsOnlyRequiredParameters;
+  }
+
+  if (dynamicMaxTokens) {
+    dynamicMaxTokens.disabled =
+      sendsOnlyRequiredParameters || !limitsOutputTokens;
+  }
+
+  if (stream) {
+    stream.disabled = sendsOnlyRequiredParameters;
+  }
+
+  [apiKeyElements.temperature, apiKeyElements.topP].forEach((input) => {
     if (input) {
-      input.disabled = !enabled;
+      input.disabled = sendsOnlyRequiredParameters;
     }
   });
 
   if (maxTokens) {
-    maxTokens.disabled = !enabled || usesDynamicMaxTokens;
+    maxTokens.disabled =
+      sendsOnlyRequiredParameters ||
+      !limitsOutputTokens ||
+      usesDynamicMaxTokens;
   }
 }

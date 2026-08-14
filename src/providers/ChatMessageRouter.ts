@@ -1446,6 +1446,7 @@ export class ChatMessageRouter {
       const {
         limitPayload,
         dynamicMaxTokens,
+        sendOnlyRequiredParameters,
         maxTokens,
         timeout,
         temperature,
@@ -1456,6 +1457,7 @@ export class ChatMessageRouter {
       const updatedConfig = this.deps.configManager.updateCloudConfigs({
         limitPayload,
         dynamicMaxTokens,
+        sendOnlyRequiredParameters,
         maxTokens,
         timeout,
         temperature,

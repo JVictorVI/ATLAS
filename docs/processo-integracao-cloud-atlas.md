@@ -129,6 +129,16 @@ topP
 stream
 ```
 
+`limitPayload` controla o envio do limite de saída configurado em `maxTokens`.
+Quando está desativado, o ATLAS deixa de enviar esse limite para provedores que
+o aceitam como parâmetro opcional. Claude é a exceção: a API exige
+`max_tokens`, portanto o ATLAS mantém um valor válido para a chamada.
+
+`sendOnlyRequiredParameters` é o modo de compatibilidade. Quando está ativo,
+o ATLAS não envia temperatura, top-p, limite opcional de tokens nem streaming;
+mantém apenas os campos obrigatórios de cada API e entrega a resposta em bloco
+quando necessário.
+
 Default efetivo de timeout quando ausente:
 
 ```text

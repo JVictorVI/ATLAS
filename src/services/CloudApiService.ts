@@ -22,6 +22,10 @@ import {
 
 export class CloudApiService {
   private readonly cloudMaxTokensCache = new Map<string, number | null>();
+  private readonly openAiOutputTokenParameterCache = new Map<
+    string,
+    "max_tokens" | "max_completion_tokens"
+  >();
 
   constructor(
     private readonly configManager: AtlasConfigManager,
@@ -60,12 +64,18 @@ export class CloudApiService {
 
     const providerKind = this.getProviderKind(provider);
     const cloudConfigs = config.cloudConfigs;
-    const maxTokens = await this.resolveCloudMaxTokens(
-      provider,
-      modelId,
-      apiKey,
-      cloudConfigs.maxTokens,
-    );
+    const sendsOnlyRequiredParameters =
+      cloudConfigs.sendOnlyRequiredParameters === true;
+    const limitsOutputTokens =
+      cloudConfigs.limitPayload === true && !sendsOnlyRequiredParameters;
+    const maxTokens = limitsOutputTokens
+      ? await this.resolveCloudMaxTokens(
+          provider,
+          modelId,
+          apiKey,
+          cloudConfigs.maxTokens,
+        )
+      : undefined;
 
     switch (providerKind) {
       case "claude":
@@ -76,6 +86,7 @@ export class CloudApiService {
           messages,
           maxTokens,
           cloudConfigs.temperature,
+          sendsOnlyRequiredParameters,
           onChunk,
           options?.signal,
         );
@@ -89,6 +100,7 @@ export class CloudApiService {
           maxTokens,
           cloudConfigs.temperature,
           cloudConfigs.topP,
+          sendsOnlyRequiredParameters,
           onChunk,
           options?.signal,
         );
@@ -103,6 +115,7 @@ export class CloudApiService {
           cloudConfigs.temperature,
           maxTokens,
           cloudConfigs.topP,
+          sendsOnlyRequiredParameters,
           onChunk,
           options?.signal,
         );
@@ -138,10 +151,7 @@ export class CloudApiService {
 
   private handleApiError(response: Response, data?: any): never {
     const status = response.status;
-    const providerMessage =
-      data?.error?.message ||
-      data?.error?.details ||
-      "Erro desconhecido retornado pelo provedor.";
+    const providerMessage = this.getProviderErrorMessage(data);
 
     if (status === 401 || status === 403) {
       throw new Error(
@@ -164,12 +174,20 @@ export class CloudApiService {
     throw new Error(`Falha na requisição (HTTP ${status}): ${providerMessage}`);
   }
 
+  private getProviderErrorMessage(data?: any): string {
+    return (
+      data?.error?.message ||
+      data?.error?.details ||
+      data?.message ||
+      "Erro desconhecido retornado pelo provedor."
+    );
+  }
+
   private async fetchWithTimeout(
     resource: string,
     options: RequestInit & { timeout?: number; signal?: AbortSignal },
   ): Promise<Response> {
-    const timeoutSetting =
-      this.configManager.getConfig().cloudConfigs.timeout;
+    const timeoutSetting = this.configManager.getConfig().cloudConfigs.timeout;
     const defaultTimeout = timeoutSetting ? timeoutSetting * 1000 : 30000;
     const timeout = options.timeout || defaultTimeout;
 
@@ -234,37 +252,41 @@ export class CloudApiService {
     apiKey: string,
     messages: ChatMessage[],
     temperature: number,
-    maxTokens: number,
+    maxTokens: number | undefined,
     topP: number,
+    sendsOnlyRequiredParameters: boolean,
     onChunk?: (chunk: string) => void,
     signal?: AbortSignal,
   ): Promise<AtlasCloudChatResponse> {
     const baseUrl = provider.baseUrl.replace(/\/+$/, "");
     const endpoint = `${baseUrl}/chat/completions`;
+    const requestedStreaming =
+      !sendsOnlyRequiredParameters && typeof onChunk === "function";
+    const requestBody: Record<string, unknown> = {
+      model: modelId,
+      messages: this.toProviderMessages(messages),
+    };
 
-    const isStreaming = typeof onChunk === "function";
+    if (!sendsOnlyRequiredParameters) {
+      requestBody.temperature = temperature;
+      requestBody.top_p = topP;
+      requestBody.stream = requestedStreaming;
 
-    const response = await this.fetchWithTimeout(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: modelId,
-        messages: this.toProviderMessages(messages),
-        temperature,
-        max_tokens: maxTokens,
-        top_p: topP,
-        stream: isStreaming,
-      }),
-      signal,
-    });
-
-    if (!response.ok) {
-      const errorData = await this.safeReadJson(response);
-      this.handleApiError(response, errorData);
+      if (maxTokens !== undefined) {
+        requestBody[this.getOpenAiOutputTokenParameter(provider, modelId)] =
+          maxTokens;
+      }
     }
+
+    const { response, isStreaming } =
+      await this.sendOpenAiCompatibleRequest(
+        endpoint,
+        apiKey,
+        provider,
+        modelId,
+        requestBody,
+        signal,
+      );
 
     // --- Lógica de Processamento de Stream (SSE) CORRIGIDA ---
     if (isStreaming) {
@@ -375,7 +397,168 @@ export class CloudApiService {
     const data = (await this.safeReadJson(
       response,
     )) as OpenAiCompatibleResponse;
-    return this.normalizeOpenAiCompatibleResponse(provider, modelId, data);
+    const normalizedResponse = this.normalizeOpenAiCompatibleResponse(
+      provider,
+      modelId,
+      data,
+    );
+
+    if (onChunk) {
+      onChunk(normalizedResponse.content);
+    }
+
+    return normalizedResponse;
+  }
+
+  private async sendOpenAiCompatibleRequest(
+    endpoint: string,
+    apiKey: string,
+    provider: ProviderConfig,
+    modelId: string,
+    requestBody: Record<string, unknown>,
+    signal?: AbortSignal,
+  ): Promise<{ response: Response; isStreaming: boolean }> {
+    const maxAttempts = 5;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      const response = await this.fetchWithTimeout(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(requestBody),
+        signal,
+      });
+
+      if (response.ok) {
+        return {
+          response,
+          isStreaming: requestBody.stream === true,
+        };
+      }
+
+      const errorData = await this.safeReadJson(response);
+
+      if (
+        response.status === 400 &&
+        this.adaptOpenAiCompatibleRequest(
+          provider,
+          modelId,
+          requestBody,
+          errorData,
+        )
+      ) {
+        continue;
+      }
+
+      this.handleApiError(response, errorData);
+    }
+
+    throw new Error(
+      "O provedor rejeitou repetidamente os parâmetros de compatibilidade da requisição.",
+    );
+  }
+
+  private adaptOpenAiCompatibleRequest(
+    provider: ProviderConfig,
+    modelId: string,
+    requestBody: Record<string, unknown>,
+    errorData: unknown,
+  ): boolean {
+    const message = this.getProviderErrorMessage(errorData);
+    const replacement = message.match(
+      /unsupported parameter:\s*['`"]([^'`"]+)['`"][\s\S]*?use\s*['`"]([^'`"]+)['`"]\s*instead/i,
+    );
+
+    if (replacement) {
+      const [, unsupportedParameter, replacementParameter] = replacement;
+
+      if (
+        this.isOptionalOpenAiParameter(unsupportedParameter) &&
+        this.isOptionalOpenAiParameter(replacementParameter) &&
+        unsupportedParameter in requestBody
+      ) {
+        const value = requestBody[unsupportedParameter];
+        delete requestBody[unsupportedParameter];
+        requestBody[replacementParameter] = value;
+        this.rememberOpenAiOutputTokenParameter(
+          provider,
+          modelId,
+          replacementParameter,
+        );
+        return true;
+      }
+    }
+
+    const unsupportedParameter = message.match(
+      /unsupported parameter:\s*['`"]([^'`"]+)['`"]|parameter\s*['`"]([^'`"]+)['`"].*?(?:not supported|unsupported)/i,
+    );
+    const parameterName = unsupportedParameter?.[1] ?? unsupportedParameter?.[2];
+
+    if (
+      parameterName &&
+      this.isOptionalOpenAiParameter(parameterName) &&
+      parameterName in requestBody
+    ) {
+      delete requestBody[parameterName];
+      return true;
+    }
+
+    if (
+      "temperature" in requestBody &&
+      /(?:unsupported value|does not support|only the default).*temperature|temperature.*(?:unsupported value|does not support|only the default)/i.test(
+        message,
+      )
+    ) {
+      delete requestBody.temperature;
+      return true;
+    }
+
+    return false;
+  }
+
+  private isOptionalOpenAiParameter(parameter: string): boolean {
+    return [
+      "max_tokens",
+      "max_completion_tokens",
+      "temperature",
+      "top_p",
+      "stream",
+    ].includes(parameter);
+  }
+
+  private getOpenAiOutputTokenParameter(
+    provider: ProviderConfig,
+    modelId: string,
+  ): "max_tokens" | "max_completion_tokens" {
+    return (
+      this.openAiOutputTokenParameterCache.get(
+        this.getOpenAiModelCacheKey(provider, modelId),
+      ) ?? "max_tokens"
+    );
+  }
+
+  private rememberOpenAiOutputTokenParameter(
+    provider: ProviderConfig,
+    modelId: string,
+    parameter: string,
+  ): void {
+    if (parameter !== "max_tokens" && parameter !== "max_completion_tokens") {
+      return;
+    }
+
+    this.openAiOutputTokenParameterCache.set(
+      this.getOpenAiModelCacheKey(provider, modelId),
+      parameter,
+    );
+  }
+
+  private getOpenAiModelCacheKey(
+    provider: ProviderConfig,
+    modelId: string,
+  ): string {
+    return `${provider.id}::${modelId}`;
   }
 
   private createAbortError(): Error {
@@ -442,8 +625,9 @@ export class CloudApiService {
     modelId: string,
     apiKey: string,
     messages: ChatMessage[],
-    maxTokens: number,
+    maxTokens: number | undefined,
     temperature: number,
+    sendsOnlyRequiredParameters: boolean,
     onChunk?: (chunk: string) => void,
     signal?: AbortSignal,
   ): Promise<AtlasCloudChatResponse> {
@@ -463,6 +647,24 @@ export class CloudApiService {
         content: message.content,
       }));
 
+    const requestBody: Record<string, unknown> = {
+      model: modelId,
+      // A API Claude exige esse campo mesmo quando o limite opcional está
+      // desativado ou o modo de compatibilidade está ativo.
+      max_tokens:
+        maxTokens ??
+        this.normalizePositiveInteger(
+          this.configManager.getConfig().cloudConfigs.maxTokens,
+          2048,
+        ),
+      system: systemMessages || undefined,
+      messages: nonSystemMessages,
+    };
+
+    if (!sendsOnlyRequiredParameters) {
+      requestBody.temperature = temperature;
+    }
+
     const response = await this.fetchWithTimeout(endpoint, {
       method: "POST",
       headers: {
@@ -470,13 +672,7 @@ export class CloudApiService {
         "x-api-key": apiKey,
         "anthropic-version": "2023-06-01",
       },
-      body: JSON.stringify({
-        model: modelId,
-        max_tokens: maxTokens,
-        temperature,
-        system: systemMessages || undefined,
-        messages: nonSystemMessages,
-      }),
+      body: JSON.stringify(requestBody),
       signal,
     });
 
@@ -505,9 +701,10 @@ export class CloudApiService {
     modelId: string,
     apiKey: string,
     messages: ChatMessage[],
-    maxTokens: number,
+    maxTokens: number | undefined,
     temperature: number,
     topP: number,
+    sendsOnlyRequiredParameters: boolean,
     onChunk?: (chunk: string) => void,
     signal?: AbortSignal,
   ): Promise<AtlasCloudChatResponse> {
@@ -530,24 +727,34 @@ export class CloudApiService {
         parts: [{ text: message.content }],
       }));
 
+    const requestBody: Record<string, unknown> = {
+      systemInstruction: systemText
+        ? {
+            parts: [{ text: systemText }],
+          }
+        : undefined,
+      contents,
+    };
+
+    if (!sendsOnlyRequiredParameters) {
+      const generationConfig: Record<string, unknown> = {
+        temperature,
+        topP,
+      };
+
+      if (maxTokens !== undefined) {
+        generationConfig.maxOutputTokens = maxTokens;
+      }
+
+      requestBody.generationConfig = generationConfig;
+    }
+
     const response = await this.fetchWithTimeout(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        systemInstruction: systemText
-          ? {
-              parts: [{ text: systemText }],
-            }
-          : undefined,
-        contents,
-        generationConfig: {
-          temperature,
-          topP,
-          maxOutputTokens: maxTokens,
-        },
-      }),
+      body: JSON.stringify(requestBody),
       signal,
     });
 

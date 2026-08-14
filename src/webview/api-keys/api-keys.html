@@ -105,10 +105,22 @@
           <span>Responder em tempo real (streaming)</span>
         </label>
 
-        <label class="toggle-option">
+        <label
+          class="toggle-option"
+          title="Envia somente os campos obrigatórios para o provedor. Temperatura, top-p, limite de tokens e streaming não são enviados."
+        >
+          <input type="checkbox" id="sendOnlyRequiredParameters" />
+          <span class="checkbox" aria-hidden="true"></span>
+          <span>Enviar somente parâmetros obrigatórios (compatibilidade)</span>
+        </label>
+
+        <label
+          class="toggle-option"
+          title="Quando desativado, o limite não é enviado onde for opcional. Claude exige max_tokens para processar a chamada."
+        >
           <input type="checkbox" id="limitPayload" checked />
           <span class="checkbox" aria-hidden="true"></span>
-          <span>Limitar tamanho máximo de payload (tokens)</span>
+          <span>Limitar tamanho máximo da resposta (tokens)</span>
         </label>
 
         <label class="toggle-option">
