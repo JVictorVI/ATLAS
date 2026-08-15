@@ -141,20 +141,19 @@ export class HardwareDiagnosticService {
       name = registryGpu.name;
 
       const controllers = this.getWindowsVideoControllers();
-      const selected = controllers.find((gpu) =>
-        /nvidia|amd|radeon|intel|arc|iris|uhd/i.test(gpu.name),
-      ) ?? controllers[0];
+      const selected = this.selectPreferredWindowsVideoController(controllers);
 
       if (selected?.name) {
         name = selected.name;
       }
 
       const nvidia = this.getWindowsNvidiaSmiGpuInfo();
-      if (!name && nvidia.name) {
+
+      if (nvidia.name) {
         name = nvidia.name;
       }
 
-      if (vram === 0 && nvidia.vram > 0) {
+      if (nvidia.vram > 0) {
         vram = nvidia.vram;
       }
 
@@ -184,6 +183,25 @@ export class HardwareDiagnosticService {
     }
 
     return { vram, name, vendor: this.detectGpuVendor(name) };
+  }
+
+  private selectPreferredWindowsVideoController(
+    controllers: Array<{ name: string; vram: number }>,
+  ): { name: string; vram: number } | undefined {
+    const vendorPriority: Record<GpuVendor, number> = {
+      nvidia: 3,
+      amd: 2,
+      intel: 1,
+      unknown: 0,
+    };
+
+    return [...controllers].sort((left, right) => {
+      const priorityDifference =
+        vendorPriority[this.detectGpuVendor(right.name)] -
+        vendorPriority[this.detectGpuVendor(left.name)];
+
+      return priorityDifference || right.vram - left.vram;
+    })[0];
   }
 
   private getWindowsRegistryGpuInfo(): { name: string; vram: number } {

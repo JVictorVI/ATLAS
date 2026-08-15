@@ -48,20 +48,21 @@ function renderCredentials(credentials) {
 
   for (const item of credentials) {
     const tr = document.createElement("tr");
-    const provider = escapeHtml(item.provider ?? "-");
+    const providerId = escapeHtml(item.provider ?? "");
+    const providerLabel = escapeHtml(item.providerLabel ?? item.provider ?? "-");
     const maskedKey = escapeHtml(item.maskedKey ?? "Não configurada");
     const addedAt = escapeHtml(item.addedAt ?? "Não informado");
 
     tr.innerHTML = `
-      <td>${provider}</td>
+      <td title="${providerId || providerLabel}">${providerLabel}</td>
       <td>${maskedKey}</td>
       <td>${addedAt}</td>
       <td>
         <div class="actions">
-          <button class="btn-secondary" data-credential-action="edit" data-provider="${provider}">
+          <button class="btn-secondary" data-credential-action="edit" data-provider="${providerId}">
             Editar
           </button>
-          <button class="btn-danger" data-credential-action="delete" data-provider="${provider}">
+          <button class="btn-danger" data-credential-action="delete" data-provider="${providerId}">
             Excluir
           </button>
         </div>

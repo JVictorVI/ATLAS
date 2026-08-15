@@ -24,8 +24,11 @@ export class AtlasQuickAnalysisService {
     fileName?: string,
     signal?: AbortSignal,
   ): Promise<AtlasQuickIssue[]> {
-    const structureSummary =
-      await this.buildOptionalStructureSummary(document);
+    this.throwIfAborted(signal);
+
+    const structureSummary = await this.buildOptionalStructureSummary(document);
+
+    this.throwIfAborted(signal);
 
     const promptResult = this.promptAssemblyService.buildMessages({
       forcedMode: "quick-analysis",
@@ -46,7 +49,14 @@ export class AtlasQuickAnalysisService {
       undefined,
       { signal },
     );
-    return this.parseIssues(response.content);
+
+    this.throwIfAborted(signal);
+
+    const issues = this.parseIssues(response.content);
+
+    this.throwIfAborted(signal);
+
+    return issues;
   }
 
   private buildQuickAnalysisPrompt(
@@ -119,9 +129,7 @@ export class AtlasQuickAnalysisService {
       );
     }
 
-    if (
-      this.configManager.getStaticAnalysisConfig().includeSymbolRelations
-    ) {
+    if (this.configManager.getStaticAnalysisConfig().includeSymbolRelations) {
       summaries.push(
         await this.documentStructureService.buildSymbolRelationsSummary(
           document,
@@ -134,6 +142,16 @@ export class AtlasQuickAnalysisService {
     console.log("[ATLAS] Análise estática gerada (análise rápida):\n", summary);
 
     return summary;
+  }
+
+  private throwIfAborted(signal?: AbortSignal): void {
+    if (!signal?.aborted) {
+      return;
+    }
+
+    const error = new Error("Análise rápida cancelada pelo usuário.");
+    error.name = "AbortError";
+    throw error;
   }
 
   private parseIssues(raw: string): AtlasQuickIssue[] {
@@ -178,9 +196,7 @@ export class AtlasQuickAnalysisService {
       });
   }
 
-  private normalizeSeverity(
-    value: unknown,
-  ): AtlasQuickIssueSeverity | null {
+  private normalizeSeverity(value: unknown): AtlasQuickIssueSeverity | null {
     const normalized = this.normalizeClassifierToken(value);
     const aliases: Record<string, AtlasQuickIssueSeverity> = {
       low: "low",
@@ -214,9 +230,7 @@ export class AtlasQuickAnalysisService {
     return aliases[normalized] ?? null;
   }
 
-  private normalizeCategory(
-    value: unknown,
-  ): AtlasQuickIssueCategory | null {
+  private normalizeCategory(value: unknown): AtlasQuickIssueCategory | null {
     const normalized = this.normalizeClassifierToken(value);
     const aliases: Record<string, AtlasQuickIssueCategory> = {
       coupling: "coupling",

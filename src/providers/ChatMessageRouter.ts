@@ -6,7 +6,10 @@ import { ChatMessage } from "../interfaces/ApiTypes";
 import { AtlasSession } from "../interfaces/AtlasHistoryTypes";
 import { ChatResponseController } from "./ChatResponseController";
 import { ChatSessionController } from "./ChatSessionController";
-import { RouterDependencies } from "./ChatMessageRouterTypes";
+import {
+  ActiveGenerationPayload,
+  RouterDependencies,
+} from "./ChatMessageRouterTypes";
 import {
   RagEmbeddingModelInfo,
   RagIndexingMode,
@@ -19,12 +22,29 @@ import {
   AtlasResponseLanguage,
 } from "../interfaces/AtlasConfigTypes";
 import { AtlasExternalDocumentParser } from "../services/AtlasExternalDocumentParser";
-import { AtlasContextProfileService } from "../services/AtlasContextProfileService";
+import {
+  AtlasContextProfileService,
+  type AtlasContextProfileEffects,
+} from "../services/AtlasContextProfileService";
 import { AtlasInferenceService } from "../services/AtlasInferenceService";
+
+type LocalEngineType = "cpu" | "cuda" | "vulkan";
+
+type ConfiguredEngineDownloadStatus = {
+  engineType: LocalEngineType;
+  enginesDir: string;
+  loading: boolean;
+  done: boolean;
+  error?: boolean;
+  message: string;
+};
 
 export class ChatMessageRouter {
   private activeWebviewRoute = "chat";
   private ragIndexController: AbortController | null = null;
+  private configuredEngineDownloadStatus: ConfiguredEngineDownloadStatus | null =
+    null;
+  private configuredEngineDownloadPromise: Promise<void> | null = null;
   private readonly activeHuggingFaceDownloads = new Map<
     string,
     {
@@ -44,7 +64,7 @@ export class ChatMessageRouter {
 
     this.sessionController = new ChatSessionController(
       this.deps,
-      () => this.responseController.serializeActiveGeneration(),
+      () => this.serializeActiveGenerations(),
       async (webview, error, fallback) => {
         await this.postError(webview, error, fallback);
       },
@@ -79,9 +99,19 @@ export class ChatMessageRouter {
         await this.responseController.handleSendQuestion(data, webview);
         return;
       case "cancelarGeracao":
-        this.deps.cancelQuickAnalysis();
-        this.deps.cancelCodeEdit();
-        await this.responseController.handleCancelGeneration(webview);
+        {
+          const target = {
+            sessionId:
+              typeof data.sessionId === "string" ? data.sessionId : undefined,
+            generationId:
+              typeof data.generationId === "string"
+                ? data.generationId
+                : undefined,
+          };
+          this.deps.cancelQuickAnalysis(target);
+          this.deps.cancelCodeEdit(target);
+          await this.responseController.handleCancelGeneration(webview, target);
+        }
         return;
       case "abrirPainelConfig":
         this.deps.openPanel(data.selectedView);
@@ -173,6 +203,9 @@ export class ChatMessageRouter {
       case "salvarConfiguracoesAtlas":
         await this.handleSaveAtlasSettings(data, webview);
         return;
+      case "restaurarConfiguracoesAtlas":
+        await this.handleRestoreAtlasSettings(webview);
+        return;
       case "selecionarPastaModelosLocais":
         await this.handleSelectLocalModelsFolder(webview);
         return;
@@ -243,7 +276,17 @@ export class ChatMessageRouter {
         await this.handleLoadModelRequest(data, webview);
         return;
       case "executarAnaliseRapida":
-        await this.deps.executeQuickAnalysis(webview);
+        await this.deps.executeQuickAnalysis(webview, {
+          source: "button",
+          sessionId:
+            typeof data.sessionId === "string"
+              ? data.sessionId
+              : this.deps.sessionService.getActiveSessionId() ?? undefined,
+          generationId:
+            typeof data.generationId === "string"
+              ? data.generationId
+              : undefined,
+        });
         return;
       case "executarRefatoracaoArquitetural":
         await this.handleArchitectureGuidedRefactor(data, webview);
@@ -279,6 +322,29 @@ export class ChatMessageRouter {
         await this.handleSendRepositoryHardwareInfo(webview);
         return;
     }
+  }
+
+  private serializeActiveGenerations(): ActiveGenerationPayload[] {
+    const generationsBySession = new Map<string, ActiveGenerationPayload>();
+    const generations = [
+      ...this.responseController.serializeActiveGenerations(),
+      ...this.deps.getActiveQuickAnalysisGenerations(),
+      ...this.deps.getActiveCodeEditGenerations(),
+    ];
+
+    for (const generation of generations) {
+      const existing = generationsBySession.get(generation.sessionId);
+
+      generationsBySession.set(generation.sessionId, {
+        ...existing,
+        ...generation,
+        userContent: generation.userContent || existing?.userContent || "",
+        partialContent:
+          generation.partialContent || existing?.partialContent || "",
+      });
+    }
+
+    return [...generationsBySession.values()];
   }
 
   private async handleLoadLlms(webview: vscode.Webview): Promise<void> {
@@ -511,10 +577,16 @@ export class ChatMessageRouter {
         payload.directoryFilters,
         current.directoryFilters,
       );
-      const embeddingModel = this.normalizeEmbeddingModelId(
+      const requestedEmbeddingModel = this.normalizeEmbeddingModelId(
         payload.embeddingModel,
         current.embeddingModel,
       );
+      const embeddingModels = this.deps.refreshRagEmbeddingModels();
+      const embeddingModel = embeddingModels.some(
+        (model) => model.id === requestedEmbeddingModel,
+      )
+        ? requestedEmbeddingModel
+        : embeddingModels[0]?.id ?? "";
       const indexShapeChanged =
         JSON.stringify(ignoredPaths) !== JSON.stringify(current.ignoredPaths) ||
         embeddingModel !== current.embeddingModel ||
@@ -526,6 +598,21 @@ export class ChatMessageRouter {
         respectGitIgnore !== current.respectGitIgnore ||
         includeMarkdownFiles !== current.includeMarkdownFiles ||
         includeConfigFiles !== current.includeConfigFiles;
+      const contextProfile = this.deps.configManager.getContextProfile();
+
+      if (
+        contextProfile.mode !== "custom" &&
+        (topK !== contextProfile.ragTopK ||
+          maxContextCharacters !== contextProfile.ragMaxContextCharacters)
+      ) {
+        this.deps.configManager.setContextProfile({
+          ...contextProfile,
+          mode: "custom",
+          ragTopK: topK,
+          ragMaxContextCharacters: maxContextCharacters,
+        });
+      }
+
       const config = this.deps.configManager.updateRagSettings({
         enabled: payload.enabled === true,
         autoIndex,
@@ -626,13 +713,17 @@ export class ChatMessageRouter {
         (model) => model.id === current.embeddingModel,
       );
 
-      if (!currentModelExists && models[0]) {
+      if (!currentModelExists) {
+        const nextModelId = models[0]?.id ?? "";
         config = this.deps.configManager.updateRagSettings({
-          embeddingModel: models[0].id,
+          embeddingModel: nextModelId,
         });
-        this.deps.markRagProjectsOutdated(
-          "O modelo de embeddings foi alterado; reindexe o projeto.",
-        );
+
+        if (current.embeddingModel !== nextModelId) {
+          this.deps.markRagProjectsOutdated(
+            "O modelo de embeddings foi alterado; reindexe o projeto.",
+          );
+        }
       }
 
       await webview.postMessage({
@@ -669,14 +760,18 @@ export class ChatMessageRouter {
   ): Promise<void> {
     try {
       const silent = data.silent === true;
+      const models = this.deps.refreshRagEmbeddingModels();
+      const settings = this.reconcileRagEmbeddingModelSelection(
+        this.deps.configManager.getSection("rag"),
+        models,
+      );
 
       await webview.postMessage({
         type: "modelosEmbeddingRagAtualizados",
         value: {
-          models: this.deps.refreshRagEmbeddingModels(),
+          models,
           modelsDir: this.deps.getRagEmbeddingModelsDir(),
-          selectedModelId:
-            this.deps.configManager.getSection("rag").embeddingModel,
+          selectedModelId: settings.embeddingModel,
           silent,
         },
       });
@@ -826,12 +921,12 @@ export class ChatMessageRouter {
         throw new Error("Modelo de embeddings inválido ou não encontrado.");
       }
 
-      if (model.source !== "custom") {
-        throw new Error("Modelos de embeddings empacotados não podem ser excluídos.");
-      }
-
+      const bundledWarning =
+        model.source === "bundled"
+          ? " Este modelo faz parte da instalação da extensão e poderá ser reinstalado em uma atualização."
+          : "";
       const confirmation = await vscode.window.showWarningMessage(
-        `Deseja excluir o modelo de embeddings "${model.name || model.id}"? Essa ação não poderá ser desfeita.`,
+        `Deseja excluir o modelo de embeddings "${model.name || model.id}"? Essa ação não poderá ser desfeita.${bundledWarning}`,
         { modal: true },
         "Excluir",
       );
@@ -854,9 +949,10 @@ export class ChatMessageRouter {
       const current = this.deps.configManager.getSection("rag");
       let config = this.deps.configManager.getConfig();
 
-      if (current.embeddingModel === modelId && nextModels[0]) {
+      if (current.embeddingModel === modelId) {
+        const nextModelId = nextModels[0]?.id ?? "";
         config = this.deps.configManager.updateRagSettings({
-          embeddingModel: nextModels[0].id,
+          embeddingModel: nextModelId,
         });
         this.deps.markRagProjectsOutdated(
           "O modelo de embeddings foi alterado; reindexe o projeto.",
@@ -913,14 +1009,44 @@ export class ChatMessageRouter {
     settings: AtlasRagSettings = this.deps.configManager.getSection("rag"),
     embeddingModels: RagEmbeddingModelInfo[] = this.deps.refreshRagEmbeddingModels(),
   ) {
-    return {
+    const reconciledSettings = this.reconcileRagEmbeddingModelSelection(
       settings,
+      embeddingModels,
+    );
+
+    return {
+      settings: reconciledSettings,
       runtime,
       projects: this.deps.listRagProjects(),
       externalDocuments: this.deps.listExternalRagDocuments(),
       embeddingModels,
       embeddingModelsDir: this.deps.getRagEmbeddingModelsDir(),
     };
+  }
+
+  private reconcileRagEmbeddingModelSelection(
+    settings: AtlasRagSettings,
+    embeddingModels: RagEmbeddingModelInfo[],
+  ): AtlasRagSettings {
+    if (
+      embeddingModels.some((model) => model.id === settings.embeddingModel)
+    ) {
+      return settings;
+    }
+
+    const nextModelId = embeddingModels[0]?.id ?? "";
+
+    if (settings.embeddingModel === nextModelId) {
+      return settings;
+    }
+
+    const config = this.deps.configManager.updateRagSettings({
+      embeddingModel: nextModelId,
+    });
+    this.deps.markRagProjectsOutdated(
+      "O modelo de embeddings foi alterado; reindexe o projeto.",
+    );
+    return config.rag;
   }
 
   private normalizeInteger(
@@ -1594,6 +1720,7 @@ export class ChatMessageRouter {
     webview: vscode.Webview,
   ): Promise<void> {
     try {
+      const previousEnginesDir = this.deps.getLocalEnginesDir();
       const payload = data.payload ?? {};
       const language = this.normalizeResponseLanguage(payload.language);
       const localStream = payload.localStream !== false;
@@ -1604,10 +1731,13 @@ export class ChatMessageRouter {
         30,
       );
       const currentCustom = this.deps.configManager.getConfig().custom ?? {};
-      const contextProfile = this.normalizeContextProfilePayload(payload);
-      const presetEffects = AtlasContextProfileService.getPresetEffects(
+      let contextProfile = this.normalizeContextProfilePayload(payload);
+      const selectedPresetEffects = AtlasContextProfileService.getPresetEffects(
         contextProfile.mode,
       );
+      const shouldApplyContextProfilePreset =
+        payload.applyContextProfilePreset === true &&
+        selectedPresetEffects !== null;
       const currentLocalEngine =
         typeof currentCustom.localEngine === "object" &&
         currentCustom.localEngine !== null
@@ -1621,9 +1751,6 @@ export class ChatMessageRouter {
         payload.refactoringModelIntent === true;
       const saveInterruptedResponses =
         payload.saveInterruptedResponses !== false;
-      const dynamicContextWindow =
-        presetEffects?.localEngine.dynamicContextWindow ??
-        payload.dynamicContextWindow !== false;
       const localModels =
         typeof currentCustom.localModels === "object" &&
         currentCustom.localModels !== null
@@ -1640,6 +1767,24 @@ export class ChatMessageRouter {
       const staticAnalysisDiagnostics =
         payload.staticAnalysisDiagnostics === true;
       const staticAnalysisRelations = payload.staticAnalysisRelations === true;
+
+      if (
+        selectedPresetEffects &&
+        !shouldApplyContextProfilePreset &&
+        this.hasContextProfilePresetOverride(payload, selectedPresetEffects)
+      ) {
+        contextProfile = this.normalizeContextProfilePayload({
+          ...payload,
+          contextProfileMode: "custom",
+        });
+      }
+
+      const presetEffects = shouldApplyContextProfilePreset
+        ? selectedPresetEffects
+        : null;
+      const dynamicContextWindow =
+        presetEffects?.localEngine.dynamicContextWindow ??
+        payload.dynamicContextWindow !== false;
       const staticAnalysis = presetEffects?.staticAnalysis ?? {
         enabled: staticAnalysisEnabled,
         useInQuickAnalysis: staticAnalysisQuick,
@@ -1653,10 +1798,12 @@ export class ChatMessageRouter {
         language,
       });
 
-      this.deps.configManager.updateRagSettings({
-        topK: contextProfile.ragTopK,
-        maxContextCharacters: contextProfile.ragMaxContextCharacters,
-      });
+      if (presetEffects || contextProfile.mode === "custom") {
+        this.deps.configManager.updateRagSettings({
+          topK: contextProfile.ragTopK,
+          maxContextCharacters: contextProfile.ragMaxContextCharacters,
+        });
+      }
 
       this.deps.configManager.updateCustomRoot({
         ...currentCustom,
@@ -1682,6 +1829,9 @@ export class ChatMessageRouter {
           enginesDir: enginesDir || this.deps.getLocalEnginesDir(),
         },
       });
+      this.clearConfiguredEngineDownloadStatusForDirectoryChange(
+        previousEnginesDir,
+      );
 
       this.deps.stopLocalEngine();
 
@@ -1698,6 +1848,105 @@ export class ChatMessageRouter {
         webview,
         error,
         "Erro ao salvar configurações do ATLAS.",
+      );
+    }
+  }
+
+  private async handleRestoreAtlasSettings(
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      const confirmation = await vscode.window.showWarningMessage(
+        "Restaurar as configurações gerais do ATLAS? As pastas configuradas voltarão ao padrão. Provedores, chaves de API, arquivos de modelos, índices do RAG e histórico serão preservados.",
+        { modal: true },
+        "Restaurar",
+      );
+
+      if (confirmation !== "Restaurar") {
+        return;
+      }
+
+      const current = this.deps.configManager.getConfig();
+      const previousEnginesDir = this.deps.getLocalEnginesDir();
+      const defaults = this.deps.configManager.getDefaultConfig();
+      const currentCustom = current.custom ?? {};
+      const defaultCustom = defaults.custom ?? {};
+      const currentLocalEngine =
+        typeof currentCustom.localEngine === "object" &&
+        currentCustom.localEngine !== null
+          ? { ...currentCustom.localEngine }
+          : {};
+      const currentLocalModels =
+        typeof currentCustom.localModels === "object" &&
+        currentCustom.localModels !== null
+          ? { ...(currentCustom.localModels as Record<string, unknown>) }
+          : {};
+
+      for (const key of [
+        "engineType",
+        "startOnAtlasOpen",
+        "prepareOnAtlasOpen",
+        "enginesDir",
+        "dynamicContextWindow",
+        "stream",
+        "timeout",
+      ]) {
+        delete currentLocalEngine[key];
+      }
+
+      delete currentLocalModels.modelsDir;
+
+      this.deps.configManager.saveConfig({
+        ...current,
+        general: {
+          ...current.general,
+          language: defaults.general.language,
+        },
+        rag: {
+          ...current.rag,
+          embeddingModel: defaults.rag.embeddingModel,
+          embeddingModelsDir: defaults.rag.embeddingModelsDir,
+          topK: defaults.rag.topK,
+          maxContextCharacters: defaults.rag.maxContextCharacters,
+        },
+        custom: {
+          ...currentCustom,
+          contextProfile: defaultCustom.contextProfile,
+          saveInterruptedResponses:
+            defaultCustom.saveInterruptedResponses,
+          refactoring: defaultCustom.refactoring,
+          staticAnalysis: defaultCustom.staticAnalysis,
+          localModels: currentLocalModels,
+          localEngine: {
+            ...currentLocalEngine,
+            ...(defaultCustom.localEngine ?? {}),
+          },
+        },
+      });
+
+      this.reconcileRagEmbeddingModelSelection(
+        this.deps.configManager.getSection("rag"),
+        this.deps.refreshRagEmbeddingModels(),
+      );
+      this.clearConfiguredEngineDownloadStatusForDirectoryChange(
+        previousEnginesDir,
+      );
+
+      this.deps.stopLocalEngine();
+
+      await webview.postMessage({
+        type: "configuracoesAtlasRestauradas",
+        value: this.getAtlasSettingsPayload(),
+      });
+
+      vscode.window.showInformationMessage(
+        "Configurações gerais do ATLAS restauradas.",
+      );
+    } catch (error) {
+      await this.postError(
+        webview,
+        error,
+        "Erro ao restaurar configurações gerais do ATLAS.",
       );
     }
   }
@@ -2188,30 +2437,58 @@ export class ChatMessageRouter {
   private async handleDownloadConfiguredEngineRequest(
     webview: vscode.Webview,
   ): Promise<void> {
+    if (this.configuredEngineDownloadPromise) {
+      if (this.configuredEngineDownloadStatus) {
+        await webview.postMessage({
+          type: "downloadEngineConfiguradaStatus",
+          value: this.configuredEngineDownloadStatus,
+        });
+      }
+      return;
+    }
+
+    const downloadPromise = this.runConfiguredEngineDownload(webview);
+    this.configuredEngineDownloadPromise = downloadPromise;
+
     try {
-      await webview.postMessage({
-        type: "downloadEngineConfiguradaStatus",
-        value: {
-          loading: true,
-          done: false,
-          message: "Verificando a engine selecionada...",
-        },
+      await downloadPromise;
+    } finally {
+      if (this.configuredEngineDownloadPromise === downloadPromise) {
+        this.configuredEngineDownloadPromise = null;
+      }
+    }
+  }
+
+  private async runConfiguredEngineDownload(
+    webview: vscode.Webview,
+  ): Promise<void> {
+    const enginesDir = this.deps.getLocalEnginesDir();
+
+    try {
+      await this.postConfiguredEngineDownloadStatus(webview, {
+        engineType: this.getConfiguredLocalEngineType(),
+        enginesDir,
+        loading: true,
+        done: false,
+        message: "Verificando a engine selecionada...",
       });
 
       await this.deps.downloadConfiguredLlamaEngine((message) => {
-        void webview.postMessage({
-          type: "downloadEngineConfiguradaStatus",
-          value: { loading: true, done: false, message },
+        void this.postConfiguredEngineDownloadStatus(webview, {
+          engineType: this.getConfiguredLocalEngineType(),
+          enginesDir,
+          loading: true,
+          done: false,
+          message,
         });
       });
 
-      await webview.postMessage({
-        type: "downloadEngineConfiguradaStatus",
-        value: {
-          loading: false,
-          done: true,
-          message: "Engine selecionada pronta para uso.",
-        },
+      await this.postConfiguredEngineDownloadStatus(webview, {
+        engineType: this.getConfiguredLocalEngineType(),
+        enginesDir,
+        loading: false,
+        done: true,
+        message: "Engine selecionada pronta para uso.",
       });
 
       await webview.postMessage({
@@ -2228,13 +2505,38 @@ export class ChatMessageRouter {
         "Erro ao baixar a engine selecionada.",
       );
 
-      await webview.postMessage({
-        type: "downloadEngineConfiguradaStatus",
-        value: { loading: false, done: true, error: true, message },
+      await this.postConfiguredEngineDownloadStatus(webview, {
+        engineType: this.getConfiguredLocalEngineType(),
+        enginesDir,
+        loading: false,
+        done: true,
+        error: true,
+        message,
       });
 
       vscode.window.showErrorMessage(`ATLAS: ${message}`);
     }
+  }
+
+  private async postConfiguredEngineDownloadStatus(
+    webview: vscode.Webview,
+    status: ConfiguredEngineDownloadStatus,
+  ): Promise<void> {
+    this.configuredEngineDownloadStatus = status;
+    await webview.postMessage({
+      type: "downloadEngineConfiguradaStatus",
+      value: status,
+    });
+  }
+
+  private getConfiguredLocalEngineType(): LocalEngineType {
+    const localEngine = this.deps.configManager.getConfig().custom?.localEngine;
+    const engineType =
+      typeof localEngine === "object" && localEngine !== null
+        ? (localEngine as Record<string, unknown>).engineType
+        : undefined;
+
+    return this.normalizeLocalEngineType(engineType);
   }
 
   private async handleCheckConfiguredEngineRequest(
@@ -2311,7 +2613,11 @@ export class ChatMessageRouter {
         return;
       }
 
+      const previousEnginesDir = this.deps.getLocalEnginesDir();
       this.saveLocalEnginesDir(folder);
+      this.clearConfiguredEngineDownloadStatusForDirectoryChange(
+        previousEnginesDir,
+      );
       this.deps.stopLocalEngine();
 
       await webview.postMessage({
@@ -2473,6 +2779,7 @@ export class ChatMessageRouter {
     webview: vscode.Webview,
   ): Promise<void> {
     let refactorSessionId: string | undefined;
+    let generationId: string | undefined;
 
     try {
       if (!this.deps.configManager.isRefactoringEnabled()) {
@@ -2485,9 +2792,14 @@ export class ChatMessageRouter {
         typeof data.sessionId === "string" && data.sessionId.trim()
           ? data.sessionId.trim()
           : this.deps.sessionService.getActiveSessionId();
-      const generationId =
+      generationId =
         typeof data.generationId === "string" && data.generationId.trim()
           ? data.generationId.trim()
+          : undefined;
+      const analysisGenerationId =
+        typeof data.analysisGenerationId === "string" &&
+        data.analysisGenerationId.trim()
+          ? data.analysisGenerationId.trim()
           : undefined;
 
       if (!sessionId) {
@@ -2504,7 +2816,7 @@ export class ChatMessageRouter {
 
       const analysisMessage = this.findRefactorableArchitecturalMessage(
         session,
-        generationId,
+        analysisGenerationId,
       );
 
       if (!analysisMessage?.metadata?.refactorContext) {
@@ -2520,6 +2832,7 @@ export class ChatMessageRouter {
       );
       const result = await this.deps.executeArchitectureGuidedEdit(webview, {
         sessionId,
+        generationId,
         analysisContent: analysisMessage.content,
         refactorMetadata: analysisMessage.metadata.refactorContext,
         ragContext,
@@ -2529,6 +2842,7 @@ export class ChatMessageRouter {
         await webview.postMessage({
           type: "edicaoCodigoCancelada",
           sessionId,
+          generationId,
         });
         return;
       }
@@ -2537,6 +2851,7 @@ export class ChatMessageRouter {
       const metadata = {
         mode: "developer-assistant" as const,
         sessionId,
+        generationId,
         ragSources: [],
       };
 
@@ -2554,6 +2869,7 @@ export class ChatMessageRouter {
       await webview.postMessage({
         type: "novaResposta",
         sessionId,
+        generationId,
         value: content,
         metadata,
       });
@@ -2567,6 +2883,7 @@ export class ChatMessageRouter {
         await webview.postMessage({
           type: "geracaoCancelada",
           sessionId: refactorSessionId,
+          generationId,
         });
         return;
       }
@@ -2575,6 +2892,10 @@ export class ChatMessageRouter {
         webview,
         error,
         "Erro ao aplicar refatoração arquitetural.",
+        {
+          sessionId: refactorSessionId,
+          generationId,
+        },
       );
     }
   }
@@ -2670,6 +2991,10 @@ export class ChatMessageRouter {
     webview: vscode.Webview,
     error: unknown,
     fallback: string,
+    generation?: {
+      sessionId?: string;
+      generationId?: string;
+    },
   ): Promise<void> {
     const message = this.getErrorMessage(error, fallback);
 
@@ -2677,12 +3002,50 @@ export class ChatMessageRouter {
 
     await webview.postMessage({
       type: "erro",
+      sessionId: generation?.sessionId,
+      generationId: generation?.generationId,
       value: message,
     });
   }
 
   private getErrorMessage(error: unknown, fallback: string): string {
     return error instanceof Error ? error.message : fallback;
+  }
+
+  private hasContextProfilePresetOverride(
+    payload: Record<string, unknown>,
+    preset: AtlasContextProfileEffects,
+  ): boolean {
+    const booleanOverride = (key: string, expected: boolean) =>
+      typeof payload[key] === "boolean" && payload[key] !== expected;
+
+    return (
+      booleanOverride(
+        "dynamicContextWindow",
+        preset.localEngine.dynamicContextWindow,
+      ) ||
+      booleanOverride("staticAnalysisEnabled", preset.staticAnalysis.enabled) ||
+      booleanOverride(
+        "staticAnalysisQuick",
+        preset.staticAnalysis.useInQuickAnalysis,
+      ) ||
+      booleanOverride(
+        "staticAnalysisArchitectural",
+        preset.staticAnalysis.useInArchitecturalAnalysis,
+      ) ||
+      booleanOverride(
+        "staticAnalysisRefactoring",
+        preset.staticAnalysis.useInRefactoring,
+      ) ||
+      booleanOverride(
+        "staticAnalysisDiagnostics",
+        preset.staticAnalysis.includeDiagnostics,
+      ) ||
+      booleanOverride(
+        "staticAnalysisRelations",
+        preset.staticAnalysis.includeSymbolRelations,
+      )
+    );
   }
 
   private normalizeContextProfilePayload(
@@ -2739,6 +3102,7 @@ export class ChatMessageRouter {
         : {};
     const staticAnalysis = this.deps.configManager.getStaticAnalysisConfig();
     const contextProfile = this.deps.configManager.getContextProfile();
+    const engineType = this.normalizeLocalEngineType(value.engineType);
 
     return {
       contextProfilePresets: this.getContextProfilePresetsPayload(),
@@ -2765,12 +3129,15 @@ export class ChatMessageRouter {
         600,
         config.cloudConfigs.timeout,
       ),
-      engineType: this.normalizeLocalEngineType(value.engineType),
+      engineType,
+      engineDownloaded:
+        this.deps.isLlamaEngineTypeDownloaded(engineType),
       startOnAtlasOpen: value.startOnAtlasOpen === true,
       prepareOnAtlasOpen: value.prepareOnAtlasOpen !== false,
       dynamicContextWindow: value.dynamicContextWindow !== false,
       modelsDir: this.deps.getLocalModelsDir(),
       enginesDir: this.deps.getLocalEnginesDir(),
+      engineDownloadStatus: this.configuredEngineDownloadStatus,
       staticAnalysisEnabled:
         staticAnalysis.enabled && contextProfile.includeStaticAnalysis,
       staticAnalysisQuick:
@@ -2789,6 +3156,22 @@ export class ChatMessageRouter {
         staticAnalysis.includeSymbolRelations &&
         contextProfile.includeStaticAnalysis,
     };
+  }
+
+  private clearConfiguredEngineDownloadStatusForDirectoryChange(
+    previousEnginesDir: string,
+  ): void {
+    const normalize = (directoryPath: string) => {
+      const resolved = path.resolve(directoryPath);
+      return process.platform === "win32" ? resolved.toLowerCase() : resolved;
+    };
+
+    if (
+      normalize(previousEnginesDir) !==
+      normalize(this.deps.getLocalEnginesDir())
+    ) {
+      this.configuredEngineDownloadStatus = null;
+    }
   }
 
   private getContextProfilePresetsPayload() {

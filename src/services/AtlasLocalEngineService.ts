@@ -307,7 +307,7 @@ export class AtlasLocalEngineService {
     ];
 
     const gpuLayers = Number(model.parameters.gpuLayers ?? 0);
-    if (Number.isFinite(gpuLayers) && gpuLayers >= 0) {
+    if (Number.isFinite(gpuLayers) && gpuLayers > 0) {
       args.push("--n-gpu-layers", String(gpuLayers));
     }
 

@@ -275,14 +275,19 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         options?: {
           source?: "button" | "chat";
           sessionId?: string;
+          generationId?: string;
           signal?: AbortSignal;
         },
       ) => {
         await this.quickAnalysisController.execute(webview, options);
       },
 
-      cancelQuickAnalysis: () => {
-        this.quickAnalysisController.cancelActiveAnalysis();
+      cancelQuickAnalysis: (target) => {
+        this.quickAnalysisController.cancelActiveAnalysis(target);
+      },
+
+      getActiveQuickAnalysisGenerations: () => {
+        return this.quickAnalysisController.serializeActiveGenerations();
       },
 
       isOperationalCodeEditRequest: (userRequest, options) => {
@@ -307,8 +312,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         return this.codeEditService.formatResultMessage(result);
       },
 
-      cancelCodeEdit: () => {
-        this.codeEditController.cancelActiveEdit();
+      cancelCodeEdit: (target) => {
+        this.codeEditController.cancelActiveEdit(target);
+      },
+
+      getActiveCodeEditGenerations: () => {
+        return this.codeEditController.serializeActiveGenerations();
       },
 
       clearQuickAnalysisDecorations: () => {
@@ -316,7 +325,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       },
 
       sendQuickAnalysisAvailability: async (webview: vscode.Webview) => {
-        const activeAnalysis = this.quickAnalysisController.getActiveAnalysis();
+        const activeAnalyses =
+          this.quickAnalysisController.getActiveAnalyses();
 
         await webview.postMessage({
           type: "disponibilidadeMarcacoesAnaliseRapida",
@@ -327,10 +337,11 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           },
         });
 
-        if (activeAnalysis) {
+        for (const activeAnalysis of activeAnalyses) {
           await webview.postMessage({
             type: "analiseRapidaStatus",
             sessionId: activeAnalysis.sessionId,
+            generationId: activeAnalysis.generationId,
             value: {
               loading: true,
               source: activeAnalysis.source,
@@ -784,7 +795,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       return;
     }
 
-    if (this.engineDownloadService.isAnyEngineDownloaded()) {
+    if (await this.engineDownloadService.isRecommendedEngineDownloaded()) {
       return;
     }
 

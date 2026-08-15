@@ -26,6 +26,7 @@ function bindAtlasInteractions() {
   downloadSelectedEngine?.addEventListener("click", downloadCurrentEngineMode);
 
   staticAnalysisEnabled?.addEventListener("change", () => {
+    promoteContextProfileToCustom();
     updateStaticAnalysisAvailability();
     saveAtlasSettings();
   });
@@ -38,6 +39,10 @@ function bindAtlasInteractions() {
   bindPostMessageButton(chooseEnginesFolder, "selecionarPastaEnginesLocais");
   bindPostMessageButton(openModelsFolder, "openLocalModelsFolder");
   bindPostMessageButton(openEnginesFolder, "abrirPastaEnginesLocais");
+  bindPostMessageButton(
+    restoreAtlasDefaults,
+    "restaurarConfiguracoesAtlas",
+  );
 }
 
 function bindPostMessageButton(button, type) {

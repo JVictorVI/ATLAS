@@ -27,6 +27,16 @@ window.addEventListener("message", (event) => {
     }
   }
 
+  if (message.type === "configuracoesAtlasRestauradas") {
+    if (atlasSettingsSaveTimeout) {
+      clearTimeout(atlasSettingsSaveTimeout);
+      atlasSettingsSaveTimeout = null;
+    }
+
+    applyAtlasSettings(message.value);
+    releaseAtlasLoading();
+  }
+
   if (message.type === "downloadEngineConfiguradaStatus") {
     updateEngineDownloadStatus(message.value);
   }

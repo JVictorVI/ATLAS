@@ -64,6 +64,7 @@ let activeSessionId = null; // string | null
 let pendingSessionId = null;
 let activeGenerationSessionId = null;
 let activeGenerationId = null;
+const activeGenerationSnapshots = new Map();
 let generationSequence = 0;
 const cancelledGenerationIds = new Set();
 

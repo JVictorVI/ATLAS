@@ -156,13 +156,13 @@ Argumentos atuais:
 --ctx-size <model.parameters.contextWindow || 8192>
 ```
 
-Se `gpuLayers >= 0`, adiciona:
+Se `gpuLayers > 0`, adiciona:
 
 ```text
 --n-gpu-layers <gpuLayers>
 ```
 
-O valor `0` é tratado como automático: o ATLAS envia `--n-gpu-layers 0` para permitir que a engine aplique o comportamento de auto-fit em vez de omitir o argumento.
+O valor `0` é tratado como automático: o ATLAS omite `--n-gpu-layers`, preservando o comportamento automático padrão do `llama-server`.
 
 ## Health check
 

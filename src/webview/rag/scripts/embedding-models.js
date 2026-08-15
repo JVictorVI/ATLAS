@@ -20,7 +20,7 @@ function renderEmbeddingModels(models, selectedModelId, modelsDir) {
     option.value = "";
     option.textContent = "Nenhum modelo encontrado";
     embeddingModelSelect.appendChild(option);
-    embeddingModelSelect.disabled = false;
+    embeddingModelSelect.disabled = true;
 
     if (embeddingModelStatus) {
       embeddingModelStatus.textContent =
@@ -83,12 +83,12 @@ function updateDeleteEmbeddingModelButton(models, selectedModelId) {
   }
 
   const selected = models.find((model) => model.id === selectedModelId);
-  const deletable = selected?.source === "custom";
+  const deletable = Boolean(selected);
 
   deleteEmbeddingModelButton.disabled = !deletable;
-  deleteEmbeddingModelButton.title = deletable
+  deleteEmbeddingModelButton.title = selected
     ? `Excluir ${selected.name || selected.id}`
-    : "Modelos empacotados não podem ser excluídos";
+    : "Nenhum modelo da pasta está selecionado";
 }
 
 function setDefaultEmbeddingModelActionVisibility(visible) {

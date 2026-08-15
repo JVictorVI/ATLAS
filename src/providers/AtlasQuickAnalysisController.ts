@@ -7,16 +7,24 @@ import {
   AtlasQuickIssueCategory,
   AtlasQuickIssueSeverity,
 } from "../interfaces/AtlasQuickAnalysisTypes";
+import type {
+  ActiveGenerationPayload,
+  GenerationTarget,
+} from "./ChatMessageRouterTypes";
 
 type AtlasQuickAnalysisExecutionOptions = {
   source?: "button" | "chat";
   sessionId?: string;
+  generationId?: string;
   signal?: AbortSignal;
 };
 
 type ActiveQuickAnalysis = {
+  key: string;
   source: "button" | "chat";
   sessionId?: string;
+  generationId?: string;
+  controller: AbortController | null;
 };
 
 export class AtlasQuickAnalysisController {
@@ -25,8 +33,7 @@ export class AtlasQuickAnalysisController {
   private readonly highIssueDecoration: vscode.TextEditorDecorationType;
   private readonly issuesByDocument = new Map<string, AtlasQuickIssue[]>();
   private readonly disposables: vscode.Disposable[] = [];
-  private activeController: AbortController | null = null;
-  private activeAnalysis: ActiveQuickAnalysis | null = null;
+  private readonly activeAnalyses = new Map<string, ActiveQuickAnalysis>();
 
   constructor(
     private readonly quickAnalysisService: AtlasQuickAnalysisService,
@@ -151,22 +158,24 @@ export class AtlasQuickAnalysisController {
 
     const controller = options.signal ? null : new AbortController();
     const signal = options.signal ?? controller?.signal;
+    const analysisKey =
+      options.sessionId ?? options.generationId ?? "standalone-analysis";
     const activeAnalysis: ActiveQuickAnalysis = {
+      key: analysisKey,
       source,
       sessionId: options.sessionId,
+      generationId: options.generationId,
+      controller,
     };
 
-    if (controller) {
-      this.activeController?.abort();
-      this.activeController = controller;
-    }
-
-    this.activeAnalysis = activeAnalysis;
+    this.activeAnalyses.get(analysisKey)?.controller?.abort();
+    this.activeAnalyses.set(analysisKey, activeAnalysis);
 
     try {
       await webview?.postMessage({
         type: "analiseRapidaStatus",
         sessionId: options.sessionId,
+        generationId: options.generationId,
         value: { loading: true, source },
       });
 
@@ -178,10 +187,14 @@ export class AtlasQuickAnalysisController {
         signal,
       );
 
+      this.throwIfInactiveOrAborted(activeAnalysis, signal);
+
       const sanitizedIssues = this.sanitizeIssues(
         issues,
         editorContext.lineCount,
       );
+
+      this.throwIfInactiveOrAborted(activeAnalysis, signal);
 
       if (sanitizedIssues.length === 0) {
         this.clearDecorations(editor);
@@ -189,6 +202,7 @@ export class AtlasQuickAnalysisController {
         await webview?.postMessage({
           type: "analiseRapidaConcluida",
           sessionId: options.sessionId,
+          generationId: options.generationId,
           value: {
             source,
             total: 0,
@@ -213,6 +227,7 @@ export class AtlasQuickAnalysisController {
       await webview?.postMessage({
         type: "analiseRapidaConcluida",
         sessionId: options.sessionId,
+        generationId: options.generationId,
         value: {
           source,
           total: sanitizedIssues.length,
@@ -228,6 +243,7 @@ export class AtlasQuickAnalysisController {
         await webview?.postMessage({
           type: "geracaoCancelada",
           sessionId: options.sessionId,
+          generationId: options.generationId,
         });
         return;
       }
@@ -240,35 +256,54 @@ export class AtlasQuickAnalysisController {
       await webview?.postMessage({
         type: "erro",
         sessionId: options.sessionId,
+        generationId: options.generationId,
         value: message,
       });
 
       vscode.window.showErrorMessage(`ATLAS: ${message}`);
     } finally {
-      if (this.activeController === controller) {
-        this.activeController = null;
-      }
-
-      if (this.activeAnalysis === activeAnalysis) {
-        this.activeAnalysis = null;
+      if (this.activeAnalyses.get(analysisKey) === activeAnalysis) {
+        this.activeAnalyses.delete(analysisKey);
       }
 
       await webview?.postMessage({
         type: "analiseRapidaStatus",
         sessionId: options.sessionId,
+        generationId: options.generationId,
         value: { loading: false, source },
       });
     }
   }
 
-  public cancelActiveAnalysis(): void {
-    this.activeController?.abort();
-    this.activeController = null;
-    this.activeAnalysis = null;
+  public cancelActiveAnalysis(target: GenerationTarget = {}): void {
+    const activeAnalysis = this.findActiveAnalysis(target);
+
+    if (!activeAnalysis) {
+      return;
+    }
+
+    activeAnalysis.controller?.abort();
+    this.activeAnalyses.delete(activeAnalysis.key);
   }
 
-  public getActiveAnalysis(): ActiveQuickAnalysis | null {
-    return this.activeAnalysis;
+  public getActiveAnalyses(): ActiveQuickAnalysis[] {
+    return [...this.activeAnalyses.values()];
+  }
+
+  public serializeActiveGenerations(): ActiveGenerationPayload[] {
+    return [...this.activeAnalyses.values()]
+      .filter(
+        (analysis): analysis is ActiveQuickAnalysis & { sessionId: string } =>
+          typeof analysis.sessionId === "string",
+      )
+      .map((analysis) => ({
+        sessionId: analysis.sessionId,
+        userContent: "",
+        partialContent: "",
+        isStreaming: false,
+        generationId: analysis.generationId,
+        forcedMode: "quick-analysis",
+      }));
   }
 
   public clearDecorations(editor?: vscode.TextEditor): void {
@@ -340,6 +375,45 @@ export class AtlasQuickAnalysisController {
     }
 
     this.applyDecorations(editor, issues);
+  }
+
+  private throwIfInactiveOrAborted(
+    activeAnalysis: ActiveQuickAnalysis,
+    signal?: AbortSignal,
+  ): void {
+    if (
+      !signal?.aborted &&
+      this.activeAnalyses.get(activeAnalysis.key) === activeAnalysis
+    ) {
+      return;
+    }
+
+    const error = new Error("Análise rápida cancelada pelo usuário.");
+    error.name = "AbortError";
+    throw error;
+  }
+
+  private findActiveAnalysis(
+    target: GenerationTarget,
+  ): ActiveQuickAnalysis | null {
+    if (target.sessionId) {
+      const analysis = this.activeAnalyses.get(target.sessionId) ?? null;
+
+      return analysis &&
+        (!target.generationId || analysis.generationId === target.generationId)
+        ? analysis
+        : null;
+    }
+
+    if (target.generationId) {
+      return (
+        [...this.activeAnalyses.values()].find(
+          (analysis) => analysis.generationId === target.generationId,
+        ) ?? null
+      );
+    }
+
+    return null;
   }
 
   private notifyAvailability(editor?: vscode.TextEditor): void {

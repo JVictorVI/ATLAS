@@ -47,10 +47,12 @@ export type RouterDependencies = {
     options?: {
       source?: "button" | "chat";
       sessionId?: string;
+      generationId?: string;
       signal?: AbortSignal;
     },
   ) => Promise<void>;
-  cancelQuickAnalysis: () => void;
+  cancelQuickAnalysis: (target?: GenerationTarget) => void;
+  getActiveQuickAnalysisGenerations: () => ActiveGenerationPayload[];
   isOperationalCodeEditRequest: (
     userRequest: string,
     options?: {
@@ -64,6 +66,7 @@ export type RouterDependencies = {
     options: {
       userRequest: string;
       sessionId?: string;
+      generationId?: string;
       ragContext?: string[];
       signal?: AbortSignal;
     },
@@ -74,12 +77,14 @@ export type RouterDependencies = {
       analysisContent: string;
       refactorMetadata: AtlasCodeEditRefactorMetadata;
       sessionId?: string;
+      generationId?: string;
       ragContext?: string[];
       signal?: AbortSignal;
     },
   ) => Promise<AtlasCodeEditResult>;
   formatCodeEditResult: (result: AtlasCodeEditResult) => string;
-  cancelCodeEdit: () => void;
+  cancelCodeEdit: (target?: GenerationTarget) => void;
+  getActiveCodeEditGenerations: () => ActiveGenerationPayload[];
   clearQuickAnalysisDecorations: () => void;
   sendQuickAnalysisAvailability: (webview: vscode.Webview) => Promise<void>;
   refreshLocalModels: () => ReturnType<AtlasConfigManager["getLocalModels"]>;
@@ -188,6 +193,11 @@ export type ActiveResponseSnapshot = {
   forcedMode?: string;
 };
 
+export type GenerationTarget = {
+  sessionId?: string;
+  generationId?: string;
+};
+
 export type ActiveGenerationPayload = {
   sessionId: string;
   userContent: string;
@@ -195,4 +205,4 @@ export type ActiveGenerationPayload = {
   isStreaming: boolean;
   generationId?: string;
   forcedMode?: string;
-} | null;
+};

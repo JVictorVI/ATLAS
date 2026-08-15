@@ -363,9 +363,7 @@ export class AtlasCodeEditService implements vscode.Disposable {
       const replacement = this.normalizeReplacement(document, edit);
 
       content =
-        content.slice(0, startOffset) +
-        replacement +
-        content.slice(endOffset);
+        content.slice(0, startOffset) + replacement + content.slice(endOffset);
     }
 
     return content;
@@ -440,10 +438,7 @@ export class AtlasCodeEditService implements vscode.Disposable {
     const start = new vscode.Position(startLineIndex, 0);
 
     if (endLineIndex + 1 < document.lineCount) {
-      return new vscode.Range(
-        start,
-        new vscode.Position(endLineIndex + 1, 0),
-      );
+      return new vscode.Range(start, new vscode.Position(endLineIndex + 1, 0));
     }
 
     return new vscode.Range(start, document.lineAt(endLineIndex).range.end);
@@ -456,7 +451,11 @@ export class AtlasCodeEditService implements vscode.Disposable {
     const eol = document.eol === vscode.EndOfLine.CRLF ? "\r\n" : "\n";
     const normalized = edit.replacement.replace(/\r\n|\r|\n/g, eol);
 
-    if (edit.endLine < document.lineCount && normalized && !normalized.endsWith(eol)) {
+    if (
+      edit.endLine < document.lineCount &&
+      normalized &&
+      !normalized.endsWith(eol)
+    ) {
       return `${normalized}${eol}`;
     }
 

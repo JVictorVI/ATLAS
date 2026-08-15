@@ -20,10 +20,10 @@ validação do modelo definitivo.
 
 Em runtime, o ATLAS procura modelos:
 
-1. na pasta configurada em `rag.embeddingModelsDir`, quando definida;
-2. em `context.globalStorageUri/rag/embedding-models/`, quando nenhuma pasta
-   foi escolhida;
-3. neste diretório empacotado com a extensão.
+1. exclusivamente na pasta configurada em `rag.embeddingModelsDir`, quando
+   definida;
+2. em `context.globalStorageUri/rag/embedding-models/` e neste diretório
+   empacotado com a extensão, quando nenhuma pasta foi escolhida.
 
 A tela de RAG possui o botão "Baixar modelo padrão", que baixa
 `Xenova/paraphrase-multilingual-MiniLM-L12-v2` para a pasta gravável ativa e

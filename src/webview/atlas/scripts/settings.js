@@ -1,7 +1,13 @@
 // Responsabilidade: aplica valores recebidos, monta payloads e controla autosave.
 function registerAtlasSettingsAutosave() {
   atlasDirectAutosaveInputs.forEach((input) => {
-    input?.addEventListener("change", saveAtlasSettings);
+    input?.addEventListener("change", () => {
+      if (contextProfileManagedInputs.includes(input)) {
+        promoteContextProfileToCustom();
+      }
+
+      saveAtlasSettings();
+    });
   });
 
   localEngineTimeout?.addEventListener("input", () => {
@@ -59,11 +65,41 @@ function applyAtlasSettings(value) {
   updateRefactoringAvailability();
 
   setPathValue(modelsFolderPath, value?.modelsDir);
-  setPathValue(enginesFolderPath, value?.enginesDir);
+
+  const nextEnginesDir = String(value?.enginesDir || "");
+
+  if (loadedEnginesDir && loadedEnginesDir !== nextEnginesDir) {
+    atlasEngineTypes.forEach((engineType) => {
+      delete engineDownloadStateByType[engineType];
+    });
+  }
+
+  loadedEnginesDir = nextEnginesDir;
+  setPathValue(enginesFolderPath, nextEnginesDir);
+
+  if (typeof value?.engineDownloaded === "boolean") {
+    engineDownloadStateByType[loadedEngineType] = value.engineDownloaded;
+  }
+
+  const engineDownloadStatusValue = value?.engineDownloadStatus;
+  const engineDownloadStatusMatchesDirectory =
+    engineDownloadStatusValue?.enginesDir === nextEnginesDir;
+  activeEngineDownloadType =
+    engineDownloadStatusMatchesDirectory &&
+    engineDownloadStatusValue?.loading === true &&
+    atlasEngineTypes.includes(engineDownloadStatusValue?.engineType)
+      ? engineDownloadStatusValue.engineType
+      : null;
   updateEngineDownloadPrompt();
+
+  if (engineDownloadStatusValue && engineDownloadStatusMatchesDirectory) {
+    updateEngineDownloadStatus(engineDownloadStatusValue);
+  } else {
+    setEngineDownloadStatus("");
+  }
 }
 
-function saveAtlasSettings() {
+function saveAtlasSettings(options = {}) {
   if (atlasSettingsSaveTimeout) {
     clearTimeout(atlasSettingsSaveTimeout);
     atlasSettingsSaveTimeout = null;
@@ -72,6 +108,8 @@ function saveAtlasSettings() {
   vscode.postMessage({
     type: "salvarConfiguracoesAtlas",
     payload: {
+      applyContextProfilePreset:
+        options.applyContextProfilePreset === true,
       language: atlasLanguage?.value === "en-US" ? "en-US" : "pt-BR",
       contextProfileMode: getSelectedContextProfileMode(),
       localStream: localStreamResponses?.checked !== false,

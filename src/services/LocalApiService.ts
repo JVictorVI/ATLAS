@@ -31,9 +31,7 @@ export class LocalApiService {
   ): Promise<AtlasCloudChatResponse> {
     const signal = options?.signal;
 
-    if (signal?.aborted) {
-      throw this.createAbortError();
-    }
+    this.throwIfAborted(signal);
 
     const resolved = this.configManager.getResolvedLocalSelection();
 
@@ -46,9 +44,7 @@ export class LocalApiService {
     const model = resolved.model;
     await this.localEngineService.ensureEngine(model);
 
-    if (signal?.aborted) {
-      throw this.createAbortError();
-    }
+    this.throwIfAborted(signal);
 
     const baseUrl = this.resolveBaseUrl(model);
     const endpoint = `${baseUrl}/chat/completions`;
@@ -65,8 +61,13 @@ export class LocalApiService {
       signal,
     );
 
+    this.throwIfAborted(signal);
+
     if (!response.ok) {
       const errorData = await this.safeReadJson(response);
+
+      this.throwIfAborted(signal);
+
       const contextOverflow = this.getContextOverflow(errorData);
 
       if (contextOverflow) {
@@ -90,9 +91,7 @@ export class LocalApiService {
           reason: "parameter-update",
         });
 
-        if (signal?.aborted) {
-          throw this.createAbortError();
-        }
+        this.throwIfAborted(signal);
 
         response = await this.sendLocalRequest(
           baseUrl,
@@ -103,6 +102,8 @@ export class LocalApiService {
           isStreaming,
           signal,
         );
+
+        this.throwIfAborted(signal);
 
         if (!response.ok) {
           this.handleLocalApiError(response, await this.safeReadJson(response));
@@ -124,6 +125,9 @@ export class LocalApiService {
     const data = (await this.safeReadJson(
       response,
     )) as OpenAiCompatibleResponse;
+
+    this.throwIfAborted(signal);
+
     return this.normalizeLocalResponse(activeModel, data);
   }
 
@@ -766,6 +770,14 @@ export class LocalApiService {
     const error = new Error("Geração local cancelada pelo usuário.");
     error.name = "AbortError";
     return error;
+  }
+
+  private throwIfAborted(signal?: AbortSignal): void {
+    if (!signal?.aborted) {
+      return;
+    }
+
+    throw this.createAbortError();
   }
 
   private normalizeLocalResponse(

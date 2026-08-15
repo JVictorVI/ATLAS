@@ -207,17 +207,17 @@ export class AtlasEmbeddingModelDiscoveryService {
       throw new Error("Modelo de embeddings não encontrado.");
     }
 
-    if (model.source !== "custom") {
-      throw new Error("Modelos de embeddings empacotados não podem ser excluídos.");
-    }
-
-    const modelsDir = path.resolve(this.getModelsDir());
+    const modelsDir = path.resolve(
+      model.source === "bundled"
+        ? this.getBundledModelsDir()
+        : this.getModelsDir(),
+    );
     const modelPath = path.resolve(model.path);
     const relative = path.relative(modelsDir, modelPath);
 
     if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
       throw new Error(
-        "Por segurança, apenas subpastas dentro da pasta de modelos de embeddings podem ser excluídas.",
+        "Por segurança, apenas subpastas dentro da raiz correspondente de modelos de embeddings podem ser excluídas.",
       );
     }
 
@@ -251,7 +251,13 @@ export class AtlasEmbeddingModelDiscoveryService {
       source: RagEmbeddingModelInfo["source"];
     }> = [];
     const configured = this.getConfiguredModelsDir();
-    const userModelsDir = configured || this.getDefaultUserModelsDir();
+
+    if (configured) {
+      this.ensureDirectory(configured);
+      return [{ path: configured, source: "custom" }];
+    }
+
+    const userModelsDir = this.getDefaultUserModelsDir();
 
     this.ensureDirectory(userModelsDir);
     roots.push({ path: userModelsDir, source: "custom" });

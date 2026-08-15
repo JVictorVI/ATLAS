@@ -25,6 +25,15 @@ function updateEngineDownloadPrompt() {
   const changed = selectedEngineType !== loadedEngineType;
   const knownDownloadState = engineDownloadStateByType[selectedEngineType];
 
+  if (activeEngineDownloadType === selectedEngineType) {
+    engineDownloadPrompt.hidden = false;
+
+    if (engineDownloadPromptText) {
+      engineDownloadPromptText.textContent = `A engine ${formatEngineType(selectedEngineType)} está sendo baixada. O progresso continuará mesmo ao trocar de tela.`;
+    }
+    return;
+  }
+
   if (knownDownloadState === true) {
     engineDownloadPrompt.hidden = true;
     setEngineDownloadStatus("");
@@ -74,6 +83,38 @@ function downloadCurrentEngineMode() {
 }
 
 function updateEngineDownloadStatus(value) {
+  const selectedEngineType = getSelectedEngineType();
+  const statusEngineType = atlasEngineTypes.includes(value?.engineType)
+    ? value.engineType
+    : selectedEngineType;
+
+  if (value?.loading === true) {
+    activeEngineDownloadType = statusEngineType;
+  } else if (activeEngineDownloadType === statusEngineType) {
+    activeEngineDownloadType = null;
+  }
+
+  if (statusEngineType !== selectedEngineType) {
+    if (downloadSelectedEngine) {
+      downloadSelectedEngine.disabled = false;
+      downloadSelectedEngine.textContent = "Baixar agora";
+    }
+    setEngineDownloadStatus("");
+    updateEngineDownloadPrompt();
+    return;
+  }
+
+  if (value?.error === true) {
+    engineDownloadStateByType[statusEngineType] = false;
+  }
+
+  if (
+    (value?.loading === true || value?.error === true) &&
+    engineDownloadPrompt
+  ) {
+    engineDownloadPrompt.hidden = false;
+  }
+
   const message = value?.message || "";
   setEngineDownloadStatus(message, value?.error === true);
 
@@ -83,10 +124,13 @@ function updateEngineDownloadStatus(value) {
       value?.loading === true ? "Baixando..." : "Baixar agora";
   }
 
+  if (chooseEnginesFolder) {
+    chooseEnginesFolder.disabled = value?.loading === true;
+  }
+
   if (value?.done === true && value?.error !== true) {
-    const selectedEngineType = getSelectedEngineType();
-    engineDownloadStateByType[selectedEngineType] = true;
-    loadedEngineType = selectedEngineType;
+    engineDownloadStateByType[statusEngineType] = true;
+    loadedEngineType = statusEngineType;
     updateEngineDownloadPrompt();
   }
 }

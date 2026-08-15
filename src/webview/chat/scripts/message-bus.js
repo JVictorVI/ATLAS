@@ -18,13 +18,13 @@ function shouldIgnoreGenerationMessage(message) {
 function clearGenerationForMessage(message) {
   const sessionId = message.sessionId || message.metadata?.sessionId;
   const generationId = getMessageGenerationId(message);
+  const previousGeneration = sessionId
+    ? activeGenerationSnapshots.get(sessionId)
+    : null;
 
-  if (generationId && generationId === activeGenerationId) {
-    activeGenerationId = null;
-  }
+  clearActiveGenerationSnapshot({ sessionId, generationId });
 
-  if (sessionId && sessionId === activeGenerationSessionId) {
-    activeGenerationSessionId = null;
+  if (previousGeneration && !activeGenerationSnapshots.has(sessionId)) {
     renderSessionList();
   }
 }
@@ -80,16 +80,32 @@ window.addEventListener("message", (event) => {
 
       const generationId = getMessageGenerationId(message);
 
-      if (generationId) {
-        activeGenerationId = generationId;
-      }
+      if (message.sessionId) {
+        const previousGeneration = activeGenerationSnapshots.get(
+          message.sessionId,
+        );
+        const isSameGeneration =
+          !!previousGeneration &&
+          (!generationId || previousGeneration.generationId === generationId);
 
-      if (
-        message.sessionId &&
-        message.sessionId !== activeGenerationSessionId
-      ) {
-        activeGenerationSessionId = message.sessionId;
-        renderSessionList();
+        rememberActiveGeneration({
+          sessionId: message.sessionId,
+          generationId,
+          userContent: isSameGeneration
+            ? previousGeneration.userContent
+            : "",
+          partialContent:
+            (isSameGeneration ? previousGeneration.partialContent || "" : "") +
+            String(message.value || ""),
+          isStreaming: true,
+          forcedMode: isSameGeneration
+            ? previousGeneration.forcedMode
+            : undefined,
+        });
+
+        if (!previousGeneration) {
+          renderSessionList();
+        }
       }
 
       if (!isMessageForActiveSession(message)) {
@@ -250,9 +266,35 @@ window.addEventListener("message", (event) => {
       break;
     }
     case "analiseRapidaStatus": {
+      if (shouldIgnoreGenerationMessage(message)) {
+        break;
+      }
+
       const isLoading = !!message.value?.loading;
       const isQuickAnalysisFromChat =
         message.value?.source === "chat" || message.value?.source === "button";
+
+      if (isQuickAnalysisFromChat) {
+        if (isLoading) {
+          const generationId = getMessageGenerationId(message);
+
+          if (message.sessionId) {
+            rememberActiveGeneration({
+              sessionId: message.sessionId,
+              generationId,
+              forcedMode: "quick-analysis",
+            });
+            renderSessionList();
+          }
+        } else {
+          clearGenerationForMessage(message);
+        }
+      }
+
+      if (!isMessageForActiveSession(message)) {
+        break;
+      }
+
       shortcutLoadingState.quickAnalysis = isLoading;
       setShortcutLoading("quick-analysis", isLoading);
 
@@ -269,6 +311,10 @@ window.addEventListener("message", (event) => {
       break;
     }
     case "analiseRapidaConcluida": {
+      if (shouldIgnoreGenerationMessage(message)) {
+        break;
+      }
+
       const isQuickAnalysisFromChat =
         message.value?.source === "chat" || message.value?.source === "button";
 
@@ -290,7 +336,34 @@ window.addEventListener("message", (event) => {
       break;
     }
     case "edicaoCodigoStatus": {
+      if (shouldIgnoreGenerationMessage(message)) {
+        break;
+      }
+
       const isLoading = !!message.value?.loading;
+
+      if (isLoading) {
+        const generationId = getMessageGenerationId(message);
+
+        if (message.sessionId) {
+          rememberActiveGeneration({
+            sessionId: message.sessionId,
+            generationId,
+            forcedMode:
+              message.value?.source === "architectural-analysis"
+                ? "architecture-code-edit"
+                : "code-edit",
+          });
+          renderSessionList();
+        }
+      } else {
+        clearGenerationForMessage(message);
+      }
+
+      if (!isMessageForActiveSession(message)) {
+        break;
+      }
+
       shortcutLoadingState.codeEdit = isLoading;
 
       if (isLoading) {
@@ -311,6 +384,12 @@ window.addEventListener("message", (event) => {
       break;
     }
     case "edicaoCodigoCancelada": {
+      clearGenerationForMessage(message);
+
+      if (shouldIgnoreGenerationMessage(message)) {
+        break;
+      }
+
       if (!isMessageForActiveSession(message)) {
         break;
       }
@@ -375,7 +454,7 @@ window.addEventListener("message", (event) => {
       if (selectedMode === "cloud" && selectedProvider === providerId) {
         const prevId = selectedModel?.id;
         selectedModel =
-          models.find((m) => m.id === prevId) || models[0] || null;
+          models.find((m) => m.id === prevId) || selectedModel || null;
         updateMainButton();
         const popover = document.getElementById("agent-popover");
         if (popover && !popover.classList.contains("hidden"))
@@ -407,8 +486,14 @@ window.addEventListener("message", (event) => {
       pendingSessionId = null;
       activeSessions = message.value.sessions || [];
       activeSessionId = message.value.activeSessionId;
-      activeGenerationSessionId =
-        message.value.activeGeneration?.sessionId || null;
+      const activeGenerations =
+        message.value.activeGenerations ||
+        (message.value.activeGeneration
+          ? [message.value.activeGeneration]
+          : []);
+      rememberActiveGenerations(
+        activeGenerations,
+      );
 
       // If no active session exists yet, auto-create one
       if (!activeSessionId && activeSessions.length === 0) {
@@ -425,7 +510,7 @@ window.addEventListener("message", (event) => {
       if (message.value.activeSession) {
         loadChatMessages(
           message.value.activeSession,
-          message.value.activeGeneration,
+          activeGenerations,
         );
       }
       break;
@@ -435,10 +520,10 @@ window.addEventListener("message", (event) => {
       pendingSessionId = null;
       activeSessions = message.value.sessions || [];
       activeSessionId = message.value.session.id;
-      activeGenerationSessionId =
-        message.value.activeGeneration?.sessionId || null;
+      const activeGenerations = message.value.activeGenerations || [];
+      rememberActiveGenerations(activeGenerations);
       renderSessionList();
-      loadChatMessages(message.value.session, message.value.activeGeneration);
+      loadChatMessages(message.value.session, activeGenerations);
       break;
     }
 
@@ -454,10 +539,10 @@ window.addEventListener("message", (event) => {
       pendingSessionId = null;
       activeSessions = message.value.sessions || [];
       activeSessionId = message.value.session.id;
-      activeGenerationSessionId =
-        message.value.activeGeneration?.sessionId || null;
+      const activeGenerations = message.value.activeGenerations || [];
+      rememberActiveGenerations(activeGenerations);
       renderSessionList();
-      loadChatMessages(message.value.session, message.value.activeGeneration);
+      loadChatMessages(message.value.session, activeGenerations);
       break;
     }
 
@@ -465,13 +550,13 @@ window.addEventListener("message", (event) => {
       pendingSessionId = null;
       activeSessions = message.value.sessions || [];
       activeSessionId = message.value.activeSession?.id || null;
-      activeGenerationSessionId =
-        message.value.activeGeneration?.sessionId || null;
+      const activeGenerations = message.value.activeGenerations || [];
+      rememberActiveGenerations(activeGenerations);
       renderSessionList();
       if (message.value.activeSession) {
         loadChatMessages(
           message.value.activeSession,
-          message.value.activeGeneration,
+          activeGenerations,
         );
       } else {
         vscode.postMessage({

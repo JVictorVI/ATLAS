@@ -69,7 +69,24 @@ h1 {
 }
 
 .page-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
   margin-bottom: 18px;
+}
+
+.page-heading-copy {
+  min-width: 0;
+}
+
+.settings-reset-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  flex-shrink: 0;
+  margin-top: 4px;
 }
 
 .subtitle {
@@ -471,6 +488,16 @@ button {
 }
 
 @media (max-width: 520px) {
+  .page-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .settings-reset-button {
+    align-self: flex-start;
+    margin-top: 0;
+  }
+
   .folder-control {
     grid-template-columns: 1fr;
   }

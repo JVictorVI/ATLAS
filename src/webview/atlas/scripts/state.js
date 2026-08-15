@@ -53,6 +53,9 @@ const chooseModelsFolder = document.getElementById("choose-models-folder");
 const chooseEnginesFolder = document.getElementById("choose-engines-folder");
 const openModelsFolder = document.getElementById("open-models-folder");
 const openEnginesFolder = document.getElementById("open-engines-folder");
+const restoreAtlasDefaults = document.getElementById(
+  "restore-atlas-defaults",
+);
 
 const atlasEngineTypes = ["cpu", "cuda", "vulkan"];
 const contextProfilePresetModes = ["light", "balanced", "advanced"];
@@ -64,6 +67,12 @@ const staticAnalysisOptionInputs = [
   staticAnalysisRefactoring,
   staticAnalysisDiagnostics,
   staticAnalysisRelations,
+];
+const contextProfileManagedInputs = [
+  contextWindowDynamic,
+  contextWindowFixed,
+  staticAnalysisEnabled,
+  ...staticAnalysisOptionInputs,
 ];
 const atlasDirectAutosaveInputs = [
   atlasLanguage,
@@ -84,5 +93,7 @@ let loadedEngineType = "cpu";
 let downloadAfterSave = false;
 let atlasSettingsSaveTimeout = null;
 let contextProfilePresets = {};
+let activeEngineDownloadType = null;
+let loadedEnginesDir = "";
 
 const engineDownloadStateByType = {};

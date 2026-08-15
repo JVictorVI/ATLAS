@@ -72,6 +72,10 @@ export class AtlasConfigManager {
     return this.settingsService.resetConfig();
   }
 
+  public getDefaultConfig() {
+    return this.defaults.createDefaultConfig();
+  }
+
   public getSection(section: any) {
     return this.settingsService.getSection(section);
   }

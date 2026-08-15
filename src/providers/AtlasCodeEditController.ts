@@ -11,10 +11,15 @@ import { AtlasCodeEditService } from "../services/AtlasCodeEditService";
 import { AtlasDocumentStructureService } from "../services/AtlasDocumentStructureService";
 import { AtlasInferenceService } from "../services/AtlasInferenceService";
 import { AtlasEditorContextService } from "./AtlasEditorContextService";
+import type {
+  ActiveGenerationPayload,
+  GenerationTarget,
+} from "./ChatMessageRouterTypes";
 
 type AtlasDirectCodeEditOptions = {
   userRequest: string;
   sessionId?: string;
+  generationId?: string;
   ragContext?: string[];
   signal?: AbortSignal;
 };
@@ -23,11 +28,20 @@ type AtlasArchitectureGuidedEditOptions = {
   analysisContent: string;
   refactorMetadata: AtlasCodeEditRefactorMetadata;
   sessionId?: string;
+  generationId?: string;
   ragContext?: string[];
   signal?: AbortSignal;
 };
 
 type AtlasCodeEditStatusSource = "developer-assistant" | "architectural-analysis";
+
+type ActiveCodeEdit = {
+  key: string;
+  sessionId?: string;
+  generationId?: string;
+  userContent: string;
+  source: AtlasCodeEditStatusSource;
+};
 
 type AtlasOperationalEditDecisionOptions = {
   editorContext?: AtlasEditorContext | null;
@@ -44,7 +58,8 @@ type AtlasCodeEditIntentDecision = {
 };
 
 export class AtlasCodeEditController {
-  private activeController: AbortController | null = null;
+  private readonly activeControllers = new Map<string, AbortController>();
+  private readonly activeEdits = new Map<string, ActiveCodeEdit>();
 
   private readonly operationalEditTerms = [
     "aplique",
@@ -486,10 +501,20 @@ export class AtlasCodeEditController {
       throw new Error("Abra um arquivo no editor antes de aplicar alteracoes.");
     }
 
-    const signal = this.prepareSignal(options.signal);
+    const editKey =
+      options.sessionId ?? options.generationId ?? "standalone-code-edit";
+    const signal = this.prepareSignal(editKey, options.signal);
+    const activeEdit: ActiveCodeEdit = {
+      key: editKey,
+      sessionId: options.sessionId,
+      generationId: options.generationId,
+      userContent: options.userRequest,
+      source: "developer-assistant",
+    };
+    this.activeEdits.set(editKey, activeEdit);
 
     try {
-      await this.postStatus(webview, options.sessionId, {
+      await this.postStatus(webview, activeEdit, {
         loading: true,
         source: "developer-assistant",
         message: "Aplicando alteração no código...",
@@ -510,8 +535,12 @@ export class AtlasCodeEditController {
       this.showResultNotification(result);
       return result;
     } finally {
-      this.releaseSignal(signal);
-      await this.postStatus(webview, options.sessionId, {
+      if (this.activeEdits.get(editKey) === activeEdit) {
+        this.activeEdits.delete(editKey);
+      }
+
+      this.releaseSignal(editKey, signal);
+      await this.postStatus(webview, activeEdit, {
         loading: false,
         source: "developer-assistant",
       });
@@ -534,10 +563,20 @@ export class AtlasCodeEditController {
 
     this.assertDocumentStillMatches(editorContext, options.refactorMetadata);
 
-    const signal = this.prepareSignal(options.signal);
+    const editKey =
+      options.sessionId ?? options.generationId ?? "standalone-code-edit";
+    const signal = this.prepareSignal(editKey, options.signal);
+    const activeEdit: ActiveCodeEdit = {
+      key: editKey,
+      sessionId: options.sessionId,
+      generationId: options.generationId,
+      userContent: "Refatorar com base na anÃ¡lise arquitetural anterior.",
+      source: "architectural-analysis",
+    };
+    this.activeEdits.set(editKey, activeEdit);
 
     try {
-      await this.postStatus(webview, options.sessionId, {
+      await this.postStatus(webview, activeEdit, {
         loading: true,
         source: "architectural-analysis",
         message: "Refatorando com base na análise...",
@@ -560,17 +599,47 @@ export class AtlasCodeEditController {
       this.showResultNotification(result);
       return result;
     } finally {
-      this.releaseSignal(signal);
-      await this.postStatus(webview, options.sessionId, {
+      if (this.activeEdits.get(editKey) === activeEdit) {
+        this.activeEdits.delete(editKey);
+      }
+
+      this.releaseSignal(editKey, signal);
+      await this.postStatus(webview, activeEdit, {
         loading: false,
         source: "architectural-analysis",
       });
     }
   }
 
-  public cancelActiveEdit(): void {
-    this.activeController?.abort();
-    this.activeController = null;
+  public cancelActiveEdit(target: GenerationTarget = {}): void {
+    const activeEdit = this.findActiveEdit(target);
+
+    if (!activeEdit) {
+      return;
+    }
+
+    this.activeControllers.get(activeEdit.key)?.abort();
+    this.activeControllers.delete(activeEdit.key);
+    this.activeEdits.delete(activeEdit.key);
+  }
+
+  public serializeActiveGenerations(): ActiveGenerationPayload[] {
+    return [...this.activeEdits.values()]
+      .filter(
+        (edit): edit is ActiveCodeEdit & { sessionId: string } =>
+          typeof edit.sessionId === "string",
+      )
+      .map((edit) => ({
+        sessionId: edit.sessionId,
+        userContent: edit.userContent,
+        partialContent: "",
+        isStreaming: false,
+        generationId: edit.generationId,
+        forcedMode:
+          edit.source === "architectural-analysis"
+            ? "architecture-code-edit"
+            : "code-edit",
+      }));
   }
 
   public static buildRefactorMetadata(
@@ -592,20 +661,45 @@ export class AtlasCodeEditController {
     return createHash("sha256").update(content, "utf8").digest("hex");
   }
 
-  private prepareSignal(signal?: AbortSignal): AbortSignal | undefined {
+  private prepareSignal(
+    editKey: string,
+    signal?: AbortSignal,
+  ): AbortSignal | undefined {
     if (signal) {
       return signal;
     }
 
-    this.activeController?.abort();
-    this.activeController = new AbortController();
-    return this.activeController.signal;
+    this.activeControllers.get(editKey)?.abort();
+    const controller = new AbortController();
+    this.activeControllers.set(editKey, controller);
+    return controller.signal;
   }
 
-  private releaseSignal(signal?: AbortSignal): void {
-    if (this.activeController?.signal === signal) {
-      this.activeController = null;
+  private releaseSignal(editKey: string, signal?: AbortSignal): void {
+    if (this.activeControllers.get(editKey)?.signal === signal) {
+      this.activeControllers.delete(editKey);
     }
+  }
+
+  private findActiveEdit(target: GenerationTarget): ActiveCodeEdit | null {
+    if (target.sessionId) {
+      const activeEdit = this.activeEdits.get(target.sessionId) ?? null;
+
+      return activeEdit &&
+        (!target.generationId || activeEdit.generationId === target.generationId)
+        ? activeEdit
+        : null;
+    }
+
+    if (target.generationId) {
+      return (
+        [...this.activeEdits.values()].find(
+          (edit) => edit.generationId === target.generationId,
+        ) ?? null
+      );
+    }
+
+    return null;
   }
 
   private assertRefactoringEnabled(): void {
@@ -875,7 +969,7 @@ export class AtlasCodeEditController {
 
   private async postStatus(
     webview: vscode.Webview | undefined,
-    sessionId: string | undefined,
+    activeEdit: ActiveCodeEdit,
     value: {
       loading: boolean;
       source: AtlasCodeEditStatusSource;
@@ -884,7 +978,8 @@ export class AtlasCodeEditController {
   ): Promise<void> {
     await webview?.postMessage({
       type: "edicaoCodigoStatus",
-      sessionId,
+      sessionId: activeEdit.sessionId,
+      generationId: activeEdit.generationId,
       value,
     });
   }

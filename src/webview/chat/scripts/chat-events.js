@@ -4,11 +4,19 @@ function createGenerationId() {
   return `generation-${Date.now()}-${generationSequence}`;
 }
 
-function beginGeneration(sessionId = activeSessionId) {
+function beginGeneration(sessionId = activeSessionId, generation = {}) {
   activeGenerationId = createGenerationId();
   activeGenerationSessionId = sessionId || null;
 
   if (activeGenerationSessionId) {
+    rememberActiveGeneration({
+      sessionId: activeGenerationSessionId,
+      generationId: activeGenerationId,
+      userContent: generation.userContent || "",
+      partialContent: "",
+      isStreaming: generation.isStreaming === true,
+      forcedMode: generation.forcedMode,
+    });
     renderSessionList();
   }
 
@@ -66,8 +74,15 @@ function setupChatEvents() {
       return;
     }
     shortcutLoadingState.quickAnalysis = true;
+    const generationId = beginGeneration(activeSessionId, {
+      forcedMode: "quick-analysis",
+    });
     hydrateChatControlState();
-    vscode.postMessage({ type: "executarAnaliseRapida" });
+    vscode.postMessage({
+      type: "executarAnaliseRapida",
+      sessionId: activeSessionId,
+      generationId,
+    });
   });
 
   clearQuickAnalysisBtn?.addEventListener("click", () => {
@@ -86,11 +101,14 @@ function setupChatEvents() {
 
       shortcutLoadingState.architectureAnalysis = true;
       setShortcutLoading("architecture-analysis", true);
-      const generationId = beginGeneration();
+      const generationId = beginGeneration(activeSessionId, {
+        forcedMode: "architectural-analysis",
+      });
       showLoading();
 
       vscode.postMessage({
         type: "enviarPergunta",
+        sessionId: activeSessionId,
         generationId,
         forcedMode: "architectural-analysis",
         value: "Realize uma análise arquitetural deste código.",
@@ -121,12 +139,16 @@ function setupChatEvents() {
 
     const texto = input.value.trim();
     if (!texto) {return;}
-    const generationId = beginGeneration();
+    const generationId = beginGeneration(activeSessionId, {
+      userContent: texto,
+      forcedMode: isStudyModeEnabled ? "study-mode" : undefined,
+    });
     addMessage(texto, "user");
     showLoading();
 
     vscode.postMessage({
       type: "enviarPergunta",
+      sessionId: activeSessionId,
       generationId,
       value: texto,
       selectedView: currentView,
@@ -154,8 +176,11 @@ function setupChatEvents() {
 function cancelarGeracao() {
   if (!isGeneratingResponse) {return;}
 
-  const generationId = activeGenerationId;
-  const sessionId = activeGenerationSessionId;
+  const activeGeneration = activeSessionId
+    ? activeGenerationSnapshots.get(activeSessionId)
+    : null;
+  const generationId = activeGeneration?.generationId || null;
+  const sessionId = activeGeneration?.sessionId || activeSessionId;
 
   rememberCancelledGeneration(generationId);
 
@@ -165,8 +190,7 @@ function cancelarGeracao() {
     generationId,
   });
 
-  activeGenerationId = null;
-  activeGenerationSessionId = null;
+  clearActiveGenerationSnapshot({ sessionId, generationId });
   renderSessionList();
   removeLoading();
   finishCurrentBotMessage(true);
@@ -283,6 +307,10 @@ function appendArchitecturalRefactorAction(messageElement, metadata) {
       return;
     }
 
+    const generationId = beginGeneration(activeSessionId, {
+      forcedMode: "architecture-code-edit",
+      userContent: "Refatorar com base na análise arquitetural anterior.",
+    });
     shortcutLoadingState.codeEdit = true;
     pendingCodeEditUserMessage = addMessage(
       "Refatorar com base na análise arquitetural anterior.",
@@ -294,7 +322,8 @@ function appendArchitecturalRefactorAction(messageElement, metadata) {
     vscode.postMessage({
       type: "executarRefatoracaoArquitetural",
       sessionId: activeSessionId,
-      generationId: metadata.generationId,
+      generationId,
+      analysisGenerationId: metadata.generationId,
     });
   });
 

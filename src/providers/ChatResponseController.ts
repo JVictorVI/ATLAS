@@ -13,12 +13,12 @@ import {
 import {
   ActiveGenerationPayload,
   ActiveResponseSnapshot,
+  GenerationTarget,
   RouterDependencies,
 } from "./ChatMessageRouterTypes";
 
 export class ChatResponseController {
-  private activeResponseController: AbortController | null = null;
-  private activeResponseSnapshot: ActiveResponseSnapshot | null = null;
+  private readonly activeResponses = new Map<string, ActiveResponseSnapshot>();
 
   constructor(
     private readonly deps: RouterDependencies,
@@ -29,10 +29,7 @@ export class ChatResponseController {
     data: any,
     webview: vscode.Webview,
   ): Promise<void> {
-    this.activeResponseController?.abort();
-
     const responseController = new AbortController();
-    this.activeResponseController = responseController;
     let responseSessionId: string | undefined;
     let responseSnapshot: ActiveResponseSnapshot | null = null;
     let interruptedRagSources: RagContextSource[] = [];
@@ -43,8 +40,20 @@ export class ChatResponseController {
     const usesLocalEngine = this.deps.configManager.isLocalMode();
 
     try {
-      const session = this.deps.sessionService.ensureActiveSession();
+      const requestedSessionId =
+        typeof data.sessionId === "string" && data.sessionId.trim()
+          ? data.sessionId.trim()
+          : undefined;
+      const session = requestedSessionId
+        ? this.deps.sessionService.getSession(requestedSessionId)
+        : this.deps.sessionService.ensureActiveSession();
+
+      if (!session) {
+        throw new Error(`Sessão "${requestedSessionId}" não encontrada.`);
+      }
+
       responseSessionId = session.id;
+      this.activeResponses.get(session.id)?.controller.abort();
       const config = this.deps.configManager.getConfig();
       const contextProfile = this.deps.configManager.getContextProfile();
       const ragDestinationAllowed = this.isRagDestinationAllowed(
@@ -100,7 +109,7 @@ export class ChatResponseController {
           typeof data.forcedMode === "string" ? data.forcedMode : undefined,
       };
 
-      this.activeResponseSnapshot = responseSnapshot;
+      this.activeResponses.set(session.id, responseSnapshot);
 
       let shouldApplyDirectCodeEdit = false;
 
@@ -116,6 +125,7 @@ export class ChatResponseController {
       }
 
       if (shouldApplyDirectCodeEdit) {
+        responseSnapshot.forcedMode = "code-edit";
         const codeEditRagContext = await this.getCodeEditRagContext(
           String(data.value ?? ""),
           config.rag,
@@ -154,6 +164,22 @@ export class ChatResponseController {
         throw new Error(
           "Nenhum arquivo válido aberto no editor para análise arquitetural.",
         );
+      }
+
+      if (promptResult.mode === "architectural-analysis") {
+        responseSnapshot.forcedMode = "architectural-analysis";
+
+        if (session.title !== "Análise Arquitetural") {
+          this.deps.sessionService.renameSession(
+            session.id,
+            "Análise Arquitetural",
+          );
+
+          await webview.postMessage({
+            type: "sessoesAtualizadas",
+            value: this.deps.sessionService.listSessions(),
+          });
+        }
       }
 
       let ragContext: string[] = [];
@@ -259,11 +285,13 @@ export class ChatResponseController {
       }
 
       if (promptResult.mode === "quick-analysis") {
+        responseSnapshot.forcedMode = "quick-analysis";
         await this.handleQuickAnalysisFromChat(
           session.id,
           String(data.value ?? ""),
           webview,
           responseController.signal,
+          generationId,
         );
         return;
       }
@@ -386,46 +414,44 @@ export class ChatResponseController {
 
       await webview.postMessage({
         type: "erro",
-        sessionId: this.activeResponseSnapshot?.sessionId,
+        sessionId: responseSessionId,
         generationId,
         value: message,
       });
     } finally {
-      if (this.activeResponseController === responseController) {
-        this.activeResponseController = null;
-      }
-
-      if (this.activeResponseSnapshot?.controller === responseController) {
-        this.activeResponseSnapshot = null;
+      if (
+        responseSessionId &&
+        this.activeResponses.get(responseSessionId)?.controller ===
+          responseController
+      ) {
+        this.activeResponses.delete(responseSessionId);
       }
     }
   }
 
-  public async handleCancelGeneration(webview: vscode.Webview): Promise<void> {
-    const responseController = this.activeResponseController;
-    const snapshot = this.activeResponseSnapshot;
+  public async handleCancelGeneration(
+    webview: vscode.Webview,
+    target: GenerationTarget = {},
+  ): Promise<void> {
+    const snapshot = this.findActiveResponse(target);
+    const responseController = snapshot?.controller;
 
-    if (!responseController) {
+    if (!responseController || !snapshot) {
       await webview.postMessage({
         type: "geracaoCancelada",
+        sessionId: target.sessionId,
+        generationId: target.generationId,
       });
       return;
     }
 
     responseController.abort();
+    this.activeResponses.delete(snapshot.sessionId);
     const savedInterruptedResponse =
       await this.persistInterruptedResponseIfEnabled(
         snapshot,
         snapshot?.ragSources ?? [],
       );
-
-    if (this.activeResponseController === responseController) {
-      this.activeResponseController = null;
-    }
-
-    if (this.activeResponseSnapshot === snapshot) {
-      this.activeResponseSnapshot = null;
-    }
 
     await webview.postMessage({
       type: "geracaoCancelada",
@@ -492,6 +518,7 @@ export class ChatResponseController {
     userContent: string,
     webview: vscode.Webview,
     signal: AbortSignal,
+    generationId?: string,
   ): Promise<void> {
     await this.deps.sessionService.appendMessage(sessionId, {
       role: "user",
@@ -501,6 +528,7 @@ export class ChatResponseController {
     await this.deps.executeQuickAnalysis(webview, {
       source: "chat",
       sessionId,
+      generationId,
       signal,
     });
 
@@ -521,6 +549,7 @@ export class ChatResponseController {
     const result = await this.deps.executeDirectCodeEdit(webview, {
       userRequest: userContent,
       sessionId: session.id,
+      generationId,
       ragContext,
       signal,
     });
@@ -630,19 +659,41 @@ export class ChatResponseController {
     ].join("\n\n");
   }
 
-  public serializeActiveGeneration(): ActiveGenerationPayload {
-    if (!this.activeResponseSnapshot) {
-      return null;
+  public serializeActiveGenerations(): ActiveGenerationPayload[] {
+    return [...this.activeResponses.values()].map((snapshot) => ({
+      sessionId: snapshot.sessionId,
+      userContent: snapshot.userContent,
+      partialContent: snapshot.partialContent,
+      isStreaming: snapshot.isStreaming,
+      generationId: snapshot.generationId,
+      forcedMode: snapshot.forcedMode,
+    }));
+  }
+
+  private findActiveResponse(
+    target: GenerationTarget,
+  ): ActiveResponseSnapshot | null {
+    if (target.sessionId) {
+      const snapshot = this.activeResponses.get(target.sessionId) ?? null;
+
+      return snapshot &&
+        (!target.generationId || snapshot.generationId === target.generationId)
+        ? snapshot
+        : null;
     }
 
-    return {
-      sessionId: this.activeResponseSnapshot.sessionId,
-      userContent: this.activeResponseSnapshot.userContent,
-      partialContent: this.activeResponseSnapshot.partialContent,
-      isStreaming: this.activeResponseSnapshot.isStreaming,
-      generationId: this.activeResponseSnapshot.generationId,
-      forcedMode: this.activeResponseSnapshot.forcedMode,
-    };
+    if (target.generationId) {
+      return (
+        [...this.activeResponses.values()].find(
+          (snapshot) => snapshot.generationId === target.generationId,
+        ) ?? null
+      );
+    }
+
+    const activeSessionId = this.deps.sessionService.getActiveSessionId();
+    return activeSessionId
+      ? this.activeResponses.get(activeSessionId) ?? null
+      : null;
   }
 
   private async notifyResponseCompletedIfAway(

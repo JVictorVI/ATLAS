@@ -86,6 +86,7 @@ export class CloudApiService {
           messages,
           maxTokens,
           cloudConfigs.temperature,
+          cloudConfigs.topP,
           sendsOnlyRequiredParameters,
           onChunk,
           options?.signal,
@@ -394,14 +395,21 @@ export class CloudApiService {
     }
 
     // Se não for streaming, continua com o comportamento antigo
+    this.throwIfAborted(signal);
+
     const data = (await this.safeReadJson(
       response,
     )) as OpenAiCompatibleResponse;
+
+    this.throwIfAborted(signal);
+
     const normalizedResponse = this.normalizeOpenAiCompatibleResponse(
       provider,
       modelId,
       data,
     );
+
+    this.throwIfAborted(signal);
 
     if (onChunk) {
       onChunk(normalizedResponse.content);
@@ -567,6 +575,14 @@ export class CloudApiService {
     return error;
   }
 
+  private throwIfAborted(signal?: AbortSignal): void {
+    if (!signal?.aborted) {
+      return;
+    }
+
+    throw this.createAbortError();
+  }
+
   private toProviderMessages(messages: ChatMessage[]): AtlasChatMessage[] {
     return messages.map((message) => ({
       role: message.role,
@@ -627,12 +643,15 @@ export class CloudApiService {
     messages: ChatMessage[],
     maxTokens: number | undefined,
     temperature: number,
+    topP: number,
     sendsOnlyRequiredParameters: boolean,
     onChunk?: (chunk: string) => void,
     signal?: AbortSignal,
   ): Promise<AtlasCloudChatResponse> {
     const baseUrl = provider.baseUrl.replace(/\/+$/, "");
     const endpoint = `${baseUrl}/messages`;
+    const requestedStreaming =
+      !sendsOnlyRequiredParameters && typeof onChunk === "function";
 
     const systemMessages = messages
       .filter((message) => message.role === "system")
@@ -663,12 +682,15 @@ export class CloudApiService {
 
     if (!sendsOnlyRequiredParameters) {
       requestBody.temperature = temperature;
+      requestBody.top_p = topP;
+      requestBody.stream = requestedStreaming;
     }
 
     const response = await this.fetchWithTimeout(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Accept: requestedStreaming ? "text/event-stream" : "application/json",
         "x-api-key": apiKey,
         "anthropic-version": "2023-06-01",
       },
@@ -676,11 +698,26 @@ export class CloudApiService {
       signal,
     });
 
-    const data = (await this.safeReadJson(response)) as ClaudeResponse;
+    this.throwIfAborted(signal);
 
     if (!response.ok) {
-      this.handleApiError(response, data);
+      const errorData = await this.safeReadJson(response);
+      this.handleApiError(response, errorData);
     }
+
+    if (requestedStreaming) {
+      return this.readClaudeStreamingResponse(
+        response,
+        provider,
+        modelId,
+        onChunk,
+        signal,
+      );
+    }
+
+    const data = (await this.safeReadJson(response)) as ClaudeResponse;
+
+    this.throwIfAborted(signal);
 
     const normalizedResponse = this.normalizeClaudeResponse(
       provider,
@@ -688,7 +725,6 @@ export class CloudApiService {
       data,
     );
 
-    // --- NOVO: Fallback (modo não-streaming enviando tudo de uma vez) ---
     if (onChunk) {
       onChunk(normalizedResponse.content);
     }
@@ -709,10 +745,20 @@ export class CloudApiService {
     signal?: AbortSignal,
   ): Promise<AtlasCloudChatResponse> {
     const baseUrl = provider.baseUrl.replace(/\/+$/, "");
+    const requestedStreaming =
+      !sendsOnlyRequiredParameters && typeof onChunk === "function";
+    const method = requestedStreaming
+      ? "streamGenerateContent"
+      : "generateContent";
+    const query = new URLSearchParams({ key: apiKey });
+
+    if (requestedStreaming) {
+      query.set("alt", "sse");
+    }
 
     const endpoint = `${baseUrl}/models/${encodeURIComponent(
       modelId,
-    )}:generateContent?key=${encodeURIComponent(apiKey)}`;
+    )}:${method}?${query.toString()}`;
 
     const systemText = messages
       .filter((message) => message.role === "system")
@@ -753,16 +799,32 @@ export class CloudApiService {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Accept: requestedStreaming ? "text/event-stream" : "application/json",
       },
       body: JSON.stringify(requestBody),
       signal,
     });
 
-    const data = (await this.safeReadJson(response)) as GeminiResponse;
+    this.throwIfAborted(signal);
 
     if (!response.ok) {
-      this.handleApiError(response, data);
+      const errorData = await this.safeReadJson(response);
+      this.handleApiError(response, errorData);
     }
+
+    if (requestedStreaming) {
+      return this.readGeminiStreamingResponse(
+        response,
+        provider,
+        modelId,
+        onChunk,
+        signal,
+      );
+    }
+
+    const data = (await this.safeReadJson(response)) as GeminiResponse;
+
+    this.throwIfAborted(signal);
 
     const normalizedResponse = this.normalizeGeminiResponse(
       provider,
@@ -770,11 +832,270 @@ export class CloudApiService {
       data,
     );
 
+    this.throwIfAborted(signal);
+
     if (onChunk) {
       onChunk(normalizedResponse.content);
     }
 
     return normalizedResponse;
+  }
+
+  private async readClaudeStreamingResponse(
+    response: Response,
+    provider: ProviderConfig,
+    modelId: string,
+    onChunk?: (chunk: string) => void,
+    signal?: AbortSignal,
+  ): Promise<AtlasCloudChatResponse> {
+    let content = "";
+    let finishReason: string | undefined;
+    let inputTokens: number | undefined;
+    let outputTokens: number | undefined;
+
+    await this.readJsonSse(response, signal, (event) => {
+      if (event?.type === "error") {
+        throw new Error(
+          event?.error?.message ||
+            "O provedor Claude encerrou o streaming com erro.",
+        );
+      }
+
+      if (event?.type === "message_start") {
+        inputTokens = event?.message?.usage?.input_tokens;
+        outputTokens = event?.message?.usage?.output_tokens;
+      }
+
+      const startedText =
+        event?.type === "content_block_start" &&
+        event?.content_block?.type === "text"
+          ? event.content_block.text
+          : undefined;
+      const deltaText =
+        event?.type === "content_block_delta" &&
+        event?.delta?.type === "text_delta"
+          ? event.delta.text
+          : undefined;
+      const textChunk =
+        typeof deltaText === "string"
+          ? deltaText
+          : typeof startedText === "string"
+            ? startedText
+            : "";
+
+      if (textChunk) {
+        content += textChunk;
+        onChunk?.(textChunk);
+      }
+
+      if (event?.type === "message_delta") {
+        if (typeof event?.delta?.stop_reason === "string") {
+          finishReason = event.delta.stop_reason;
+        }
+
+        if (typeof event?.usage?.output_tokens === "number") {
+          outputTokens = event.usage.output_tokens;
+        }
+      }
+    });
+
+    if (!content.trim()) {
+      throw new Error("O provedor Claude retornou uma resposta vazia.");
+    }
+
+    return {
+      providerId: provider.id,
+      providerLabel: provider.label,
+      providerKind: "claude",
+      modelId,
+      content,
+      finishReason,
+      usage: {
+        inputTokens,
+        outputTokens,
+        totalTokens:
+          typeof inputTokens === "number" && typeof outputTokens === "number"
+            ? inputTokens + outputTokens
+            : undefined,
+      },
+      createdAt: new Date().toISOString(),
+      raw: { stream: true },
+    };
+  }
+
+  private async readGeminiStreamingResponse(
+    response: Response,
+    provider: ProviderConfig,
+    modelId: string,
+    onChunk?: (chunk: string) => void,
+    signal?: AbortSignal,
+  ): Promise<AtlasCloudChatResponse> {
+    let content = "";
+    let finishReason: string | undefined;
+    let inputTokens: number | undefined;
+    let outputTokens: number | undefined;
+    let totalTokens: number | undefined;
+
+    await this.readJsonSse(response, signal, (event) => {
+      if (event?.error) {
+        throw new Error(
+          event.error.message ||
+            "O provedor Gemini encerrou o streaming com erro.",
+        );
+      }
+
+      const candidate = event?.candidates?.[0];
+      const textChunk = (candidate?.content?.parts ?? [])
+        .map((part: { text?: unknown }) =>
+          typeof part.text === "string" ? part.text : "",
+        )
+        .join("");
+
+      if (textChunk) {
+        content += textChunk;
+        onChunk?.(textChunk);
+      }
+
+      if (typeof candidate?.finishReason === "string") {
+        finishReason = candidate.finishReason;
+      }
+
+      if (typeof event?.usageMetadata?.promptTokenCount === "number") {
+        inputTokens = event.usageMetadata.promptTokenCount;
+      }
+
+      if (typeof event?.usageMetadata?.candidatesTokenCount === "number") {
+        outputTokens = event.usageMetadata.candidatesTokenCount;
+      }
+
+      if (typeof event?.usageMetadata?.totalTokenCount === "number") {
+        totalTokens = event.usageMetadata.totalTokenCount;
+      }
+    });
+
+    if (!content.trim()) {
+      throw new Error("O provedor Gemini retornou uma resposta vazia.");
+    }
+
+    return {
+      providerId: provider.id,
+      providerLabel: provider.label,
+      providerKind: "gemini",
+      modelId,
+      content,
+      finishReason,
+      usage: {
+        inputTokens,
+        outputTokens,
+        totalTokens:
+          totalTokens ??
+          (typeof inputTokens === "number" && typeof outputTokens === "number"
+            ? inputTokens + outputTokens
+            : undefined),
+      },
+      createdAt: new Date().toISOString(),
+      raw: { stream: true },
+    };
+  }
+
+  private async readJsonSse(
+    response: Response,
+    signal: AbortSignal | undefined,
+    onEvent: (event: any) => void,
+  ): Promise<void> {
+    if (!response.body) {
+      throw new Error(
+        "O provedor não retornou um corpo de resposta para streaming.",
+      );
+    }
+
+    this.throwIfAborted(signal);
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let buffer = "";
+    let streamFinished = false;
+    let abortRequested = false;
+
+    const abortStream = () => {
+      abortRequested = true;
+      void reader.cancel().catch(() => undefined);
+    };
+    const processLine = (line: string) => {
+      const trimmedLine = line.trim();
+
+      if (!trimmedLine.startsWith("data:")) {
+        return;
+      }
+
+      const dataText = trimmedLine.slice(5).trim();
+
+      if (!dataText) {
+        return;
+      }
+
+      if (dataText === "[DONE]") {
+        streamFinished = true;
+        return;
+      }
+
+      let event: any;
+
+      try {
+        event = JSON.parse(dataText);
+      } catch {
+        return;
+      }
+
+      onEvent(event);
+    };
+
+    signal?.addEventListener("abort", abortStream, { once: true });
+
+    try {
+      while (!streamFinished) {
+        if (abortRequested) {
+          throw this.createAbortError();
+        }
+
+        const { done, value } = await reader.read();
+
+        if (abortRequested) {
+          throw this.createAbortError();
+        }
+
+        if (done) {
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split(/\r?\n/);
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          processLine(line);
+
+          if (streamFinished) {
+            break;
+          }
+        }
+      }
+
+      if (!streamFinished) {
+        buffer += decoder.decode();
+
+        for (const line of buffer.split(/\r?\n/)) {
+          processLine(line);
+
+          if (streamFinished) {
+            break;
+          }
+        }
+      }
+    } finally {
+      signal?.removeEventListener("abort", abortStream);
+      reader.releaseLock();
+    }
   }
 
   private normalizeOpenAiCompatibleResponse(

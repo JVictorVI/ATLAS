@@ -9,7 +9,7 @@ import {
 export class ChatSessionController {
   constructor(
     private readonly deps: RouterDependencies,
-    private readonly getActiveGeneration: () => ActiveGenerationPayload,
+    private readonly getActiveGenerations: () => ActiveGenerationPayload[],
     private readonly postError: (
       webview: vscode.Webview,
       error: unknown,
@@ -31,7 +31,7 @@ export class ChatSessionController {
         value: {
           session: this.serializeSessionForWebview(session),
           sessions: this.deps.sessionService.listSessions(),
-          activeGeneration: this.getActiveGeneration(),
+          activeGenerations: this.getActiveGenerations(),
         },
       });
     } catch (error) {
@@ -51,7 +51,7 @@ export class ChatSessionController {
         value: {
           session: this.serializeSessionForWebview(session),
           sessions: this.deps.sessionService.listSessions(),
-          activeGeneration: this.getActiveGeneration(),
+          activeGenerations: this.getActiveGenerations(),
         },
       });
     } catch (error) {
@@ -80,7 +80,7 @@ export class ChatSessionController {
           activeSession: activeSession
             ? this.serializeSessionForWebview(activeSession)
             : null,
-          activeGeneration: this.getActiveGeneration(),
+          activeGenerations: this.getActiveGenerations(),
         },
       });
     } catch (error) {
@@ -122,7 +122,7 @@ export class ChatSessionController {
           activeSession: activeSession
             ? this.serializeSessionForWebview(activeSession)
             : null,
-          activeGeneration: this.getActiveGeneration(),
+          activeGenerations: this.getActiveGenerations(),
         },
       });
     } catch (error) {

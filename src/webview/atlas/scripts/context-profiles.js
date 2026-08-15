@@ -34,7 +34,16 @@ function handleContextProfileChange() {
 
   highlightContextProfileSummary(mode);
   updateStaticAnalysisAvailability();
-  saveAtlasSettings();
+  saveAtlasSettings({ applyContextProfilePreset: mode !== "custom" });
+}
+
+function promoteContextProfileToCustom() {
+  if (getSelectedContextProfileMode() === "custom") {
+    return;
+  }
+
+  setContextProfileMode("custom");
+  highlightContextProfileSummary("custom");
 }
 
 function applyContextProfilePresets(value) {
