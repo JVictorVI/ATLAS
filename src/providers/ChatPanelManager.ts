@@ -97,6 +97,7 @@ export class ChatPanelManager {
 
     if (existingPanel) {
       existingPanel.title = panelTitle;
+      existingPanel.iconPath = this.getAtlasLogoUri();
       existingPanel.reveal(vscode.ViewColumn.One);
       existingPanel.webview.html = this.getHtmlForWebview(
         existingPanel.webview,
@@ -117,6 +118,7 @@ export class ChatPanelManager {
       },
     );
 
+    panel.iconPath = this.getAtlasLogoUri();
     panel.webview.html = this.getHtmlForWebview(
       panel.webview,
       normalizedView,
@@ -420,6 +422,14 @@ export class ChatPanelManager {
     } catch {
       return "";
     }
+  }
+
+  private getAtlasLogoUri(): vscode.Uri {
+    return vscode.Uri.joinPath(
+      this.context.extensionUri,
+      "assets",
+      "atlas-logo.svg",
+    );
   }
 
   private getPanelByGroup(
