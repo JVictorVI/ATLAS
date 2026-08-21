@@ -1,6 +1,6 @@
 # Processo de Sessões, Histórico e Resumo Arquitetural
 
-Atualizado em 24 de julho de 2026.
+Atualizado em 15 de agosto de 2026.
 
 Este documento descreve como o ATLAS cria sessões, persiste histórico, usa janela recente e gera resumo arquitetural para conversas longas.
 
@@ -247,7 +247,13 @@ hasArchitecturalSummary
 
 ## Geração ativa e troca de sessão
 
-`ChatResponseController.serializeActiveGeneration` retorna:
+`ChatMessageRouter.serializeActiveGenerations` consolida gerações em andamento vindas de:
+
+- respostas textuais em `ChatResponseController`;
+- análise rápida em `AtlasQuickAnalysisController`;
+- edição aplicada em `AtlasCodeEditController`.
+
+O resultado é uma lista com no máximo um snapshot por sessão:
 
 ```text
 sessionId
@@ -258,7 +264,9 @@ generationId
 forcedMode
 ```
 
-Isso permite que `ChatSessionController` preserve contexto visual quando há geração em andamento e o usuário navega entre sessões.
+`ChatSessionController` envia `activeGenerations` ao listar, criar, trocar ou excluir sessões. A Webview mantém `activeGenerationSnapshots` por `sessionId`, mostra spinner na sessão correspondente, restaura mensagens parciais quando o usuário volta para a conversa e sincroniza os controles do chat com a geração da sessão ativa.
+
+Eventos de resposta, erro, cancelamento, análise rápida e edição aplicada carregam `sessionId` e `generationId` sempre que possível. Isso permite limpar apenas o snapshot correto e ignorar mensagens atrasadas de gerações já canceladas.
 
 ## Notificação ao finalizar fora da sessão
 

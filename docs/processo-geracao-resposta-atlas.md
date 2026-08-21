@@ -1,6 +1,6 @@
 # Processo de Geração de Resposta
 
-Atualizado em 4 de agosto de 2026.
+Atualizado em 15 de agosto de 2026.
 
 Este documento descreve o fluxo completo de uma pergunta enviada pelo chat até a resposta final exibida e persistida.
 
@@ -24,9 +24,10 @@ Webview Chat
 
 1. A Webview envia `enviarPergunta`.
 2. `ChatMessageRouter.handle` encaminha para `ChatResponseController.handleSendQuestion`.
-3. Qualquer geração anterior é abortada por `activeResponseController?.abort()`.
-4. Um novo `AbortController` é criado para a geração atual.
-5. O controller guarda um snapshot com:
+3. A mensagem inclui `sessionId` e `generationId` quando veio da Webview de chat.
+4. Se já houver resposta ativa para a mesma sessão, ela é abortada antes da nova execução.
+5. Um novo `AbortController` é criado para a geração atual.
+6. O controller guarda um snapshot em `activeResponses`, indexado por sessão, com:
 
 ```text
 sessionId
@@ -38,7 +39,9 @@ usesLocalEngine
 forcedMode
 ```
 
-Esse snapshot permite cancelar a geração, preservar estado parcial quando a UI troca de sessão e salvar uma resposta interrompida quando o usuário cancela uma geração com conteúdo parcial já recebido.
+Esse snapshot permite cancelar a geração correta por `sessionId` ou `generationId`, preservar estado parcial quando a UI troca de sessão e salvar uma resposta interrompida quando o usuário cancela uma geração com conteúdo parcial já recebido.
+
+`ChatMessageRouter.serializeActiveGenerations` também combina respostas textuais, análise rápida e edição aplicada em andamento. A Webview usa essa lista para mostrar loading por sessão, renderizar resposta parcial ao voltar para uma sessão e ignorar chunks atrasados de uma geração cancelada.
 
 ## Sessão ativa
 
@@ -268,12 +271,12 @@ A Webview recebe `sessoesAtualizadas` com a lista de sessões.
 O cancelamento usa o mesmo `AbortController` da geração:
 
 ```text
-cancelarGeracao -> handleCancelGeneration -> abort()
+cancelarGeracao(sessionId, generationId) -> handleCancelGeneration(target) -> abort()
 ```
 
 Em caso de abort:
 
-- a Webview recebe `geracaoCancelada`;
+- a Webview recebe `geracaoCancelada` com `sessionId` e `generationId` quando disponíveis;
 - se `custom.saveInterruptedResponses !== false`, uma resposta parcial em streaming é salva como mensagem do assistente com `metadata.interrupted = true`;
 - se essa opção estiver desativada, ou se ainda não houver conteúdo parcial, nada é persistido como resposta final;
 - quick analysis também respeita o sinal quando chamada pelo chat.

@@ -1,6 +1,6 @@
 # Processo de Análise Rápida
 
-Atualizado em 24 de julho de 2026.
+Atualizado em 15 de agosto de 2026.
 
 Este documento descreve como o ATLAS executa a análise rápida do arquivo atual e aplica marcações no editor.
 
@@ -41,19 +41,20 @@ Se não houver arquivo válido, a Webview recebe `erro` e o VS Code mostra warni
 O controller mantém:
 
 ```text
-activeController
-activeAnalysis
+activeAnalyses
 issuesByDocument
 ```
 
-Se a execução veio por botão, um novo `AbortController` é criado e a análise anterior é abortada. Se veio do chat, o sinal de cancelamento da geração é reutilizado.
+`activeAnalyses` é um mapa indexado por `sessionId`, `generationId` ou por uma chave standalone. Se a execução veio por botão, um novo `AbortController` é criado e a análise anterior da mesma chave é abortada. Se veio do chat, o sinal de cancelamento da geração é reutilizado.
 
 Durante a execução, a Webview recebe:
 
 ```text
-analiseRapidaStatus loading=true source=button|chat
-analiseRapidaStatus loading=false source=button|chat
+analiseRapidaStatus loading=true source=button|chat sessionId generationId
+analiseRapidaStatus loading=false source=button|chat sessionId generationId
 ```
+
+O controller também serializa análises ativas para `activeGenerations`, permitindo que a lista de sessões mostre loading e que a tela correta seja restaurada após troca de sessão.
 
 ## Coleta de código
 
@@ -248,7 +249,7 @@ O VS Code também exibe uma notificação com o total de problemas destacados.
 Se a geração ou análise for abortada:
 
 ```text
-geracaoCancelada
+geracaoCancelada sessionId generationId
 ```
 
 Nenhuma marcação nova é aplicada.

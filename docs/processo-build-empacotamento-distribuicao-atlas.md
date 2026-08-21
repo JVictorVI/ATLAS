@@ -1,6 +1,6 @@
 # Build, empacotamento e distribuição
 
-Atualizado em 24 de julho de 2026 com base nos scripts e artefatos presentes no repositório.
+Atualizado em 15 de agosto de 2026 com base nos scripts e artefatos presentes no repositório.
 
 Este documento descreve como preparar o ATLAS para distribuição como extensão VS Code, incluindo ChromaDB, embeddings, runtime ONNX, geração do VSIX, limitações atuais de plataforma e conteúdo esperado em `resources`.
 
@@ -40,7 +40,7 @@ Função de cada etapa:
 | `npm run compile` | Valida tipos, roda lint e gera `dist/extension.js` em modo desenvolvimento. |
 | `npm run prepare-rag-runtime` | Copia o binding nativo do ChromaDB para `resources/chroma/<platform>-<arch>/` conforme o target atual. |
 | `npm run prepare-embedding-model` | Baixa o modelo padrão de embeddings para `resources/embeddings/atlas-embedding/`. |
-| `npm run prepare-embedding-runtime` | Instala dependências do runtime de embeddings em `resources/embedding-runtime` para o target atual e remove plataformas não distribuídas. |
+| `npm run prepare-embedding-runtime` | Instala dependências e opcionais do runtime de embeddings para o target atual, recupera binários nativos ausentes de ONNX/Sharp e remove plataformas não distribuídas. |
 | `npm run package` | Prepara RAG, embeddings, runtime, valida tipos, roda lint e gera bundle de produção. |
 | `npm run vsix` | Gera o pacote padrão `atlas-win32-x64.vsix`. |
 | `npm run vsix:win32-x64` | Gera `atlas-win32-x64.vsix`. |
@@ -157,9 +157,8 @@ Metadados gerados em `atlas-model.json`:
 
 Em runtime, o ATLAS descobre modelos em:
 
-1. pasta configurada em `rag.embeddingModelsDir`;
-2. `context.globalStorageUri/rag/embedding-models/`, quando nenhuma pasta foi escolhida;
-3. `resources/embeddings/`, para modelos empacotados.
+1. exclusivamente na pasta configurada em `rag.embeddingModelsDir`, quando definida;
+2. `context.globalStorageUri/rag/embedding-models/` e `resources/embeddings/`, quando nenhuma pasta foi escolhida.
 
 Modelos baixados pelo usuário na interface não entram no VSIX. Eles ficam na pasta gravável ativa.
 
@@ -174,8 +173,12 @@ npm run prepare-embedding-runtime
 Esse script executa `scripts/prepare-embedding-runtime.mjs`, que:
 
 1. resolve o target de plataforma;
-2. roda `npm install --prefix resources/embedding-runtime --omit=dev --no-package-lock --os=<os> --cpu=<cpu>`;
-3. executa `scripts/prune-embedding-runtime.mjs --target <platform>-<arch>` para manter somente os binários nativos do target.
+2. roda `npm install --prefix resources/embedding-runtime --omit=dev --include=optional --no-package-lock --os=<os> --cpu=<cpu>`;
+3. verifica se o binding nativo esperado do `onnxruntime-node` existe;
+4. verifica se os pacotes nativos esperados do Sharp existem;
+5. quando algum artefato nativo está ausente, usa `npm pack` em diretório temporário e extrai apenas o pacote necessário;
+6. executa `scripts/prune-embedding-runtime.mjs --target <platform>-<arch>` para manter somente os binários nativos do target;
+7. valida novamente ONNX Runtime e Sharp depois da poda.
 
 O `package.json` local de `resources/embedding-runtime` instala:
 
@@ -187,6 +190,14 @@ O `package.json` local de `resources/embedding-runtime` instala:
 ```
 
 `AtlasEmbeddingService` adiciona `resources/embedding-runtime/node_modules` ao `NODE_PATH` antes de carregar `@huggingface/transformers`.
+
+Para ONNX Runtime, o arquivo validado é:
+
+```text
+resources/embedding-runtime/node_modules/onnxruntime-node/bin/napi-v3/<os>/<arch>/onnxruntime_binding.node
+```
+
+Para Sharp, o script valida o pacote `@img/sharp-*` do target e, nos targets que exigem libvips separado, também valida `@img/sharp-libvips-*`. Em Linux, por exemplo, `linux-x64` e `linux-arm64` preservam tanto `sharp-linux-*` quanto `sharp-libvips-linux-*`.
 
 O runtime é local:
 
@@ -236,6 +247,7 @@ resources/
 ├── embedding-runtime/
 │   ├── package.json
 │   └── node_modules/
+│       ├── @img/
 │       ├── onnxruntime-node/
 │       └── sharp/
 └── embeddings/

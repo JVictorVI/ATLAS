@@ -1,6 +1,6 @@
 # Processo de configuração automática da engine
 
-Atualizado em 24 de julho de 2026.
+Atualizado em 15 de agosto de 2026.
 
 Este documento descreve como o ATLAS escolhe, baixa, valida e prepara automaticamente a engine local `llama.cpp` usada para executar modelos GGUF.
 
@@ -201,6 +201,8 @@ Ao trocar o modo, `engine-download.js`:
 4. envia `baixarEngineConfigurada`;
 5. atualiza a UI com `downloadEngineConfiguradaStatus`.
 
+O estado visual é mantido por tipo de engine. Se uma engine estiver sendo baixada, a tela mostra que o progresso continua mesmo quando o usuário troca de rota na Webview. Quando a pasta de engines muda, o estado conhecido por tipo é limpo para que a verificação seja refeita na nova pasta.
+
 O status exibido vem do backend em mensagens como:
 
 ```text
@@ -338,6 +340,26 @@ Se CUDA ou Vulkan estiverem selecionados e os arquivos não existirem na pasta e
 startupEngineDownloadPromise
 startupEnginePromise
 ```
+
+Para o download iniciado nas Configurações Gerais, `ChatMessageRouter` também mantém:
+
+```text
+configuredEngineDownloadPromise
+configuredEngineDownloadStatus
+```
+
+Se `baixarEngineConfigurada` for chamado enquanto o download ainda está em andamento, o roteador reaproveita a promessa atual e reenvia o último status conhecido para a Webview, em vez de iniciar outro download. O status guarda:
+
+```text
+engineType
+enginesDir
+loading
+done
+error
+message
+```
+
+Ao carregar configurações, `getAtlasSettingsPayload` inclui esse status quando ele pertence à pasta de engines atual, permitindo restaurar o progresso visual após troca de tela ou recarregamento da Webview.
 
 O download usa:
 

@@ -1,6 +1,6 @@
 # Plano e Estado da Implementação do RAG no ATLAS
 
-Atualizado em 24 de julho de 2026.
+Atualizado em 15 de agosto de 2026.
 
 > **Nota de sincronização:** a documentação geral e os diagramas foram alinhados para tratar materiais complementares e atualização incremental como funcionalidades implementadas. As evoluções pendentes do RAG continuam sendo chunking orientado a símbolos e melhorias de qualidade da recuperação.
 
@@ -58,7 +58,7 @@ ChatResponseController / ChatMessageRouter
 ### 3.1 Responsabilidades
 
 - `AtlasRagService`: scanner, regras de exclusão, chunking, indexação, watchers, recuperação, filtros, orçamento de contexto e formatação das fontes.
-- `AtlasEmbeddingModelDiscoveryService`: descobre modelos de embeddings empacotados, modelos disponíveis na pasta configurada pelo usuário e baixa o modelo padrão quando solicitado.
+- `AtlasEmbeddingModelDiscoveryService`: descobre modelos de embeddings na pasta configurada pelo usuário, ou na pasta gravável padrão junto dos modelos empacotados quando nenhuma pasta customizada foi escolhida, e baixa o modelo padrão quando solicitado.
 - `AtlasEmbeddingService`: carrega o modelo local selecionado com Transformers.js e gera embeddings de documentos e perguntas.
 - `AtlasChromaService`: inicia e encerra o processo ChromaDB, escolhe uma porta local livre, executa heartbeat e define o diretório persistente.
 - `AtlasRagRepository`: gerencia coleções, chunks, consultas e exclusões no ChromaDB, além do manifesto JSON usado pela interface.
@@ -78,7 +78,7 @@ O pacote da extensão prepara:
 - launcher `resources/chroma/chroma-runner.cjs`;
 - Transformers.js e runtime ONNX local;
 - modelo de embeddings empacotado em `resources/embeddings/atlas-embedding`, quando preparado no build;
-- suporte a pasta configurável de embeddings via `rag.embeddingModelsDir`;
+- suporte a pasta configurável de embeddings via `rag.embeddingModelsDir`, usada de forma exclusiva quando definida;
 - pasta gravável padrão em `context.globalStorageUri/rag/embedding-models/` quando o usuário ainda não escolheu outra;
 - scripts de preparação, poda e validação.
 

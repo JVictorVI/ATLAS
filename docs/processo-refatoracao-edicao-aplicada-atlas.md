@@ -1,6 +1,6 @@
 # Processo de Refatoração e Edição Aplicada
 
-Atualizado em 4 de agosto de 2026.
+Atualizado em 15 de agosto de 2026.
 
 Este documento descreve como o ATLAS reconhece pedidos de alteração no código, gera um plano de edições, apresenta uma prévia e só modifica o arquivo após confirmação do usuário.
 
@@ -224,9 +224,11 @@ Na edição direta aprovada, o pedido do usuário é salvo, mas não é criada u
 
 Quando o usuário cancela a prévia da edição direta, nenhuma mensagem desse pedido é persistida.
 
+Enquanto a edição está em andamento, `AtlasCodeEditController` mantém `activeEdits` por `sessionId`, `generationId` ou chave standalone e serializa esses itens como `activeGenerations`. A Webview usa `forcedMode="code-edit"` ou `forcedMode="architecture-code-edit"` para mostrar o loading correto na conversa e na lista de sessões.
+
 ## Cancelamento e erros
 
-`cancelarGeracao` cancela análise rápida, resposta textual e edição aplicada. O sinal de abort é propagado para classificação, recuperação RAG e inferência do plano.
+`cancelarGeracao` recebe `sessionId` e `generationId` quando acionado pelo chat. O roteador repassa esse alvo para análise rápida, resposta textual e edição aplicada, cancelando apenas a operação correspondente. O sinal de abort é propagado para classificação, recuperação RAG e inferência do plano.
 
 Erros esperados incluem:
 

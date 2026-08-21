@@ -1,6 +1,6 @@
 # Processo de Integração Cloud
 
-Atualizado em 24 de julho de 2026.
+Atualizado em 15 de agosto de 2026.
 
 Este documento descreve como o ATLAS usa provedores cloud, chaves de API, listagem de modelos, streaming, timeouts e normalização de respostas.
 
@@ -109,7 +109,7 @@ Ao excluir uma chave, o provider também é removido da configuração.
 1. valida se o modo atual é cloud;
 2. resolve provider e modelId;
 3. busca chave no Secret Storage;
-4. resolve `maxTokens`;
+4. resolve `maxTokens` apenas quando `limitPayload` está ativo e o modo de compatibilidade não está ativo;
 5. seleciona a implementação pelo tipo de provider.
 
 ## Defaults usados
@@ -123,10 +123,14 @@ cloudConfigs
 Campos:
 
 ```text
+limitPayload
+dynamicMaxTokens
+sendOnlyRequiredParameters
 temperature
 maxTokens
 topP
 stream
+timeout
 ```
 
 `limitPayload` controla o envio do limite de saída configurado em `maxTokens`.
@@ -138,6 +142,8 @@ o aceitam como parâmetro opcional. Claude é a exceção: a API exige
 o ATLAS não envia temperatura, top-p, limite opcional de tokens nem streaming;
 mantém apenas os campos obrigatórios de cada API e entrega a resposta em bloco
 quando necessário.
+
+Na UI, esse modo desabilita temporariamente `limitPayload`, `dynamicMaxTokens`, `stream`, `temperature`, `topP` e `maxTokens`, porque esses campos não participam do payload enviado enquanto a compatibilidade estrita está ativa.
 
 Default efetivo de timeout quando ausente:
 
@@ -196,6 +202,10 @@ Payload:
   "stream": true
 }
 ```
+
+Quando `sendOnlyRequiredParameters` está ativo, o payload OpenAI-compatible mantém apenas `model` e `messages`.
+
+Quando o limite de saída está ativo, o ATLAS começa usando `max_tokens`. Se um provider OpenAI-compatible responder HTTP 400 informando que esse parâmetro deve ser substituído por `max_completion_tokens`, o serviço troca o campo, cacheia a escolha por `provider.id::modelId` e tenta novamente. Também remove parâmetros opcionais rejeitados, como `temperature`, `top_p`, `stream`, `max_tokens` ou `max_completion_tokens`, até o limite de cinco tentativas.
 
 Streaming usa SSE:
 

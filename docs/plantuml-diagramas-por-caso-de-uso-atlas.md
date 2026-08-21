@@ -1,20 +1,11 @@
 ﻿# Diagramas por Caso de Uso - ATLAS
 
-Atualizado em 14 de agosto de 2026.
+Atualizado em 15 de agosto de 2026.
 
 Este arquivo contém diagramas de classe e de sequência em PlantUML para cada caso de uso atualizado do ATLAS.
 Os blocos podem ser copiados diretamente para o PlantText.
 
 > **Nota de atualização:** os diagramas abaixo representam o ATLAS atual como extensão VS Code em TypeScript. Além dos fluxos de inferência local/cloud, sessões, análise rápida e contexto estrutural, o ATLAS possui edição aplicada com prévia e confirmação, refatoração guiada por análise arquitetural e RAG local com `AtlasRagService`, embeddings locais, ChromaDB empacotado, indexação por projeto, materiais complementares e recuperação integrada ao chat. Busca real em Hugging Face, download de modelos GGUF/ONNX e preparação automática da engine `llama.cpp` também estão implementados.
-
-## Mapa de defasagens corrigidas nesta atualização
-
-- UC013 mostra o ajuste automático de `contextWindow`, a persistência do novo parâmetro, a preparação e o reinício da engine para aplicá-lo.
-- UC016 e UC017 representam `HuggingFaceModelService`, `AtlasEngineDownloadService`, descoberta local e atualização de embeddings.
-- UC018 aponta para `AtlasRagService`, `AtlasExternalDocumentParser`, `AtlasEmbeddingService` e `AtlasRagRepository`.
-- UC019 documenta a configuração e o consumo da análise estrutural por finalidade e perfil.
-- UC020 documenta a edição direta e a refatoração baseada em análise, incluindo detecção de intenção, validação do arquivo, plano JSON, diff, confirmação e aplicação.
-- As assinaturas de `LocalApiService` e `AtlasLocalEngineService` foram ajustadas para representar o código atual, incluindo `restartEngine(model, options)`.
 
 ## UC001 - Perguntar sobre o código
 
@@ -32,8 +23,8 @@ class ChatMessageRouter {
 }
 class ChatResponseController {
   +handleSendQuestion(data, webview)
-  +handleCancelGeneration(webview)
-  +serializeActiveGeneration()
+  +handleCancelGeneration(webview, target)
+  +serializeActiveGenerations()
   -handleQuickAnalysisFromChat(sessionId, userContent, webview)
 }
 class AtlasEditorContextService {

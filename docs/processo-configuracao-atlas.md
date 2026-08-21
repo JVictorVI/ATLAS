@@ -1,6 +1,6 @@
 ﻿# Processo de Configuração
 
-Atualizado em 4 de agosto de 2026.
+Atualizado em 15 de agosto de 2026.
 
 Este documento descreve onde as configurações do ATLAS vivem, como são normalizadas e quais fluxos da UI alteram cada seção.
 
@@ -65,7 +65,7 @@ autoSave
 logLevel
 ```
 
-A UI de Configurações Gerais altera `language` e também partes de `custom`, `rag` e análise estática.
+A UI de Configurações Gerais altera `language` e também partes de `custom`, `rag` e análise estática. A mesma tela possui a ação `Restaurar padrões`, que volta as preferências gerais para os defaults sem apagar provedores, chaves, modelos, índices RAG nem histórico.
 
 ## Configurações de execução cloud
 
@@ -335,6 +335,10 @@ custom
 
 Preserva ajustes finos vindos das telas específicas. Campos numéricos são normalizados com limites.
 
+Ao selecionar `light`, `balanced` ou `advanced`, a Webview envia `applyContextProfilePreset: true`. Nesse caso, `ChatMessageRouter` aplica também os efeitos associados ao preset em RAG, análise estática e `custom.localEngine.dynamicContextWindow`.
+
+Se o usuário altera manualmente uma opção gerenciada pelo preset, como contexto dinâmico ou análise estática, a configuração é promovida para `custom` antes de salvar. Isso evita que a UI mostre um preset fechado enquanto os efeitos salvos já foram personalizados.
+
 ## Fluxos de UI que salvam configuração
 
 | Mensagem Webview | Handler | O que altera |
@@ -342,6 +346,7 @@ Preserva ajustes finos vindos das telas específicas. Campos numéricos são nor
 | `salvarConfiguracoesCloud` | `handleSaveCloudConfigs` | `cloudConfigs`. |
 | `salvarConfiguracoesAtlas` | `handleSaveAtlasSettings` | `general`, `custom.contextProfile`, `custom.localEngine`, `custom.refactoring`, `custom.staticAnalysis`, `rag.topK`, `rag.maxContextCharacters`. |
 | `salvarConfiguracoesRag` | `handleSaveRagSettings` | `rag`. |
+| `restaurarConfiguracoesAtlas` | `handleRestoreAtlasSettings` | Restaura defaults gerais de idioma, perfil/contexto, engine local, refatoração, análise estática e seleção/pasta de embeddings, preservando dados do usuário. |
 | `selecionarModo` | `handleSelectMode` | `llms.selection.mode`. |
 | `selecionarModelo` | `handleSelectModel` | modelo local ou cloud ativo. |
 | `saveModelParams` | `handleSaveModelParams` | `llms.localModels[modelId].parameters`. |
@@ -428,6 +433,30 @@ Algumas alterações exigem parar a engine:
 - trocar pasta de modelos ou engines.
 
 A próxima geração local reinicia a engine com a configuração atual.
+
+## Restauração de padrões gerais
+
+`handleRestoreAtlasSettings` pede confirmação por notificação modal antes de alterar a configuração.
+
+Quando confirmado, o ATLAS preserva:
+
+- provedores configurados e chaves no Secret Storage;
+- modelos locais e arquivos `.gguf`;
+- índices e materiais do RAG;
+- sessões, mensagens e histórico.
+
+E restaura para os defaults:
+
+- `general.language`;
+- `custom.contextProfile`;
+- `custom.saveInterruptedResponses`;
+- `custom.refactoring`;
+- `custom.staticAnalysis`;
+- `custom.localEngine.engineType`, `startOnAtlasOpen`, `prepareOnAtlasOpen`, `enginesDir`, `dynamicContextWindow`, `stream` e `timeout`;
+- `custom.localModels.modelsDir`;
+- `rag.embeddingModel`, `rag.embeddingModelsDir`, `rag.topK` e `rag.maxContextCharacters`.
+
+Depois de salvar, o roteador reconcilia a seleção de embeddings disponível, limpa status de download de engine se a pasta mudou, para a engine local e devolve `configuracoesAtlasRestauradas` para a Webview.
 
 ## Relações com outros processos
 

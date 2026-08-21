@@ -1,6 +1,6 @@
 ﻿# Processos de Contexto, Janela Local e RAG
 
-Atualizado em 4 de agosto de 2026.
+Atualizado em 15 de agosto de 2026.
 
 Este documento descreve três fluxos operacionais do ATLAS:
 
@@ -476,13 +476,15 @@ O default atual é `true`, mas o usuário pode desligar essa inclusão nas confi
 rag.embeddingModelsDir
 ```
 
-Se essa pasta não estiver configurada, usa:
+Quando essa pasta está configurada, ela é a única raiz de descoberta. Modelos empacotados e a pasta padrão do usuário não são misturados à lista nesse modo.
+
+Se essa pasta não estiver configurada, usa a pasta gravável padrão:
 
 ```text
 context.globalStorageUri/rag/embedding-models/
 ```
 
-Também verifica modelos empacotados em:
+E também verifica modelos empacotados em:
 
 ```text
 resources/embeddings/

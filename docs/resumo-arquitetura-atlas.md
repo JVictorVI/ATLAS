@@ -1,6 +1,6 @@
 ﻿# Resumo de Status Arquitetural
 
-Atualizado em 4 de agosto de 2026 com base na implementação presente no repositório.
+Atualizado em 15 de agosto de 2026 com base na implementação presente no repositório.
 
 Para o fluxo detalhado de ajuste automático da janela local, indexação RAG e funcionamento dos embeddings, consulte [Processos de contexto, janela local e RAG](processos-contexto-rag-atlas.md).
 
@@ -24,12 +24,12 @@ Para o fluxo de alteração do arquivo aberto, incluindo decisão de intenção,
 | Componente                               | Status atual                                                                                                                                                     |
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Extensão VS Code                         | Implementada                                                                                                                                                     |
-| Webview de chat                          | Implementada, incluindo input com autosize e botão de modo estudante com estado visual ativo                                                                     |
+| Webview de chat                          | Implementada, incluindo input com autosize, botão de modo estudante, loading por sessão, restauração de geração em andamento e cancelamento por `generationId`    |
 | Painel de provedores em nuvem            | Implementado                                                                                                                                                     |
-| Painel de configurações gerais           | Implementado, incluindo perfis de contexto, execução local, refatoração, decisão de intenção pelo modelo, análise estática e ajuste automático de contexto       |
+| Painel de configurações gerais           | Implementado, incluindo perfis de contexto, execução local, refatoração, decisão de intenção pelo modelo, análise estática, ajuste automático de contexto e restauração de padrões |
 | Biblioteca local de modelos              | Implementada para descoberta, seleção, parâmetros, comportamento, metadados, exclusão e controles de engine; recebe modelos GGUF baixados pelo repositório        |
 | Repositório visual de modelos            | Implementado com busca no Hugging Face, filtros LLM/embedding, detalhes, variantes, diagnóstico de hardware e download GGUF/ONNX                                |
-| Integração cloud                         | Implementada                                                                                                                                                     |
+| Integração cloud                         | Implementada com modo de compatibilidade para parâmetros obrigatórios, limite dinâmico de tokens e adaptação de parâmetros opcionais em providers OpenAI-compatible |
 | Provedores customizados                  | Implementados                                                                                                                                                    |
 | Secret Storage                           | Implementado                                                                                                                                                     |
 | `AtlasInferenceService`                  | Implementado                                                                                                                                                     |
@@ -44,8 +44,8 @@ Para o fluxo de alteração do arquivo aberto, incluindo decisão de intenção,
 | Histórico persistido                     | Implementado                                                                                                                                                     |
 | Resumo arquitetural                      | Implementado                                                                                                                                                     |
 | Streaming                                | Implementado para OpenAI-compatible e local; fallback em Claude/Gemini                                                                                           |
-| Cancelamento de geração                  | Implementado                                                                                                                                                     |
-| `ChatResponseController`                 | Implementado com snapshot da geração ativa, cancelamento, RAG e desvios para análise rápida ou edição aplicada                                                   |
+| Cancelamento de geração                  | Implementado com alvo por sessão e `generationId`, cobrindo resposta textual, análise rápida e edição aplicada                                                   |
+| `ChatResponseController`                 | Implementado com snapshots de gerações ativas por sessão, cancelamento direcionado, RAG e desvios para análise rápida ou edição aplicada                         |
 | `AtlasCodeEditController`                | Implementado com guardas determinísticas, heurística local, classificação opcional pelo modelo, validação de hash e controle de cancelamento                    |
 | `AtlasCodeEditService`                   | Implementado com plano JSON por linhas, validação de intervalos, prévia em diff, confirmação humana e aplicação via `vscode.WorkspaceEdit`                      |
 | Edição aplicada pelo chat                | Implementada para o arquivo ou seleção atual, sem resposta textual redundante após a conclusão                                                                    |
@@ -65,6 +65,7 @@ Para o fluxo de alteração do arquivo aberto, incluindo decisão de intenção,
 | `AtlasChromaService`                     | Implementado com porta dinâmica, heartbeat, persistência e encerramento do processo auxiliar                                                                     |
 | Embeddings locais                        | Implementados com Transformers.js, pasta configurável, seletor, download do modelo padrão e vetores normalizados                                                 |
 | `AtlasEmbeddingModelDiscoveryService`    | Implementado para descobrir modelos empacotados, modelos em pasta escolhida pelo usuário e baixar o modelo padrão                                                |
+| Runtime local de embeddings              | Implementado com preparação por target, instalação de opcionais, recuperação de nativos ONNX/Sharp ausentes e poda de plataformas não distribuídas                |
 | `AtlasRagRepository`                     | Implementado com coleções Chroma e manifesto JSON persistente                                                                                                    |
 | Indexação do workspace atual             | Implementada                                                                                                                                                     |
 | Indexação de pasta escolhida             | Implementada                                                                                                                                                     |
@@ -93,6 +94,10 @@ Para o fluxo de alteração do arquivo aberto, incluindo decisão de intenção,
 | Refatoração e edição aplicada | A funcionalidade aparecia apenas em trechos dos documentos de geração, prompts e configuração.           | O fluxo agora possui documento próprio, entradas no README e no status arquitetural, eventos, configurações, limitações e diagramas atualizados.                             |
 | Decisão de intenção           | Não havia visão consolidada das guardas, da heurística e da classificação opcional pelo modelo.          | A ordem das guardas, o fallback para heurística e os níveis de confiança aceitos estão documentados.                                                                         |
 | RAG em edição                 | `rag.useInCodeEditing` estava implementado, mas ausente dos documentos de configuração e recuperação.    | A opção, o default `false` e as permissões de destino local/cloud foram adicionados aos processos relacionados.                                                               |
+| Usabilidade do chat           | A documentação descrevia uma geração ativa única e cancelamento genérico.                               | Respostas, análise rápida e edição aplicada agora são serializadas como `activeGenerations` por sessão, com `generationId` para restauração visual e cancelamento direcionado. |
+| Restauração de padrões        | A ação de UI não estava documentada.                                                                     | `restaurarConfiguracoesAtlas` restaura defaults gerais sem apagar provedores, chaves, modelos, índices RAG ou histórico.                                                     |
+| Compatibilidade cloud         | O modo de enviar apenas parâmetros obrigatórios e os retries OpenAI-compatible estavam pouco detalhados. | `sendOnlyRequiredParameters`, `limitPayload`, `dynamicMaxTokens` e a adaptação entre `max_tokens`/`max_completion_tokens` foram documentados.                                  |
+| Runtime de embeddings         | O build descrevia apenas instalação e poda do runtime.                                                   | A preparação agora documenta `--include=optional`, recuperação via `npm pack` e validação de ONNX Runtime e Sharp por target.                                                   |
 
 ## Execução local e ajuste dinâmico
 
