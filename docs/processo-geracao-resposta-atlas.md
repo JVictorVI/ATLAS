@@ -1,6 +1,6 @@
 # Processo de Geração de Resposta
 
-Atualizado em 15 de agosto de 2026.
+Atualizado em 30 de agosto de 2026.
 
 Este documento descreve o fluxo completo de uma pergunta enviada pelo chat até a resposta final exibida e persistida.
 
@@ -64,6 +64,9 @@ O contexto efetivo vem do perfil atual:
 ```text
 configManager.getContextProfile()
 ```
+
+Essa resolução usa `custom.contextProfiles.local` ou
+`custom.contextProfiles.cloud`, de acordo com o modo de execução ativo.
 
 O fluxo considera:
 

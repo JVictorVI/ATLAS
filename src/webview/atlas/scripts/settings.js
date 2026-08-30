@@ -111,6 +111,7 @@ function saveAtlasSettings(options = {}) {
       applyContextProfilePreset:
         options.applyContextProfilePreset === true,
       language: atlasLanguage?.value === "en-US" ? "en-US" : "pt-BR",
+      contextProfileTarget: getSelectedContextProfileTarget(),
       contextProfileMode: getSelectedContextProfileMode(),
       localStream: localStreamResponses?.checked !== false,
       saveInterruptedResponses: saveInterruptedResponses?.checked !== false,

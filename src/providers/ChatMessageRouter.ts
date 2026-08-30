@@ -18,14 +18,12 @@ import {
 } from "../interfaces/AtlasRagTypes";
 import {
   AtlasContextProfileSettings,
+  AtlasExecutionMode,
   AtlasRagSettings,
   AtlasResponseLanguage,
 } from "../interfaces/AtlasConfigTypes";
 import { AtlasExternalDocumentParser } from "../services/AtlasExternalDocumentParser";
-import {
-  AtlasContextProfileService,
-  type AtlasContextProfileEffects,
-} from "../services/AtlasContextProfileService";
+import { AtlasContextProfileService } from "../services/AtlasContextProfileService";
 import { AtlasInferenceService } from "../services/AtlasInferenceService";
 
 type LocalEngineType = "cpu" | "cuda" | "vulkan";
@@ -1731,7 +1729,13 @@ export class ChatMessageRouter {
         30,
       );
       const currentCustom = this.deps.configManager.getConfig().custom ?? {};
-      let contextProfile = this.normalizeContextProfilePayload(payload);
+      const contextProfileTarget = this.normalizeContextProfileTarget(
+        payload.contextProfileTarget,
+      );
+      const contextProfile = this.normalizeContextProfilePayload(
+        payload,
+        contextProfileTarget,
+      );
       const selectedPresetEffects = AtlasContextProfileService.getPresetEffects(
         contextProfile.mode,
       );
@@ -1768,22 +1772,13 @@ export class ChatMessageRouter {
         payload.staticAnalysisDiagnostics === true;
       const staticAnalysisRelations = payload.staticAnalysisRelations === true;
 
-      if (
-        selectedPresetEffects &&
-        !shouldApplyContextProfilePreset &&
-        this.hasContextProfilePresetOverride(payload, selectedPresetEffects)
-      ) {
-        contextProfile = this.normalizeContextProfilePayload({
-          ...payload,
-          contextProfileMode: "custom",
-        });
-      }
-
       const presetEffects = shouldApplyContextProfilePreset
         ? selectedPresetEffects
         : null;
       const dynamicContextWindow =
-        presetEffects?.localEngine.dynamicContextWindow ??
+        (contextProfileTarget === "local"
+          ? presetEffects?.localEngine.dynamicContextWindow
+          : undefined) ??
         payload.dynamicContextWindow !== false;
       const staticAnalysis = presetEffects?.staticAnalysis ?? {
         enabled: staticAnalysisEnabled,
@@ -1807,7 +1802,11 @@ export class ChatMessageRouter {
 
       this.deps.configManager.updateCustomRoot({
         ...currentCustom,
-        contextProfile,
+        contextProfiles: {
+          local: this.deps.configManager.getContextProfile("local"),
+          cloud: this.deps.configManager.getContextProfile("cloud"),
+          [contextProfileTarget]: contextProfile,
+        },
         saveInterruptedResponses,
         refactoring: {
           enabled: refactoringEnabled,
@@ -1835,7 +1834,7 @@ export class ChatMessageRouter {
 
       this.deps.stopLocalEngine();
 
-      const saved = this.getAtlasSettingsPayload();
+      const saved = this.getAtlasSettingsPayload(contextProfileTarget);
 
       await webview.postMessage({
         type: "configuracoesAtlasSalvas",
@@ -1911,7 +1910,7 @@ export class ChatMessageRouter {
         },
         custom: {
           ...currentCustom,
-          contextProfile: defaultCustom.contextProfile,
+          contextProfiles: defaultCustom.contextProfiles,
           saveInterruptedResponses:
             defaultCustom.saveInterruptedResponses,
           refactoring: defaultCustom.refactoring,
@@ -3012,47 +3011,12 @@ export class ChatMessageRouter {
     return error instanceof Error ? error.message : fallback;
   }
 
-  private hasContextProfilePresetOverride(
-    payload: Record<string, unknown>,
-    preset: AtlasContextProfileEffects,
-  ): boolean {
-    const booleanOverride = (key: string, expected: boolean) =>
-      typeof payload[key] === "boolean" && payload[key] !== expected;
-
-    return (
-      booleanOverride(
-        "dynamicContextWindow",
-        preset.localEngine.dynamicContextWindow,
-      ) ||
-      booleanOverride("staticAnalysisEnabled", preset.staticAnalysis.enabled) ||
-      booleanOverride(
-        "staticAnalysisQuick",
-        preset.staticAnalysis.useInQuickAnalysis,
-      ) ||
-      booleanOverride(
-        "staticAnalysisArchitectural",
-        preset.staticAnalysis.useInArchitecturalAnalysis,
-      ) ||
-      booleanOverride(
-        "staticAnalysisRefactoring",
-        preset.staticAnalysis.useInRefactoring,
-      ) ||
-      booleanOverride(
-        "staticAnalysisDiagnostics",
-        preset.staticAnalysis.includeDiagnostics,
-      ) ||
-      booleanOverride(
-        "staticAnalysisRelations",
-        preset.staticAnalysis.includeSymbolRelations,
-      )
-    );
-  }
-
   private normalizeContextProfilePayload(
     payload: Record<string, unknown>,
+    executionMode: AtlasExecutionMode,
   ): AtlasContextProfileSettings {
     const config = this.deps.configManager.getConfig();
-    const current = this.deps.configManager.getContextProfile();
+    const current = this.deps.configManager.getContextProfile(executionMode);
     const mode = AtlasContextProfileService.normalizeMode(
       payload.contextProfileMode,
       current.mode,
@@ -3093,19 +3057,30 @@ export class ChatMessageRouter {
     );
   }
 
-  private getAtlasSettingsPayload() {
+  private getAtlasSettingsPayload(
+    contextProfileTarget: AtlasExecutionMode =
+      this.deps.configManager.getCurrentMode(),
+  ) {
     const config = this.deps.configManager.getConfig();
     const localEngine = config.custom?.localEngine;
     const value =
       typeof localEngine === "object" && localEngine !== null
         ? (localEngine as Record<string, unknown>)
         : {};
-    const staticAnalysis = this.deps.configManager.getStaticAnalysisConfig();
-    const contextProfile = this.deps.configManager.getContextProfile();
+    const staticAnalysis =
+      this.deps.configManager.getStaticAnalysisConfig(contextProfileTarget);
+    const contextProfile =
+      this.deps.configManager.getContextProfile(contextProfileTarget);
     const engineType = this.normalizeLocalEngineType(value.engineType);
+    const contextProfiles = {
+      local: this.getContextProfilePayload("local", value),
+      cloud: this.getContextProfilePayload("cloud", value),
+    };
 
     return {
       contextProfilePresets: this.getContextProfilePresetsPayload(),
+      contextProfileTarget,
+      contextProfiles,
       language: this.normalizeResponseLanguage(config.general.language),
       contextProfileMode: contextProfile.mode,
       contextHistoryWindow: contextProfile.historyWindowSize,
@@ -3113,10 +3088,8 @@ export class ChatMessageRouter {
       contextRagEnabled: contextProfile.includeRagContext,
       contextEditorEnabled: contextProfile.includeEditorContext,
       contextEditorLimit: contextProfile.maxEditorContextCharacters,
-      contextRagTopK: config.rag.topK ?? contextProfile.ragTopK,
-      contextRagLimit:
-        config.rag.maxContextCharacters ??
-        contextProfile.ragMaxContextCharacters,
+      contextRagTopK: contextProfile.ragTopK,
+      contextRagLimit: contextProfile.ragMaxContextCharacters,
       localStream: value.stream !== false,
       saveInterruptedResponses:
         config.custom?.saveInterruptedResponses !== false,
@@ -3156,6 +3129,44 @@ export class ChatMessageRouter {
         staticAnalysis.includeSymbolRelations &&
         contextProfile.includeStaticAnalysis,
     };
+  }
+
+  private getContextProfilePayload(
+    executionMode: AtlasExecutionMode,
+    localEngine: Record<string, unknown>,
+  ) {
+    const profile = this.deps.configManager.getContextProfile(executionMode);
+    const staticAnalysis =
+      this.deps.configManager.getStaticAnalysisConfig(executionMode);
+
+    return {
+      ...profile,
+      dynamicContextWindow:
+        executionMode === "local"
+          ? localEngine.dynamicContextWindow !== false
+          : undefined,
+      staticAnalysisEnabled:
+        staticAnalysis.enabled && profile.includeStaticAnalysis,
+      staticAnalysisQuick:
+        staticAnalysis.useInQuickAnalysis && profile.includeStaticAnalysis,
+      staticAnalysisArchitectural:
+        staticAnalysis.useInArchitecturalAnalysis &&
+        profile.includeStaticAnalysis,
+      staticAnalysisRefactoring:
+        staticAnalysis.useInRefactoring && profile.includeStaticAnalysis,
+      staticAnalysisDiagnostics:
+        staticAnalysis.includeDiagnostics && profile.includeStaticAnalysis,
+      staticAnalysisRelations:
+        staticAnalysis.includeSymbolRelations && profile.includeStaticAnalysis,
+    };
+  }
+
+  private normalizeContextProfileTarget(value: unknown): AtlasExecutionMode {
+    if (value === "local" || value === "cloud") {
+      return value;
+    }
+
+    return this.deps.configManager.getCurrentMode();
   }
 
   private clearConfiguredEngineDownloadStatusForDirectoryChange(

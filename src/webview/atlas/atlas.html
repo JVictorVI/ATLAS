@@ -72,72 +72,102 @@
           <div class="section-title">Perfil de Contexto</div>
           <div class="section-description">
             Escolha quanto contexto o ATLAS envia automaticamente junto com cada
-            pergunta, tanto no modo local quanto no modo em nuvem. Perfis mais
-            leves reduzem histórico, RAG, código aberto e coleta estática para
-            economizar CPU, memória e janela de contexto.
+            pergunta. O perfil do modo local e o perfil do modo em nuvem são
+            configurados separadamente.
           </div>
 
-          <div class="context-profile-options">
-            <label class="context-profile-option">
-              <input
-                type="radio"
-                name="context-profile"
-                id="context-profile-light"
-                value="light"
-              />
-              <span>
-                <strong>Leve</strong>
-                <small>
-                  Para PCs fracos: histórico curto, sem RAG no prompt e sem
-                  coleta estática automática
-                </small>
-              </span>
-            </label>
+          <div class="context-profile-environments">
+            <div class="context-profile-environment-row">
+              <strong>Local:</strong>
+              <div role="radiogroup" aria-label="Perfil de contexto local">
+                <label class="context-profile-check-option">
+                  <input
+                    type="radio"
+                    name="context-profile-local"
+                    value="light"
+                    data-context-profile-target="local"
+                  />
+                  <span class="context-profile-check" aria-hidden="true"></span>
+                  <span>Leve</span>
+                </label>
+                <label class="context-profile-check-option">
+                  <input
+                    type="radio"
+                    name="context-profile-local"
+                    value="balanced"
+                    data-context-profile-target="local"
+                  />
+                  <span class="context-profile-check" aria-hidden="true"></span>
+                  <span>Médio</span>
+                </label>
+                <label class="context-profile-check-option">
+                  <input
+                    type="radio"
+                    name="context-profile-local"
+                    value="advanced"
+                    data-context-profile-target="local"
+                  />
+                  <span class="context-profile-check" aria-hidden="true"></span>
+                  <span>Avançado</span>
+                </label>
+                <label class="context-profile-check-option">
+                  <input
+                    type="radio"
+                    name="context-profile-local"
+                    value="custom"
+                    data-context-profile-target="local"
+                  />
+                  <span class="context-profile-check" aria-hidden="true"></span>
+                  <span>Personalizado</span>
+                </label>
+              </div>
+            </div>
 
-            <label class="context-profile-option">
-              <input
-                type="radio"
-                name="context-profile"
-                id="context-profile-balanced"
-                value="balanced"
-              />
-              <span>
-                <strong>Médio</strong>
-                <small>
-                  Equilíbrio entre contexto e desempenho para uso local diário
-                </small>
-              </span>
-            </label>
-
-            <label class="context-profile-option">
-              <input
-                type="radio"
-                name="context-profile"
-                id="context-profile-advanced"
-                value="advanced"
-              />
-              <span>
-                <strong>Avançado</strong>
-                <small>
-                  Mais histórico, RAG mais amplo e análise estrutural completa
-                </small>
-              </span>
-            </label>
-
-            <label class="context-profile-option">
-              <input
-                type="radio"
-                name="context-profile"
-                id="context-profile-custom"
-                value="custom"
-              />
-              <span>
-                <strong>Personalizado</strong>
-                <small
-                  >Mantém ajustes finos definidos nas telas específicas</small
-                >
-              </span>
-            </label>
+            <div class="context-profile-environment-row">
+              <strong>Nuvem:</strong>
+              <div role="radiogroup" aria-label="Perfil de contexto em nuvem">
+                <label class="context-profile-check-option">
+                  <input
+                    type="radio"
+                    name="context-profile-cloud"
+                    value="light"
+                    data-context-profile-target="cloud"
+                  />
+                  <span class="context-profile-check" aria-hidden="true"></span>
+                  <span>Leve</span>
+                </label>
+                <label class="context-profile-check-option">
+                  <input
+                    type="radio"
+                    name="context-profile-cloud"
+                    value="balanced"
+                    data-context-profile-target="cloud"
+                  />
+                  <span class="context-profile-check" aria-hidden="true"></span>
+                  <span>Médio</span>
+                </label>
+                <label class="context-profile-check-option">
+                  <input
+                    type="radio"
+                    name="context-profile-cloud"
+                    value="advanced"
+                    data-context-profile-target="cloud"
+                  />
+                  <span class="context-profile-check" aria-hidden="true"></span>
+                  <span>Avançado</span>
+                </label>
+                <label class="context-profile-check-option">
+                  <input
+                    type="radio"
+                    name="context-profile-cloud"
+                    value="custom"
+                    data-context-profile-target="cloud"
+                  />
+                  <span class="context-profile-check" aria-hidden="true"></span>
+                  <span>Personalizado</span>
+                </label>
+              </div>
+            </div>
           </div>
 
           <div class="context-profile-summary">
@@ -265,6 +295,51 @@
                   <span id="custom-profile-dynamic">valor atual</span>
                 </li>
               </ul>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-section-heading">
+              <h2>Tamanho do contexto local</h2>
+              <p>
+                Escolha se o ATLAS pode ajustar automaticamente o tamanho do
+                contexto local quando a engine indicar que a requisição não cabe
+                na configuração atual
+              </p>
+            </div>
+
+            <div class="engine-options context-window-options">
+              <label class="engine-option">
+                <input
+                  type="radio"
+                  name="context-window-mode"
+                  id="context-window-dynamic"
+                  value="dynamic"
+                />
+                <span>
+                  <strong>Automático</strong>
+                  <small>
+                    Ajusta e salva apenas o tamanho de contexto quando
+                    necessário
+                  </small>
+                </span>
+              </label>
+
+              <label class="engine-option">
+                <input
+                  type="radio"
+                  name="context-window-mode"
+                  id="context-window-fixed"
+                  value="fixed"
+                />
+                <span>
+                  <strong>Fixo</strong>
+                  <small>
+                    Usa apenas o tamanho definido na Biblioteca para o modelo
+                    selecionado
+                  </small>
+                </span>
+              </label>
             </div>
           </div>
         </section>
@@ -455,51 +530,6 @@
               >
                 Baixar agora
               </button>
-            </div>
-          </div>
-
-          <div class="settings-section">
-            <div class="settings-section-heading">
-              <h2>Contexto local</h2>
-              <p>
-                Escolha se o ATLAS pode ajustar automaticamente o contexto local
-                quando a engine indicar que a requisição não cabe na
-                configuração atual
-              </p>
-            </div>
-
-            <div class="engine-options context-window-options">
-              <label class="engine-option">
-                <input
-                  type="radio"
-                  name="context-window-mode"
-                  id="context-window-dynamic"
-                  value="dynamic"
-                />
-                <span>
-                  <strong>Automático</strong>
-                  <small>
-                    Ajusta e salva apenas o tamanho de contexto quando
-                    necessário
-                  </small>
-                </span>
-              </label>
-
-              <label class="engine-option">
-                <input
-                  type="radio"
-                  name="context-window-mode"
-                  id="context-window-fixed"
-                  value="fixed"
-                />
-                <span>
-                  <strong>Fixo</strong>
-                  <small>
-                    Usa apenas o tamanho definido na Biblioteca para o modelo
-                    selecionado
-                  </small>
-                </span>
-              </label>
             </div>
           </div>
         </section>

@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import {
   AtlasContextProfileMode,
   AtlasContextProfileSettings,
+  AtlasExecutionMode,
   AtlasStaticAnalysisConfig,
 } from "../interfaces/AtlasConfigTypes";
 import { AtlasConfigDefaults } from "../repository/AtlasConfigDefaults";
@@ -108,24 +109,31 @@ export class AtlasConfigManager {
     return this.settingsService.updateCustomRoot(customData);
   }
 
-  public getContextProfile(): AtlasContextProfileSettings {
-    return AtlasContextProfileService.resolve(this.getConfig());
+  public getContextProfile(
+    executionMode: AtlasExecutionMode = this.getCurrentMode(),
+  ): AtlasContextProfileSettings {
+    return AtlasContextProfileService.resolve(this.getConfig(), executionMode);
   }
 
   public setContextProfile(
     profile: Partial<AtlasContextProfileSettings> & {
       mode?: AtlasContextProfileMode;
     },
+    executionMode: AtlasExecutionMode = this.getCurrentMode(),
   ) {
     const config = this.getConfig();
     const normalized = AtlasContextProfileService.normalize(
       profile,
-      this.getContextProfile(),
+      this.getContextProfile(executionMode),
     );
 
     config.custom = {
       ...(config.custom ?? {}),
-      contextProfile: normalized,
+      contextProfiles: {
+        local: this.getContextProfile("local"),
+        cloud: this.getContextProfile("cloud"),
+        [executionMode]: normalized,
+      },
     };
 
     config.updatedAt = new Date().toISOString();
@@ -274,7 +282,17 @@ export class AtlasConfigManager {
     );
   }
 
-  public getStaticAnalysisConfig(): AtlasStaticAnalysisConfig {
+  public getStaticAnalysisConfig(
+    executionMode: AtlasExecutionMode = this.getCurrentMode(),
+  ): AtlasStaticAnalysisConfig {
+    const presetEffects = AtlasContextProfileService.getPresetEffects(
+      this.getContextProfile(executionMode).mode,
+    );
+
+    if (presetEffects) {
+      return presetEffects.staticAnalysis;
+    }
+
     const configured = this.getConfig().custom?.staticAnalysis;
 
     return {

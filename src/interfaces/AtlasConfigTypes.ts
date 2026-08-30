@@ -173,6 +173,11 @@ export interface AtlasContextProfileSettings {
   ragMaxContextCharacters: number;
 }
 
+export type AtlasContextProfilesSettings = Record<
+  AtlasExecutionMode,
+  AtlasContextProfileSettings
+>;
+
 export interface AtlasLocalEngineCustomConfig {
   engineType?: "cpu" | "cuda" | "vulkan";
   startOnAtlasOpen?: boolean;
@@ -189,7 +194,9 @@ export interface AtlasCustomSettings {
   studyMode?: AtlasStudyModeConfig;
   refactoring?: AtlasRefactoringConfig;
   staticAnalysis?: AtlasStaticAnalysisConfig;
+  /** @deprecated Mantido apenas para migrar configurações anteriores. */
   contextProfile?: AtlasContextProfileSettings;
+  contextProfiles?: AtlasContextProfilesSettings;
   localEngine?: AtlasLocalEngineCustomConfig;
   saveInterruptedResponses?: boolean;
 

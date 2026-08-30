@@ -2,6 +2,7 @@ import {
   AtlasContextProfileMode,
   AtlasContextProfileSettings,
   AtlasConfigSchema,
+  AtlasExecutionMode,
   AtlasStaticAnalysisConfig,
 } from "../interfaces/AtlasConfigTypes";
 
@@ -97,8 +98,12 @@ export class AtlasContextProfileService {
 
   public static resolve(
     config: AtlasConfigSchema,
+    executionMode: AtlasExecutionMode = config.llms.selection.mode,
   ): AtlasContextProfileSettings {
-    return this.normalize(config.custom?.contextProfile);
+    return this.normalize(
+      config.custom?.contextProfiles?.[executionMode] ??
+        config.custom?.contextProfile,
+    );
   }
 
   public static normalize(

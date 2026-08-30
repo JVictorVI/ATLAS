@@ -10,7 +10,7 @@ const saveInterruptedResponses = document.getElementById(
 );
 const localEngineTimeout = document.getElementById("local-engine-timeout");
 const contextProfileInputs = Array.from(
-  document.querySelectorAll('input[name="context-profile"]'),
+  document.querySelectorAll("input[data-context-profile-target]"),
 );
 const engineCpu = document.getElementById("engine-cpu");
 const engineCuda = document.getElementById("engine-cuda");
@@ -60,6 +60,7 @@ const restoreAtlasDefaults = document.getElementById(
 const atlasEngineTypes = ["cpu", "cuda", "vulkan"];
 const contextProfilePresetModes = ["light", "balanced", "advanced"];
 const contextProfileModes = [...contextProfilePresetModes, "custom"];
+const contextProfileExecutionModes = ["local", "cloud"];
 const engineTypeInputs = [engineCpu, engineCuda, engineVulkan];
 const staticAnalysisOptionInputs = [
   staticAnalysisQuick,
@@ -93,6 +94,8 @@ let loadedEngineType = "cpu";
 let downloadAfterSave = false;
 let atlasSettingsSaveTimeout = null;
 let contextProfilePresets = {};
+let contextProfilesByExecutionMode = {};
+let activeContextProfileTarget = "local";
 let activeEngineDownloadType = null;
 let loadedEnginesDir = "";
 

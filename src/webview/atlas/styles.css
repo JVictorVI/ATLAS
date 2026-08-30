@@ -153,36 +153,78 @@ h1 {
   gap: 12px;
 }
 
-.context-profile-options {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 10px;
-}
-
-.context-profile-option {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
+.context-profile-environments {
+  background: var(--vscode-editorWidget-background);
   border: 1px solid var(--vscode-widget-border);
   border-radius: 8px;
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+
+.context-profile-environment-row {
+  align-items: start;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 58px minmax(0, 1fr);
   padding: 12px;
-  cursor: pointer;
 }
 
-.context-profile-option:hover {
-  border-color: var(--vscode-focusBorder);
+.context-profile-environment-row + .context-profile-environment-row {
+  border-top: 1px solid var(--atlas-muted-border);
 }
 
-.context-profile-option span {
+.context-profile-environment-row > strong {
+  line-height: 26px;
+}
+
+.context-profile-environment-row > div {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-wrap: wrap;
+  gap: 6px 18px;
 }
 
-.context-profile-option small {
-  color: var(--vscode-descriptionForeground);
+.context-profile-check-option {
+  align-items: center;
+  cursor: pointer;
+  display: inline-flex;
+  gap: 7px;
+  min-height: 26px;
+  position: relative;
+}
+
+.context-profile-check-option input {
+  height: 1px;
+  opacity: 0;
+  position: absolute;
+  width: 1px;
+}
+
+.context-profile-check {
+  align-items: center;
+  border: 1px solid var(--vscode-checkbox-border, var(--vscode-widget-border));
+  border-radius: 3px;
+  display: inline-flex;
+  height: 16px;
+  justify-content: center;
+  width: 16px;
+}
+
+.context-profile-check-option input:checked + .context-profile-check {
+  background: var(--vscode-checkbox-background, var(--vscode-button-background));
+  border-color: var(--vscode-checkbox-border, var(--vscode-button-background));
+  color: var(--vscode-checkbox-foreground, var(--vscode-button-foreground));
+}
+
+.context-profile-check-option input:checked + .context-profile-check::after {
+  content: "✓";
   font-size: 12px;
-  line-height: 1.45;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.context-profile-check-option input:focus-visible + .context-profile-check {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
 }
 
 .context-profile-summary {
@@ -200,6 +242,21 @@ h1 {
 
 .context-profile-summary-item.is-active > strong {
   color: var(--vscode-textLink-foreground);
+}
+
+.context-profile-summary-item[data-context-profile-environments]:not(
+    [data-context-profile-environments=""]
+  )
+  > strong::after {
+  background: var(--vscode-badge-background);
+  border-radius: 10px;
+  color: var(--vscode-badge-foreground);
+  content: attr(data-context-profile-environments);
+  font-size: 10px;
+  font-weight: 600;
+  margin-left: 8px;
+  padding: 2px 7px;
+  vertical-align: 1px;
 }
 
 .context-profile-summary-item ul {

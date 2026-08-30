@@ -1,49 +1,109 @@
 // Responsabilidade: renderiza e sincroniza os perfis de contexto da tela geral.
 function applyContextProfileSettings(value) {
-  const mode = normalizeContextProfileMode(value?.contextProfileMode);
+  const legacyProfile = {
+    mode: normalizeContextProfileMode(value?.contextProfileMode),
+    historyWindowSize: value?.contextHistoryWindow,
+    includeArchitecturalMemory: value?.contextMemoryEnabled,
+    includeRagContext: value?.contextRagEnabled,
+    includeEditorContext: value?.contextEditorEnabled,
+    maxEditorContextCharacters: value?.contextEditorLimit,
+    includeStaticAnalysis: value?.staticAnalysisEnabled,
+    ragTopK: value?.contextRagTopK,
+    ragMaxContextCharacters: value?.contextRagLimit,
+    dynamicContextWindow: value?.dynamicContextWindow,
+    staticAnalysisEnabled: value?.staticAnalysisEnabled,
+    staticAnalysisQuick: value?.staticAnalysisQuick,
+    staticAnalysisArchitectural: value?.staticAnalysisArchitectural,
+    staticAnalysisRefactoring: value?.staticAnalysisRefactoring,
+    staticAnalysisDiagnostics: value?.staticAnalysisDiagnostics,
+    staticAnalysisRelations: value?.staticAnalysisRelations,
+  };
 
-  setContextProfileMode(mode);
-  renderCustomContextProfileSummary(value);
-  highlightContextProfileSummary(mode);
+  contextProfilesByExecutionMode = Object.fromEntries(
+    contextProfileExecutionModes.map((executionMode) => [
+      executionMode,
+      value?.contextProfiles?.[executionMode] ?? legacyProfile,
+    ]),
+  );
 
-  if (mode !== "custom") {
-    const profile = contextProfilePresets[mode];
-
-    if (profile) {
-      applyContextProfileSideEffects(profile);
-    }
-  }
+  setContextProfileTarget(
+    normalizeContextProfileTarget(value?.contextProfileTarget),
+  );
+  contextProfileExecutionModes.forEach((executionMode) => {
+    setContextProfileMode(
+      getContextProfileForTarget(executionMode)?.mode,
+      executionMode,
+    );
+  });
+  applySelectedContextProfileSettings();
 }
 
-function applyContextProfileSideEffects(profile) {
-  setChecked(contextWindowDynamic, profile.dynamicContextWindow !== false);
-  setChecked(contextWindowFixed, profile.dynamicContextWindow === false);
+function applySelectedContextProfileSettings() {
+  const target = getSelectedContextProfileTarget();
+  const profile = getContextProfileForTarget(target);
+  const mode = normalizeContextProfileMode(profile?.mode);
+
+  setContextProfileMode(mode, target);
+  setStaticAnalysisFromSettings(profile);
+  renderPresetContextProfileSummaries();
+  renderCustomContextProfileSummary(profile, target);
+  highlightContextProfileSummaries();
+  updateStaticAnalysisAvailability();
+}
+
+function applyContextProfileSideEffects(profile, target) {
+  if (target === "local") {
+    setChecked(contextWindowDynamic, profile.dynamicContextWindow !== false);
+    setChecked(contextWindowFixed, profile.dynamicContextWindow === false);
+  }
+
   setStaticAnalysisFromProfile(profile);
 }
 
-function handleContextProfileChange() {
-  const mode = getSelectedContextProfileMode();
+function handleContextProfileChange(event) {
+  const target = normalizeContextProfileTarget(
+    event?.currentTarget?.dataset?.contextProfileTarget,
+  );
+  const mode = getSelectedContextProfileMode(target);
+
+  setContextProfileTarget(target);
 
   if (mode !== "custom") {
     const profile = contextProfilePresets[mode];
 
     if (profile) {
-      applyContextProfileSideEffects(profile);
+      contextProfilesByExecutionMode[target] = { ...profile };
+      applyContextProfileSideEffects(profile, target);
     }
+  } else {
+    contextProfilesByExecutionMode[target] = {
+      ...getContextProfileForTarget(target),
+      mode: "custom",
+    };
   }
 
-  highlightContextProfileSummary(mode);
+  highlightContextProfileSummaries();
+  renderCustomContextProfileSummary(
+    getContextProfileForTarget(target),
+    target,
+  );
   updateStaticAnalysisAvailability();
   saveAtlasSettings({ applyContextProfilePreset: mode !== "custom" });
 }
 
 function promoteContextProfileToCustom() {
-  if (getSelectedContextProfileMode() === "custom") {
+  const target = getSelectedContextProfileTarget();
+
+  if (getSelectedContextProfileMode(target) === "custom") {
     return;
   }
 
-  setContextProfileMode("custom");
-  highlightContextProfileSummary("custom");
+  contextProfilesByExecutionMode[target] = {
+    ...getContextProfileForTarget(target),
+    mode: "custom",
+  };
+  setContextProfileMode("custom", target);
+  highlightContextProfileSummaries();
 }
 
 function applyContextProfilePresets(value) {
@@ -120,58 +180,106 @@ function describePresetEditor(preset) {
   return `até ${formatNumber(preset.maxEditorContextCharacters)} caracteres`;
 }
 
-function getSelectedContextProfileMode() {
-  const selected = contextProfileInputs.find((input) => input.checked);
+function getSelectedContextProfileMode(
+  target = getSelectedContextProfileTarget(),
+) {
+  const normalizedTarget = normalizeContextProfileTarget(target);
+  const selected = contextProfileInputs.find(
+    (input) =>
+      input.checked &&
+      input.dataset.contextProfileTarget === normalizedTarget,
+  );
   return normalizeContextProfileMode(selected?.value);
 }
 
-function setContextProfileMode(mode) {
+function setContextProfileMode(
+  mode,
+  target = getSelectedContextProfileTarget(),
+) {
   const normalized = normalizeContextProfileMode(mode);
+  const normalizedTarget = normalizeContextProfileTarget(target);
 
   contextProfileInputs.forEach((input) => {
-    input.checked = input.value === normalized;
+    if (input.dataset.contextProfileTarget === normalizedTarget) {
+      input.checked = input.value === normalized;
+    }
   });
+}
+
+function getSelectedContextProfileTarget() {
+  return normalizeContextProfileTarget(activeContextProfileTarget);
+}
+
+function setContextProfileTarget(target) {
+  activeContextProfileTarget = normalizeContextProfileTarget(target);
+}
+
+function normalizeContextProfileTarget(value) {
+  return contextProfileExecutionModes.includes(value) ? value : "local";
+}
+
+function getContextProfileForTarget(target) {
+  return (
+    contextProfilesByExecutionMode[normalizeContextProfileTarget(target)] ?? {
+      mode: "balanced",
+    }
+  );
 }
 
 function normalizeContextProfileMode(value) {
   return contextProfileModes.includes(value) ? value : "balanced";
 }
 
-function highlightContextProfileSummary(mode) {
+function highlightContextProfileSummaries() {
   document
     .querySelectorAll("[data-context-profile-summary]")
     .forEach((item) => {
-      item.classList.toggle(
-        "is-active",
-        item.getAttribute("data-context-profile-summary") === mode,
+      const mode = item.getAttribute("data-context-profile-summary");
+      const activeEnvironments = contextProfileExecutionModes.filter(
+        (executionMode) =>
+          getSelectedContextProfileMode(executionMode) === mode,
       );
+
+      item.classList.toggle("is-active", activeEnvironments.length > 0);
+      item.dataset.contextProfileEnvironments = activeEnvironments
+        .map((executionMode) =>
+          executionMode === "local" ? "Local" : "Nuvem",
+        )
+        .join(" · ");
     });
 }
 
-function renderCustomContextProfileSummary(value) {
+function renderCustomContextProfileSummary(value, target) {
   setText(
     "custom-profile-history",
-    `${formatNumber(value?.contextHistoryWindow ?? 8)} mensagens recentes`,
+    `${formatNumber(value?.historyWindowSize ?? 8)} mensagens recentes`,
   );
   setText(
     "custom-profile-memory",
-    formatEnabled(value?.contextMemoryEnabled === true),
+    formatEnabled(value?.includeArchitecturalMemory === true),
   );
   setText(
     "custom-profile-rag",
-    value?.contextRagEnabled === true
-      ? `${formatNumber(value?.contextRagTopK ?? 5)} resultados, até ${formatNumber(value?.contextRagLimit ?? 10000)} caracteres`
+    value?.includeRagContext === true
+      ? `${formatNumber(value?.ragTopK ?? 5)} resultados, até ${formatNumber(value?.ragMaxContextCharacters ?? 10000)} caracteres`
       : "desativado",
   );
   setText(
     "custom-profile-editor",
-    value?.contextEditorEnabled === false
+    value?.includeEditorContext === false
       ? "desativado"
-      : `até ${formatNumber(value?.contextEditorLimit ?? 14000)} caracteres`,
+      : `até ${formatNumber(value?.maxEditorContextCharacters ?? 14000)} caracteres`,
   );
-  setText("custom-profile-static", describeStaticAnalysis(value));
+  setText(
+    "custom-profile-static",
+    value?.includeStaticAnalysis === true
+      ? describeStaticAnalysis(value)
+      : "desativada",
+  );
   setText(
     "custom-profile-dynamic",
-    formatEnabled(value?.dynamicContextWindow !== false),
+    target === "local"
+      ? formatEnabled(value?.dynamicContextWindow !== false)
+      : "não se aplica",
   );
 }

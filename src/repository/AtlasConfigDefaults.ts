@@ -117,7 +117,10 @@ export class AtlasConfigDefaults {
         localModels: {},
       },
       custom: {
-        contextProfile: AtlasContextProfileService.getDefaultProfile(),
+        contextProfiles: {
+          local: AtlasContextProfileService.getDefaultProfile(),
+          cloud: AtlasContextProfileService.getDefaultProfile(),
+        },
         saveInterruptedResponses: true,
         refactoring: {
           enabled: true,
@@ -168,11 +171,20 @@ export class AtlasConfigDefaults {
       {}) as AtlasLocalEngineCustomConfig;
     const partialLocalEngine = (partial.custom?.localEngine ??
       {}) as AtlasLocalEngineCustomConfig;
-    const contextProfile = AtlasContextProfileService.normalize(
+    const legacyContextProfile = AtlasContextProfileService.normalize(
       partial.custom?.contextProfile,
-      defaults.custom?.contextProfile ??
-        AtlasContextProfileService.getDefaultProfile(),
+      AtlasContextProfileService.getDefaultProfile(),
     );
+    const contextProfiles = {
+      local: AtlasContextProfileService.normalize(
+        partial.custom?.contextProfiles?.local,
+        legacyContextProfile,
+      ),
+      cloud: AtlasContextProfileService.normalize(
+        partial.custom?.contextProfiles?.cloud,
+        legacyContextProfile,
+      ),
+    };
     const legacyLlmCloudDefaults = this.pickDefinedCloudRequestDefaults(
       partial.llms?.defaults,
     );
@@ -229,7 +241,7 @@ export class AtlasConfigDefaults {
       custom: {
         ...(defaults.custom ?? {}),
         ...(partial.custom ?? {}),
-        contextProfile,
+        contextProfiles,
         localEngine: {
           ...defaultLocalEngine,
           ...partialLocalEngine,

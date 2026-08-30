@@ -1,6 +1,6 @@
 ﻿# Processo de Configuração
 
-Atualizado em 15 de agosto de 2026.
+Atualizado em 30 de agosto de 2026.
 
 Este documento descreve onde as configurações do ATLAS vivem, como são normalizadas e quais fluxos da UI alteram cada seção.
 
@@ -228,7 +228,7 @@ Campos usados hoje:
 studyMode
 refactoring
 staticAnalysis
-contextProfile
+contextProfiles
 localEngine
 localModels
 ```
@@ -304,6 +304,22 @@ advanced
 custom
 ```
 
+Os perfis são persistidos separadamente por ambiente:
+
+```text
+custom.contextProfiles.local
+custom.contextProfiles.cloud
+```
+
+As linhas **Local** e **Nuvem** da tela de configurações exibem simultaneamente
+qual perfil está selecionado em cada ambiente. Em tempo de execução,
+`getContextProfile()` resolve automaticamente o perfil correspondente a
+`llms.selection.mode`.
+
+Configurações antigas que ainda possuem apenas `custom.contextProfile` são
+migradas na leitura: o perfil anterior é usado como valor inicial para os dois
+ambientes.
+
 ### Light
 
 - histórico: 5 mensagens;
@@ -344,7 +360,7 @@ Se o usuário altera manualmente uma opção gerenciada pelo preset, como contex
 | Mensagem Webview | Handler | O que altera |
 | --- | --- | --- |
 | `salvarConfiguracoesCloud` | `handleSaveCloudConfigs` | `cloudConfigs`. |
-| `salvarConfiguracoesAtlas` | `handleSaveAtlasSettings` | `general`, `custom.contextProfile`, `custom.localEngine`, `custom.refactoring`, `custom.staticAnalysis`, `rag.topK`, `rag.maxContextCharacters`. |
+| `salvarConfiguracoesAtlas` | `handleSaveAtlasSettings` | `general`, o perfil local ou cloud em `custom.contextProfiles`, `custom.localEngine`, `custom.refactoring`, `custom.staticAnalysis`, `rag.topK`, `rag.maxContextCharacters`. |
 | `salvarConfiguracoesRag` | `handleSaveRagSettings` | `rag`. |
 | `restaurarConfiguracoesAtlas` | `handleRestoreAtlasSettings` | Restaura defaults gerais de idioma, perfil/contexto, engine local, refatoração, análise estática e seleção/pasta de embeddings, preservando dados do usuário. |
 | `selecionarModo` | `handleSelectMode` | `llms.selection.mode`. |
@@ -448,7 +464,7 @@ Quando confirmado, o ATLAS preserva:
 E restaura para os defaults:
 
 - `general.language`;
-- `custom.contextProfile`;
+- `custom.contextProfiles.local` e `custom.contextProfiles.cloud`;
 - `custom.saveInterruptedResponses`;
 - `custom.refactoring`;
 - `custom.staticAnalysis`;
