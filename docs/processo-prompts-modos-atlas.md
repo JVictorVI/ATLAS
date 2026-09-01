@@ -20,10 +20,7 @@ AtlasPromptAssemblyService
 developer-assistant
 architectural-analysis
 quick-analysis
-study-mode
 ```
-
-Na prática, `study-mode` é tratado como modo de prompt especializado quando ativado pelo fluxo de estudo; os modos mais comuns do resolver são assistente dev, análise arquitetural e análise rápida.
 
 ## Camada de ação aplicada
 
@@ -173,7 +170,6 @@ Essa ordem preserva a política do ATLAS como instrução mais alta e deixa a pe
 | `developer-assistant` | Assistente técnico geral de desenvolvimento. |
 | `architectural-analysis` | Análise formal em 8 tópicos obrigatórios. |
 | `quick-analysis` | Saída exclusivamente JSON com achados por linha. |
-| `study-mode` | Explicação didática e progressiva. |
 
 Todo prompt recebe a política de idioma no final.
 
@@ -223,16 +219,6 @@ O prompt de quick analysis exige:
 - `message`, `impact` e `suggestion`.
 
 Esse modo ignora histórico, customização e RAG para reduzir ruído e manter saída parseável.
-
-## Modo estudo
-
-O modo estudo orienta:
-
-- didática progressiva;
-- explicação do raciocínio;
-- uso de exemplos;
-- evitar entregar apenas resposta final;
-- usar o código aberto apenas quando relevante.
 
 ## Customização do usuário
 

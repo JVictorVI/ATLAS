@@ -1,4 +1,4 @@
-// Responsabilidade: controla atalhos de analise, modo estudante e bootstrap inicial.
+// Responsabilidade: controla atalhos de analise e bootstrap inicial.
 function getShortcutButton(action) {
   if (action === "quick-analysis")
     {return document.getElementById("quick-analysis-btn");}
@@ -59,27 +59,6 @@ function renderShortcutButtons() {
 
 function setShortcutLoading() {
   renderShortcutButtons();
-}
-
-function applyStudyModeState(enabled) {
-  isStudyModeEnabled = enabled === true;
-
-  const studyModeBtn = document.getElementById("study-mode-btn");
-  const input = document.getElementById("pergunta");
-
-  if (studyModeBtn) {
-    studyModeBtn.classList.toggle("active", isStudyModeEnabled);
-    studyModeBtn.title = isStudyModeEnabled
-      ? "Modo Estudante ativo: o ATLAS explica o raciocínio e ajuda você a chegar à solução entendendo cada etapa."
-      : "Modo Estudante: o ATLAS explica o raciocínio e ajuda você a chegar à solução entendendo cada etapa.";
-    studyModeBtn.setAttribute("aria-pressed", String(isStudyModeEnabled));
-  }
-
-  if (input) {
-    input.placeholder = isStudyModeEnabled
-      ? "Perguntar ao ATLAS em modo estudante"
-      : "Perguntar ao ATLAS";
-  }
 }
 
 function escapeHtml(value) {

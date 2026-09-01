@@ -44,7 +44,6 @@ function hydratemodelsDataFromBackend(payload) {
   const popover = document.getElementById("agent-popover");
   if (popover && !popover.classList.contains("hidden")) {renderPopoverContent();}
 
-  applyStudyModeState(payload.studyModeEnabled === true);
 }
 
 function renderPopoverContent() {

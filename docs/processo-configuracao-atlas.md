@@ -231,7 +231,6 @@ custom
 Campos usados hoje:
 
 ```text
-studyMode
 refactoring
 staticAnalysis
 contextProfiles

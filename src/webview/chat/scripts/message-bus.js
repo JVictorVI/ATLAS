@@ -579,10 +579,5 @@ window.addEventListener("message", (event) => {
       renderSessionList();
       break;
     }
-
-    case "modoEstudoAtualizado": {
-      applyStudyModeState(message.value?.enabled === true);
-      break;
-    }
   }
 });

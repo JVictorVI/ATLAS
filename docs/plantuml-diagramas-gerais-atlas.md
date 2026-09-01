@@ -11,7 +11,7 @@ Os blocos podem ser copiados diretamente para o PlantText ou para uma extensão 
 
 - `AtlasCodeEditController` representa guardas determinísticas, heurística local, classificação opcional de intenção pelo modelo e validação do arquivo analisado por URI e hash.
 - `AtlasCodeEditService` representa o plano JSON por linhas, a prévia via `vscode.diff`, a confirmação humana e a aplicação com `vscode.WorkspaceEdit`.
-- O UC020 cobre tanto a edição direta pedida no chat quanto a refatoração guiada por uma análise arquitetural.
+- O UC019 cobre tanto a edição direta pedida no chat quanto a refatoração guiada por uma análise arquitetural.
 - A configuração passa a incluir `custom.refactoring`, `custom.staticAnalysis.useInRefactoring` e `rag.useInCodeEditing`.
 
 ## Pontos atualizados na versão 1.6
@@ -75,23 +75,22 @@ rectangle "ATLAS - Extensão VS Code" {
   usecase "Perguntar sobre o código" as UC001
   usecase "Executar análise rápida" as UC002
   usecase "Solicitar análise arquitetural" as UC003
-  usecase "Ativar modo estudo" as UC004
-  usecase "Gerenciar chaves de API" as UC005
-  usecase "Selecionar provedor e modelo cloud" as UC006
-  usecase "Alternar execução local ou cloud" as UC007
-  usecase "Configurar execução, contexto e segurança" as UC008
-  usecase "Personalizar comportamento" as UC009
-  usecase "Gerenciar biblioteca local" as UC010
-  usecase "Navegar pelos painéis" as UC011
-  usecase "Gerenciar sessões" as UC012
-  usecase "Executar inferência local" as UC013
-  usecase "Descobrir modelos GGUF" as UC014
-  usecase "Indexar projeto com RAG" as UC015
-  usecase "Pesquisar modelos no Hugging Face" as UC016
-  usecase "Baixar modelo GGUF ou ONNX" as UC017
-  usecase "Gerenciar materiais complementares" as UC018
-  usecase "Configurar análise estrutural" as UC019
-  usecase "Aplicar edição direta" as UC020
+  usecase "Gerenciar chaves de API" as UC004
+  usecase "Selecionar provedor e modelo cloud" as UC005
+  usecase "Alternar execução local ou cloud" as UC006
+  usecase "Configurar execução, contexto e segurança" as UC007
+  usecase "Personalizar comportamento" as UC008
+  usecase "Gerenciar biblioteca local" as UC009
+  usecase "Navegar pelos painéis" as UC010
+  usecase "Gerenciar sessões" as UC011
+  usecase "Executar inferência local" as UC012
+  usecase "Descobrir modelos GGUF" as UC013
+  usecase "Indexar projeto com RAG" as UC014
+  usecase "Pesquisar modelos no Hugging Face" as UC015
+  usecase "Baixar modelo GGUF ou ONNX" as UC016
+  usecase "Gerenciar materiais complementares" as UC017
+  usecase "Configurar análise estrutural" as UC018
+  usecase "Aplicar edição direta" as UC019
 
   usecase "Coletar contexto do editor" as INC_Contexto
   usecase "Montar prompt" as INC_Prompt
@@ -122,7 +121,6 @@ Usuario --> UC016
 Usuario --> UC017
 Usuario --> UC018
 Usuario --> UC019
-Usuario --> UC020
 
 UC001 ..> INC_Contexto : <<include>>
 UC001 ..> INC_Prompt : <<include>>
@@ -135,39 +133,38 @@ UC002 ..> INC_Decoracoes : <<include>>
 UC002 ..> INC_Estrutura : <<include>>
 UC003 ..> UC001 : <<extend>>
 UC003 ..> INC_Estrutura : <<include>>
-UC020 ..> UC001 : <<extend>>
-UC020 ..> UC003 : <<extend>>
-UC020 ..> INC_Contexto : <<include>>
-UC020 ..> INC_Inferencia : <<include>>
-UC020 ..> INC_Historico : <<include>>
-UC020 ..> INC_Estrutura : <<include>> opcional
+UC019 ..> UC001 : <<extend>>
+UC019 ..> UC003 : <<extend>>
+UC019 ..> INC_Contexto : <<include>>
+UC019 ..> INC_Inferencia : <<include>>
+UC019 ..> INC_Historico : <<include>>
+UC019 ..> INC_Estrutura : <<include>> opcional
 UC004 ..> INC_Config : <<include>>
 UC005 ..> INC_Config : <<include>>
 UC006 ..> INC_Config : <<include>>
 UC007 ..> INC_Config : <<include>>
-UC008 ..> INC_Config : <<include>>
-UC019 ..> INC_Config : <<include>>
-UC019 ..> INC_Estrutura : <<configure>>
-UC009 ..> INC_Prompt : <<include>>
-UC010 ..> INC_Config : <<include>>
-UC012 ..> INC_Historico : <<include>>
-UC013 ..> INC_Inferencia : <<include>>
-UC014 ..> UC010 : <<include>>
+UC018 ..> INC_Config : <<include>>
+UC018 ..> INC_Estrutura : <<configure>>
+UC008 ..> INC_Prompt : <<include>>
+UC009 ..> INC_Config : <<include>>
+UC011 ..> INC_Historico : <<include>>
+UC012 ..> INC_Inferencia : <<include>>
+UC013 ..> UC009 : <<include>>
 INC_Prompt ..> INC_Modo : <<include>>
 
 ProvedorCloud --> INC_Inferencia
-LlamaServer --> UC013
-SecretStorage --> UC005
+LlamaServer --> UC012
+SecretStorage --> UC004
 LanguageProviders --> INC_Estrutura
-FileSystem --> UC014
 FileSystem --> UC013
-FileSystem --> UC020
+FileSystem --> UC012
+FileSystem --> UC019
 
-UC015 --> BaseVetorial
+UC014 --> BaseVetorial
+UC015 ..> RepoModelos : <<include>>
 UC016 ..> RepoModelos : <<include>>
-UC017 ..> RepoModelos : <<include>>
-UC017 ..> FileSystem : <<include>>
-UC018 ..> BaseVetorial : <<include>>
+UC016 ..> FileSystem : <<include>>
+UC017 ..> BaseVetorial : <<include>>
 @enduml
 ```
 
@@ -395,7 +392,6 @@ package "Prompts e Sessões" {
     +buildBaseSystemMessage(mode)
     -buildArchitecturalAnalysisMessage()
     -buildQuickAnalysisMessage()
-    -buildStudyModeMessage()
     -buildDeveloperAssistantMessage()
   }
 
@@ -520,8 +516,6 @@ package "Gerência de Configuração" {
     +setActiveCloudModel(modelId)
     +getAllProviders()
     +getLocalModels()
-    +isStudyModeEnabled()
-    +setStudyModeEnabled(enabled)
     +isRefactoringEnabled()
     +useModelIntentDetectionForCodeEditing()
     +getStaticAnalysisConfig()
@@ -682,7 +676,6 @@ package "Prompt Layer" {
     +buildBaseSystemMessage(mode)
     -buildArchitecturalAnalysisMessage()
     -buildQuickAnalysisMessage()
-    -buildStudyModeMessage()
     -buildDeveloperAssistantMessage()
   }
 
@@ -768,7 +761,6 @@ package "Tipos" {
     developer-assistant
     architectural-analysis
     quick-analysis
-    study-mode
   }
 
   interface ChatMessage

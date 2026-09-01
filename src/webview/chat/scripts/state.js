@@ -36,8 +36,6 @@ if (typeof marked !== "undefined") {
   });
 }
 
-let isStudyModeEnabled = false;
-
 let modelsData = { local: { name: "Local", type: "local", models: [] } };
 let isRefreshingModelCatalog = false;
 let selectedMode = "local";

@@ -329,59 +329,7 @@ Response --> Webview : resposta final
 @enduml
 ```
 
-## UC004 - Ativar modo estudo
-
-### Diagrama de Classes
-
-```plantuml
-@startuml
-skinparam shadowing false
-skinparam classAttributeIconSize 0
-
-class "src/webview/chat/script.js" as ChatScript <<webview>>
-class ChatMessageRouter {
-  -handleToggleStudyMode(data, webview)
-}
-class AtlasConfigManager {
-  +isStudyModeEnabled()
-  +setStudyModeEnabled(enabled)
-}
-class AtlasConfigRepository
-class AtlasSystemPromptPolicyService {
-  -buildStudyModeMessage()
-}
-class AtlasPromptAssemblyService
-
-ChatScript --> ChatMessageRouter : alterarModoEstudo
-ChatMessageRouter --> AtlasConfigManager
-AtlasConfigManager --> AtlasConfigRepository
-AtlasPromptAssemblyService --> AtlasSystemPromptPolicyService
-@enduml
-```
-
-### Diagrama de Sequência
-
-```plantuml
-@startuml
-skinparam shadowing false
-actor Usuário
-participant "Webview Chat" as Webview
-participant ChatMessageRouter as Router
-participant AtlasConfigManager as Config
-participant AtlasConfigRepository as Repository
-database "config/atlas-config.json" as ConfigFile
-
-Usuário -> Webview : clica botão modo estudo
-Webview -> Router : alterarModoEstudo(enabled)
-Router -> Config : setStudyModeEnabled(enabled)
-Config -> Repository : save(config)
-Repository -> ConfigFile : grava custom.studyMode.enabled
-Router --> Webview : modoEstudoAtualizado(enabled)
-Webview --> Usuário : atualiza botão e placeholder
-@enduml
-```
-
-## UC005 - Gerenciar chaves de API
+## UC004 - Gerenciar chaves de API
 
 ### Diagrama de Classes
 
@@ -453,7 +401,7 @@ ApiKeys --> Webview : credenciaisAtualizadas
 @enduml
 ```
 
-## UC006 - Selecionar provedor e modelo cloud
+## UC005 - Selecionar provedor e modelo cloud
 
 ### Diagrama de Classes
 
@@ -520,7 +468,7 @@ Router --> Webview : modeloSelecionado
 @enduml
 ```
 
-## UC007 - Alternar execução local ou cloud
+## UC006 - Alternar execução local ou cloud
 
 ### Diagrama de Classes
 
@@ -586,7 +534,7 @@ end
 @enduml
 ```
 
-## UC008 - Configurar execução, contexto e segurança
+## UC007 - Configurar execução, contexto e segurança
 
 ### Diagrama de Classes
 
@@ -655,7 +603,7 @@ end
 @enduml
 ```
 
-## UC009 - Personalizar comportamento
+## UC008 - Personalizar comportamento
 
 ### Diagrama de Classes
 
@@ -707,7 +655,7 @@ Router --> Webview : comportamentoModeloSalvo
 @enduml
 ```
 
-## UC010 - Gerenciar biblioteca local
+## UC009 - Gerenciar biblioteca local
 
 ### Diagrama de Classes
 
@@ -766,7 +714,7 @@ ModelWebview --> Library : updateModelsList(models)
 @enduml
 ```
 
-## UC011 - Navegar pelos painéis
+## UC010 - Navegar pelos painéis
 
 ### Diagrama de Classes
 
@@ -819,7 +767,7 @@ Panel --> Usuário : painel aberto
 @enduml
 ```
 
-## UC012 - Gerenciar sessões
+## UC011 - Gerenciar sessões
 
 ### Diagrama de Classes
 
@@ -880,7 +828,7 @@ Controller --> Webview : sessoesAtualizadas
 @enduml
 ```
 
-### Fluxo complementar do UC012 — resumir conversas longas
+### Fluxo complementar do UC011 — resumir conversas longas
 
 #### Diagrama de Classes
 
@@ -929,7 +877,7 @@ Repository -> HistoryFile : grava resumo e mensagens recentes
 @enduml
 ```
 
-## UC013 - Executar inferência local
+## UC012 - Executar inferência local
 
 ### Diagrama de Classes
 
@@ -1012,7 +960,7 @@ Response --> Webview : respostaParcial/fimResposta
 @enduml
 ```
 
-## UC014 - Descobrir modelos GGUF
+## UC013 - Descobrir modelos GGUF
 
 ### Diagrama de Classes
 
@@ -1071,7 +1019,7 @@ Router --> Webview : updateModelsList(models)
 @enduml
 ```
 
-## UC015 - Indexar projeto com RAG
+## UC014 - Indexar projeto com RAG
 
 ### Diagrama de Classes
 
@@ -1182,7 +1130,7 @@ UI --> Usuário : exibe status, tamanho e fontes
 @enduml
 ```
 
-## UC016 - Pesquisar modelos no Hugging Face
+## UC015 - Pesquisar modelos no Hugging Face
 
 ### Diagrama de Classes
 
@@ -1261,7 +1209,7 @@ UI --> Usuário : exibe detalhes, variantes e compatibilidade
 @enduml
 ```
 
-## UC017 - Baixar modelo GGUF ou ONNX
+## UC016 - Baixar modelo GGUF ou ONNX
 
 ### Diagrama de Classes
 
@@ -1360,7 +1308,7 @@ UI --> Usuário : modelo disponível
 @enduml
 ```
 
-## UC018 - Gerenciar materiais complementares
+## UC017 - Gerenciar materiais complementares
 
 ### Diagrama de Classes
 
@@ -1437,7 +1385,7 @@ UI --> Usuário : confirma inclusão
 @enduml
 ```
 
-## UC019 - Configurar análise estrutural
+## UC018 - Configurar análise estrutural
 
 ### Diagrama de Classes
 
@@ -1546,7 +1494,7 @@ end
 @enduml
 ```
 
-## UC020 - Aplicar edição direta
+## UC019 - Aplicar edição direta
 
 ### Diagrama de Classes
 

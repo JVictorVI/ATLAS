@@ -24,7 +24,7 @@ Para o fluxo de alteração do arquivo aberto, incluindo decisão de intenção,
 | Componente                               | Status atual                                                                                                                                                     |
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Extensão VS Code                         | Implementada                                                                                                                                                     |
-| Webview de chat                          | Implementada, incluindo input com autosize, botão de modo estudante, loading por sessão, restauração de geração em andamento e cancelamento por `generationId`    |
+| Webview de chat                          | Implementada, incluindo input com autosize, loading por sessão, restauração de geração em andamento e cancelamento por `generationId`                            |
 | Painel de provedores em nuvem            | Implementado                                                                                                                                                     |
 | Painel de configurações gerais           | Implementado, incluindo perfis de contexto, execução local, refatoração, decisão de intenção pelo modelo, análise estática, ajuste automático de contexto e restauração de padrões |
 | Biblioteca local de modelos              | Implementada para descoberta, seleção, parâmetros, comportamento, metadados, exclusão e controles de engine; recebe modelos GGUF baixados pelo repositório        |
@@ -58,7 +58,6 @@ Para o fluxo de alteração do arquivo aberto, incluindo decisão de intenção,
 | `AtlasDocumentStructureService`          | Implementado com símbolos, diagnósticos e referências fornecidos pelo VS Code                                                                                    |
 | Análise estática estrutural              | Implementada como contexto auxiliar configurável para análises rápida, arquitetural e refatoração                                                                |
 | Persistência visual das marcações        | Implementada por documento durante a sessão                                                                                                                      |
-| Modo estudo                              | Implementado com prompt especializado, estado persistido, botão dedicado e tooltip explicativo                                                                   |
 | RAG local                                | Implementado para projetos e workspaces                                                                                                                          |
 | `AtlasRagService`                        | Implementado: scanner, chunking, indexação, watchers, recuperação, filtros e orçamento de contexto                                                               |
 | ChromaDB                                 | Implementado com binding nativo empacotado e processo local gerenciado pela extensão                                                                             |

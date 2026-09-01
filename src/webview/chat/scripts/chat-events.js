@@ -48,8 +48,6 @@ function setupChatEvents() {
   const architetureAnalysisBtn = document.getElementById(
     "architeture-analysis-btn",
   );
-  const studyModeBtn = document.getElementById("study-mode-btn");
-
   bindChatScrollTracking();
 
   if (!input || !btn) {return;}
@@ -118,19 +116,6 @@ function setupChatEvents() {
     });
   }
 
-  if (studyModeBtn) {
-    studyModeBtn.addEventListener("click", () => {
-      const nextValue = !isStudyModeEnabled;
-
-      applyStudyModeState(nextValue);
-
-      vscode.postMessage({
-        type: "alterarModoEstudo",
-        enabled: nextValue,
-      });
-    });
-  }
-
   function enviarPergunta() {
     if (isGeneratingResponse) {
       cancelarGeracao();
@@ -141,7 +126,6 @@ function setupChatEvents() {
     if (!texto) {return;}
     const generationId = beginGeneration(activeSessionId, {
       userContent: texto,
-      forcedMode: isStudyModeEnabled ? "study-mode" : undefined,
     });
     addMessage(texto, "user");
     showLoading();
@@ -153,7 +137,6 @@ function setupChatEvents() {
       value: texto,
       selectedView: currentView,
       agentId: selectedModel ? selectedModel.id : null,
-      forcedMode: isStudyModeEnabled ? "study-mode" : undefined,
     });
 
     input.value = "";
@@ -462,7 +445,6 @@ function hydrateChatControlState() {
     "architecture-analysis",
     shortcutLoadingState.architectureAnalysis,
   );
-  applyStudyModeState(isStudyModeEnabled);
 }
 
 function clearShortcutLoadingStates() {

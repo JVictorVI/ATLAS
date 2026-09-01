@@ -35,18 +35,6 @@
   --atlas-embedding-background: rgba(76, 194, 255, 0.12);
   --atlas-generation-foreground: #c586f7;
   --atlas-generation-background: rgba(197, 134, 247, 0.12);
-  --atlas-warning-fg: var(
-    --vscode-editorWarning-foreground,
-    var(--vscode-editorWarning-border, var(--vscode-foreground))
-  );
-  --atlas-study-bg: var(
-    --vscode-inputValidation-warningBackground,
-    rgba(255, 193, 7, 0.16)
-  );
-  --atlas-study-border: var(
-    --vscode-editorWarning-border,
-    var(--atlas-warning-fg)
-  );
   --atlas-code-bg: var(
     --vscode-textCodeBlock-background,
     var(--vscode-editorWidget-background, var(--atlas-app-bg))
@@ -681,8 +669,7 @@ textarea {
   padding: 5px 0;
 }
 
-#send-btn,
-#study-mode-btn {
+#send-btn {
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -695,8 +682,7 @@ textarea {
   transition: background 0.2s;
 }
 
-.input-container.expanded #send-btn,
-.input-container.expanded #study-mode-btn {
+.input-container.expanded #send-btn {
   margin-bottom: 1px;
 }
 
@@ -705,19 +691,8 @@ textarea {
   color: var(--atlas-accent-fg);
 }
 
-#study-mode-btn {
-  background-color: transparent;
-  color: var(--atlas-warning-fg);
-  border: 1px solid var(--atlas-warning-fg);
-}
-
 #send-btn:hover {
   background-color: var(--atlas-accent-hover-bg);
-}
-
-#study-mode-btn:hover {
-  background-color: var(--atlas-surface-hover-bg);
-  border-color: var(--atlas-warning-fg);
 }
 
 #send-btn.stop {
@@ -1540,20 +1515,6 @@ textarea {
   }
 }
 
-#study-mode-btn.active {
-  background-color: var(--atlas-study-bg);
-  color: var(--atlas-warning-fg);
-  border-color: var(--atlas-study-border);
-}
-
-#study-mode-btn.active:hover {
-  background-color: var(--atlas-study-bg);
-  border-color: var(--atlas-study-border);
-}
-
-#study-mode-btn i {
-  font-size: 15px;
-}
 /* --- TELA DE PESQUISA (LUPA) --- */
 .search-layout {
   display: flex;

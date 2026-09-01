@@ -6,7 +6,7 @@ ATLAS é uma extensão para Visual Studio Code que atua como um assistente técn
 
 O objetivo do ATLAS é aproximar a análise arquitetural do fluxo real de desenvolvimento. Em vez de depender apenas de revisões externas ou documentação separada, a extensão permite usar o arquivo aberto, o trecho selecionado e o histórico da conversa como contexto para respostas mais úteis.
 
-O projeto também busca apoiar estudo e evolução técnica, oferecendo modos diferentes de interação: conversa geral de desenvolvimento, análise arquitetural formal, análise rápida do arquivo atual e modo estudo.
+O projeto oferece modos diferentes de interação: conversa geral de desenvolvimento, análise arquitetural formal e análise rápida do arquivo atual.
 
 ## Principais funcionalidades
 
@@ -22,7 +22,6 @@ O projeto também busca apoiar estudo e evolução técnica, oferecendo modos di
 - Modo de análise arquitetural com foco em decisões de design, trade-offs, evolução do risco, testabilidade e custo de mudança.
 - Edição aplicada do arquivo aberto para pedidos operacionais, com detecção de intenção por heurística ou pelo modelo ativo, plano JSON validado, prévia em diff e confirmação obrigatória antes da alteração.
 - Refatoração guiada por análise arquitetural, protegida pela identidade e pelo hash do arquivo analisado, com apoio opcional de análise estática e RAG.
-- Modo estudo para explicações mais didáticas, com pistas progressivas e botão dedicado no chat.
 - RAG local com ChromaDB gerenciado pela extensão, embeddings locais, indexação do workspace atual ou de uma pasta escolhida, materiais complementares e recuperação semântica integrada ao chat.
 - Tela RAG com projetos indexados, materiais complementares, status da base vetorial, progresso por arquivos/chunks, cancelamento, seleção de modelo de embeddings e carregamento inicial não bloqueante.
 - Configurações de execução, como temperatura, top-p, limite de tokens, timeout, streaming e ajuste automático de contexto para modelos locais.

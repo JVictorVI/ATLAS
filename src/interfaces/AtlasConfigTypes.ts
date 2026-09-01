@@ -143,10 +143,6 @@ export interface ProviderConfig {
   kind?: "openai-compatible" | "claude" | "gemini";
 }
 
-export interface AtlasStudyModeConfig {
-  enabled: boolean;
-}
-
 export interface AtlasRefactoringConfig {
   enabled: boolean;
   useModelIntentDetection: boolean;
@@ -197,7 +193,6 @@ export interface AtlasLocalEngineCustomConfig {
 }
 
 export interface AtlasCustomSettings {
-  studyMode?: AtlasStudyModeConfig;
   refactoring?: AtlasRefactoringConfig;
   staticAnalysis?: AtlasStaticAnalysisConfig;
   /** @deprecated Mantido apenas para migrar configurações anteriores. */

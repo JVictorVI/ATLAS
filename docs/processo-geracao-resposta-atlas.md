@@ -117,8 +117,7 @@ O modo pode ser:
 
 - `developer-assistant`;
 - `architectural-analysis`;
-- `quick-analysis`;
-- `study-mode`.
+- `quick-analysis`.
 
 ## Desvio para edição aplicada
 

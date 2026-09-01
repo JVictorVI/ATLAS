@@ -682,7 +682,6 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     await webview.postMessage({
       type: "informarLLMsCarregados",
       value: {
-        studyModeEnabled: this.configManager.isStudyModeEnabled(),
         selectedMode: this.configManager.getCurrentMode(),
         selectedProviderId: this.configManager.getSelectedCloudProviderId(),
         selectedCloudModelId: this.configManager.getSelectedCloudModelId(),

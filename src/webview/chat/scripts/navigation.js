@@ -130,10 +130,6 @@ function renderChatView() {
               <div class="input-container">
                   <textarea id="pergunta" rows="1" placeholder="Perguntar ao ATLAS"></textarea>
                   
-                  <button id="study-mode-btn" title="Modo Estudante: o ATLAS explica o raciocínio e ajuda você a chegar à solução entendendo cada etapa." aria-pressed="false">
-                    <i class="codicon codicon-mortar-board"></i>
-                  </button>
-
                   <button id="send-btn" title="Enviar">
                       <i class="codicon codicon-arrow-up"></i>
                   </button>
