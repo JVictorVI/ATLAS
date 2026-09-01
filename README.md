@@ -48,6 +48,7 @@ O projeto também busca apoiar estudo e evolução técnica, oferecendo modos di
 - [Fluxo completo de geração de resposta](docs/processo-geracao-resposta-atlas.md)
 - [Refatoração e edição aplicada](docs/processo-refatoracao-edicao-aplicada-atlas.md)
 - [Montagem de prompt e resolução de modo](docs/processo-prompts-modos-atlas.md)
+- [Prompts de comportamento do ATLAS](src/prompt/README.md)
 - [Sistema de configuração](docs/processo-configuracao-atlas.md)
 - [Análise rápida](docs/processo-analise-rapida-atlas.md)
 - [Execução local e lifecycle da engine](docs/processo-engine-local-atlas.md)
