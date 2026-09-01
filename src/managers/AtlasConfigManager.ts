@@ -115,6 +115,12 @@ export class AtlasConfigManager {
     return AtlasContextProfileService.resolve(this.getConfig(), executionMode);
   }
 
+  public getContextProfileRag(
+    executionMode: AtlasExecutionMode = this.getCurrentMode(),
+  ) {
+    return AtlasContextProfileService.resolveRag(this.getConfig(), executionMode);
+  }
+
   public setContextProfile(
     profile: Partial<AtlasContextProfileSettings> & {
       mode?: AtlasContextProfileMode;
@@ -126,7 +132,6 @@ export class AtlasConfigManager {
       profile,
       this.getContextProfile(executionMode),
     );
-
     config.custom = {
       ...(config.custom ?? {}),
       contextProfiles: {

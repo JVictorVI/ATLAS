@@ -596,21 +596,6 @@ export class ChatMessageRouter {
         respectGitIgnore !== current.respectGitIgnore ||
         includeMarkdownFiles !== current.includeMarkdownFiles ||
         includeConfigFiles !== current.includeConfigFiles;
-      const contextProfile = this.deps.configManager.getContextProfile();
-
-      if (
-        contextProfile.mode !== "custom" &&
-        (topK !== contextProfile.ragTopK ||
-          maxContextCharacters !== contextProfile.ragMaxContextCharacters)
-      ) {
-        this.deps.configManager.setContextProfile({
-          ...contextProfile,
-          mode: "custom",
-          ragTopK: topK,
-          ragMaxContextCharacters: maxContextCharacters,
-        });
-      }
-
       const config = this.deps.configManager.updateRagSettings({
         enabled: payload.enabled === true,
         autoIndex,
@@ -620,8 +605,9 @@ export class ChatMessageRouter {
             : current.allowLocalContext !== false,
         allowCloudContext: payload.allowCloudContext === true,
         offlineOnly: payload.allowCloudContext !== true,
-        topK,
-        maxContextCharacters,
+        ...(payload.updateContextProfileRecovery === true
+          ? { topK, maxContextCharacters }
+          : {}),
         ignoredPaths,
         embeddingModel,
         chunkSize,
@@ -1792,13 +1778,6 @@ export class ChatMessageRouter {
       this.deps.configManager.updateGeneralSettings({
         language,
       });
-
-      if (presetEffects || contextProfile.mode === "custom") {
-        this.deps.configManager.updateRagSettings({
-          topK: contextProfile.ragTopK,
-          maxContextCharacters: contextProfile.ragMaxContextCharacters,
-        });
-      }
 
       this.deps.configManager.updateCustomRoot({
         ...currentCustom,
@@ -3071,16 +3050,33 @@ export class ChatMessageRouter {
       this.deps.configManager.getStaticAnalysisConfig(contextProfileTarget);
     const contextProfile =
       this.deps.configManager.getContextProfile(contextProfileTarget);
+    const contextProfileRag =
+      this.deps.configManager.getContextProfileRag(contextProfileTarget);
     const engineType = this.normalizeLocalEngineType(value.engineType);
     const contextProfiles = {
       local: this.getContextProfilePayload("local", value),
       cloud: this.getContextProfilePayload("cloud", value),
+    };
+    const customContextProfiles = {
+      local: {
+        ...contextProfiles.local,
+        mode: "custom",
+        ragTopK: config.rag.topK,
+        ragMaxContextCharacters: config.rag.maxContextCharacters,
+      },
+      cloud: {
+        ...contextProfiles.cloud,
+        mode: "custom",
+        ragTopK: config.rag.topK,
+        ragMaxContextCharacters: config.rag.maxContextCharacters,
+      },
     };
 
     return {
       contextProfilePresets: this.getContextProfilePresetsPayload(),
       contextProfileTarget,
       contextProfiles,
+      customContextProfiles,
       language: this.normalizeResponseLanguage(config.general.language),
       contextProfileMode: contextProfile.mode,
       contextHistoryWindow: contextProfile.historyWindowSize,
@@ -3088,8 +3084,8 @@ export class ChatMessageRouter {
       contextRagEnabled: contextProfile.includeRagContext,
       contextEditorEnabled: contextProfile.includeEditorContext,
       contextEditorLimit: contextProfile.maxEditorContextCharacters,
-      contextRagTopK: contextProfile.ragTopK,
-      contextRagLimit: contextProfile.ragMaxContextCharacters,
+      contextRagTopK: contextProfileRag.topK,
+      contextRagLimit: contextProfileRag.maxContextCharacters,
       localStream: value.stream !== false,
       saveInterruptedResponses:
         config.custom?.saveInterruptedResponses !== false,
@@ -3136,11 +3132,14 @@ export class ChatMessageRouter {
     localEngine: Record<string, unknown>,
   ) {
     const profile = this.deps.configManager.getContextProfile(executionMode);
+    const rag = this.deps.configManager.getContextProfileRag(executionMode);
     const staticAnalysis =
       this.deps.configManager.getStaticAnalysisConfig(executionMode);
 
     return {
       ...profile,
+      ragTopK: rag.topK,
+      ragMaxContextCharacters: rag.maxContextCharacters,
       dynamicContextWindow:
         executionMode === "local"
           ? localEngine.dynamicContextWindow !== false

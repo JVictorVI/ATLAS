@@ -23,10 +23,9 @@ function registerRagSettingsAutosave() {
     maxChunksPerFileInput,
     languageFiltersInput,
     directoryFiltersInput,
-    topKInput,
-    contextLimitInput,
     ignoredPathsInput,
   ];
+  const profileRecoveryInputs = [topKInput, contextLimitInput];
   const instantInputs = [
     indexingModeInput,
     respectGitIgnoreInput,
@@ -42,6 +41,13 @@ function registerRagSettingsAutosave() {
 
   debouncedInputs.forEach((input) => {
     input?.addEventListener("input", () => scheduleRagSettingsSave());
+  });
+
+  profileRecoveryInputs.forEach((input) => {
+    input?.addEventListener("input", () => {
+      ragRecoverySettingsDirty = true;
+      scheduleRagSettingsSave();
+    });
   });
 
   instantInputs.forEach((input) => {

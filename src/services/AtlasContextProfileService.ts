@@ -106,6 +106,23 @@ export class AtlasContextProfileService {
     );
   }
 
+  public static resolveRag(
+    config: AtlasConfigSchema,
+    executionMode: AtlasExecutionMode = config.llms.selection.mode,
+  ): AtlasContextProfileEffects["rag"] {
+    const profile = this.resolve(config, executionMode);
+
+    return profile.mode === "custom"
+      ? {
+          topK: config.rag.topK,
+          maxContextCharacters: config.rag.maxContextCharacters,
+        }
+      : {
+          topK: profile.ragTopK,
+          maxContextCharacters: profile.ragMaxContextCharacters,
+        };
+  }
+
   public static normalize(
     value: unknown,
     fallback: AtlasContextProfileSettings = this.getDefaultProfile(),

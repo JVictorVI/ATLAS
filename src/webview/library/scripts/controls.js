@@ -15,6 +15,30 @@
         refs.systemPrompt?.focus();
       }
     });
+
+    refs.advancedSettingsToggle?.addEventListener("click", () => {
+      state.advancedSettingsExpanded = !state.advancedSettingsExpanded;
+      refs.advancedSettingsToggle.setAttribute(
+        "aria-expanded",
+        state.advancedSettingsExpanded ? "true" : "false",
+      );
+      refs.advancedSettingsContent?.setAttribute(
+        "aria-hidden",
+        state.advancedSettingsExpanded ? "false" : "true",
+      );
+      refs.advancedSettingsContent?.toggleAttribute(
+        "inert",
+        !state.advancedSettingsExpanded,
+      );
+      refs.advancedSettingsContent?.classList.toggle(
+        "is-expanded",
+        state.advancedSettingsExpanded,
+      );
+      refs.advancedSettingsToggle.classList.toggle(
+        "is-expanded",
+        state.advancedSettingsExpanded,
+      );
+    });
   }
 
   function setupButtons() {
@@ -32,6 +56,15 @@
           maxTokens: ui.getIntegerValue("param-max-tokens"),
           temperature: ui.getNumberValue("param-temp", parseFloat),
           topP: ui.getNumberValue("param-top-p", parseFloat),
+          threads: Math.max(0, ui.getIntegerValue("param-threads")),
+          batchSize: Math.max(0, ui.getIntegerValue("param-batch-size")),
+          microBatchSize: Math.max(
+            0,
+            ui.getIntegerValue("param-micro-batch-size"),
+          ),
+          flashAttention: ui.getInputValue("param-flash-attention"),
+          kvCacheType: ui.getInputValue("param-kv-cache-type"),
+          loadMode: ui.getInputValue("param-load-mode"),
         },
       });
     });

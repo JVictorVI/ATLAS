@@ -82,6 +82,12 @@ export interface AtlasModelParameters {
   topP?: number;
   gpuLayers?: number;
   contextWindow?: number;
+  threads?: number;
+  batchSize?: number;
+  microBatchSize?: number;
+  flashAttention?: "auto" | "on" | "off";
+  kvCacheType?: "auto" | "f16" | "q8_0" | "q4_0";
+  loadMode?: "auto" | "none" | "mmap" | "mlock" | "mmap+mlock";
   seed?: number;
   stopSequences?: string[];
   [key: string]: unknown;

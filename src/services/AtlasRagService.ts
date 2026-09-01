@@ -958,11 +958,11 @@ export class AtlasRagService {
     const searchId = crypto.randomUUID().slice(0, 8);
     const startedAt = Date.now();
     const config = this.configManager.getConfig();
-    const contextProfile = this.configManager.getContextProfile();
+    const contextProfileRag = this.configManager.getContextProfileRag();
     const settings = {
       ...config.rag,
-      topK: contextProfile.ragTopK,
-      maxContextCharacters: contextProfile.ragMaxContextCharacters,
+      topK: contextProfileRag.topK,
+      maxContextCharacters: contextProfileRag.maxContextCharacters,
     };
 
     console.group(`[ATLAS RAG][${searchId}] Busca semântica`);

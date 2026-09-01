@@ -311,7 +311,60 @@ export class AtlasLocalEngineService {
       args.push("--n-gpu-layers", String(gpuLayers));
     }
 
+    this.pushPositiveIntegerArgument(
+      args,
+      "--threads",
+      model.parameters.threads,
+    );
+    this.pushPositiveIntegerArgument(
+      args,
+      "--batch-size",
+      model.parameters.batchSize,
+    );
+    this.pushPositiveIntegerArgument(
+      args,
+      "--ubatch-size",
+      model.parameters.microBatchSize,
+    );
+
+    if (
+      model.parameters.flashAttention === "on" ||
+      model.parameters.flashAttention === "off"
+    ) {
+      args.push("--flash-attn", model.parameters.flashAttention);
+    }
+
+    if (
+      model.parameters.kvCacheType === "f16" ||
+      model.parameters.kvCacheType === "q8_0" ||
+      model.parameters.kvCacheType === "q4_0"
+    ) {
+      args.push("--cache-type-k", model.parameters.kvCacheType);
+      args.push("--cache-type-v", model.parameters.kvCacheType);
+    }
+
+    if (
+      model.parameters.loadMode === "none" ||
+      model.parameters.loadMode === "mmap" ||
+      model.parameters.loadMode === "mlock" ||
+      model.parameters.loadMode === "mmap+mlock"
+    ) {
+      args.push("--load-mode", model.parameters.loadMode);
+    }
+
     return args;
+  }
+
+  private pushPositiveIntegerArgument(
+    args: string[],
+    argument: string,
+    value: unknown,
+  ): void {
+    const parsed = Number(value);
+
+    if (Number.isInteger(parsed) && parsed > 0) {
+      args.push(argument, String(parsed));
+    }
   }
 
   private async waitUntilReady(): Promise<void> {

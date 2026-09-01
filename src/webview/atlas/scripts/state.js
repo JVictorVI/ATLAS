@@ -95,6 +95,7 @@ let downloadAfterSave = false;
 let atlasSettingsSaveTimeout = null;
 let contextProfilePresets = {};
 let contextProfilesByExecutionMode = {};
+let customContextProfilesByExecutionMode = {};
 let activeContextProfileTarget = "local";
 let activeEngineDownloadType = null;
 let loadedEnginesDir = "";

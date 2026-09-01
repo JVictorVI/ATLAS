@@ -141,6 +141,104 @@
               <input type="number" id="param-max-tokens" value="8192" />
             </div>
           </div>
+
+          <button
+            class="advanced-settings-toggle"
+            id="advanced-settings-toggle"
+            type="button"
+            aria-expanded="false"
+            aria-controls="advanced-settings-content"
+          >
+            <span>
+              <strong>Configurações avançadas</strong>
+              <small>Automático é recomendado para a maioria dos modelos</small>
+            </span>
+            <span
+              class="codicon codicon-chevron-down advanced-settings-icon"
+              aria-hidden="true"
+            ></span>
+          </button>
+
+          <div
+            class="advanced-settings"
+            id="advanced-settings-content"
+            aria-hidden="true"
+            inert
+          >
+            <div class="advanced-settings-inner">
+              <div class="advanced-settings-note">
+                Use valores manuais apenas para ajustar desempenho ou consumo de
+                memória. Alterações são aplicadas na próxima inicialização da
+                engine local.
+              </div>
+
+              <div class="advanced-settings-fields">
+                <div class="field">
+                  <label for="param-threads">Threads da CPU</label>
+                  <input
+                    type="number"
+                    id="param-threads"
+                    value="0"
+                    min="0"
+                    step="1"
+                  />
+                  <small>0 = Automático (recomendado)</small>
+                </div>
+                <div class="field">
+                  <label for="param-batch-size">Batch size</label>
+                  <input
+                    type="number"
+                    id="param-batch-size"
+                    value="0"
+                    min="0"
+                    step="1"
+                  />
+                  <small>0 = Automático (recomendado)</small>
+                </div>
+                <div class="field">
+                  <label for="param-micro-batch-size">Micro-batch</label>
+                  <input
+                    type="number"
+                    id="param-micro-batch-size"
+                    value="0"
+                    min="0"
+                    step="1"
+                  />
+                  <small>0 = Automático (recomendado)</small>
+                </div>
+                <div class="field">
+                  <label for="param-flash-attention">Flash Attention</label>
+                  <select id="param-flash-attention">
+                    <option value="auto">Automático (recomendado)</option>
+                    <option value="on">Ligado</option>
+                    <option value="off">Desligado</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="param-kv-cache-type">Tipo do cache KV</label>
+                  <select id="param-kv-cache-type">
+                    <option value="auto">Automático (recomendado)</option>
+                    <option value="f16">f16 — maior fidelidade</option>
+                    <option value="q8_0">q8_0 — equilibrado</option>
+                    <option value="q4_0">q4_0 — menor uso de memória</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="param-load-mode"
+                    >Modo de carregamento do modelo</label
+                  >
+                  <select id="param-load-mode">
+                    <option value="auto">Automático (recomendado)</option>
+                    <option value="none">Normal</option>
+                    <option value="mmap">Memory mapping (mmap)</option>
+                    <option value="mlock">Manter na RAM (mlock)</option>
+                    <option value="mmap+mlock">mmap + manter na RAM</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="row-end">
             <button class="btn-primary" id="btn-save-params">Salvar</button>
           </div>

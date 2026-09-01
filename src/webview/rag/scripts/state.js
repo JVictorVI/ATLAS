@@ -106,6 +106,7 @@ let externalDocumentsCount = 0;
 let embeddingModelsRefreshInProgress = false;
 let initialRagStateLoaded = false;
 let initialRagStateTimeout = undefined;
+let ragRecoverySettingsDirty = false;
 
 function showFeedback(message, level = "info") {
   if (!message) {

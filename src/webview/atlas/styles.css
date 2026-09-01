@@ -210,9 +210,9 @@ h1 {
 }
 
 .context-profile-check-option input:checked + .context-profile-check {
-  background: var(--vscode-checkbox-background, var(--vscode-button-background));
-  border-color: var(--vscode-checkbox-border, var(--vscode-button-background));
-  color: var(--vscode-checkbox-foreground, var(--vscode-button-foreground));
+  background: var(--vscode-button-background);
+  border-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
 }
 
 .context-profile-check-option input:checked + .context-profile-check::after {

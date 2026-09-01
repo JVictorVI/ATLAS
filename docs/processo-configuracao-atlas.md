@@ -210,6 +210,12 @@ maxTokens
 topP
 gpuLayers
 contextWindow
+threads
+batchSize
+microBatchSize
+flashAttention
+kvCacheType
+loadMode
 seed
 stopSequences
 ```
@@ -435,6 +441,12 @@ maxTokens: 8192
 topP: 0.95
 gpuLayers: 0
 contextWindow: 8192
+threads: 0
+batchSize: 0
+microBatchSize: 0
+flashAttention: auto
+kvCacheType: auto
+loadMode: auto
 baseUrl: http://127.0.0.1:8080/v1
 engine: llama.cpp
 ```

@@ -48,6 +48,7 @@ body {
 
 button,
 input,
+select,
 textarea {
   font-family: var(--vscode-font-family);
 }
@@ -307,7 +308,7 @@ textarea {
 }
 
 .model-params-section .inline-fields:has(#param-gpu) {
-  grid-template-columns: repeat(3, minmax(150px, 220px));
+  grid-template-columns: repeat(4, minmax(150px, 220px));
   gap: 14px 18px;
 }
 
@@ -336,13 +337,13 @@ textarea {
 }
 
 .field:has(#param-top-p) {
-  grid-column: 1;
-  grid-row: 2;
+  grid-column: 4;
+  grid-row: 1;
 }
 
 .field:has(#param-gpu) {
   grid-column: 1 / -1;
-  grid-row: 3;
+  grid-row: 2;
   max-width: 640px;
 }
 
@@ -362,6 +363,7 @@ textarea {
 
 input[type="text"],
 input[type="number"],
+select,
 textarea {
   width: 100%;
   border: 1px solid var(--vscode-input-border, var(--atlas-border));
@@ -373,6 +375,7 @@ textarea {
 }
 
 input:focus,
+select:focus,
 textarea:focus {
   border-color: var(--vscode-focusBorder);
 }
@@ -431,6 +434,80 @@ input[type="number"]::-webkit-inner-spin-button {
   width: 100%;
   padding: 0;
   accent-color: var(--vscode-button-background);
+}
+
+.advanced-settings-toggle {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--atlas-border);
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 18px;
+  padding: 14px 2px 4px;
+  text-align: left;
+  width: 100%;
+}
+
+.advanced-settings-toggle > span:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.advanced-settings-toggle small,
+.advanced-settings-note,
+.advanced-settings-fields .field > small {
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.advanced-settings-icon {
+  transition: transform 180ms ease;
+}
+
+.advanced-settings-toggle.is-expanded .advanced-settings-icon {
+  transform: rotate(180deg);
+}
+
+.advanced-settings {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 180ms ease,
+    opacity 140ms ease;
+}
+
+.advanced-settings.is-expanded {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.advanced-settings-inner {
+  overflow: hidden;
+}
+
+.advanced-settings-note {
+  border-left: 2px solid var(--vscode-textLink-foreground);
+  margin-top: 12px;
+  padding: 7px 10px;
+}
+
+.advanced-settings-fields {
+  display: grid;
+  gap: 14px 18px;
+  grid-template-columns: repeat(3, minmax(150px, 220px));
+  margin-top: 14px;
+}
+
+.advanced-settings-fields input,
+.advanced-settings-fields select {
+  min-height: 32px;
+  width: 100%;
 }
 
 .checkbox-group {
@@ -598,6 +675,10 @@ button:focus-visible {
   }
 
   .model-params-section .inline-fields:has(#param-gpu) {
+    grid-template-columns: 1fr;
+  }
+
+  .advanced-settings-fields {
     grid-template-columns: 1fr;
   }
 

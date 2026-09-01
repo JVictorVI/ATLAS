@@ -15,6 +15,12 @@
     ),
     gpuLayerSize: document.getElementById("gpu-layer-size"),
     gpuVramTotal: document.getElementById("gpu-vram-total"),
+    advancedSettingsToggle: document.getElementById(
+      "advanced-settings-toggle",
+    ),
+    advancedSettingsContent: document.getElementById(
+      "advanced-settings-content",
+    ),
     systemPrompt: document.getElementById("system-prompt"),
     toggleDefault: document.getElementById("toggle-default"),
     toggleCustom: document.getElementById("toggle-custom"),
@@ -34,6 +40,7 @@
       loadedModels: [],
       modelById: new Map(),
       selectedModelId: null,
+      advancedSettingsExpanded: false,
     },
   };
 })();

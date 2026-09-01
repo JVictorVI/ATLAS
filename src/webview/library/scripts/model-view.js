@@ -141,6 +141,15 @@
     ui.setValue("param-max-tokens", model.params?.maxTokens);
     ui.setValue("param-temp", model.params?.temp);
     ui.setValue("param-top-p", model.params?.topP);
+    ui.setValue("param-threads", model.params?.threads ?? 0);
+    ui.setValue("param-batch-size", model.params?.batchSize ?? 0);
+    ui.setValue("param-micro-batch-size", model.params?.microBatchSize ?? 0);
+    ui.setValue(
+      "param-flash-attention",
+      model.params?.flashAttention ?? "auto",
+    );
+    ui.setValue("param-kv-cache-type", model.params?.kvCacheType ?? "auto");
+    ui.setValue("param-load-mode", model.params?.loadMode ?? "auto");
 
     if (model.customPrompt) {
       ui.setChecked("toggle-default", false);

@@ -167,6 +167,7 @@ function saveRagSettings() {
       embeddingModel: embeddingModelSelect?.value || undefined,
       topK,
       maxContextCharacters,
+      updateContextProfileRecovery: ragRecoverySettingsDirty,
       ignoredPaths: parseIgnoredPaths(ignoredPathsInput?.value ?? ""),
       chunkSize,
       chunkOverlap,
@@ -194,4 +195,6 @@ function saveRagSettings() {
       showSources: showSourcesInput?.checked === true,
     },
   });
+
+  ragRecoverySettingsDirty = false;
 }

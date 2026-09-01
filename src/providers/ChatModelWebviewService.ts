@@ -143,6 +143,21 @@ export class ChatModelWebviewService {
           ATLAS_LOCAL_MODEL_DEFAULTS.contextWindow,
         maxTokens:
           model.parameters?.maxTokens ?? ATLAS_LOCAL_MODEL_DEFAULTS.maxTokens,
+        threads:
+          model.parameters?.threads ?? ATLAS_LOCAL_MODEL_DEFAULTS.threads,
+        batchSize:
+          model.parameters?.batchSize ?? ATLAS_LOCAL_MODEL_DEFAULTS.batchSize,
+        microBatchSize:
+          model.parameters?.microBatchSize ??
+          ATLAS_LOCAL_MODEL_DEFAULTS.microBatchSize,
+        flashAttention:
+          model.parameters?.flashAttention ??
+          ATLAS_LOCAL_MODEL_DEFAULTS.flashAttention,
+        kvCacheType:
+          model.parameters?.kvCacheType ??
+          ATLAS_LOCAL_MODEL_DEFAULTS.kvCacheType,
+        loadMode:
+          model.parameters?.loadMode ?? ATLAS_LOCAL_MODEL_DEFAULTS.loadMode,
       },
       customPrompt: !!model.custom?.systemPrompt,
       systemPrompt: model.custom?.systemPrompt || "",

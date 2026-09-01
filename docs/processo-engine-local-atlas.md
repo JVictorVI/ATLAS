@@ -1,6 +1,6 @@
 # Processo da Engine Local
 
-Atualizado em 24 de julho de 2026.
+Atualizado em 30 de agosto de 2026.
 
 Este documento descreve a execução local com `llama-server`, incluindo seleção de modelo, lifecycle da engine, health check, troca de parâmetros e relação com a Biblioteca.
 
@@ -60,6 +60,12 @@ maxTokens: 8192
 topP: 0.95
 gpuLayers: 0
 contextWindow: 8192
+threads: 0
+batchSize: 0
+microBatchSize: 0
+flashAttention: auto
+kvCacheType: auto
+loadMode: auto
 baseUrl: http://127.0.0.1:8080/v1
 engine: llama.cpp
 ```
@@ -84,7 +90,17 @@ contextWindow
 maxTokens
 temperature
 topP
+threads
+batchSize
+microBatchSize
+flashAttention
+kvCacheType
+loadMode
 ```
+
+Os parâmetros avançados ficam recolhidos por padrão na Biblioteca. Valores
+`0` ou `auto` fazem o ATLAS omitir o argumento correspondente e preservar a
+configuração automática recomendada pelo `llama-server`.
 
 Se o modelo salvo for o ativo, a engine é parada para que a próxima execução suba com parâmetros novos.
 
@@ -163,6 +179,21 @@ Se `gpuLayers > 0`, adiciona:
 ```
 
 O valor `0` é tratado como automático: o ATLAS omite `--n-gpu-layers`, preservando o comportamento automático padrão do `llama-server`.
+
+Quando configurados manualmente, os parâmetros avançados adicionam:
+
+```text
+--threads <threads>
+--batch-size <batchSize>
+--ubatch-size <microBatchSize>
+--flash-attn <on|off>
+--cache-type-k <f16|q8_0|q4_0>
+--cache-type-v <f16|q8_0|q4_0>
+--load-mode <none|mmap|mlock|mmap+mlock>
+```
+
+Em modo automático esses argumentos não são enviados. Alterações nesses campos
+param a engine ativa para que a próxima execução use os novos valores.
 
 ## Health check
 

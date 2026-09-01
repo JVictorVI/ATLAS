@@ -25,6 +25,20 @@ function applyContextProfileSettings(value) {
       value?.contextProfiles?.[executionMode] ?? legacyProfile,
     ]),
   );
+  customContextProfilesByExecutionMode = Object.fromEntries(
+    contextProfileExecutionModes.map((executionMode) => {
+      const selectedProfile = getContextProfileForTarget(executionMode);
+      const fallbackCustomProfile = {
+        ...selectedProfile,
+        mode: "custom",
+      };
+
+      return [
+        executionMode,
+        value?.customContextProfiles?.[executionMode] ?? fallbackCustomProfile,
+      ];
+    }),
+  );
 
   setContextProfileTarget(
     normalizeContextProfileTarget(value?.contextProfileTarget),
@@ -46,7 +60,10 @@ function applySelectedContextProfileSettings() {
   setContextProfileMode(mode, target);
   setStaticAnalysisFromSettings(profile);
   renderPresetContextProfileSummaries();
-  renderCustomContextProfileSummary(profile, target);
+  renderCustomContextProfileSummary(
+    getCustomContextProfileForTarget(target),
+    target,
+  );
   highlightContextProfileSummaries();
   updateStaticAnalysisAvailability();
 }
@@ -76,15 +93,17 @@ function handleContextProfileChange(event) {
       applyContextProfileSideEffects(profile, target);
     }
   } else {
-    contextProfilesByExecutionMode[target] = {
-      ...getContextProfileForTarget(target),
+    const customProfile = {
+      ...getCustomContextProfileForTarget(target),
       mode: "custom",
     };
+    contextProfilesByExecutionMode[target] = customProfile;
+    applyContextProfileSideEffects(customProfile, target);
   }
 
   highlightContextProfileSummaries();
   renderCustomContextProfileSummary(
-    getContextProfileForTarget(target),
+    getCustomContextProfileForTarget(target),
     target,
   );
   updateStaticAnalysisAvailability();
@@ -98,10 +117,12 @@ function promoteContextProfileToCustom() {
     return;
   }
 
-  contextProfilesByExecutionMode[target] = {
-    ...getContextProfileForTarget(target),
+  const customProfile = {
+    ...getCustomContextProfileForTarget(target),
     mode: "custom",
   };
+  contextProfilesByExecutionMode[target] = customProfile;
+  customContextProfilesByExecutionMode[target] = customProfile;
   setContextProfileMode("custom", target);
   highlightContextProfileSummaries();
 }
@@ -222,6 +243,17 @@ function getContextProfileForTarget(target) {
   return (
     contextProfilesByExecutionMode[normalizeContextProfileTarget(target)] ?? {
       mode: "balanced",
+    }
+  );
+}
+
+function getCustomContextProfileForTarget(target) {
+  const normalizedTarget = normalizeContextProfileTarget(target);
+
+  return (
+    customContextProfilesByExecutionMode[normalizedTarget] ?? {
+      ...getContextProfileForTarget(normalizedTarget),
+      mode: "custom",
     }
   );
 }
