@@ -304,7 +304,7 @@ O fluxo de distribuição atual não empacota `llama.cpp`.
 5. fallback CPU em `<enginesDir>/bin/`;
 6. fallback final no PATH do sistema.
 
-Como `.vscodeignore` exclui `engine/`, o VSIX não sai com binários do `llama.cpp`. A experiência atual, porém, não depende apenas de configuração manual: `AtlasEngineDownloadService` pode baixar o release mais recente do `llama.cpp` em runtime, escolher CPU/CUDA/Vulkan por hardware ou respeitar o modo configurado e gravar os arquivos em `custom.localEngine.enginesDir` ou, por padrão, em `context.globalStorageUri/engine`.
+Como `.vscodeignore` exclui `engine/`, o VSIX não sai com binários do `llama.cpp`. A experiência atual, porém, não depende apenas de configuração manual: `AtlasEngineDownloadService` pode procurar um pacote compatível nos releases recentes do `llama.cpp` em runtime, escolher CPU/CUDA/Vulkan por hardware ou respeitar o modo configurado e gravar os arquivos em `custom.localEngine.enginesDir` ou, por padrão, em `context.globalStorageUri/engine`.
 
 Para empacotar engines diretamente no VSIX no futuro, será necessário:
 

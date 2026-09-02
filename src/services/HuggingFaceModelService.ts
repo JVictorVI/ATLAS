@@ -57,6 +57,52 @@ const EMBEDDING_REQUIRED_FILES = [
   "unigram.json",
 ];
 
+const GGUF_SPLIT_PART_PATTERN = /(?:^|[-_.])\d{5}-of-\d{5}\.gguf$/i;
+const GGUF_MTP_TOKEN_PATTERN = /(?:^|[-_.])mtp(?:[-_.]|$)/i;
+
+export function getAtlasGgufCompatibilityError(
+  fileName: string,
+): string | null {
+  const normalizedPath = fileName.replace(/\\/g, "/").toLowerCase();
+  const pathSegments = normalizedPath.split("/").filter(Boolean);
+  const normalized = pathSegments.at(-1) ?? "";
+  const directorySegments = pathSegments.slice(0, -1);
+
+  if (!normalized.endsWith(".gguf")) {
+    return "Apenas arquivos .gguf podem ser baixados.";
+  }
+
+  if (
+    normalized.startsWith("mmproj") ||
+    normalized.includes("mmproj-") ||
+    normalized.includes("projector")
+  ) {
+    return "Projetores multimodais GGUF não são modelos de geração executáveis pelo ATLAS.";
+  }
+
+  if (
+    directorySegments.includes("mtp") ||
+    GGUF_MTP_TOKEN_PATTERN.test(normalized)
+  ) {
+    return "Arquivos MTP são auxiliares de decodificação especulativa e ainda não são suportados pelo ATLAS. Selecione uma variante GGUF completa do modelo.";
+  }
+
+  if (GGUF_SPLIT_PART_PATTERN.test(normalized)) {
+    return "Modelos GGUF divididos em múltiplos arquivos ainda não são suportados pelo download do ATLAS. Selecione uma variante GGUF completa em um único arquivo.";
+  }
+
+  if (
+    directorySegments.some((segment) =>
+      ["adapter", "adapters", "lora", "loras"].includes(segment),
+    ) ||
+    /^(?:adapter|lora)(?:[-_.]|$)/i.test(normalized)
+  ) {
+    return "Adaptadores GGUF não podem ser executados como modelo principal pelo ATLAS.";
+  }
+
+  return null;
+}
+
 export type HuggingFaceDownloadProgress = {
   percent: number;
   fileName: string;
@@ -219,14 +265,10 @@ export class HuggingFaceModelService {
     onProgress?: (progress: HuggingFaceDownloadProgress) => void,
     signal?: AbortSignal,
   ): Promise<string> {
-    if (!fileName.toLowerCase().endsWith(".gguf")) {
-      throw new Error("Apenas arquivos .gguf podem ser baixados.");
-    }
+    const compatibilityError = getAtlasGgufCompatibilityError(fileName);
 
-    if (!this.isRunnableGgufFile(fileName)) {
-      throw new Error(
-        "Este arquivo GGUF e um projetor multimodal (mmproj) ou auxiliar, nao um modelo local executavel.",
-      );
+    if (compatibilityError) {
+      throw new Error(compatibilityError);
     }
 
     const safeFileName = path.basename(fileName.replace(/\\/g, "/"));
@@ -872,14 +914,7 @@ export class HuggingFaceModelService {
   }
 
   private isRunnableGgufFile(fileName: string): boolean {
-    const normalized = path.basename(fileName).toLowerCase();
-
-    return (
-      normalized.endsWith(".gguf") &&
-      !normalized.startsWith("mmproj") &&
-      !normalized.includes("mmproj-") &&
-      !normalized.includes("projector")
-    );
+    return getAtlasGgufCompatibilityError(fileName) === null;
   }
 
   private isSupportedModel(model: HuggingFaceModelRaw): boolean {

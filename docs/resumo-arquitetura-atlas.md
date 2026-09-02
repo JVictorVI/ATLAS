@@ -36,7 +36,7 @@ Para o fluxo de alteração do arquivo aberto, incluindo decisão de intenção,
 | `CloudApiService`                        | Implementado                                                                                                                                                     |
 | `LocalApiService`                        | Implementado com chamadas locais OpenAI-compatible, streaming, timeout, tratamento de overflow de contexto e ajuste dinâmico de `contextWindow`                  |
 | `AtlasLocalEngineService`                | Implementado com seleção de engine CPU/CUDA/Vulkan, `llama-server`, reinício para aplicar novos parâmetros, status na Webview e logs operacionais                |
-| `AtlasEngineDownloadService`             | Implementado com detecção automática CPU/CUDA/Vulkan, download do release mais recente do `llama.cpp`, extração, validação e DLLs CUDA complementares            |
+| `AtlasEngineDownloadService`             | Implementado com detecção automática CPU/CUDA/Vulkan, busca nos releases recentes do `llama.cpp`, extração, validação e DLLs CUDA complementares                 |
 | `AtlasLocalModelDiscoveryService`        | Implementado                                                                                                                                                     |
 | Execução local `llama.cpp`               | Implementada                                                                                                                                                     |
 | CPU/CUDA/Vulkan                          | Implementado com seleção manual e preparação automática por hardware                                                                                              |

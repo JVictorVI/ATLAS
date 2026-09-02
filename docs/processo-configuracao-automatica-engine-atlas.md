@@ -207,18 +207,18 @@ O status exibido vem do backend em mensagens como:
 
 ```text
 Verificando a engine selecionada...
-Consultando a versão mais recente do llama.cpp no GitHub...
+Consultando os releases recentes do llama.cpp no GitHub...
 Baixando a engine da llama (...)
 Extraindo os arquivos da engine...
 Engine selecionada pronta para uso.
 ```
 
-## Consulta do release mais recente
+## Consulta dos releases recentes
 
 O serviço consulta:
 
 ```text
-https://api.github.com/repos/ggml-org/llama.cpp/releases/latest
+https://api.github.com/repos/ggml-org/llama.cpp/releases?per_page=20
 ```
 
 Headers usados:
@@ -228,7 +228,7 @@ User-Agent: atlas-vscode-extension
 Accept: application/vnd.github+json
 ```
 
-O ATLAS usa os assets do release para escolher o pacote compatível com plataforma, arquitetura e modo de execução.
+O ATLAS percorre os releases do mais recente para o mais antigo e escolhe o primeiro asset compatível com plataforma, arquitetura e modo de execução. Isso é necessário porque releases estáveis podem publicar apenas metadados e código-fonte, deixando os binários de plataforma em um build `b...` próximo.
 
 ## Seleção de pacote
 
@@ -249,7 +249,7 @@ No macOS:
 - usa pacote macOS `arm64` ou `x64`;
 - a seleção não diferencia CUDA/Vulkan, porque os padrões disponíveis são por plataforma/arquitetura.
 
-Se o usuário pedir CUDA e o release atual não tiver asset CUDA compatível, o ATLAS tenta usar Vulkan como fallback. Nesse caso, salva `engineType: "vulkan"` e informa o motivo no progresso.
+Se o usuário pedir CUDA, o ATLAS procura primeiro um asset CUDA em todos os releases recentes consultados. Somente quando nenhum deles possui CUDA compatível, tenta usar Vulkan como fallback. Nesse caso, salva `engineType: "vulkan"` e informa o motivo no progresso.
 
 ## Download, extração e validação
 

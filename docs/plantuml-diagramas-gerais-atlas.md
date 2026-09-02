@@ -22,7 +22,7 @@ Os blocos podem ser copiados diretamente para o PlantText ou para uma extensão 
 - Materiais complementares no RAG deixam de ser evolução nos diagramas: a ingestão, listagem, exclusão e recuperação semântica estão implementadas.
 - O mapa arquitetural removeu responsabilidades obsoletas de `LocalApiService`, como `isAbortError` público e dependência direta da descoberta de modelos.
 - Busca no Hugging Face, detalhes de modelos, filtros LLM/embedding e download GGUF/ONNX passam a aparecer como fluxos implementados.
-- `AtlasEngineDownloadService` representa a escolha automática CPU/CUDA/Vulkan e o download do release atual do `llama.cpp`.
+- `AtlasEngineDownloadService` representa a escolha automática CPU/CUDA/Vulkan e o download de um pacote compatível entre os releases recentes do `llama.cpp`.
 
 ## Pontos atualizados na versão 1.5
 

@@ -129,7 +129,14 @@ Um modelo de embedding é considerado compatível quando:
 - contém `tokenizer.json` ou `tokenizer_config.json`;
 - possui `onnx/model.onnx` ou `onnx/model_quantized.onnx`.
 
-Arquivos GGUF com nomes de projetor, como `mmproj`, são ignorados porque não são modelos de chat executáveis pela engine local.
+Arquivos GGUF que não podem ser executados isoladamente pela implementação atual não aparecem entre as variantes disponíveis. O filtro exclui:
+
+- projetores multimodais, como `mmproj` e `projector`;
+- drafters MTP usados apenas para decodificação especulativa;
+- adaptadores LoRA/adapter;
+- partes de modelos GGUF divididos em múltiplos arquivos.
+
+A mesma validação é repetida imediatamente antes do download. Assim, uma mensagem antiga ou manipulada do webview não consegue iniciar o download de um arquivo auxiliar incompatível.
 
 ## Detalhamento do modelo
 

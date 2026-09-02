@@ -26,8 +26,13 @@ type EngineDownloadPlan = {
   fallbackReason?: string;
 };
 
-const LLAMA_RELEASE_API_URL =
-  "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest";
+type EngineDownloadSelection = {
+  release: LlamaRelease;
+  plan: EngineDownloadPlan;
+};
+
+const LLAMA_RELEASES_API_URL =
+  "https://api.github.com/repos/ggml-org/llama.cpp/releases?per_page=20";
 
 const MIN_GPU_ACCELERATION_VRAM_BYTES = 2 * 1024 ** 3;
 
@@ -175,16 +180,19 @@ export class AtlasEngineDownloadService {
       engineType ?? (await this.selectEngineTypeForCurrentMachine());
     const enginesDir = this.getEnginesDir();
 
-    onStatus?.("Consultando a versão mais recente do llama.cpp no GitHub...");
+    onStatus?.("Consultando os releases recentes do llama.cpp no GitHub...");
 
-    const release = await this.fetchLatestRelease();
-    const plan = this.resolveDownloadPlan(release, requestedType);
+    const releases = await this.fetchRecentReleases();
+    const selection = this.resolveDownloadSelection(releases, requestedType);
 
-    if (!plan) {
+    if (!selection) {
+      const newestVersion = releases[0]?.tag_name ?? "consultada";
       throw new Error(
-        `Nenhum pacote do llama.cpp foi encontrado para ${this.describePlatform()} (${requestedType.toUpperCase()}) na versão ${release.tag_name}.`,
+        `Nenhum pacote do llama.cpp foi encontrado para ${this.describePlatform()} (${requestedType.toUpperCase()}) nos releases recentes a partir da versão ${newestVersion}.`,
       );
     }
+
+    const { release, plan } = selection;
 
     if (plan.fallbackReason) {
       onStatus?.(plan.fallbackReason);
@@ -293,8 +301,8 @@ export class AtlasEngineDownloadService {
     return "cpu";
   }
 
-  private async fetchLatestRelease(): Promise<LlamaRelease> {
-    const response = await fetch(LLAMA_RELEASE_API_URL, {
+  private async fetchRecentReleases(): Promise<LlamaRelease[]> {
+    const response = await fetch(LLAMA_RELEASES_API_URL, {
       headers: {
         "User-Agent": "atlas-vscode-extension",
         Accept: "application/vnd.github+json",
@@ -307,38 +315,52 @@ export class AtlasEngineDownloadService {
       );
     }
 
-    const release = (await response.json()) as LlamaRelease;
+    const releases = (await response.json()) as LlamaRelease[];
 
-    if (!release || !Array.isArray(release.assets)) {
+    if (
+      !Array.isArray(releases) ||
+      releases.length === 0 ||
+      releases.some((release) => !Array.isArray(release.assets))
+    ) {
       throw new Error(
         "Resposta inesperada ao consultar as versões do llama.cpp.",
       );
     }
 
-    return release;
+    return releases;
   }
 
-  private resolveDownloadPlan(
-    release: LlamaRelease,
+  private resolveDownloadSelection(
+    releases: LlamaRelease[],
     requestedType: EngineType,
-  ): EngineDownloadPlan | null {
-    const asset = this.selectAssetForPlatform(release, requestedType);
+  ): EngineDownloadSelection | null {
+    for (const release of releases) {
+      const asset = this.selectAssetForPlatform(release, requestedType);
 
-    if (asset) {
-      return { requestedType, effectiveType: requestedType, asset };
+      if (asset) {
+        return {
+          release,
+          plan: { requestedType, effectiveType: requestedType, asset },
+        };
+      }
     }
 
     if (requestedType === "cuda") {
-      const vulkanAsset = this.selectAssetForPlatform(release, "vulkan");
+      for (const release of releases) {
+        const vulkanAsset = this.selectAssetForPlatform(release, "vulkan");
 
-      if (vulkanAsset) {
-        return {
-          requestedType,
-          effectiveType: "vulkan",
-          asset: vulkanAsset,
-          fallbackReason:
-            "Pacote CUDA não encontrado para esta plataforma no release atual; usando Vulkan como aceleração por GPU.",
-        };
+        if (vulkanAsset) {
+          return {
+            release,
+            plan: {
+              requestedType,
+              effectiveType: "vulkan",
+              asset: vulkanAsset,
+              fallbackReason:
+                "Pacote CUDA não encontrado para esta plataforma nos releases recentes; usando Vulkan como aceleração por GPU.",
+            },
+          };
+        }
       }
     }
 
