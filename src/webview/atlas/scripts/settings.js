@@ -42,10 +42,6 @@ function updateRefactoringAvailability() {
 function applyAtlasSettings(value) {
   applyContextProfilePresets(value?.contextProfilePresets);
 
-  setInputValue(
-    atlasLanguage,
-    value?.language === "en-US" ? "en-US" : "pt-BR",
-  );
   setChecked(localStreamResponses, value?.localStream !== false);
   setChecked(saveInterruptedResponses, value?.saveInterruptedResponses !== false);
   setInputValue(localEngineTimeout, value?.localTimeout ?? 30);
@@ -110,7 +106,6 @@ function saveAtlasSettings(options = {}) {
     payload: {
       applyContextProfilePreset:
         options.applyContextProfilePreset === true,
-      language: atlasLanguage?.value === "en-US" ? "en-US" : "pt-BR",
       contextProfileTarget: getSelectedContextProfileTarget(),
       contextProfileMode: getSelectedContextProfileMode(),
       localStream: localStreamResponses?.checked !== false,

@@ -2,11 +2,11 @@
 
 Este documento transcreve os prompts que definem o comportamento conversacional do ATLAS. A fonte canônica continua sendo o código da extensão:
 
-- `AtlasSystemPromptPolicyService.ts`: prompts-base dos modos e política de idioma;
+- `AtlasSystemPromptPolicyService.ts`: prompts-base dos modos;
 - `AtlasPromptCustomizationService.ts`: diretivas complementares globais;
 - `../services/LocalApiService.ts`: comportamento personalizado de cada modelo local.
 
-O `AtlasPromptAssemblyService` seleciona um dos quatro prompts-base e acrescenta a política de idioma. Dependendo das configurações e do modo, também pode inserir memória arquitetural, diretivas personalizadas, contexto do editor, RAG e histórico recente.
+O `AtlasPromptAssemblyService` seleciona um dos prompts-base. Dependendo das configurações e do modo, também pode inserir memória arquitetural, diretivas personalizadas, contexto do editor, RAG e histórico recente.
 
 ## Assistente de desenvolvimento
 
@@ -271,30 +271,6 @@ Classificação de severity e cores no editor:
 - não use high apenas porque o código parece grande; use high quando a evidência mostrar impacto estrutural amplo ou difícil de mudar
 
 As sugestões do sistema não substituem revisão humana.
-```
-
-## Política de idioma acrescentada aos prompts-base
-
-A política correspondente a `general.language` é anexada ao final de qualquer um dos três prompts-base.
-
-### Português do Brasil (`pt-BR`)
-
-```text
-Política de idioma das respostas:
-- Responda em português do Brasil.
-- Mantenha schemas, chaves JSON e identificadores de código inalterados.
-- Em estruturas Markdown obrigatórias, preserve a estrutura, usando títulos e texto em português do Brasil.
-- Na análise rápida em JSON, escreva os valores legíveis de message, impact e suggestion em português do Brasil.
-```
-
-### Inglês (`en-US`)
-
-```text
-Response language policy:
-- Respond in English.
-- Keep machine-readable schemas, JSON keys and code identifiers unchanged.
-- For required Markdown structures, preserve the structure, but translate human-readable headings and prose to English.
-- For quick-analysis JSON, write the human-readable values in message, impact and suggestion in English.
 ```
 
 ## Diretivas complementares globais

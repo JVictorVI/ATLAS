@@ -20,7 +20,6 @@ import {
   AtlasContextProfileSettings,
   AtlasExecutionMode,
   AtlasRagSettings,
-  AtlasResponseLanguage,
 } from "../interfaces/AtlasConfigTypes";
 import { AtlasExternalDocumentParser } from "../services/AtlasExternalDocumentParser";
 import { AtlasContextProfileService } from "../services/AtlasContextProfileService";
@@ -1702,7 +1701,6 @@ export class ChatMessageRouter {
     try {
       const previousEnginesDir = this.deps.getLocalEnginesDir();
       const payload = data.payload ?? {};
-      const language = this.normalizeResponseLanguage(payload.language);
       const localStream = payload.localStream !== false;
       const localTimeout = this.normalizeInteger(
         payload.localTimeout,
@@ -1770,10 +1768,6 @@ export class ChatMessageRouter {
         includeDiagnostics: staticAnalysisDiagnostics,
         includeSymbolRelations: staticAnalysisRelations,
       };
-
-      this.deps.configManager.updateGeneralSettings({
-        language,
-      });
 
       this.deps.configManager.updateCustomRoot({
         ...currentCustom,
@@ -1872,10 +1866,6 @@ export class ChatMessageRouter {
 
       this.deps.configManager.saveConfig({
         ...current,
-        general: {
-          ...current.general,
-          language: defaults.general.language,
-        },
         rag: {
           ...current.rag,
           embeddingModel: defaults.rag.embeddingModel,
@@ -3053,7 +3043,6 @@ export class ChatMessageRouter {
       contextProfileTarget,
       contextProfiles,
       customContextProfiles,
-      language: this.normalizeResponseLanguage(config.general.language),
       contextProfileMode: contextProfile.mode,
       contextHistoryWindow: contextProfile.historyWindowSize,
       contextMemoryEnabled: contextProfile.includeArchitecturalMemory,
@@ -3195,10 +3184,6 @@ export class ChatMessageRouter {
     }
 
     return "cpu";
-  }
-
-  private normalizeResponseLanguage(value: unknown): AtlasResponseLanguage {
-    return value === "en-US" ? "en-US" : "pt-BR";
   }
 
   private normalizeFolderPath(value: unknown): string {

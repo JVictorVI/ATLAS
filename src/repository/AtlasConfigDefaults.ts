@@ -1,6 +1,7 @@
 import {
   AtlasCloudConfigs,
   AtlasConfigSchema,
+  AtlasGeneralSettings,
   AtlasLocalEngineCustomConfig,
   AtlasRagSettings,
   ProviderConfig,
@@ -14,7 +15,6 @@ export class AtlasConfigDefaults {
       updatedAt: new Date().toISOString(),
       general: {
         theme: "system",
-        language: "pt-BR",
         autoSave: true,
         logLevel: "info",
       },
@@ -167,6 +167,7 @@ export class AtlasConfigDefaults {
       ragPartial.includeMarkdownFiles ?? legacyIncludeSupportFiles;
     const includeConfigFiles =
       ragPartial.includeConfigFiles ?? legacyIncludeSupportFiles;
+    const partialGeneral: Partial<AtlasGeneralSettings> = partial.general ?? {};
     const defaultLocalEngine = (defaults.custom?.localEngine ??
       {}) as AtlasLocalEngineCustomConfig;
     const partialLocalEngine = (partial.custom?.localEngine ??
@@ -193,8 +194,9 @@ export class AtlasConfigDefaults {
       ...defaults,
       ...partialWithoutLegacyCloudSecurity,
       general: {
-        ...defaults.general,
-        ...(partial.general ?? {}),
+        theme: partialGeneral.theme ?? defaults.general.theme,
+        autoSave: partialGeneral.autoSave ?? defaults.general.autoSave,
+        logLevel: partialGeneral.logLevel ?? defaults.general.logLevel,
       },
       cloudConfigs: {
         ...defaults.cloudConfigs,

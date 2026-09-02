@@ -3,7 +3,6 @@ const vscode = acquireVsCodeApi();
 
 const atlasSettingsPage = document.getElementById("atlas-settings-page");
 const atlasLoading = document.getElementById("atlas-loading");
-const atlasLanguage = document.getElementById("atlas-language");
 const localStreamResponses = document.getElementById("local-stream-responses");
 const saveInterruptedResponses = document.getElementById(
   "save-interrupted-responses",
@@ -76,7 +75,6 @@ const contextProfileManagedInputs = [
   ...staticAnalysisOptionInputs,
 ];
 const atlasDirectAutosaveInputs = [
-  atlasLanguage,
   localStreamResponses,
   saveInterruptedResponses,
   contextWindowDynamic,

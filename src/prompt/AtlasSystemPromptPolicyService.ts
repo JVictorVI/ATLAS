@@ -1,52 +1,21 @@
 import { AtlasPromptMode } from "../interfaces/AtlasPromptTypes";
-import { AtlasResponseLanguage } from "../interfaces/AtlasConfigTypes";
 import { AtlasConfigRepository } from "../repository/AtlasConfigRepository";
 
 export class AtlasSystemPromptPolicyService {
   constructor(private readonly repository?: AtlasConfigRepository) {}
 
   public buildBaseSystemMessage(mode: AtlasPromptMode): string {
-    const language = this.getConfiguredLanguage();
-    const message = (() => {
-      switch (mode) {
-        case "architectural-analysis":
-          return this.buildArchitecturalAnalysisMessage();
+    switch (mode) {
+      case "architectural-analysis":
+        return this.buildArchitecturalAnalysisMessage();
 
-        case "quick-analysis":
-          return this.buildQuickAnalysisMessage();
+      case "quick-analysis":
+        return this.buildQuickAnalysisMessage();
 
-        case "developer-assistant":
-        default:
-          return this.buildDeveloperAssistantMessage();
-      }
-    })();
-
-    return [message, "", this.buildLanguageInstruction(language)].join("\n");
-  }
-
-  private getConfiguredLanguage(): AtlasResponseLanguage {
-    const language = this.repository?.load().general.language;
-    return language === "en-US" ? "en-US" : "pt-BR";
-  }
-
-  private buildLanguageInstruction(language: AtlasResponseLanguage): string {
-    if (language === "en-US") {
-      return [
-        "Response language policy:",
-        "- Respond in English.",
-        "- Keep machine-readable schemas, JSON keys and code identifiers unchanged.",
-        "- For required Markdown structures, preserve the structure, but translate human-readable headings and prose to English.",
-        "- For quick-analysis JSON, write the human-readable values in message, impact and suggestion in English.",
-      ].join("\n");
+      case "developer-assistant":
+      default:
+        return this.buildDeveloperAssistantMessage();
     }
-
-    return [
-      "Política de idioma das respostas:",
-      "- Responda em português do Brasil.",
-      "- Mantenha schemas, chaves JSON e identificadores de código inalterados.",
-      "- Em estruturas Markdown obrigatórias, preserve a estrutura, usando títulos e texto em português do Brasil.",
-      "- Na análise rápida em JSON, escreva os valores legíveis de message, impact e suggestion em português do Brasil.",
-    ].join("\n");
   }
 
   private buildArchitecturalAnalysisMessage(): string {

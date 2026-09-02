@@ -59,13 +59,12 @@ general
 Campos principais:
 
 ```text
-language
 theme
 autoSave
 logLevel
 ```
 
-A UI de Configurações Gerais altera `language` e também partes de `custom`, `rag` e análise estática. A mesma tela possui a ação `Restaurar padrões`, que volta as preferências gerais para os defaults sem apagar provedores, chaves, modelos, índices RAG nem histórico.
+A UI de Configurações Gerais altera partes de `custom`, `rag` e análise estática. A mesma tela possui a ação `Restaurar padrões`, que volta essas preferências para os defaults sem apagar provedores, chaves, modelos, índices RAG nem histórico.
 
 ## Configurações de execução cloud
 
@@ -365,9 +364,9 @@ Se o usuário altera manualmente uma opção gerenciada pelo preset, como contex
 | Mensagem Webview | Handler | O que altera |
 | --- | --- | --- |
 | `salvarConfiguracoesCloud` | `handleSaveCloudConfigs` | `cloudConfigs`. |
-| `salvarConfiguracoesAtlas` | `handleSaveAtlasSettings` | `general`, o perfil local ou cloud em `custom.contextProfiles`, `custom.localEngine`, `custom.refactoring`, `custom.staticAnalysis`, `rag.topK`, `rag.maxContextCharacters`. |
+| `salvarConfiguracoesAtlas` | `handleSaveAtlasSettings` | O perfil local ou cloud em `custom.contextProfiles`, `custom.localEngine`, `custom.refactoring`, `custom.staticAnalysis`, `rag.topK`, `rag.maxContextCharacters`. |
 | `salvarConfiguracoesRag` | `handleSaveRagSettings` | `rag`. |
-| `restaurarConfiguracoesAtlas` | `handleRestoreAtlasSettings` | Restaura defaults gerais de idioma, perfil/contexto, engine local, refatoração, análise estática e seleção/pasta de embeddings, preservando dados do usuário. |
+| `restaurarConfiguracoesAtlas` | `handleRestoreAtlasSettings` | Restaura defaults de perfil/contexto, engine local, refatoração, análise estática e seleção/pasta de embeddings, preservando dados do usuário. |
 | `selecionarModo` | `handleSelectMode` | `llms.selection.mode`. |
 | `selecionarModelo` | `handleSelectModel` | modelo local ou cloud ativo. |
 | `saveModelParams` | `handleSaveModelParams` | `llms.localModels[modelId].parameters`. |
@@ -474,7 +473,6 @@ Quando confirmado, o ATLAS preserva:
 
 E restaura para os defaults:
 
-- `general.language`;
 - `custom.contextProfiles.local` e `custom.contextProfiles.cloud`;
 - `custom.saveInterruptedResponses`;
 - `custom.refactoring`;

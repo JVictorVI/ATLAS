@@ -171,25 +171,6 @@ Essa ordem preserva a política do ATLAS como instrução mais alta e deixa a pe
 | `architectural-analysis` | Análise formal em 8 tópicos obrigatórios. |
 | `quick-analysis` | Saída exclusivamente JSON com achados por linha. |
 
-Todo prompt recebe a política de idioma no final.
-
-## Política de idioma
-
-A linguagem vem de:
-
-```text
-general.language
-```
-
-Valores:
-
-```text
-pt-BR
-en-US
-```
-
-A política instrui o modelo a traduzir texto humano, mas manter schemas, chaves JSON e identificadores de código.
-
 ## Análise arquitetural
 
 O modo arquitetural exige resposta em oito tópicos Markdown:
