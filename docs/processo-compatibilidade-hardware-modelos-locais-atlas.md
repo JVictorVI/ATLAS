@@ -1,6 +1,6 @@
 # Processo de compatibilidade de hardware para modelos locais no ATLAS
 
-Atualizado em 25 de julho de 2026.
+Atualizado em 3 de setembro de 2026.
 
 Este documento descreve como o ATLAS avalia a compatibilidade entre uma variante de modelo local disponível no repositório Hugging Face e o hardware da máquina do usuário.
 
@@ -159,10 +159,13 @@ Mesmo que a UI não mostre os números detalhados, o diagnóstico calcula intern
 ram_mínima = peso_em_memória * multiplicador_de_ram_mínima
 ram_recomendada = peso_em_memória * multiplicador_de_ram_recomendada
 vram_mínima = peso_em_memória * fração_mínima_de_vram
-vram_recomendada = peso_em_memória * maior_valor(fração_recomendada_de_vram, 0.55)
+vram_recomendada_para_offload = peso_em_memória * maior_valor(fração_recomendada_de_vram, 0.55)
+vram_com_folga_de_capacidade = peso_em_memória / (1 - 0.125)
+vram_recomendada_estimada = maior_valor(vram_recomendada_para_offload, vram_com_folga_de_capacidade)
+vram_recomendada = próxima_faixa_convencional(vram_recomendada_estimada; 4, 8, 16, 32, ...)
 ```
 
-O piso de `0.55` evita que quantizações muito agressivas, como Q2/IQ2, sejam classificadas como plenamente compatíveis apenas por exigirem uma fração teórica baixa de VRAM. Esses valores servem apenas para classificar o modelo. Eles não são exibidos no cartão.
+O piso de `0.55` evita que quantizações muito agressivas, como Q2/IQ2, sejam classificadas como plenamente compatíveis apenas por exigirem uma fração teórica baixa de VRAM. A folga de capacidade representa a VRAM total necessária para que os pesos da variante fiquem fora da faixa de ressalva de 12,5%. O resultado é arredondado para a próxima capacidade convencional de GPU, começando em 4 GB e seguindo 8 GB, 16 GB, 32 GB e assim por diante. Essa recomendação é comparada à VRAM disponível no cartão e também participa do veredito.
 
 ## Regras de classificação
 
@@ -176,8 +179,8 @@ A lógica atual segue esta ordem:
 
 1. Se não houver peso estimado ou RAM local, retorna **Com ressalvas**.
 2. Se a RAM total for menor que a RAM mínima, retorna **Não recomendado**.
-3. Se o peso estimado da variante for maior que a VRAM disponível em até 12,5%, retorna **Com ressalvas**.
-4. Se o peso estimado da variante ultrapassar essa margem de 12,5% sobre a VRAM disponível, retorna **Não recomendado**.
+3. Se a diferença absoluta entre o peso estimado da variante e a VRAM disponível estiver dentro da margem de 12,5% da VRAM, retorna **Com ressalvas**. A regra vale tanto para variantes um pouco maiores quanto para variantes um pouco menores que a capacidade total.
+4. Se o peso estimado da variante ultrapassar a VRAM além dessa margem de 12,5%, retorna **Não recomendado**.
 5. Calcula uma pontuação ponderada de recursos: VRAM pesa 80%, RAM pesa 10% e CPU pesa 10%.
 6. Retorna **Compatível** somente quando RAM e VRAM atingem as margens recomendadas e a CPU atinge o mínimo do perfil.
 7. Se a pontuação for muito baixa e a RAM também estiver abaixo da recomendada, retorna **Não recomendado**.
@@ -189,7 +192,9 @@ A VRAM tem peso alto no veredito final.
 
 Um modelo de 5 GB, por exemplo, pode rodar com pouca VRAM usando CPU ou offload parcial, mas isso tende a tornar a geração mais lenta. Por isso, o ATLAS só classifica como **Compatível** quando a VRAM atinge uma faixa confortável para a variante selecionada.
 
-Se a variante cabe em RAM, mas a VRAM é baixa, o resultado tende a ser **Com ressalvas** em vez de **Compatível**. Se o peso da variante passar da VRAM disponível por uma margem pequena, como 8 GB de VRAM para uma variante entre 8 GB e 9 GB, o resultado fica **Com ressalvas**. Acima dessa margem, fica **Não recomendado**. A RAM e a CPU ainda influenciam o resultado, mas baixa VRAM impede o veredito positivo.
+Se a variante cabe em RAM, mas a VRAM é baixa, o resultado tende a ser **Com ressalvas** em vez de **Compatível**. Quando o peso da variante fica próximo da capacidade total da GPU, dentro de 12,5% para mais ou para menos, o resultado também fica **Com ressalvas**, pois há pouca folga para outros consumos de VRAM. Em uma GPU com 4 GB, por exemplo, essa faixa cobre aproximadamente 500 MB em torno do limite. Se o modelo ultrapassar a faixa superior, fica **Não recomendado**. A RAM e a CPU ainda influenciam o resultado, mas baixa VRAM impede o veredito positivo.
+
+Quando a ressalva é causada especificamente por essa proximidade, o cartão informa que a variante está no limite da memória de vídeo, que parte dos dados pode precisar ser transferida para a RAM durante a execução e que isso reduz consideravelmente a velocidade de resposta. A mensagem também recomenda considerar uma variante menor para obter melhor desempenho.
 
 ## O que aparece na interface
 
@@ -199,6 +204,7 @@ O cartão mostra:
 - Mensagem curta de orientação.
 - Quantização detectada e descrição do perfil.
 - Parâmetros estimados, quando identificados.
+- VRAM disponível e VRAM recomendada para a variante.
 
 O cartão não mostra:
 
@@ -207,7 +213,7 @@ O cartão não mostra:
 - Tamanho do arquivo.
 - Peso em memória.
 - RAM mínima ou recomendada.
-- VRAM mínima ou recomendada.
+- VRAM mínima e os cálculos intermediários da recomendação.
 
 ## Limitações atuais
 

@@ -1,7 +1,8 @@
 // Responsabilidade: avalia a compatibilidade local entre hardware e variante do modelo.
 (function () {
   const MINIMUM_COMFORTABLE_VRAM_RATIO = 0.55;
-  const VRAM_OVERFLOW_WARNING_RATIO = 1.125;
+  const VRAM_CAPACITY_WARNING_MARGIN_RATIO = 0.125;
+  const MINIMUM_RECOMMENDED_VRAM_GIB = 4;
 
   function escapeHtml(value) {
     return String(value ?? "")
@@ -21,7 +22,24 @@
     `;
   }
 
-  function getCompatibilityTone(level) {
+  function formatMemoryBytes(bytes) {
+    const value = Number(bytes) || 0;
+
+    if (value <= 0) {
+      return "Não detectada";
+    }
+
+    const gibibytes = value / 1024 ** 3;
+
+    if (gibibytes >= 1) {
+      const precision = gibibytes >= 10 || Number.isInteger(gibibytes) ? 0 : 1;
+      return `${gibibytes.toFixed(precision).replace(".", ",")} GB`;
+    }
+
+    return `${Math.round(value / 1024 ** 2)} MB`;
+  }
+
+  function getCompatibilityTone(level, isVramCapacityWarning) {
     if (level === "good") {
       return {
         className: "compatibility-good",
@@ -37,8 +55,9 @@
         className: "compatibility-warning",
         icon: "warning",
         label: "Com ressalvas",
-        message:
-          "A variante pode funcionar, mas algum recurso local está abaixo da faixa ideal.",
+        message: isVramCapacityWarning
+          ? "Esta variante está no limite da memória de vídeo disponível. Durante a execução, parte dos dados pode precisar ser transferida para a RAM, reduzindo consideravelmente a velocidade de resposta. Considere uma variante menor para obter melhor desempenho."
+          : "A variante pode funcionar, mas algum recurso local está abaixo da faixa ideal.",
       };
     }
 
@@ -320,6 +339,45 @@
     return Math.max(0.25, (cpuCores / minimumCpuCores) * 0.65);
   }
 
+  function isWithinVramCapacityWarningMargin(weightsBytes, gpuVramBytes) {
+    if (weightsBytes <= 0 || gpuVramBytes <= 0) {
+      return false;
+    }
+
+    const vramCapacityDifference = weightsBytes - gpuVramBytes;
+    const vramCapacityWarningMargin =
+      gpuVramBytes * VRAM_CAPACITY_WARNING_MARGIN_RATIO;
+
+    return Math.abs(vramCapacityDifference) <= vramCapacityWarningMargin;
+  }
+
+  function getRecommendedVramBytes(weightsBytes, quantization) {
+    if (!Number.isFinite(weightsBytes) || weightsBytes <= 0) {
+      return 0;
+    }
+
+    const recommendedOffloadVram =
+      weightsBytes *
+      Math.max(
+        quantization.recommendedVramRatio,
+        MINIMUM_COMFORTABLE_VRAM_RATIO,
+      );
+    const vramWithCapacityHeadroom =
+      weightsBytes / (1 - VRAM_CAPACITY_WARNING_MARGIN_RATIO);
+    const estimatedRecommendedVram = Math.max(
+      recommendedOffloadVram,
+      vramWithCapacityHeadroom,
+    );
+    const gibibyte = 1024 ** 3;
+    let conventionalVramBytes = MINIMUM_RECOMMENDED_VRAM_GIB * gibibyte;
+
+    while (conventionalVramBytes < estimatedRecommendedVram) {
+      conventionalVramBytes *= 2;
+    }
+
+    return conventionalVramBytes;
+  }
+
   function classifyCompatibility(model, selectedFile, hardware) {
     const weightsBytes = getEstimatedWeightsBytes(model, selectedFile);
     const ramBytes = Number(hardware?.ramBytes) || 0;
@@ -334,21 +392,27 @@
     const minimumRam = weightsBytes * quantization.minimumRamMultiplier;
     const recommendedRam = weightsBytes * quantization.recommendedRamMultiplier;
     const minimumVram = weightsBytes * quantization.minimumVramRatio;
-    const recommendedVram =
-      weightsBytes *
-      Math.max(
-        quantization.recommendedVramRatio,
-        MINIMUM_COMFORTABLE_VRAM_RATIO,
-      );
+    const recommendedVram = getRecommendedVramBytes(
+      weightsBytes,
+      quantization,
+    );
 
     if (ramBytes < minimumRam) {
       return "danger";
     }
 
-    if (gpuVramBytes > 0 && weightsBytes > gpuVramBytes) {
-      return weightsBytes <= gpuVramBytes * VRAM_OVERFLOW_WARNING_RATIO
-        ? "warning"
-        : "danger";
+    if (gpuVramBytes > 0) {
+      const vramCapacityDifference = weightsBytes - gpuVramBytes;
+
+      if (
+        isWithinVramCapacityWarningMargin(weightsBytes, gpuVramBytes)
+      ) {
+        return "warning";
+      }
+
+      if (vramCapacityDifference > 0) {
+        return "danger";
+      }
     }
 
     const ramScore = getRangeScore(ramBytes, minimumRam, recommendedRam);
@@ -424,8 +488,18 @@
     }
 
     const level = classifyCompatibility(model, selectedFile, hardware);
-    const tone = getCompatibilityTone(level);
+    const weightsBytes = getEstimatedWeightsBytes(model, selectedFile);
+    const gpuVramBytes = Number(hardware.gpuVramBytes) || 0;
+    const isVramCapacityWarning = isWithinVramCapacityWarningMargin(
+      weightsBytes,
+      gpuVramBytes,
+    );
+    const tone = getCompatibilityTone(level, isVramCapacityWarning);
     const quantization = getQuantizationProfile(model, selectedFile);
+    const recommendedVramBytes = getRecommendedVramBytes(
+      weightsBytes,
+      quantization,
+    );
 
     return `
       <section class="compatibility-card ${tone.className}">
@@ -445,6 +519,8 @@
             <h3>Base da análise</h3>
             ${renderCompatibilityItem("Quantização", `${quantization.label} - ${quantization.description}`)}
             ${renderCompatibilityItem("Parâmetros", formatParameterCount(model, selectedFile))}
+            ${renderCompatibilityItem("VRAM disponível", formatMemoryBytes(gpuVramBytes))}
+            ${renderCompatibilityItem("VRAM recomendada", formatMemoryBytes(recommendedVramBytes))}
           </div>
         </div>
       </section>
