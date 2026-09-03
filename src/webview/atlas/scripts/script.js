@@ -24,6 +24,18 @@ function bindAtlasInteractions() {
   });
 
   downloadSelectedEngine?.addEventListener("click", downloadCurrentEngineMode);
+  cancelEngineDownload?.addEventListener(
+    "click",
+    cancelCurrentEngineDownload,
+  );
+
+  engineDeleteButtons.forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      requestEngineModeDeletion(button.dataset.engineType);
+    });
+  });
 
   staticAnalysisEnabled?.addEventListener("change", () => {
     promoteContextProfileToCustom();

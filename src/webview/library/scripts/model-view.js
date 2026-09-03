@@ -133,7 +133,7 @@
     ui.setText("info-provider", model.provider || "Local");
     ui.setText("info-quant", model.quant);
     ui.setText("info-date", model.date);
-    ui.setText("info-file", model.file);
+    ui.setText("info-parameters", model.parameterCount || "Não identificado");
     ui.setText("info-size", model.size);
 
     gpu.configureGpuSlider(model);

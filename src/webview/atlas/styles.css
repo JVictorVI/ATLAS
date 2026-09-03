@@ -339,10 +339,53 @@ h1 {
   display: flex;
   align-items: flex-start;
   gap: 10px;
+  height: 100%;
   border: 1px solid var(--vscode-widget-border);
   border-radius: 8px;
-  padding: 12px;
+  padding: 12px 48px 12px 12px;
   cursor: pointer;
+}
+
+.engine-option-container {
+  position: relative;
+  min-width: 0;
+}
+
+.engine-option-container:focus-within .engine-option {
+  border-color: var(--vscode-focusBorder);
+}
+
+.engine-delete-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 0;
+  color: var(--vscode-errorForeground);
+  background: transparent;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.engine-delete-button:hover {
+  border-color: var(--vscode-inputValidation-errorBorder);
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.engine-delete-button:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+}
+
+.engine-delete-button:disabled {
+  cursor: wait;
+  opacity: 0.55;
 }
 
 .startup-option {
@@ -423,6 +466,15 @@ h1 {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.engine-download-prompt > .engine-download-actions {
+  flex-direction: row;
+  flex-shrink: 0;
+}
+
+.engine-download-cancel-button {
+  color: var(--vscode-errorForeground);
 }
 
 .engine-download-status:empty {
@@ -556,6 +608,11 @@ button {
   }
 
   .engine-download-prompt {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .engine-download-prompt > .engine-download-actions {
     align-items: stretch;
     flex-direction: column;
   }

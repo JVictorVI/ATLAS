@@ -33,6 +33,8 @@ type ConfiguredEngineDownloadStatus = {
   loading: boolean;
   done: boolean;
   error?: boolean;
+  canceling?: boolean;
+  canceled?: boolean;
   message: string;
 };
 
@@ -42,6 +44,7 @@ export class ChatMessageRouter {
   private configuredEngineDownloadStatus: ConfiguredEngineDownloadStatus | null =
     null;
   private configuredEngineDownloadPromise: Promise<void> | null = null;
+  private configuredEngineDownloadController: AbortController | null = null;
   private readonly activeHuggingFaceDownloads = new Map<
     string,
     {
@@ -215,8 +218,14 @@ export class ChatMessageRouter {
       case "baixarEngineConfigurada":
         await this.handleDownloadConfiguredEngineRequest(webview);
         return;
+      case "cancelarDownloadEngineConfigurada":
+        await this.handleCancelConfiguredEngineDownload(webview);
+        return;
       case "verificarEngineModoExecucao":
         await this.handleCheckConfiguredEngineRequest(data, webview);
+        return;
+      case "excluirEngineModoExecucao":
+        await this.handleDeleteConfiguredEngineRequest(data, webview);
         return;
       case "selecionarModelo":
         await this.handleSelectModel(data, webview);
@@ -2411,7 +2420,12 @@ export class ChatMessageRouter {
       return;
     }
 
-    const downloadPromise = this.runConfiguredEngineDownload(webview);
+    const controller = new AbortController();
+    this.configuredEngineDownloadController = controller;
+    const downloadPromise = this.runConfiguredEngineDownload(
+      webview,
+      controller,
+    );
     this.configuredEngineDownloadPromise = downloadPromise;
 
     try {
@@ -2419,12 +2433,14 @@ export class ChatMessageRouter {
     } finally {
       if (this.configuredEngineDownloadPromise === downloadPromise) {
         this.configuredEngineDownloadPromise = null;
+        this.configuredEngineDownloadController = null;
       }
     }
   }
 
   private async runConfiguredEngineDownload(
     webview: vscode.Webview,
+    controller: AbortController,
   ): Promise<void> {
     const enginesDir = this.deps.getLocalEnginesDir();
 
@@ -2437,15 +2453,19 @@ export class ChatMessageRouter {
         message: "Verificando a engine selecionada...",
       });
 
-      await this.deps.downloadConfiguredLlamaEngine((message) => {
-        void this.postConfiguredEngineDownloadStatus(webview, {
-          engineType: this.getConfiguredLocalEngineType(),
-          enginesDir,
-          loading: true,
-          done: false,
-          message,
-        });
-      });
+      await this.deps.downloadConfiguredLlamaEngine(
+        (message) => {
+          void this.postConfiguredEngineDownloadStatus(webview, {
+            engineType: this.getConfiguredLocalEngineType(),
+            enginesDir,
+            loading: true,
+            done: false,
+            canceling: controller.signal.aborted,
+            message: controller.signal.aborted ? "Cancelando download..." : message,
+          });
+        },
+        controller.signal,
+      );
 
       await this.postConfiguredEngineDownloadStatus(webview, {
         engineType: this.getConfiguredLocalEngineType(),
@@ -2464,6 +2484,27 @@ export class ChatMessageRouter {
         "ATLAS: engine selecionada pronta para uso.",
       );
     } catch (error) {
+      if (controller.signal.aborted) {
+        await this.postConfiguredEngineDownloadStatus(webview, {
+          engineType: this.getConfiguredLocalEngineType(),
+          enginesDir,
+          loading: false,
+          done: true,
+          canceled: true,
+          message: "Download cancelado.",
+        });
+
+        await webview.postMessage({
+          type: "configuracoesAtlasCarregadas",
+          value: this.getAtlasSettingsPayload(),
+        });
+
+        vscode.window.showInformationMessage(
+          "ATLAS: download da engine cancelado.",
+        );
+        return;
+      }
+
       const message = this.getErrorMessage(
         error,
         "Erro ao baixar a engine selecionada.",
@@ -2514,6 +2555,122 @@ export class ChatMessageRouter {
       value: {
         engineType: requestedEngineType,
         downloaded: this.deps.isLlamaEngineTypeDownloaded(requestedEngineType),
+        deletable:
+          this.deps.isManagedLlamaEngineTypeDownloaded(requestedEngineType),
+      },
+    });
+  }
+
+  private async handleDeleteConfiguredEngineRequest(
+    data: any,
+    webview: vscode.Webview,
+  ): Promise<void> {
+    const engineType = this.parseLocalEngineType(data.engineType);
+
+    if (!engineType) {
+      await this.postError(
+        webview,
+        new Error("Modo de processamento inválido."),
+        "Não foi possível excluir a engine.",
+      );
+      return;
+    }
+
+    try {
+      if (this.configuredEngineDownloadPromise) {
+        throw new Error(
+          "Aguarde o download em andamento terminar antes de excluir uma engine.",
+        );
+      }
+
+      if (!this.deps.isManagedLlamaEngineTypeDownloaded(engineType)) {
+        await this.postEngineModeState(webview, engineType);
+        return;
+      }
+
+      const confirmation = await vscode.window.showWarningMessage(
+        `Deseja excluir a engine ${this.formatLocalEngineType(engineType)}? Os arquivos instalados desse modo de processamento serão removidos. Essa ação não poderá ser desfeita.`,
+        { modal: true },
+        "Excluir",
+      );
+
+      if (confirmation !== "Excluir") {
+        await this.postEngineModeState(webview, engineType);
+        return;
+      }
+
+      if (engineType === this.getConfiguredLocalEngineType()) {
+        this.deps.stopLocalEngine({ force: true });
+      }
+
+      const deleted = this.deps.deleteManagedLlamaEngine(engineType);
+
+      if (
+        this.configuredEngineDownloadStatus?.engineType === engineType
+      ) {
+        this.configuredEngineDownloadStatus = null;
+      }
+
+      await this.postEngineModeState(webview, engineType);
+
+      if (deleted) {
+        vscode.window.showInformationMessage(
+          `ATLAS: engine ${this.formatLocalEngineType(engineType)} excluída.`,
+        );
+      }
+    } catch (error) {
+      await this.postError(
+        webview,
+        error,
+        "Não foi possível excluir a engine.",
+      );
+      await this.postEngineModeState(webview, engineType);
+    }
+  }
+
+  private async handleCancelConfiguredEngineDownload(
+    webview: vscode.Webview,
+  ): Promise<void> {
+    const controller = this.configuredEngineDownloadController;
+    const currentStatus = this.configuredEngineDownloadStatus;
+
+    if (
+      !controller ||
+      controller.signal.aborted ||
+      currentStatus?.loading !== true
+    ) {
+      if (currentStatus) {
+        await webview.postMessage({
+          type: "downloadEngineConfiguradaStatus",
+          value: currentStatus,
+        });
+      }
+      return;
+    }
+
+    controller.abort();
+
+    await this.postConfiguredEngineDownloadStatus(webview, {
+      engineType:
+        currentStatus?.engineType ?? this.getConfiguredLocalEngineType(),
+      enginesDir: currentStatus?.enginesDir ?? this.deps.getLocalEnginesDir(),
+      loading: true,
+      done: false,
+      canceling: true,
+      message: "Cancelando download...",
+    });
+  }
+
+  private async postEngineModeState(
+    webview: vscode.Webview,
+    engineType: LocalEngineType,
+  ): Promise<void> {
+    await webview.postMessage({
+      type: "engineModoExecucaoExclusaoFinalizada",
+      value: {
+        engineType,
+        downloaded: this.deps.isLlamaEngineTypeDownloaded(engineType),
+        deletable: this.deps.isManagedLlamaEngineTypeDownloaded(engineType),
       },
     });
   }
@@ -3066,6 +3223,21 @@ export class ChatMessageRouter {
       engineType,
       engineDownloaded:
         this.deps.isLlamaEngineTypeDownloaded(engineType),
+      engineModeStates: Object.fromEntries(
+        (["cpu", "cuda", "vulkan"] as LocalEngineType[]).map(
+          (candidateEngineType) => [
+            candidateEngineType,
+            {
+              downloaded:
+                this.deps.isLlamaEngineTypeDownloaded(candidateEngineType),
+              deletable:
+                this.deps.isManagedLlamaEngineTypeDownloaded(
+                  candidateEngineType,
+                ),
+            },
+          ],
+        ),
+      ),
       startOnAtlasOpen: value.startOnAtlasOpen === true,
       prepareOnAtlasOpen: value.prepareOnAtlasOpen !== false,
       dynamicContextWindow: value.dynamicContextWindow !== false,
@@ -3184,6 +3356,24 @@ export class ChatMessageRouter {
     }
 
     return "cpu";
+  }
+
+  private parseLocalEngineType(value: unknown): LocalEngineType | null {
+    return value === "cpu" || value === "cuda" || value === "vulkan"
+      ? value
+      : null;
+  }
+
+  private formatLocalEngineType(engineType: LocalEngineType): string {
+    if (engineType === "cuda") {
+      return "GPU NVIDIA CUDA";
+    }
+
+    if (engineType === "vulkan") {
+      return "GPU Vulkan";
+    }
+
+    return "CPU";
   }
 
   private normalizeFolderPath(value: unknown): string {

@@ -67,6 +67,7 @@ function applyAtlasSettings(value) {
   if (loadedEnginesDir && loadedEnginesDir !== nextEnginesDir) {
     atlasEngineTypes.forEach((engineType) => {
       delete engineDownloadStateByType[engineType];
+      delete engineDeleteStateByType[engineType];
     });
   }
 
@@ -77,6 +78,18 @@ function applyAtlasSettings(value) {
     engineDownloadStateByType[loadedEngineType] = value.engineDownloaded;
   }
 
+  atlasEngineTypes.forEach((engineType) => {
+    const engineModeState = value?.engineModeStates?.[engineType];
+
+    if (typeof engineModeState?.downloaded === "boolean") {
+      engineDownloadStateByType[engineType] = engineModeState.downloaded;
+    }
+
+    if (typeof engineModeState?.deletable === "boolean") {
+      engineDeleteStateByType[engineType] = engineModeState.deletable;
+    }
+  });
+
   const engineDownloadStatusValue = value?.engineDownloadStatus;
   const engineDownloadStatusMatchesDirectory =
     engineDownloadStatusValue?.enginesDir === nextEnginesDir;
@@ -86,6 +99,7 @@ function applyAtlasSettings(value) {
     atlasEngineTypes.includes(engineDownloadStatusValue?.engineType)
       ? engineDownloadStatusValue.engineType
       : null;
+  updateEngineDeleteButtons();
   updateEngineDownloadPrompt();
 
   if (engineDownloadStatusValue && engineDownloadStatusMatchesDirectory) {

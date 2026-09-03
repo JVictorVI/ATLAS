@@ -164,7 +164,7 @@ Essa persistência acontece mesmo antes do download, para que a configuração r
 
 Há situações em que o ATLAS não escolhe automaticamente, mas respeita o modo configurado pelo usuário:
 
-- botão "Baixar agora" nas Configurações Gerais;
+- botão "Baixar" nas Configurações Gerais;
 - download de um modelo GGUF pelo Repositório de Modelos;
 - início manual da engine local;
 - início automático da engine quando `startOnAtlasOpen` está ativo.
@@ -195,11 +195,23 @@ GPU Vulkan
 
 Ao trocar o modo, `engine-download.js`:
 
-1. verifica se o modo já está baixado com `verificarEngineModoExecucao`;
-2. mostra um aviso se a engine selecionada ainda não estiver instalada;
-3. salva as configurações antes do download;
-4. envia `baixarEngineConfigurada`;
-5. atualiza a UI com `downloadEngineConfiguradaStatus`.
+1. recebe o estado de instalação dos três modos de processamento;
+2. verifica sob demanda se um modo está baixado com
+   `verificarEngineModoExecucao`;
+3. mostra um aviso se a engine selecionada ainda não estiver instalada;
+4. salva as configurações antes do download;
+5. envia `baixarEngineConfigurada`;
+6. exibe `Cancelar` enquanto a transferência está ativa;
+7. envia `cancelarDownloadEngineConfigurada` quando solicitado;
+8. atualiza a UI com `downloadEngineConfiguradaStatus`.
+
+Cada opção encontrada na pasta gerenciada pelo ATLAS exibe uma lixeira. A ação envia
+`excluirEngineModoExecucao`, exige confirmação modal e remove somente a pasta
+gerenciada correspondente (`llama.cpp`, `llama.cpp-cuda` ou
+`llama.cpp-vulkan`). Executáveis configurados manualmente fora dessas pastas
+podem ser usados, mas não são removidos por esse controle. Se a engine excluída
+for o modo de processamento selecionado, a execução local é encerrada antes da
+remoção e a interface volta a oferecer o download.
 
 O estado visual é mantido por tipo de engine. Se uma engine estiver sendo baixada, a tela mostra que o progresso continua mesmo quando o usuário troca de rota na Webview. Quando a pasta de engines muda, o estado conhecido por tipo é limpo para que a verificação seja refeita na nova pasta.
 
@@ -356,12 +368,20 @@ enginesDir
 loading
 done
 error
+canceling
+canceled
 message
 ```
 
 Ao carregar configurações, `getAtlasSettingsPayload` inclui esse status quando ele pertence à pasta de engines atual, permitindo restaurar o progresso visual após troca de tela ou recarregamento da Webview.
 
-O download usa:
+O download iniciado pela tela de Configurações Gerais possui um
+`AbortController`. O sinal é repassado às consultas e transferências HTTP; ao
+cancelar, o ATLAS interrompe a requisição, remove a pasta parcial quando ela foi
+criada pelo download atual e atualiza a interface para permitir uma nova
+tentativa.
+
+Os downloads automáticos exibidos como notificação ainda usam:
 
 ```text
 vscode.window.withProgress
@@ -450,8 +470,8 @@ error: true
 - `src/services/AtlasLocalEngineService.ts`: resolução do executável e inicialização do `llama-server`.
 - `src/services/HardwareDiagnosticService.ts`: coleta de GPU, fornecedor e VRAM.
 - `src/providers/ChatViewProvider.ts`: preparo automático na abertura, início opcional e comando de download.
-- `src/providers/ChatMessageRouter.ts`: mensagens de configuração, verificação e download da engine selecionada.
-- `src/webview/atlas/scripts/engine-download.js`: estado visual da engine selecionada e download sob demanda.
+- `src/providers/ChatMessageRouter.ts`: mensagens de configuração, verificação, download e exclusão da engine selecionada.
+- `src/webview/atlas/scripts/engine-download.js`: estado visual, download sob demanda e exclusão das engines instaladas.
 - `src/webview/atlas/scripts/settings.js`: leitura e salvamento de `custom.localEngine`.
 - `src/webview/atlas/scripts/message-bus.js`: tratamento das respostas do backend.
 - `src/repository/AtlasConfigDefaults.ts`: defaults de `prepareOnAtlasOpen`, streaming e timeout local.

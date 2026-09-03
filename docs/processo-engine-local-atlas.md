@@ -80,6 +80,8 @@ engine: llama.cpp
 - tipo de engine configurado;
 - memória de GPU, quando detectada;
 - contagem de camadas GGUF, quando possível;
+- contagem de parâmetros inferida pelo nome do arquivo, com indicação quando
+  não for possível identificá-la;
 - parâmetros editáveis.
 
 Parâmetros salvos por `saveModelParams`:

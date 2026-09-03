@@ -97,11 +97,18 @@ export type RouterDependencies = {
   isLlamaEngineTypeDownloaded: (
     engineType: "cpu" | "cuda" | "vulkan",
   ) => boolean;
+  isManagedLlamaEngineTypeDownloaded: (
+    engineType: "cpu" | "cuda" | "vulkan",
+  ) => boolean;
+  deleteManagedLlamaEngine: (
+    engineType: "cpu" | "cuda" | "vulkan",
+  ) => boolean;
   downloadLlamaEngine: (
     onStatus?: (message: string) => void,
   ) => Promise<void>;
   downloadConfiguredLlamaEngine: (
     onStatus?: (message: string) => void,
+    signal?: AbortSignal,
   ) => Promise<void>;
   searchHuggingFaceModels: (
     query: string,

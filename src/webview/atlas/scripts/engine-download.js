@@ -25,14 +25,17 @@ function updateEngineDownloadPrompt() {
   const changed = selectedEngineType !== loadedEngineType;
   const knownDownloadState = engineDownloadStateByType[selectedEngineType];
 
-  if (activeEngineDownloadType === selectedEngineType) {
+  if (activeEngineDownloadType !== null) {
     engineDownloadPrompt.hidden = false;
+    updateEngineDownloadActions(true, engineDownloadCancelRequested);
 
     if (engineDownloadPromptText) {
-      engineDownloadPromptText.textContent = `A engine ${formatEngineType(selectedEngineType)} está sendo baixada. O progresso continuará mesmo ao trocar de tela.`;
+      engineDownloadPromptText.textContent = `A engine ${formatEngineType(activeEngineDownloadType)} está sendo baixada. O progresso continuará mesmo ao trocar de tela.`;
     }
     return;
   }
+
+  updateEngineDownloadActions(false, false);
 
   if (knownDownloadState === true) {
     engineDownloadPrompt.hidden = true;
@@ -70,16 +73,98 @@ function applyEngineModeCheck(value) {
   }
 
   engineDownloadStateByType[engineType] = value?.downloaded === true;
+  engineDeleteStateByType[engineType] = value?.deletable === true;
+  updateEngineDeleteButtons();
 
   if (engineType === getSelectedEngineType()) {
     updateEngineDownloadPrompt();
   }
 }
 
+function requestEngineModeDeletion(engineType) {
+  if (
+    !atlasEngineTypes.includes(engineType) ||
+    engineDeleteStateByType[engineType] !== true ||
+    deletingEngineType !== null ||
+    activeEngineDownloadType !== null
+  ) {
+    return;
+  }
+
+  deletingEngineType = engineType;
+  updateEngineDeleteButtons();
+  vscode.postMessage({
+    type: "excluirEngineModoExecucao",
+    engineType,
+  });
+}
+
+function applyEngineModeDeletionResult(value) {
+  const engineType = value?.engineType;
+
+  if (!atlasEngineTypes.includes(engineType)) {
+    return;
+  }
+
+  deletingEngineType = null;
+  engineDownloadStateByType[engineType] = value?.downloaded === true;
+  engineDeleteStateByType[engineType] = value?.deletable === true;
+  updateEngineDeleteButtons();
+
+  if (engineType === getSelectedEngineType()) {
+    updateEngineDownloadPrompt();
+  }
+}
+
+function updateEngineDeleteButtons() {
+  engineDeleteButtons.forEach((button) => {
+    const engineType = button.dataset.engineType;
+    const isDeleting = deletingEngineType === engineType;
+
+    button.hidden = engineDeleteStateByType[engineType] !== true;
+    button.disabled =
+      deletingEngineType !== null || activeEngineDownloadType !== null;
+    button.title = isDeleting
+      ? `Excluindo engine ${formatEngineType(engineType)}...`
+      : `Excluir engine ${formatEngineType(engineType)}`;
+    button.setAttribute("aria-label", button.title);
+  });
+}
+
 function downloadCurrentEngineMode() {
   downloadAfterSave = true;
   saveAtlasSettings();
   setEngineDownloadStatus("Salvando modo selecionado e preparando download...");
+}
+
+function cancelCurrentEngineDownload() {
+  if (activeEngineDownloadType === null || engineDownloadCancelRequested) {
+    return;
+  }
+
+  engineDownloadCancelRequested = true;
+  setEngineDownloadStatus("Cancelando download...");
+  updateEngineDownloadActions(true, true);
+  vscode.postMessage({ type: "cancelarDownloadEngineConfigurada" });
+}
+
+function updateEngineDownloadActions(loading, canceling) {
+  engineTypeInputs.forEach((input) => {
+    if (input) {
+      input.disabled = loading;
+    }
+  });
+
+  if (downloadSelectedEngine) {
+    downloadSelectedEngine.disabled = loading;
+    downloadSelectedEngine.textContent = loading ? "Baixando..." : "Baixar";
+  }
+
+  if (cancelEngineDownload) {
+    cancelEngineDownload.hidden = !loading;
+    cancelEngineDownload.disabled = canceling;
+    cancelEngineDownload.textContent = canceling ? "Cancelando..." : "Cancelar";
+  }
 }
 
 function updateEngineDownloadStatus(value) {
@@ -89,22 +174,34 @@ function updateEngineDownloadStatus(value) {
     : selectedEngineType;
 
   if (value?.loading === true) {
+    if (activeEngineDownloadType !== statusEngineType) {
+      engineDownloadCancelRequested = false;
+    }
+
     activeEngineDownloadType = statusEngineType;
+    if (value?.canceling === true) {
+      engineDownloadCancelRequested = true;
+    }
   } else if (activeEngineDownloadType === statusEngineType) {
     activeEngineDownloadType = null;
+    engineDownloadCancelRequested = false;
   }
 
+  updateEngineDownloadActions(
+    activeEngineDownloadType !== null,
+    engineDownloadCancelRequested,
+  );
+  updateEngineDeleteButtons();
+
   if (statusEngineType !== selectedEngineType) {
-    if (downloadSelectedEngine) {
-      downloadSelectedEngine.disabled = false;
-      downloadSelectedEngine.textContent = "Baixar agora";
-    }
-    setEngineDownloadStatus("");
+    setEngineDownloadStatus(
+      activeEngineDownloadType !== null ? value?.message || "" : "",
+    );
     updateEngineDownloadPrompt();
     return;
   }
 
-  if (value?.error === true) {
+  if (value?.error === true || value?.canceled === true) {
     engineDownloadStateByType[statusEngineType] = false;
   }
 
@@ -118,12 +215,6 @@ function updateEngineDownloadStatus(value) {
   const message = value?.message || "";
   setEngineDownloadStatus(message, value?.error === true);
 
-  if (downloadSelectedEngine) {
-    downloadSelectedEngine.disabled = value?.loading === true;
-    downloadSelectedEngine.textContent =
-      value?.loading === true ? "Baixando..." : "Baixar agora";
-  }
-
   if (chooseEnginesFolder) {
     chooseEnginesFolder.disabled = value?.loading === true;
   }
@@ -131,7 +222,10 @@ function updateEngineDownloadStatus(value) {
   if (value?.done === true && value?.error !== true) {
     engineDownloadStateByType[statusEngineType] = true;
     loadedEngineType = statusEngineType;
+    requestEngineModeCheck(statusEngineType);
     updateEngineDownloadPrompt();
+  } else if (value?.done === true) {
+    requestEngineModeCheck(statusEngineType);
   }
 }
 

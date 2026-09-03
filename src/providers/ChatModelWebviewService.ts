@@ -6,6 +6,7 @@ import { execFileSync } from "child_process";
 import { AtlasLocalModelDiscoveryService } from "../services/AtlasLocalModelDiscoveryService";
 import { AtlasConfigManager } from "../managers/AtlasConfigManager";
 import { ATLAS_LOCAL_MODEL_DEFAULTS } from "../services/AtlasLocalModelDefaults";
+import { inferParameterCountFromFileName } from "../utils/ModelParameterCount";
 
 type GpuMemoryInfo = {
   totalBytes: number;
@@ -119,7 +120,9 @@ export class ChatModelWebviewService {
       date: model.metadata?.installedAt
         ? new Date(model.metadata.installedAt).toLocaleDateString("pt-BR")
         : "-",
-      file: model.path ? path.basename(model.path) : "-",
+      parameterCount: model.path
+        ? inferParameterCountFromFileName(path.basename(model.path))
+        : "Não identificado",
       size: model.metadata?.size || "-",
       sizeBytes: model.path ? this.getFileSizeBytes(model.path) : 0,
       layerInfo: {

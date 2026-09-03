@@ -89,7 +89,12 @@ export class AtlasEngineDownloadService {
       return true;
     }
 
-    const folder = path.join(this.getEnginesDir(), this.getEngineFolder(type));
+    return this.isManagedEngineDownloaded(type);
+  }
+
+  public isManagedEngineDownloaded(engineType: EngineType): boolean {
+    const folder = this.getManagedEnginePath(engineType);
+
     const executableNames =
       process.platform === "win32"
         ? ["llama-server.exe", "llama-server"]
@@ -103,10 +108,32 @@ export class AtlasEngineDownloadService {
       return false;
     }
 
-    if (type === "cuda" && process.platform === "win32") {
+    if (engineType === "cuda" && process.platform === "win32") {
       return this.hasCudaRuntimeDlls(folder);
     }
 
+    return true;
+  }
+
+  public deleteManagedEngine(engineType: EngineType): boolean {
+    const enginesDir = path.resolve(this.getEnginesDir());
+    const targetFolder = this.getManagedEnginePath(engineType);
+    const relativeTarget = path.relative(enginesDir, targetFolder);
+
+    if (
+      relativeTarget !== this.getEngineFolder(engineType) ||
+      path.isAbsolute(relativeTarget)
+    ) {
+      throw new Error(
+        "Por segurança, apenas engines instaladas na pasta gerenciada pelo ATLAS podem ser excluídas.",
+      );
+    }
+
+    if (!fs.existsSync(targetFolder)) {
+      return false;
+    }
+
+    fs.rmSync(targetFolder, { force: true, recursive: true });
     return true;
   }
 
@@ -129,6 +156,10 @@ export class AtlasEngineDownloadService {
     return typeof configured === "string" ? configured.trim() : "";
   }
 
+  private getManagedEnginePath(engineType: EngineType): string {
+    return path.resolve(this.getEnginesDir(), this.getEngineFolder(engineType));
+  }
+
   public isAnyEngineDownloaded(): boolean {
     return (["cpu", "cuda", "vulkan"] as EngineType[]).some((engineType) =>
       this.isEngineDownloaded(engineType),
@@ -143,7 +174,9 @@ export class AtlasEngineDownloadService {
 
   public async ensureEngineDownloaded(
     onStatus?: (message: string) => void,
+    signal?: AbortSignal,
   ): Promise<void> {
+    this.throwIfDownloadCancelled(signal);
     const engineType = await this.selectEngineTypeForCurrentMachine();
     this.saveSelectedEngineType(engineType);
 
@@ -154,12 +187,14 @@ export class AtlasEngineDownloadService {
       return;
     }
 
-    await this.downloadEngine(engineType, onStatus);
+    await this.downloadEngine(engineType, onStatus, signal);
   }
 
   public async ensureConfiguredEngineDownloaded(
     onStatus?: (message: string) => void,
+    signal?: AbortSignal,
   ): Promise<void> {
+    this.throwIfDownloadCancelled(signal);
     const engineType = this.getEngineType();
 
     if (this.isEngineDownloaded(engineType)) {
@@ -169,20 +204,23 @@ export class AtlasEngineDownloadService {
       return;
     }
 
-    await this.downloadEngine(engineType, onStatus);
+    await this.downloadEngine(engineType, onStatus, signal);
   }
 
   public async downloadEngine(
     engineType?: EngineType,
     onStatus?: (message: string) => void,
+    signal?: AbortSignal,
   ): Promise<void> {
+    this.throwIfDownloadCancelled(signal);
     const requestedType =
       engineType ?? (await this.selectEngineTypeForCurrentMachine());
     const enginesDir = this.getEnginesDir();
 
     onStatus?.("Consultando os releases recentes do llama.cpp no GitHub...");
 
-    const releases = await this.fetchRecentReleases();
+    const releases = await this.fetchRecentReleases(signal);
+    this.throwIfDownloadCancelled(signal);
     const selection = this.resolveDownloadSelection(releases, requestedType);
 
     if (!selection) {
@@ -204,6 +242,7 @@ export class AtlasEngineDownloadService {
       enginesDir,
       this.getEngineFolder(plan.effectiveType),
     );
+    const targetFolderAlreadyExisted = fs.existsSync(targetFolder);
 
     onStatus?.(
       `Baixando a engine da llama (${plan.asset.name}, versão ${release.tag_name})...`,
@@ -217,7 +256,9 @@ export class AtlasEngineDownloadService {
     try {
       const archiveBuffer = await this.downloadFile(
         plan.asset.browser_download_url,
+        signal,
       );
+      this.throwIfDownloadCancelled(signal);
       fs.writeFileSync(archivePath, archiveBuffer);
 
       onStatus?.("Extraindo os arquivos da engine...");
@@ -225,8 +266,10 @@ export class AtlasEngineDownloadService {
       const extractDir = path.join(tempDir, "extracted");
       fs.mkdirSync(extractDir, { recursive: true });
       this.extractArchive(archivePath, extractDir);
+      this.throwIfDownloadCancelled(signal);
 
       this.copyEngineFiles(extractDir, targetFolder);
+      this.throwIfDownloadCancelled(signal);
 
       if (plan.effectiveType === "cuda" && process.platform === "win32") {
         await this.installCudaRuntimeDlls(
@@ -234,8 +277,11 @@ export class AtlasEngineDownloadService {
           plan.asset.name,
           targetFolder,
           onStatus,
+          signal,
         );
       }
+
+      this.throwIfDownloadCancelled(signal);
 
       if (!this.isEngineDownloaded(plan.effectiveType)) {
         throw new Error(
@@ -250,6 +296,12 @@ export class AtlasEngineDownloadService {
       try {
         fs.rmSync(tempDir, { recursive: true, force: true });
       } catch {}
+
+      if (signal?.aborted && !targetFolderAlreadyExisted) {
+        try {
+          fs.rmSync(targetFolder, { recursive: true, force: true });
+        } catch {}
+      }
     }
   }
 
@@ -301,12 +353,15 @@ export class AtlasEngineDownloadService {
     return "cpu";
   }
 
-  private async fetchRecentReleases(): Promise<LlamaRelease[]> {
+  private async fetchRecentReleases(
+    signal?: AbortSignal,
+  ): Promise<LlamaRelease[]> {
     const response = await fetch(LLAMA_RELEASES_API_URL, {
       headers: {
         "User-Agent": "atlas-vscode-extension",
         Accept: "application/vnd.github+json",
       },
+      signal,
     });
 
     if (!response.ok) {
@@ -393,7 +448,9 @@ export class AtlasEngineDownloadService {
     cudaEngineAssetName: string,
     targetFolder: string,
     onStatus?: (message: string) => void,
+    signal?: AbortSignal,
   ): Promise<void> {
+    this.throwIfDownloadCancelled(signal);
     const cudartAsset = this.selectCudaRuntimeAsset(
       release,
       cudaEngineAssetName,
@@ -414,12 +471,15 @@ export class AtlasEngineDownloadService {
     try {
       const archiveBuffer = await this.downloadFile(
         cudartAsset.browser_download_url,
+        signal,
       );
+      this.throwIfDownloadCancelled(signal);
       fs.writeFileSync(archivePath, archiveBuffer);
 
       const extractDir = path.join(tempDir, "extracted");
       fs.mkdirSync(extractDir, { recursive: true });
       this.extractArchive(archivePath, extractDir);
+      this.throwIfDownloadCancelled(signal);
 
       const copiedDlls = this.copyDllFiles(extractDir, targetFolder);
 
@@ -540,9 +600,13 @@ export class AtlasEngineDownloadService {
     return process.arch === "arm64" ? "Linux ARM64" : "Linux x64";
   }
 
-  private async downloadFile(url: string): Promise<Buffer> {
+  private async downloadFile(
+    url: string,
+    signal?: AbortSignal,
+  ): Promise<Buffer> {
     const response = await fetch(url, {
       headers: { "User-Agent": "atlas-vscode-extension" },
+      signal,
     });
 
     if (!response.ok) {
@@ -552,7 +616,14 @@ export class AtlasEngineDownloadService {
     }
 
     const arrayBuffer = await response.arrayBuffer();
+    this.throwIfDownloadCancelled(signal);
     return Buffer.from(arrayBuffer);
+  }
+
+  private throwIfDownloadCancelled(signal?: AbortSignal): void {
+    if (signal?.aborted) {
+      throw new Error("Download da engine cancelado.");
+    }
   }
 
   private extractArchive(archivePath: string, destinationDir: string): void {

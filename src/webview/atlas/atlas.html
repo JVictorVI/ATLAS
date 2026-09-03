@@ -420,7 +420,7 @@
 
           <div class="settings-section">
             <div class="settings-section-heading">
-              <h2>Forma de execução</h2>
+              <h2>Modo de processamento</h2>
               <p>
                 Escolha se o modelo deve rodar apenas no processador ou usar a
                 placa de vídeo quando houver suporte
@@ -428,57 +428,93 @@
             </div>
 
             <div class="engine-options">
-              <label class="engine-option">
-                <input
-                  type="radio"
-                  name="engine-type"
-                  id="engine-cpu"
-                  value="cpu"
-                />
-                <span>
-                  <strong>CPU</strong>
-                  <small>
-                    Maior compatibilidade, porém com geração de respostas mais
-                    lenta
-                  </small>
-                </span>
-              </label>
+              <div class="engine-option-container">
+                <label class="engine-option">
+                  <input
+                    type="radio"
+                    name="engine-type"
+                    id="engine-cpu"
+                    value="cpu"
+                  />
+                  <span>
+                    <strong>CPU</strong>
+                    <small>
+                      Maior compatibilidade, porém com geração de respostas mais
+                      lenta
+                    </small>
+                  </span>
+                </label>
+                <button
+                  class="engine-delete-button"
+                  type="button"
+                  data-engine-type="cpu"
+                  aria-label="Excluir engine CPU"
+                  title="Excluir engine CPU"
+                  hidden
+                >
+                  <i class="codicon codicon-trash" aria-hidden="true"></i>
+                </button>
+              </div>
 
-              <label class="engine-option">
-                <input
-                  type="radio"
-                  name="engine-type"
-                  id="engine-cuda"
-                  value="cuda"
-                />
-                <span>
-                  <strong>GPU NVIDIA CUDA</strong>
-                  <small>
-                    Melhor desempenho em placas NVIDIA com suporte a CUDA
-                  </small>
-                </span>
-              </label>
+              <div class="engine-option-container">
+                <label class="engine-option">
+                  <input
+                    type="radio"
+                    name="engine-type"
+                    id="engine-cuda"
+                    value="cuda"
+                  />
+                  <span>
+                    <strong>GPU NVIDIA CUDA</strong>
+                    <small>
+                      Melhor desempenho em placas NVIDIA com suporte a CUDA
+                    </small>
+                  </span>
+                </label>
+                <button
+                  class="engine-delete-button"
+                  type="button"
+                  data-engine-type="cuda"
+                  aria-label="Excluir engine GPU NVIDIA CUDA"
+                  title="Excluir engine GPU NVIDIA CUDA"
+                  hidden
+                >
+                  <i class="codicon codicon-trash" aria-hidden="true"></i>
+                </button>
+              </div>
 
-              <label class="engine-option">
-                <input
-                  type="radio"
-                  name="engine-type"
-                  id="engine-vulkan"
-                  value="vulkan"
-                />
-                <span>
-                  <strong>GPU Vulkan</strong>
-                  <small>
-                    Alternativa multiplataforma para aceleração via GPU
-                  </small>
-                </span>
-              </label>
+              <div class="engine-option-container">
+                <label class="engine-option">
+                  <input
+                    type="radio"
+                    name="engine-type"
+                    id="engine-vulkan"
+                    value="vulkan"
+                  />
+                  <span>
+                    <strong>GPU Vulkan</strong>
+                    <small>
+                      Alternativa multiplataforma para aceleração via GPU
+                    </small>
+                  </span>
+                </label>
+                <button
+                  class="engine-delete-button"
+                  type="button"
+                  data-engine-type="vulkan"
+                  aria-label="Excluir engine GPU Vulkan"
+                  title="Excluir engine GPU Vulkan"
+                  hidden
+                >
+                  <i class="codicon codicon-trash" aria-hidden="true"></i>
+                </button>
+              </div>
             </div>
 
             <div class="note">
               O ATLAS baixa automaticamente as engines necessárias durante a
               primeira inicialização e ao selecionar uma das opções acima em
-              "Formas de execução". Para instalar uma versão específica da
+              "Modo de processamento". Para instalar uma versão específica da
               engine manualmente, baixe uma versão do llama.cpp, extraia os
               arquivos dentro da pasta de engines e mantenha os nomes das pastas
               como llama.cpp, llama.cpp-cuda ou llama.cpp-vulkan
@@ -506,13 +542,23 @@
                   id="engine-download-status"
                 ></small>
               </div>
-              <button
-                id="download-selected-engine"
-                class="btn-secondary"
-                type="button"
-              >
-                Baixar agora
-              </button>
+              <div class="engine-download-actions">
+                <button
+                  id="download-selected-engine"
+                  class="btn-secondary"
+                  type="button"
+                >
+                  Baixar
+                </button>
+                <button
+                  id="cancel-engine-download"
+                  class="btn-secondary engine-download-cancel-button"
+                  type="button"
+                  hidden
+                >
+                  Cancelar
+                </button>
+              </div>
             </div>
           </div>
         </section>

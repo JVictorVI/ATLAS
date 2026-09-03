@@ -44,4 +44,8 @@ window.addEventListener("message", (event) => {
   if (message.type === "engineModoExecucaoVerificada") {
     applyEngineModeCheck(message.value);
   }
+
+  if (message.type === "engineModoExecucaoExclusaoFinalizada") {
+    applyEngineModeDeletionResult(message.value);
+  }
 });

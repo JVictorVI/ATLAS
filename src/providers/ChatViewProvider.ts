@@ -385,13 +385,22 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         return this.engineDownloadService.isEngineDownloaded(engineType);
       },
 
+      isManagedLlamaEngineTypeDownloaded: (engineType) => {
+        return this.engineDownloadService.isManagedEngineDownloaded(engineType);
+      },
+
+      deleteManagedLlamaEngine: (engineType) => {
+        return this.engineDownloadService.deleteManagedEngine(engineType);
+      },
+
       downloadLlamaEngine: async (onStatus) => {
         await this.engineDownloadService.ensureEngineDownloaded(onStatus);
       },
 
-      downloadConfiguredLlamaEngine: async (onStatus) => {
+      downloadConfiguredLlamaEngine: async (onStatus, signal) => {
         await this.engineDownloadService.ensureConfiguredEngineDownloaded(
           onStatus,
+          signal,
         );
       },
 

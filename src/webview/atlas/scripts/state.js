@@ -26,6 +26,12 @@ const engineDownloadStatus = document.getElementById("engine-download-status");
 const downloadSelectedEngine = document.getElementById(
   "download-selected-engine",
 );
+const cancelEngineDownload = document.getElementById(
+  "cancel-engine-download",
+);
+const engineDeleteButtons = Array.from(
+  document.querySelectorAll(".engine-delete-button"),
+);
 const refactoringEnabled = document.getElementById("refactoring-enabled");
 const refactoringModelIntent = document.getElementById(
   "refactoring-model-intent",
@@ -96,6 +102,9 @@ let contextProfilesByExecutionMode = {};
 let customContextProfilesByExecutionMode = {};
 let activeContextProfileTarget = "local";
 let activeEngineDownloadType = null;
+let engineDownloadCancelRequested = false;
+let deletingEngineType = null;
 let loadedEnginesDir = "";
 
 const engineDownloadStateByType = {};
+const engineDeleteStateByType = {};
