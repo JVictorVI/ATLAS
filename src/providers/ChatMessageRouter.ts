@@ -41,6 +41,7 @@ type ConfiguredEngineDownloadStatus = {
 export class ChatMessageRouter {
   private activeWebviewRoute = "chat";
   private ragIndexController: AbortController | null = null;
+  private ragExternalDocumentsController: AbortController | null = null;
   private configuredEngineDownloadStatus: ConfiguredEngineDownloadStatus | null =
     null;
   private configuredEngineDownloadPromise: Promise<void> | null = null;
@@ -163,6 +164,9 @@ export class ChatMessageRouter {
         return;
       case "adicionarDocumentoExternoRag":
         await this.handleAddExternalRagDocuments(webview);
+        return;
+      case "cancelarIndexacaoDocumentoExternoRag":
+        await this.handleCancelExternalRagDocuments(webview);
         return;
       case "excluirDocumentoExternoRag":
         await this.handleDeleteExternalRagDocument(data, webview);
@@ -1193,33 +1197,16 @@ export class ChatMessageRouter {
 
       controller = new AbortController();
       const activeController = controller;
-      const result = await vscode.window.withProgress(
-        {
-          location: vscode.ProgressLocation.Notification,
-          title: "ATLAS: adicionando documentos ao RAG",
-          cancellable: true,
-        },
-        async (progress, token) => {
-          token.onCancellationRequested(() => {
-            controller?.abort();
+      this.ragExternalDocumentsController = controller;
+      const result = await this.deps.addExternalRagDocuments(
+        selection,
+        async (importProgress) => {
+          await webview.postMessage({
+            type: "progressoIndexacaoDocumentoExternoRag",
+            value: importProgress,
           });
-
-          return this.deps.addExternalRagDocuments(
-            selection,
-            (importProgress) => {
-              const currentFile = importProgress.currentFile
-                ? ` - ${importProgress.currentFile}`
-                : "";
-              const chunks = importProgress.processedChunks !== undefined
-                ? ` - ${importProgress.processedChunks} trechos indexados`
-                : "";
-              progress.report({
-                message: `${importProgress.processedFiles}/${importProgress.totalFiles}${currentFile}${chunks}`,
-              });
-            },
-            activeController.signal,
-          );
         },
+        activeController.signal,
       );
 
       await webview.postMessage({
@@ -1249,7 +1236,26 @@ export class ChatMessageRouter {
         error,
         "Não foi possível adicionar materiais complementares ao RAG.",
       );
+    } finally {
+      if (this.ragExternalDocumentsController === controller) {
+        this.ragExternalDocumentsController = null;
+      }
     }
+  }
+
+  private async handleCancelExternalRagDocuments(
+    webview: vscode.Webview,
+  ): Promise<void> {
+    const controller = this.ragExternalDocumentsController;
+
+    if (!controller || controller.signal.aborted) {
+      await webview.postMessage({
+        type: "cancelamentoIndexacaoDocumentoExternoRagIndisponivel",
+      });
+      return;
+    }
+
+    controller.abort();
   }
 
   private async handleDeleteExternalRagDocument(

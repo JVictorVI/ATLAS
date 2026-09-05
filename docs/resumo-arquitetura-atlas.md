@@ -113,10 +113,16 @@ Para o fluxo de alteração do arquivo aberto, incluindo decisão de intenção,
 - Quando nenhuma pasta é escolhida, downloads de embeddings usam `context.globalStorageUri/rag/embedding-models/`.
 - Uma coleção é mantida por projeto, com nome derivado de um `projectId` estável.
 - A reconstrução utiliza uma coleção temporária e só substitui a coleção ativa após concluir a indexação.
+- Materiais complementares usam uma coleção separada por projeto e modelo de embeddings. PDFs são extraídos por página, com geração de trechos sob demanda e gravação em lotes de até 16 trechos.
+- O serviço de embeddings serializa inferências de documentos e consultas e libera o tensor de saída após cada lote.
+- Na importação externa, o manifesto é atualizado ao concluir cada documento. Em caso de falha ou cancelamento, o serviço tenta remover os IDs novos da tentativa e mantém o registro anterior; os trechos antigos obsoletos são removidos após uma reimportação bem-sucedida.
+- Indexação de projetos e importação de materiais complementares não podem ocorrer simultaneamente; o serviço recusa a operação incompatível e orienta aguardar.
 - A tela RAG solicita o estado inicial ao backend, mas erro ou timeout nessa consulta remove o loading e mantém as configurações acessíveis.
 
 ## Limitações atuais
 
+- A extração por página dos PDFs não elimina a leitura integral dos bytes do arquivo. Office e formatos textuais ainda extraem o texto completo; o limite padrão de 25 MiB por material não representa um teto de RAM.
+- PDFs sem texto extraível não são indexados; não há OCR para páginas digitalizadas como imagem.
 - Formatos legados binários do Office (`.doc`, `.xls`, `.ppt`) ainda não possuem extrator dedicado; use `.docx`, `.xlsx` e `.pptx`.
 - O empacotamento e a distribuição são por target: `win32-x64`, `linux-x64` e `linux-arm64` possuem VSIX separados; não há pacote universal Windows+Linux.
 - O chunking é textual por caracteres e linhas; chunking orientado a símbolos permanece como evolução.

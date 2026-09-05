@@ -6,6 +6,9 @@ const projectsTable = document.getElementById("projects-table");
 const addProjectButton = document.getElementById("add-project");
 const selectFolderButton = document.getElementById("select-folder");
 const addFileButton = document.getElementById("add-file");
+const cancelExternalIndexingButton = document.getElementById(
+  "cancel-external-indexing",
+);
 const clearExternalDocumentsButton = document.getElementById(
   "clear-external-documents",
 );
@@ -31,6 +34,27 @@ const indexingProgressCount = document.getElementById(
   "indexing-progress-count",
 );
 const indexingProgressFile = document.getElementById("indexing-progress-file");
+const externalIndexingProgress = document.getElementById(
+  "external-indexing-progress",
+);
+const externalIndexingProgressLabel = document.getElementById(
+  "external-indexing-progress-label",
+);
+const externalIndexingProgressPercent = document.getElementById(
+  "external-indexing-progress-percent",
+);
+const externalIndexingProgressTrack = document.getElementById(
+  "external-indexing-progress-track",
+);
+const externalIndexingProgressBar = document.getElementById(
+  "external-indexing-progress-bar",
+);
+const externalIndexingProgressCount = document.getElementById(
+  "external-indexing-progress-count",
+);
+const externalIndexingProgressFile = document.getElementById(
+  "external-indexing-progress-file",
+);
 const topKInput = document.getElementById("rag-top-k");
 const contextLimitInput = document.getElementById("rag-context-limit");
 const ignoredPathsInput = document.getElementById("rag-ignored-paths");

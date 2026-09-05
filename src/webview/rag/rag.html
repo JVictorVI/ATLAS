@@ -97,7 +97,11 @@
               <strong id="indexing-progress-label"
                 >Preparando indexação...</strong
               >
-              <span id="indexing-progress-percent">0%</span>
+              <span
+                id="indexing-progress-percent"
+                class="indexing-progress-percent"
+                >0%</span
+              >
             </div>
             <div
               id="indexing-progress-track"
@@ -113,10 +117,15 @@
               ></span>
             </div>
             <div class="indexing-progress-details">
-              <span id="indexing-progress-count"
+              <span
+                id="indexing-progress-count"
+                class="indexing-progress-count"
                 >Aguardando análise dos arquivos...</span
               >
-              <span id="indexing-progress-file"></span>
+              <span
+                id="indexing-progress-file"
+                class="indexing-progress-file"
+              ></span>
             </div>
           </div>
 
@@ -172,6 +181,47 @@
 
         <div class="documents-card">
           <div
+            id="external-indexing-progress"
+            class="indexing-progress"
+            aria-live="polite"
+            hidden
+          >
+            <div class="indexing-progress-heading">
+              <strong id="external-indexing-progress-label"
+                >Preparando indexação...</strong
+              >
+              <span
+                id="external-indexing-progress-percent"
+                class="indexing-progress-percent"
+              ></span>
+            </div>
+            <div
+              id="external-indexing-progress-track"
+              class="indexing-progress-track is-indeterminate"
+              role="progressbar"
+              aria-label="Progresso da indexação de materiais complementares"
+              aria-valuemin="0"
+              aria-valuemax="100"
+            >
+              <span
+                id="external-indexing-progress-bar"
+                class="indexing-progress-bar"
+              ></span>
+            </div>
+            <div class="indexing-progress-details">
+              <span
+                id="external-indexing-progress-count"
+                class="indexing-progress-count"
+                >Aguardando seleção dos arquivos...</span
+              >
+              <span
+                id="external-indexing-progress-file"
+                class="indexing-progress-file"
+              ></span>
+            </div>
+          </div>
+
+          <div
             id="external-documents-list"
             class="documents-list"
             aria-live="polite"
@@ -198,6 +248,14 @@
             </label>
           </div>
           <div class="card-actions">
+            <button
+              id="cancel-external-indexing"
+              class="btn btn-outline"
+              type="button"
+              hidden
+            >
+              Cancelar indexação
+            </button>
             <button
               id="clear-external-documents"
               class="btn btn-danger"

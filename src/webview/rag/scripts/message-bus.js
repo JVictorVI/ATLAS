@@ -26,6 +26,24 @@ window.addEventListener("message", (event) => {
     return;
   }
 
+  if (message.type === "progressoIndexacaoDocumentoExternoRag") {
+    if (!externalDocumentsInProgress || externalIndexingProgress?.hidden) {
+      setExternalDocumentImportState(true);
+    }
+
+    updateExternalIndexingProgress(message.value ?? {});
+    return;
+  }
+
+  if (message.type === "cancelamentoIndexacaoDocumentoExternoRagIndisponivel") {
+    setExternalDocumentsState(false);
+    showFeedback(
+      "Nenhuma indexação de material complementar em andamento para cancelar.",
+      "warning",
+    );
+    return;
+  }
+
   if (message.type === "indexacaoRagConcluida") {
     updateIndexingProgress({
       phase: "completed",

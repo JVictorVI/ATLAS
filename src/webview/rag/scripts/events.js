@@ -174,8 +174,14 @@ deleteEmbeddingModelButton?.addEventListener("click", () => {
 });
 
 addFileButton?.addEventListener("click", () => {
-  setExternalDocumentsState(true);
+  setExternalDocumentImportState(true);
   vscode.postMessage({ type: "adicionarDocumentoExternoRag" });
+});
+
+cancelExternalIndexingButton?.addEventListener("click", () => {
+  cancelExternalIndexingButton.disabled = true;
+  cancelExternalIndexingButton.textContent = "Cancelando...";
+  vscode.postMessage({ type: "cancelarIndexacaoDocumentoExternoRag" });
 });
 
 clearExternalDocumentsButton?.addEventListener("click", () => {

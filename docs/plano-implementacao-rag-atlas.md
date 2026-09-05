@@ -1,6 +1,6 @@
 # Plano e Estado da Implementação do RAG no ATLAS
 
-Atualizado em 15 de agosto de 2026.
+Atualizado em 5 de setembro de 2026.
 
 > **Nota de sincronização:** a documentação geral e os diagramas foram alinhados para tratar materiais complementares e atualização incremental como funcionalidades implementadas. As evoluções pendentes do RAG continuam sendo chunking orientado a símbolos e melhorias de qualidade da recuperação.
 
@@ -41,6 +41,8 @@ O fluxo principal já está implementado. As evoluções restantes concentram-se
 | Watcher e debounce                       | Implementados                                                                                              |
 | Atualização incremental por arquivo      | Implementada; o modo pode alternar entre completa e incremental                                            |
 | Materiais complementares                 | Implementados para PDF, Office moderno, texto, Markdown, CSV/TSV, HTML e arquivos de configuração textuais |
+| Importação de PDFs grandes               | Extração por página, geração de trechos sob demanda e gravação em lotes de até 16 trechos |
+| Controle de inferência                   | Fila compartilhada entre indexações e consultas, com liberação do tensor de saída por lote |
 | Chunking orientado a símbolos            | Pendente                                                                                                   |
 
 ## 3. Arquitetura implementada
@@ -59,13 +61,15 @@ ChatResponseController / ChatMessageRouter
 
 - `AtlasRagService`: scanner, regras de exclusão, chunking, indexação, watchers, recuperação, filtros, orçamento de contexto e formatação das fontes.
 - `AtlasEmbeddingModelDiscoveryService`: descobre modelos de embeddings na pasta configurada pelo usuário, ou na pasta gravável padrão junto dos modelos empacotados quando nenhuma pasta customizada foi escolhida, e baixa o modelo padrão quando solicitado.
-- `AtlasEmbeddingService`: carrega o modelo local selecionado com Transformers.js e gera embeddings de documentos e perguntas.
+- `AtlasEmbeddingService`: carrega o modelo local selecionado com Transformers.js, divide entradas em lotes de até 16 textos, serializa inferências e libera o tensor de saída de cada lote.
+- `AtlasExternalDocumentParser`: extrai texto dos materiais complementares; na importação, entrega PDFs página por página por meio de `parseSections`.
+- `chunkExternalDocument` (`src/utils/AtlasExternalDocumentChunks.ts`): gera trechos de materiais complementares sob demanda, limitando também linhas longas e preservando metadados de linhas.
 - `AtlasChromaService`: inicia e encerra o processo ChromaDB, escolhe uma porta local livre, executa heartbeat e define o diretório persistente.
 - `AtlasRagRepository`: gerencia coleções, chunks, consultas e exclusões no ChromaDB, além do manifesto JSON usado pela interface.
 - `ChatResponseController`: solicita o contexto RAG antes de montar o prompt e associa as fontes à resposta persistida.
 - `ChatMessageRouter`: trata configuração, indexação, reindexação, cancelamento, exclusão e notificações da Webview.
 
-O desenho continua deliberadamente enxuto: scanner, chunker e pós-processamento permanecem privados ao `AtlasRagService` enquanto não houver necessidade concreta de extração.
+O scanner, o chunking de arquivos do projeto e o pós-processamento da recuperação permanecem no `AtlasRagService`. A extração de documentos e a divisão dos materiais complementares têm componentes próprios, consumidos pelo serviço durante a importação.
 
 ## 4. Runtime e distribuição
 
@@ -127,7 +131,10 @@ Características atuais:
 - inferência quantizada `q8`;
 - pooling médio e normalização dos vetores;
 - 384 dimensões no modelo atual;
-- processamento da indexação em lotes de 16 chunks;
+- chamadas ao pipeline limitadas a 16 textos, inclusive quando `embedDocuments` recebe uma lista maior;
+- fila de inferência compartilhada entre indexação e consultas, com apenas um lote em execução por vez;
+- liberação do tensor de saída após a conversão em vetores, inclusive em cancelamentos e erros;
+- gravação dos materiais complementares em lotes de até 16 trechos, antes de continuar sua extração;
 - nenhuma função automática de embedding do ChromaDB: o ATLAS sempre envia os vetores calculados.
 
 Uma mudança de modelo de embeddings marca os índices como desatualizados e exige reindexação, pois os vetores antigos não são comparáveis com outro modelo.
@@ -147,9 +154,11 @@ context.globalStorageUri/
 
 - Cada projeto possui uma coleção `atlas_<projectId>`.
 - O `projectId` é um hash estável do caminho raiz normalizado.
-- Durante a indexação é criada uma coleção temporária `atlas_<projectId>_build_<timestamp>`.
-- A coleção ativa só é substituída após a conclusão da indexação.
-- Falhas ou cancelamentos removem a coleção temporária e preservam o índice anterior quando existente.
+- Na reconstrução completa é criada uma coleção temporária `atlas_<projectId>_build_<timestamp>`.
+- Nesse modo, a coleção ativa só é substituída após a conclusão; falhas ou cancelamentos removem a temporária e preservam o índice anterior quando existente.
+- A atualização incremental grava na coleção existente e remove os trechos obsoletos.
+- Materiais complementares usam `atlas_<projectId>_external_<hashDoModelo>`, com gravação direta em lotes e atualização do manifesto ao concluir cada documento.
+- Uma importação externa interrompida tenta remover os IDs novos da tentativa e preserva o registro anterior. A limpeza é feita por IDs, sem a troca de coleção usada na reconstrução completa.
 
 ### 6.3 Manifesto
 
@@ -194,7 +203,7 @@ A organização atual da tela prioriza:
 3. materiais complementares no RAG;
 4. configurações principais, embeddings, indexação e recuperação.
 
-### 7.2 Fluxo
+### 7.2 Fluxo de reconstrução completa de projetos
 
 ```text
 Webview RAG
@@ -257,6 +266,8 @@ O chunking atual é textual:
 
 Os valores padrão são 1.000 caracteres por chunk e sobreposição de 200 caracteres.
 
+Nos materiais complementares, `chunkExternalDocument` gera trechos sob demanda e divide também linhas que excedem o tamanho efetivo do chunk. O cabeçalho de metadados é acrescentado depois dessa divisão. Em PDFs, cada página é dividida separadamente, sem sobreposição entre páginas.
+
 ### 7.5 Atualização automática
 
 O `FileSystemWatcher` observa projetos registrados. Quando um arquivo elegível é criado, alterado ou removido:
@@ -267,6 +278,34 @@ O `FileSystemWatcher` observa projetos registrados. Quando um arquivo elegível 
 4. se `promptIndexOnChange` estiver habilitado, o VS Code pergunta se o usuário deseja reindexar os arquivos alterados.
 
 No modo incremental, o ATLAS compara o hash das fontes já registradas no manifesto e gera embeddings apenas para arquivos novos ou alterados, removendo chunks de arquivos apagados. Quando a configuração que define a forma do índice muda, o serviço cai automaticamente para uma indexação completa.
+
+### 7.6 Materiais complementares e memória
+
+A importação valida o workspace, o formato e o tamanho do arquivo antes da leitura. O limite padrão é de 25 MiB por material, em `rag.externalDocumentMaxFileSizeBytes`.
+
+Para PDFs, o fluxo é:
+
+```text
+Arquivo validado
+  -> leitura dos bytes
+  -> extração e normalização de uma página
+  -> geração de trechos sob demanda
+  -> lote de até 16 trechos
+  -> embeddings locais e gravação no ChromaDB
+  -> continuação dos trechos e páginas restantes
+  -> atualização da fonte no manifesto
+  -> remoção dos trechos antigos obsoletos
+```
+
+Os recursos da página são liberados após a extração, e o documento PDF é encerrado ao terminar, falhar ou cancelar. O texto e os vetores de todas as páginas não são acumulados pela importação; os IDs dos trechos e o hash incremental formam os metadados da fonte.
+
+Os bytes do arquivo ainda são lidos integralmente. Office e formatos textuais ainda extraem o texto completo antes da divisão em trechos. O processamento em lotes reduz o pico da inferência, mas não estabelece um teto global de RAM para o parser, o modelo e o banco. PDFs precisam conter texto extraível, pois não há OCR.
+
+O progresso inclui arquivo atual e trechos já gravados. O cancelamento é verificado entre páginas e lotes, aguardando a conclusão de uma inferência já iniciada. Em caso de falha, o serviço tenta limpar os IDs novos, inclusive os do lote em gravação, e mantém o registro anterior no manifesto. A reimportação remove os trechos obsoletos somente após concluir os novos lotes; essas operações não formam uma transação atômica.
+
+### 7.7 Concorrência de indexação
+
+O serviço recusa uma indexação de projeto enquanto materiais complementares estão sendo importados, e recusa a importação enquanto há indexação de projeto ativa. A mensagem orienta aguardar o término; não há agendamento automático da operação recusada. Separadamente, a fila do `AtlasEmbeddingService` garante uma inferência por vez também para consultas do chat.
 
 ## 8. Recuperação
 

@@ -436,7 +436,7 @@ body.rag-loading-active .rag-page {
   white-space: nowrap;
 }
 
-#indexing-progress-percent {
+.indexing-progress-percent {
   flex: 0 0 auto;
   color: var(--vscode-descriptionForeground);
   font-variant-numeric: tabular-nums;
@@ -479,12 +479,12 @@ body.rag-loading-active .rag-page {
   font-size: 12px;
 }
 
-#indexing-progress-count {
+.indexing-progress-count {
   flex: 0 0 auto;
   font-variant-numeric: tabular-nums;
 }
 
-#indexing-progress-file {
+.indexing-progress-file {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -767,10 +767,12 @@ body.rag-loading-active .rag-page {
 }
 
 .document-copy strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  word-break: break-word;
   font-size: 14px;
+  line-height: 1.35;
 }
 
 .document-copy span {
@@ -876,7 +878,7 @@ body.rag-loading-active .rag-page {
     gap: 4px;
   }
 
-  #indexing-progress-file {
+  .indexing-progress-file {
     width: 100%;
     text-align: left;
   }

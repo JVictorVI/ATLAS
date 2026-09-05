@@ -350,7 +350,7 @@ O chunking ainda não é orientado a símbolos. Essa evolução permanece penden
 
 ### Escrita segura com coleção temporária
 
-Durante a indexação, o ATLAS não substitui imediatamente a coleção ativa.
+Na reconstrução completa (`full`), o ATLAS não substitui imediatamente a coleção ativa.
 
 Fluxo:
 
@@ -370,6 +370,8 @@ atlas_<projectId>
 ```
 
 Isso evita deixar um índice pronto parcialmente substituído se a indexação falhar no meio.
+
+O modo incremental atualiza a coleção existente com os trechos dos arquivos novos ou alterados e remove os trechos obsoletos. A importação de materiais complementares usa o fluxo por lotes descrito na seção seguinte, sem criar essa coleção temporária de projeto.
 
 ### Progresso e estados
 
@@ -443,20 +445,41 @@ Formatos suportados:
 .log
 ```
 
-O limite de tamanho usa:
+O limite de tamanho usa `rag.externalDocumentMaxFileSizeBytes`, com padrão de `25 * 1024 * 1024` bytes (25 MiB). Arquivos vazios, maiores que o limite ou com extensão não suportada são rejeitados antes da leitura.
 
-```text
-rag.externalDocumentMaxFileSizeBytes
-```
-
-Processo:
+### Extração e gravação por lotes
 
 1. usuário seleciona documentos na tela RAG;
 2. `ChatMessageRouter` chama `AtlasRagService.addExternalDocuments`;
-3. `AtlasExternalDocumentParser` extrai texto;
-4. o texto é normalizado e quebrado em chunks;
-5. `AtlasEmbeddingService` gera vetores;
-6. `AtlasRagRepository` salva fontes no manifesto e chunks na coleção externa.
+3. o serviço verifica o workspace, o tamanho e o formato de cada arquivo;
+4. `AtlasExternalDocumentParser.parseSections` entrega o texto normalizado; para PDF, usa o PDF.js incluído em `pdf-parse` e extrai uma página por vez;
+5. `iterateExternalDocumentChunks` consome essas seções e gera trechos sob demanda com `chunkExternalDocument`;
+6. cada lote de até 16 trechos passa pelo `AtlasEmbeddingService` e é gravado pelo `AtlasRagRepository` na coleção externa antes de continuar a consumir os trechos;
+7. ao terminar o documento, o serviço salva a fonte no manifesto e remove os trechos antigos que deixaram de fazer parte dela.
+
+Os arquivos de uma seleção são processados sequencialmente. Na importação de PDF, a extração da página seguinte aguarda o consumo dos trechos da página atual, incluindo a gravação dos lotes que forem preenchidos. Os recursos de cada página são liberados após a extração, e o documento PDF é encerrado também em caso de erro ou cancelamento.
+
+O chunking dos materiais complementares respeita o tamanho efetivo de `rag.chunkSize`, com mínimo de 300 caracteres, antes de acrescentar o cabeçalho de metadados. Linhas longas são divididas mesmo sem quebras de linha. A sobreposição usa `rag.chunkOverlap`, limitada à metade do tamanho do trecho; em PDFs ela ocorre dentro de cada página, sem atravessar a fronteira entre páginas. Os intervalos de linhas se referem ao texto extraído e normalizado, não à numeração de páginas do livro.
+
+O hash do documento é calculado conforme as seções são consumidas. O serviço mantém os IDs e metadados dos trechos, sem acumular todos os textos e vetores do PDF antes da gravação.
+
+### Memória e limites
+
+O processamento por página se aplica à extração de PDFs usados na importação. Os bytes do arquivo ainda são lidos integralmente com `vscode.workspace.fs.readFile`. Os formatos Office e textuais continuam produzindo o texto completo antes de gerar trechos, embora seus embeddings e gravações também usem lotes.
+
+O limite de tamanho do arquivo não é um teto de RAM: o modelo de embeddings, as estruturas do parser, o texto descompactado, os IDs dos trechos e o ChromaDB também ocupam memória. PDFs sem texto extraível são rejeitados; não há OCR para páginas compostas apenas por imagens.
+
+### Progresso, cancelamento e reimportação
+
+O callback de progresso informa `processedFiles`, `totalFiles`, `currentFile` e, após cada lote salvo, `processedChunks`. A notificação do VS Code mostra quantos trechos já foram indexados, mesmo enquanto um livro ainda está sendo processado.
+
+O cancelamento é cooperativo: há verificações entre páginas e lotes e antes/depois da inferência. Uma inferência em andamento não é interrompida imediatamente. Ao cancelar ou falhar, o serviço tenta excluir em lotes os IDs novos da tentativa, inclusive os de uma gravação que possa ter sido parcialmente concluída, e preserva o registro anterior no manifesto. Se a limpeza falhar, o erro é registrado no log.
+
+Na reimportação, os trechos existentes não são apagados antecipadamente. O manifesto só recebe a nova fonte após todos os lotes terminarem. Em seguida, os IDs obsoletos são removidos; se o modelo mudou, a fonte anterior é removida da coleção do modelo anterior. As gravações ocorrem diretamente na coleção externa e não constituem uma troca atômica de coleção.
+
+O `AtlasRagService` impede iniciar uma indexação de projeto enquanto há importação de materiais complementares ativa, e vice-versa. A operação recusada informa que é necessário aguardar; ela não é enfileirada automaticamente. Essa guarda é distinta da fila compartilhada de inferência descrita abaixo.
+
+### Recuperação
 
 Na recuperação, materiais complementares só entram se:
 
@@ -567,7 +590,11 @@ Isso produz vetores normalizados. O mesmo serviço gera embeddings para:
 - chunks de materiais complementares;
 - pergunta do usuário na recuperação semântica.
 
-Na indexação de projeto, os chunks são processados em lotes de 16.
+O limite de cada chamada ao pipeline é de 16 textos, definido em `AtlasEmbeddingService.batchSize`. O próprio `embedDocuments` divide listas maiores em lotes; a indexação de projetos e a gravação dos materiais complementares também trabalham em lotes de até 16 trechos.
+
+Uma fila compartilhada no serviço serializa as inferências de documentos e perguntas. Cada lote aguarda o anterior, verifica o cancelamento, executa o modelo e converte a saída em vetores. O tensor de saída é liberado com `dispose()` e a fila é liberada em blocos `finally`, inclusive em caso de erro ou cancelamento.
+
+O contrato de `embedDocuments` retorna os vetores de todos os textos recebidos. Por isso, o fluxo de materiais complementares entrega e persiste um lote por vez, em vez de chamar esse método com todos os trechos do documento.
 
 ### Persistência no ChromaDB
 
