@@ -1681,6 +1681,7 @@ textarea {
   align-items: flex-start;
   gap: 10px;
   width: 100%;
+  flex: 0 0 auto;
   min-height: 104px;
   box-sizing: border-box;
   padding: 14px 12px;
@@ -1861,6 +1862,21 @@ textarea {
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+@media (max-width: 360px) {
+  .model-card {
+    gap: 8px;
+    padding: 12px 10px;
+  }
+
+  .model-card-meta {
+    flex-wrap: wrap;
+  }
+
+  .model-card-variant {
+    max-width: 100%;
+  }
 }
 
 .model-list-empty {

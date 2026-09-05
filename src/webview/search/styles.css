@@ -223,6 +223,7 @@ body {
   display: flex;
   align-items: flex-start;
   gap: 10px;
+  flex: 0 0 auto;
   min-height: 116px;
   box-sizing: border-box;
   padding: 14px 12px;
@@ -1518,6 +1519,19 @@ body {
 }
 
 @media (max-width: 460px) {
+  .model-card {
+    gap: 8px;
+    padding: 12px 10px;
+  }
+
+  .model-card-meta {
+    flex-wrap: wrap;
+  }
+
+  .model-card-variant {
+    max-width: 100%;
+  }
+
   .detail-actions {
     align-items: stretch;
     flex-direction: column;
