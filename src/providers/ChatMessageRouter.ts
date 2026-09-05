@@ -1210,8 +1210,11 @@ export class ChatMessageRouter {
               const currentFile = importProgress.currentFile
                 ? ` - ${importProgress.currentFile}`
                 : "";
+              const chunks = importProgress.processedChunks !== undefined
+                ? ` - ${importProgress.processedChunks} trechos indexados`
+                : "";
               progress.report({
-                message: `${importProgress.processedFiles}/${importProgress.totalFiles}${currentFile}`,
+                message: `${importProgress.processedFiles}/${importProgress.totalFiles}${currentFile}${chunks}`,
               });
             },
             activeController.signal,

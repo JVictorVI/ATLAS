@@ -154,6 +154,7 @@ export type RouterDependencies = {
       processedFiles: number;
       totalFiles: number;
       currentFile?: string;
+      processedChunks?: number;
     }) => void | Promise<void>,
     signal?: AbortSignal,
   ) => Promise<RagExternalDocumentImportResult>;

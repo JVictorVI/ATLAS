@@ -56,7 +56,8 @@ function createProjectRow(project) {
   reindexButton.className = "btn btn-outline project-action-button";
   reindexButton.type = "button";
   reindexButton.textContent = "Reindexar";
-  reindexButton.disabled = indexingInProgress;
+  reindexButton.disabled =
+    indexingInProgress || externalDocumentsInProgress;
   reindexButton.addEventListener("click", () => {
     setIndexingState(true);
     vscode.postMessage({
@@ -70,7 +71,7 @@ function createProjectRow(project) {
   deleteButton.className = "btn btn-danger project-action-button";
   deleteButton.type = "button";
   deleteButton.textContent = "Excluir";
-  deleteButton.disabled = indexingInProgress;
+  deleteButton.disabled = indexingInProgress || externalDocumentsInProgress;
   deleteButton.addEventListener("click", () => {
     vscode.postMessage({
       type: "excluirProjetoRag",

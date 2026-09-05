@@ -2,7 +2,26 @@ import * as path from "path";
 import * as vscode from "vscode";
 import JSZip = require("jszip");
 
-const pdfParse = require("pdf-parse/lib/pdf-parse") as typeof import("pdf-parse");
+type PdfPage = {
+  getTextContent(options: {
+    normalizeWhitespace: boolean;
+    disableCombineTextItems: boolean;
+  }): Promise<{
+    items: Array<{ str: string; transform: number[] }>;
+  }>;
+  cleanup(): void;
+};
+
+type PdfRuntime = {
+  disableWorker: boolean;
+  getDocument(bytes: Uint8Array): {
+    promise: Promise<{
+      numPages: number;
+      getPage(page: number): Promise<PdfPage>;
+    }>;
+    destroy(): Promise<void>;
+  };
+};
 
 export interface AtlasParsedExternalDocument {
   displayName: string;
@@ -58,11 +77,15 @@ export class AtlasExternalDocumentParser {
   ): Promise<AtlasParsedExternalDocument> {
     const extension = path.extname(uri.fsPath).toLowerCase();
     const displayName = path.basename(uri.fsPath);
-    const buffer = Buffer.from(bytes);
+    const buffer = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     let content = "";
 
     if (extension === ".pdf") {
-      content = await this.extractPdfText(buffer);
+      const parts: string[] = [];
+      for await (const section of this.parseSections(uri, bytes)) {
+        parts.push(section.content);
+      }
+      content = parts.join("\n\n");
     } else if (extension === ".docx") {
       content = await this.extractDocxText(buffer);
     } else if (extension === ".pptx") {
@@ -89,9 +112,77 @@ export class AtlasExternalDocumentParser {
     };
   }
 
-  private async extractPdfText(buffer: Buffer): Promise<string> {
-    const parsed = await pdfParse(buffer);
-    return parsed.text ?? "";
+  public async *parseSections(
+    uri: vscode.Uri,
+    bytes: Uint8Array,
+    signal?: AbortSignal,
+  ): AsyncGenerator<AtlasParsedExternalDocument> {
+    this.throwIfAborted(signal);
+    if (path.extname(uri.fsPath).toLowerCase() !== ".pdf") {
+      const parsed = await this.parse(uri, bytes);
+      this.throwIfAborted(signal);
+      yield parsed;
+      return;
+    }
+
+    const pdf = require("pdf-parse/lib/pdf.js/v1.10.100/build/pdf.js") as PdfRuntime;
+    pdf.disableWorker = true;
+    const loading = pdf.getDocument(bytes);
+    let hasText = false;
+    try {
+      const document = await loading.promise;
+      for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
+        this.throwIfAborted(signal);
+        const page = await document.getPage(pageNumber);
+        let content: string;
+        try {
+          content = this.normalizeContent(await this.extractPdfPageText(page));
+        } finally {
+          page.cleanup();
+        }
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        this.throwIfAborted(signal);
+        if (content) {
+          hasText = true;
+          yield {
+            displayName: path.basename(uri.fsPath),
+            fileType: "PDF",
+            language: "pdf",
+            content,
+          };
+        }
+      }
+      if (!hasText) {
+        throw new Error("Nenhum texto extraivel foi encontrado no arquivo.");
+      }
+    } finally {
+      await loading.destroy();
+    }
+  }
+
+  private async extractPdfPageText(page: PdfPage): Promise<string> {
+    const text = await page.getTextContent({
+      normalizeWhitespace: false,
+      disableCombineTextItems: false,
+    });
+    const parts: string[] = [];
+    let lastY: number | undefined;
+    for (const item of text.items) {
+      if (lastY !== undefined && lastY !== item.transform[5]) {
+        parts.push("\n");
+      }
+      parts.push(item.str);
+      lastY = item.transform[5];
+    }
+    return parts.join("");
+  }
+
+  private throwIfAborted(signal?: AbortSignal): void {
+    if (signal?.aborted) {
+      const error = new Error("Extração do documento cancelada.");
+      error.name = "AbortError";
+      throw error;
+    }
   }
 
   private async extractDocxText(buffer: Buffer): Promise<string> {

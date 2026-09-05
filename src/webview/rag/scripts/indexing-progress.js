@@ -11,14 +11,14 @@ function setIndexingState(indexing) {
   }
 
   if (addProjectButton) {
-    addProjectButton.disabled = indexing;
+    addProjectButton.disabled = indexing || externalDocumentsInProgress;
     addProjectButton.textContent = indexing
       ? "Indexando..."
       : "Indexar workspace atual";
   }
 
   if (selectFolderButton) {
-    selectFolderButton.disabled = indexing;
+    selectFolderButton.disabled = indexing || externalDocumentsInProgress;
     selectFolderButton.hidden = indexing;
   }
 
@@ -29,8 +29,12 @@ function setIndexingState(indexing) {
   }
 
   document.querySelectorAll(".project-action-button").forEach((button) => {
-    button.disabled = indexing;
+    button.disabled = indexing || externalDocumentsInProgress;
   });
+
+  if (addFileButton) {
+    addFileButton.disabled = indexing || externalDocumentsInProgress;
+  }
 }
 
 function setExternalDocumentsState(loading) {
@@ -48,7 +52,7 @@ function setExternalDocumentsState(loading) {
     return;
   }
 
-  addFileButton.disabled = loading;
+  addFileButton.disabled = loading || indexingInProgress;
   addFileButton.textContent = loading ? "Adicionando..." : "Adicionar arquivos";
   if (clearExternalDocumentsButton) {
     clearExternalDocumentsButton.disabled =
@@ -57,6 +61,18 @@ function setExternalDocumentsState(loading) {
 
   document.querySelectorAll(".document-delete-button").forEach((button) => {
     button.disabled = loading;
+  });
+
+  if (addProjectButton) {
+    addProjectButton.disabled = loading || indexingInProgress;
+  }
+
+  if (selectFolderButton) {
+    selectFolderButton.disabled = loading || indexingInProgress;
+  }
+
+  document.querySelectorAll(".project-action-button").forEach((button) => {
+    button.disabled = loading || indexingInProgress;
   });
 }
 

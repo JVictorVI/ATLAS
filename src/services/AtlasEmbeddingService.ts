@@ -6,6 +6,7 @@ import { AtlasEmbeddingModelDiscoveryService } from "./AtlasEmbeddingModelDiscov
 
 type FeatureExtractionOutput = {
   tolist(): unknown;
+  dispose(): void;
 };
 
 type FeatureExtractionPipeline = (
@@ -19,8 +20,10 @@ type FeatureExtractionPipeline = (
 type EmbeddingDtype = "q8" | "fp32";
 
 export class AtlasEmbeddingService {
+  public static readonly batchSize = 16;
   private pipelinePromise: Promise<FeatureExtractionPipeline> | null = null;
   private pipelineModelPath: string | null = null;
+  private inferenceQueue: Promise<void> = Promise.resolve();
 
   constructor(
     private readonly context: vscode.ExtensionContext,
@@ -36,17 +39,44 @@ export class AtlasEmbeddingService {
       return [];
     }
 
-    this.throwIfAborted(signal);
-    const extractor = await this.getPipeline();
-    this.throwIfAborted(signal);
+    const embeddings: number[][] = [];
+    for (
+      let offset = 0;
+      offset < texts.length;
+      offset += AtlasEmbeddingService.batchSize
+    ) {
+      this.throwIfAborted(signal);
+      const batch = texts.slice(offset, offset + AtlasEmbeddingService.batchSize);
+      embeddings.push(...(await this.embedBatch(batch, signal)));
+    }
+    return embeddings;
+  }
 
-    const output = await extractor(texts, {
-      pooling: "mean",
-      normalize: true,
+  private async embedBatch(
+    texts: string[],
+    signal?: AbortSignal,
+  ): Promise<number[][]> {
+    const previous = this.inferenceQueue;
+    let release!: () => void;
+    this.inferenceQueue = new Promise<void>((resolve) => {
+      release = resolve;
     });
+    await previous;
 
-    this.throwIfAborted(signal);
-    return this.normalizeOutput(output.tolist(), texts.length);
+    try {
+      this.throwIfAborted(signal);
+      const extractor = await this.getPipeline();
+      this.throwIfAborted(signal);
+      const output = await extractor(texts, { pooling: "mean", normalize: true });
+      try {
+        this.throwIfAborted(signal);
+        return this.normalizeOutput(output.tolist(), texts.length);
+      } finally {
+        output.dispose();
+      }
+    } finally {
+      release();
+    }
   }
 
   public async embedQuery(

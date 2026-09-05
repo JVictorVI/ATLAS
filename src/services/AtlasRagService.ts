@@ -21,12 +21,15 @@ import { AtlasRagRepository } from "../repository/AtlasRagRepository";
 import { AtlasChromaService } from "./AtlasChromaService";
 import { AtlasEmbeddingService } from "./AtlasEmbeddingService";
 import { AtlasExternalDocumentParser } from "./AtlasExternalDocumentParser";
+import { chunkExternalDocument } from "../utils/AtlasExternalDocumentChunks";
 
 export class AtlasRagService {
   private readonly watchers = new Map<string, vscode.FileSystemWatcher>();
   private readonly autoIndexTimers = new Map<string, NodeJS.Timeout>();
   private readonly autoIndexChangedFiles = new Map<string, Set<string>>();
   private readonly indexingProjects = new Set<string>();
+  private activeProjectIndexingOperations = 0;
+  private activeExternalIndexingOperations = 0;
   private readonly externalDocumentParser = new AtlasExternalDocumentParser();
   private projectsChangedListener?: (projects: RagProjectIndex[]) => void;
 
@@ -77,6 +80,7 @@ export class AtlasRagService {
       processedFiles: number;
       totalFiles: number;
       currentFile?: string;
+      processedChunks?: number;
     }) => void | Promise<void>,
     signal?: AbortSignal,
   ): Promise<RagExternalDocumentImportResult> {
@@ -88,6 +92,25 @@ export class AtlasRagService {
       };
     }
 
+    const releaseIndexingSlot = this.acquireIndexingSlot("external");
+
+    try {
+      return await this.indexExternalDocuments(uris, onProgress, signal);
+    } finally {
+      releaseIndexingSlot();
+    }
+  }
+
+  private async indexExternalDocuments(
+    uris: vscode.Uri[],
+    onProgress?: (progress: {
+      processedFiles: number;
+      totalFiles: number;
+      currentFile?: string;
+      processedChunks?: number;
+    }) => void | Promise<void>,
+    signal?: AbortSignal,
+  ): Promise<RagExternalDocumentImportResult> {
     const workspaceFolder = this.resolveCurrentWorkspaceFolder();
 
     if (!workspaceFolder) {
@@ -112,7 +135,9 @@ export class AtlasRagService {
       });
 
       try {
-        const prepared = await this.prepareExternalDocument(projectId, uri);
+        const prepared = await this.prepareExternalDocument(
+          projectId, uri, signal,
+        );
         const collectionName =
           prepared.source.collectionName ??
           this.getExternalCollectionName(projectId);
@@ -126,24 +151,69 @@ export class AtlasRagService {
               previousSource.embeddingModel,
             ))
           : undefined;
-        const embeddings = await this.embeddingService.embedDocuments(
-          prepared.chunks.map((chunk) => chunk.content),
-          signal,
+        const previousIds = new Set(
+          previousCollectionName === collectionName
+            ? previousSource?.chunkIds
+            : [],
         );
+        const newChunkIds: string[] = [];
+        let processedChunks = 0;
+        const saveBatch = async (
+          batch: Array<Omit<RagChunkRecord, "embedding">>,
+        ) => {
+          this.throwIfAborted(signal);
+          for (const chunk of batch) {
+            if (!previousIds.has(chunk.chunkId)) {
+              newChunkIds.push(chunk.chunkId);
+            }
+          }
+          await this.upsertChunks(collectionName, batch, signal);
+          this.throwIfAborted(signal);
+          processedChunks += batch.length;
+          await onProgress?.({
+            processedFiles: index,
+            totalFiles: uris.length,
+            currentFile: path.basename(uri.fsPath),
+            processedChunks,
+          });
+          await new Promise<void>((resolve) => setImmediate(resolve));
+        };
 
-        if (!previousSource || previousCollectionName === collectionName) {
-          await this.repository
-            .deleteSource(collectionName, prepared.source.sourceId)
-            .catch(() => undefined);
+        try {
+          let batch: Array<Omit<RagChunkRecord, "embedding">> = [];
+          for await (const chunk of prepared.chunks) {
+            this.throwIfAborted(signal);
+            batch.push(chunk);
+            if (batch.length === AtlasEmbeddingService.batchSize) {
+              await saveBatch(batch);
+              batch = [];
+            }
+          }
+          if (batch.length > 0) {
+            await saveBatch(batch);
+          }
+          this.throwIfAborted(signal);
+          this.repository.saveSources([prepared.source]);
+        } catch (error) {
+          await this.deleteChunksInBatches(collectionName, newChunkIds).catch(
+            (cleanupError) => {
+              console.error(
+                "[ATLAS RAG] Falha ao limpar importação interrompida:",
+                cleanupError,
+              );
+            },
+          );
+          throw error;
         }
 
-        await this.repository.upsertChunks(
-          collectionName,
-          prepared.chunks.map((chunk, chunkIndex) => ({
-            ...chunk,
-            embedding: embeddings[chunkIndex],
-          })),
-        );
+        if (previousSource && previousCollectionName === collectionName) {
+          await this.deleteChunksInBatches(
+            collectionName,
+            this.getStaleChunkIds(previousSource, prepared.source),
+          ).catch((error) => {
+            console.error("[ATLAS RAG] Falha ao remover trechos antigos:", error);
+          });
+        }
 
         if (
           previousSource &&
@@ -155,7 +225,6 @@ export class AtlasRagService {
             .catch(() => undefined);
         }
 
-        this.repository.saveSources([prepared.source]);
         imported.push(this.toExternalDocument(prepared.source));
       } catch (error) {
         if (signal?.aborted) {
@@ -348,6 +417,28 @@ export class AtlasRagService {
   }
 
   private async indexFolder(
+    folderUri: vscode.Uri,
+    folderName: string,
+    onProgress?: (progress: RagIndexingProgress) => void | Promise<void>,
+    signal?: AbortSignal,
+    options?: RagIndexingOptions,
+  ): Promise<RagProjectIndex> {
+    const releaseIndexingSlot = this.acquireIndexingSlot("project");
+
+    try {
+      return await this.performIndexFolder(
+        folderUri,
+        folderName,
+        onProgress,
+        signal,
+        options,
+      );
+    } finally {
+      releaseIndexingSlot();
+    }
+  }
+
+  private async performIndexFolder(
     folderUri: vscode.Uri,
     folderName: string,
     onProgress?: (progress: RagIndexingProgress) => void | Promise<void>,
@@ -824,6 +915,42 @@ export class AtlasRagService {
       : "incremental";
   }
 
+  private acquireIndexingSlot(
+    operation: "project" | "external",
+  ): () => void {
+    if (operation === "project" && this.activeExternalIndexingOperations > 0) {
+      throw new Error(
+        "Aguarde a indexação dos materiais complementares terminar antes de indexar um projeto.",
+      );
+    }
+
+    if (operation === "external" && this.activeProjectIndexingOperations > 0) {
+      throw new Error(
+        "Aguarde a indexação do projeto terminar antes de adicionar materiais complementares.",
+      );
+    }
+
+    if (operation === "project") {
+      this.activeProjectIndexingOperations += 1;
+    } else {
+      this.activeExternalIndexingOperations += 1;
+    }
+
+    let released = false;
+    return () => {
+      if (released) {
+        return;
+      }
+
+      released = true;
+      if (operation === "project") {
+        this.activeProjectIndexingOperations -= 1;
+      } else {
+        this.activeExternalIndexingOperations -= 1;
+      }
+    };
+  }
+
   private async canUseIncrementalIndex(
     previous: RagProjectIndex | null,
     collectionName: string,
@@ -923,18 +1050,23 @@ export class AtlasRagService {
     chunks: Omit<RagChunkRecord, "embedding">[],
     signal?: AbortSignal,
   ): Promise<void> {
-    const embeddings = await this.embeddingService.embedDocuments(
-      chunks.map((chunk) => chunk.content),
-      signal,
-    );
-
-    await this.repository.upsertChunks(
-      collectionName,
-      chunks.map((chunk, index) => ({
-        ...chunk,
-        embedding: embeddings[index],
-      })),
-    );
+    for (
+      let offset = 0;
+      offset < chunks.length;
+      offset += AtlasEmbeddingService.batchSize
+    ) {
+      this.throwIfAborted(signal);
+      const batch = chunks.slice(offset, offset + AtlasEmbeddingService.batchSize);
+      const embeddings = await this.embeddingService.embedDocuments(
+        batch.map((chunk) => chunk.content),
+        signal,
+      );
+      this.throwIfAborted(signal);
+      await this.repository.upsertChunks(
+        collectionName,
+        batch.map((chunk, index) => ({ ...chunk, embedding: embeddings[index] })),
+      );
+    }
   }
 
   public async search(
@@ -1853,10 +1985,12 @@ export class AtlasRagService {
   private async prepareExternalDocument(
     projectId: string,
     uri: vscode.Uri,
+    signal?: AbortSignal,
   ): Promise<{
     source: RagIndexedSource;
-    chunks: Array<Omit<RagChunkRecord, "embedding">>;
+    chunks: AsyncGenerator<Omit<RagChunkRecord, "embedding">>;
   }> {
+    this.throwIfAborted(signal);
     const stat = await vscode.workspace.fs.stat(uri);
     const maxFileSize = this.getExternalDocumentMaxFileSizeBytes();
 
@@ -1876,76 +2010,105 @@ export class AtlasRagService {
       );
     }
 
-    const bytes = await vscode.workspace.fs.readFile(uri);
-    const parsed = await this.externalDocumentParser.parse(uri, bytes);
     const normalizedPath =
       process.platform === "win32" ? uri.fsPath.toLowerCase() : uri.fsPath;
     const sourceId = this.hashText(
       `${projectId}:external:${normalizedPath}`,
     ).slice(0, 32);
-    const contentHash = this.hashText(parsed.content);
     const embeddingModel = this.embeddingService.getModelId();
     const collectionName = this.getExternalCollectionName(
       projectId,
       embeddingModel,
     );
-    const relativePath = `Materiais complementares/${parsed.displayName}`;
-    const chunks = this.chunkContent(
-      parsed.content,
-      this.configManager.getConfig().rag.chunkSize,
-      this.configManager.getConfig().rag.chunkOverlap,
-    ).map((chunk, chunkIndex) => {
-      const chunkHash = this.hashText(chunk.content);
+    const source: RagIndexedSource = {
+      sourceId,
+      projectId,
+      type: "document",
+      relativePath: `Materiais complementares/${path.basename(uri.fsPath)}`,
+      externalDocument: true,
+      absolutePath: uri.fsPath,
+      displayName: path.basename(uri.fsPath),
+      collectionName,
+      embeddingModel,
+      contentHash: "",
+      sizeBytes: stat.size,
+      modifiedAt: new Date(stat.mtime).toISOString(),
+      chunkIds: [],
+    };
+    return {
+      source,
+      chunks: this.iterateExternalDocumentChunks(uri, source, signal),
+    };
+  }
 
-      return {
-        chunkId: this.hashText(`${sourceId}:${chunkIndex}:${chunkHash}`).slice(
-          0,
-          40,
-        ),
-        projectId,
-        sourceId,
-        content: [
-          `Material complementar: ${parsed.displayName}`,
-          `Tipo: ${parsed.fileType}`,
-          `Trecho: ${chunk.startLine}-${chunk.endLine}`,
-          "",
-          chunk.content,
-        ].join("\n"),
-        relativePath,
-        sourceType: "document" as const,
-        externalDocument: true,
-        language: parsed.language,
-        startLine: chunk.startLine,
-        endLine: chunk.endLine,
-        chunkIndex,
-        contentHash: chunkHash,
-      };
-    });
+  private async *iterateExternalDocumentChunks(
+    uri: vscode.Uri,
+    source: RagIndexedSource,
+    signal?: AbortSignal,
+  ): AsyncGenerator<Omit<RagChunkRecord, "embedding">> {
+    this.throwIfAborted(signal);
+    const bytes = await vscode.workspace.fs.readFile(uri);
+    this.throwIfAborted(signal);
+    const settings = this.configManager.getConfig().rag;
+    const hash = crypto.createHash("sha256");
+    let firstLine = 1;
+    let chunkIndex = 0;
 
-    if (chunks.length === 0) {
+    for await (const parsed of this.externalDocumentParser.parseSections(
+      uri, bytes, signal,
+    )) {
+      this.throwIfAborted(signal);
+      source.fileType = parsed.fileType;
+      source.language = parsed.language;
+      if (firstLine > 1) {
+        hash.update("\n\n");
+      }
+      hash.update(parsed.content);
+      for (const chunk of chunkExternalDocument(
+        parsed.content,
+        settings.chunkSize,
+        settings.chunkOverlap,
+        firstLine,
+      )) {
+        this.throwIfAborted(signal);
+        const chunkHash = this.hashText(chunk.content);
+        const chunkId = this.hashText(
+          `${source.sourceId}:${chunkIndex}:${chunkHash}`,
+        ).slice(0, 40);
+        source.chunkIds.push(chunkId);
+        yield {
+          chunkId,
+          projectId: source.projectId,
+          sourceId: source.sourceId,
+          content: [
+            `Material complementar: ${parsed.displayName}`,
+            `Tipo: ${parsed.fileType}`,
+            `Trecho: ${chunk.startLine}-${chunk.endLine}`,
+            "",
+            chunk.content,
+          ].join("\n"),
+          relativePath: source.relativePath,
+          sourceType: "document",
+          externalDocument: true,
+          language: parsed.language,
+          startLine: chunk.startLine,
+          endLine: chunk.endLine,
+          chunkIndex,
+          contentHash: chunkHash,
+        };
+        chunkIndex += 1;
+      }
+      firstLine += 2;
+      for (const character of parsed.content) {
+        if (character === "\n") {
+          firstLine += 1;
+        }
+      }
+    }
+    if (chunkIndex === 0) {
       throw new Error("Nenhum chunk foi gerado para o documento.");
     }
-
-    return {
-      source: {
-        sourceId,
-        projectId,
-        type: "document",
-        relativePath,
-        externalDocument: true,
-        absolutePath: uri.fsPath,
-        displayName: parsed.displayName,
-        fileType: parsed.fileType,
-        collectionName,
-        embeddingModel,
-        language: parsed.language,
-        contentHash,
-        sizeBytes: stat.size,
-        modifiedAt: new Date(stat.mtime).toISOString(),
-        chunkIds: chunks.map((chunk) => chunk.chunkId),
-      },
-      chunks,
-    };
+    source.contentHash = hash.digest("hex");
   }
 
   private toExternalDocument(source: RagIndexedSource): RagExternalDocument {
