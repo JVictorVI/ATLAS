@@ -1,26 +1,30 @@
 import * as fs from "fs";
 import * as path from "path";
+import { Readable } from "stream";
 import * as vscode from "vscode";
 import { AtlasConfigManager } from "../managers/AtlasConfigManager";
 import { AtlasEmbeddingModelDiscoveryService } from "./AtlasEmbeddingModelDiscoveryService";
 
 type FeatureExtractionOutput = {
   tolist(): unknown;
+  dispose(): void;
 };
 
-type FeatureExtractionPipeline = (
+type FeatureExtractionPipeline = ((
   texts: string[],
   options: {
     pooling: "mean";
     normalize: boolean;
   },
-) => Promise<FeatureExtractionOutput>;
+) => Promise<FeatureExtractionOutput>) & { dispose(): Promise<void> };
 
 type EmbeddingDtype = "q8" | "fp32";
 
 export class AtlasEmbeddingService {
+  public static readonly batchSize = 8;
   private pipelinePromise: Promise<FeatureExtractionPipeline> | null = null;
   private pipelineModelPath: string | null = null;
+  private operationQueue: Promise<void> = Promise.resolve();
 
   constructor(
     private readonly context: vscode.ExtensionContext,
@@ -36,17 +40,52 @@ export class AtlasEmbeddingService {
       return [];
     }
 
-    this.throwIfAborted(signal);
-    const extractor = await this.getPipeline();
-    this.throwIfAborted(signal);
+    return this.runExclusive(async () => {
+      this.throwIfAborted(signal);
+      const extractor = await this.getPipeline();
+      const embeddings: number[][] = [];
 
-    const output = await extractor(texts, {
-      pooling: "mean",
-      normalize: true,
+      for (let offset = 0; offset < texts.length; offset += AtlasEmbeddingService.batchSize) {
+        this.throwIfAborted(signal);
+        const batch = texts.slice(offset, offset + AtlasEmbeddingService.batchSize);
+        const output = await extractor(batch, {
+          pooling: "mean",
+          normalize: true,
+        });
+
+        try {
+          this.throwIfAborted(signal);
+          embeddings.push(...this.normalizeOutput(output.tolist(), batch.length));
+        } finally {
+          output.dispose();
+        }
+      }
+
+      return embeddings;
     });
+  }
 
-    this.throwIfAborted(signal);
-    return this.normalizeOutput(output.tolist(), texts.length);
+  public async dispose(): Promise<void> {
+    await this.runExclusive(() => this.releasePipeline());
+  }
+
+  private runExclusive<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.operationQueue.then(operation);
+    this.operationQueue = result.then(() => undefined, () => undefined);
+    return result;
+  }
+
+  private async releasePipeline(): Promise<void> {
+    const pending = this.pipelinePromise;
+    this.pipelinePromise = null;
+    this.pipelineModelPath = null;
+
+    const pipeline = await pending?.catch(() => null);
+    if (pipeline) {
+      await pipeline.dispose().catch((error) => {
+        console.warn("[ATLAS RAG] Falha ao liberar o modelo de embeddings:", error);
+      });
+    }
   }
 
   public async embedQuery(
@@ -75,8 +114,7 @@ export class AtlasEmbeddingService {
     const modelPath = this.getModelPath();
 
     if (this.pipelineModelPath !== modelPath) {
-      this.pipelinePromise = null;
-      this.pipelineModelPath = null;
+      await this.releasePipeline();
     }
 
     if (!this.pipelinePromise) {
@@ -111,16 +149,49 @@ export class AtlasEmbeddingService {
     transformers.env.allowLocalModels = true;
     transformers.env.localModelPath = path.dirname(modelPath);
 
-    const extractor = await transformers.pipeline(
-      "feature-extraction",
-      modelPath.replace(/\\/g, "/"),
-      {
-        local_files_only: true,
-        dtype,
-      },
-    );
+    const previousCache = transformers.env.customCache;
+    const previousUseCustomCache = transformers.env.useCustomCache;
+    const previousUseFSCache = transformers.env.useFSCache;
+    transformers.env.useCustomCache = true;
+    transformers.env.useFSCache = false;
+    transformers.env.customCache = {
+      match: (request: string) => this.readLocalModelFile(modelPath, request),
+      put: async () => {},
+    };
 
-    return extractor as unknown as FeatureExtractionPipeline;
+    try {
+      const extractor = await transformers.pipeline(
+        "feature-extraction",
+        modelPath.replace(/\\/g, "/"),
+        { local_files_only: true, dtype },
+      );
+      return extractor as unknown as FeatureExtractionPipeline;
+    } finally {
+      transformers.env.customCache = previousCache;
+      transformers.env.useCustomCache = previousUseCustomCache;
+      transformers.env.useFSCache = previousUseFSCache;
+    }
+  }
+
+  private async readLocalModelFile(
+    modelPath: string,
+    request: string,
+  ): Promise<Response | undefined> {
+    if (typeof request !== "string" || !path.isAbsolute(request)) {
+      return undefined;
+    }
+    const relativePath = path.relative(modelPath, request);
+    if (relativePath.startsWith(`..${path.sep}`) || relativePath === ".." || path.isAbsolute(relativePath)) {
+      return undefined;
+    }
+    const stat = await fs.promises.stat(request).catch(() => null);
+    if (!stat?.isFile()) {
+      return undefined;
+    }
+    return new Response(
+      Readable.toWeb(fs.createReadStream(request)) as ReadableStream<Uint8Array>,
+      { headers: { "Content-Length": String(stat.size) } },
+    );
   }
 
   private resolveEmbeddingDtype(modelPath: string): EmbeddingDtype {

@@ -2,7 +2,21 @@ import * as path from "path";
 import * as vscode from "vscode";
 import JSZip = require("jszip");
 
-const pdfParse = require("pdf-parse/lib/pdf-parse") as typeof import("pdf-parse");
+interface PdfPage {
+  getTextContent(options: {
+    normalizeWhitespace: boolean;
+    disableCombineTextItems: boolean;
+  }): Promise<{ items: Array<{ str: string; transform: number[] }> }>;
+  cleanup(): void;
+}
+
+const pdfJs = require("pdf-parse/lib/pdf.js/v1.10.100/build/pdf.js") as {
+  disableWorker: boolean;
+  getDocument(bytes: Uint8Array): {
+    promise: Promise<{ numPages: number; getPage(page: number): Promise<PdfPage> }>;
+    destroy(): Promise<void>;
+  };
+};
 
 export interface AtlasParsedExternalDocument {
   displayName: string;
@@ -55,14 +69,16 @@ export class AtlasExternalDocumentParser {
   public async parse(
     uri: vscode.Uri,
     bytes: Uint8Array,
+    signal?: AbortSignal,
   ): Promise<AtlasParsedExternalDocument> {
+    this.throwIfAborted(signal);
     const extension = path.extname(uri.fsPath).toLowerCase();
     const displayName = path.basename(uri.fsPath);
-    const buffer = Buffer.from(bytes);
+    const buffer = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     let content = "";
 
     if (extension === ".pdf") {
-      content = await this.extractPdfText(buffer);
+      content = await this.extractPdfText(buffer, signal);
     } else if (extension === ".docx") {
       content = await this.extractDocxText(buffer);
     } else if (extension === ".pptx") {
@@ -75,6 +91,7 @@ export class AtlasExternalDocumentParser {
       throw new Error(`Tipo de arquivo nao suportado: ${extension || "sem extensao"}.`);
     }
 
+    this.throwIfAborted(signal);
     const normalized = this.normalizeContent(content);
 
     if (!normalized) {
@@ -89,9 +106,50 @@ export class AtlasExternalDocumentParser {
     };
   }
 
-  private async extractPdfText(buffer: Buffer): Promise<string> {
-    const parsed = await pdfParse(buffer);
-    return parsed.text ?? "";
+  private async extractPdfText(buffer: Buffer, signal?: AbortSignal): Promise<string> {
+    pdfJs.disableWorker = true;
+    const loadingTask = pdfJs.getDocument(buffer);
+
+    try {
+      const document = await loadingTask.promise;
+      const parts: string[] = [];
+
+      for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
+        this.throwIfAborted(signal);
+        const page = await document.getPage(pageNumber);
+
+        try {
+          const text = await page.getTextContent({
+            normalizeWhitespace: false,
+            disableCombineTextItems: false,
+          });
+          this.throwIfAborted(signal);
+          let lastY: number | undefined;
+          const lines: string[] = [];
+
+          for (const item of text.items) {
+            lines.push(lastY === item.transform[5] || !lastY ? item.str : `\n${item.str}`);
+            lastY = item.transform[5];
+          }
+
+          parts.push(lines.join(""));
+        } finally {
+          page.cleanup();
+        }
+      }
+
+      return parts.join("\n\n");
+    } finally {
+      await loadingTask.destroy();
+    }
+  }
+
+  private throwIfAborted(signal?: AbortSignal): void {
+    if (signal?.aborted) {
+      const error = new Error("Leitura do documento cancelada.");
+      error.name = "AbortError";
+      throw error;
+    }
   }
 
   private async extractDocxText(buffer: Buffer): Promise<string> {
@@ -333,9 +391,7 @@ export class AtlasExternalDocumentParser {
     return content
       .replace(/\u0000/g, "")
       .replace(/\r\n?/g, "\n")
-      .split("\n")
-      .map((line) => line.replace(/[ \t]+$/g, ""))
-      .join("\n")
+      .replace(/[ \t]+$/gm, "")
       .replace(/\n{3,}/g, "\n\n")
       .trim();
   }

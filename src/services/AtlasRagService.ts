@@ -102,87 +102,94 @@ export class AtlasRagService {
     const imported: RagExternalDocument[] = [];
     const skipped: Array<{ path: string; reason: string }> = [];
 
-    for (let index = 0; index < uris.length; index += 1) {
-      this.throwIfAborted(signal);
-      const uri = uris[index];
-      await onProgress?.({
-        processedFiles: index,
-        totalFiles: uris.length,
-        currentFile: path.basename(uri.fsPath),
-      });
+    try {
+      for (let index = 0; index < uris.length; index += 1) {
+        this.throwIfAborted(signal);
+        const uri = uris[index];
+        await onProgress?.({
+          processedFiles: index,
+          totalFiles: uris.length,
+          currentFile: path.basename(uri.fsPath),
+        });
 
-      try {
-        const prepared = await this.prepareExternalDocument(projectId, uri);
-        const collectionName =
-          prepared.source.collectionName ??
-          this.getExternalCollectionName(projectId);
-        const previousSource = this.repository.getSource(
-          prepared.source.sourceId,
-        );
-        const previousCollectionName = previousSource
-          ? (previousSource.collectionName ??
-            this.getExternalCollectionName(
-              previousSource.projectId,
-              previousSource.embeddingModel,
-            ))
-          : undefined;
-        const embeddings = await this.embeddingService.embedDocuments(
-          prepared.chunks.map((chunk) => chunk.content),
-          signal,
-        );
+        try {
+          const prepared = await this.prepareExternalDocument(projectId, uri, signal);
+          const collectionName =
+            prepared.source.collectionName ??
+            this.getExternalCollectionName(projectId);
+          const previousSource = this.repository.getSource(
+            prepared.source.sourceId,
+          );
+          const previousCollectionName = previousSource
+            ? (previousSource.collectionName ??
+              this.getExternalCollectionName(
+                previousSource.projectId,
+                previousSource.embeddingModel,
+              ))
+            : undefined;
+          const previousChunkIds = new Set(
+            previousCollectionName === collectionName ? previousSource?.chunkIds : [],
+          );
 
-        if (!previousSource || previousCollectionName === collectionName) {
-          await this.repository
-            .deleteSource(collectionName, prepared.source.sourceId)
-            .catch(() => undefined);
+          try {
+            await this.embedAndUpsertChunks(collectionName, prepared.chunks, signal);
+            this.throwIfAborted(signal);
+          } catch (error) {
+            await this.deleteChunksInBatches(
+              collectionName,
+              prepared.source.chunkIds.filter((id) => !previousChunkIds.has(id)),
+            );
+            throw error;
+          }
+
+          if (previousSource && previousCollectionName === collectionName) {
+            await this.deleteChunksInBatches(
+              collectionName,
+              this.getStaleChunkIds(previousSource, prepared.source),
+            );
+          }
+
+          if (
+            previousSource &&
+            previousCollectionName &&
+            previousCollectionName !== collectionName
+          ) {
+            await this.repository
+              .deleteSource(previousCollectionName, previousSource.sourceId)
+              .catch(() => undefined);
+          }
+
+          this.repository.saveSources([prepared.source]);
+          imported.push(this.toExternalDocument(prepared.source));
+        } catch (error) {
+          if (signal?.aborted) {
+            throw error;
+          }
+
+          skipped.push({
+            path: uri.fsPath,
+            reason:
+              error instanceof Error
+                ? error.message
+                : "Falha ao processar o documento.",
+          });
         }
 
-        await this.repository.upsertChunks(
-          collectionName,
-          prepared.chunks.map((chunk, chunkIndex) => ({
-            ...chunk,
-            embedding: embeddings[chunkIndex],
-          })),
-        );
-
-        if (
-          previousSource &&
-          previousCollectionName &&
-          previousCollectionName !== collectionName
-        ) {
-          await this.repository
-            .deleteSource(previousCollectionName, previousSource.sourceId)
-            .catch(() => undefined);
-        }
-
-        this.repository.saveSources([prepared.source]);
-        imported.push(this.toExternalDocument(prepared.source));
-      } catch (error) {
-        if (signal?.aborted) {
-          throw error;
-        }
-
-        skipped.push({
-          path: uri.fsPath,
-          reason:
-            error instanceof Error
-              ? error.message
-              : "Falha ao processar o documento.",
+        await onProgress?.({
+          processedFiles: index + 1,
+          totalFiles: uris.length,
+          currentFile: path.basename(uri.fsPath),
         });
       }
 
-      await onProgress?.({
-        processedFiles: index + 1,
-        totalFiles: uris.length,
-        currentFile: path.basename(uri.fsPath),
-      });
+      return {
+        documents: this.repository.listExternalDocuments(projectId),
+        imported,
+        skipped,
+      };
+    } finally {
+      await this.embeddingService.dispose();
     }
-
-    return {
-      documents: this.repository.listExternalDocuments(projectId),
-      imported,
-      skipped,
-    };
   }
 
   public async deleteExternalDocument(
@@ -417,7 +424,8 @@ export class AtlasRagService {
       });
 
       const sources: RagIndexedSource[] = [];
-      const chunks: Array<Omit<RagChunkRecord, "embedding">> = [];
+      let chunkCount = 0;
+      let embeddingDimensions = 0;
 
       for (let index = 0; index < files.length; index += 1) {
         this.throwIfAborted(signal);
@@ -426,7 +434,25 @@ export class AtlasRagService {
 
         if (prepared) {
           sources.push(prepared.source);
-          chunks.push(...prepared.chunks);
+          const dimensions = await this.embedAndUpsertChunks(
+            stagingCollectionName,
+            prepared.chunks,
+            signal,
+            async (processedChunks) => {
+              await onProgress?.({
+                projectId,
+                phase: "embedding",
+                mode: "full",
+                processedFiles: index,
+                totalFiles: files.length,
+                processedChunks: chunkCount + processedChunks,
+                totalChunks: chunkCount + prepared.chunks.length,
+                currentFile: vscode.workspace.asRelativePath(file, false),
+              });
+            },
+          );
+          embeddingDimensions = dimensions || embeddingDimensions;
+          chunkCount += prepared.chunks.length;
         }
 
         await onProgress?.({
@@ -435,48 +461,16 @@ export class AtlasRagService {
           mode: "full",
           processedFiles: index + 1,
           totalFiles: files.length,
-          processedChunks: chunks.length,
-          totalChunks: chunks.length,
+          processedChunks: chunkCount,
+          totalChunks: chunkCount,
           currentFile: vscode.workspace.asRelativePath(file, false),
         });
       }
 
-      if (chunks.length === 0) {
+      if (chunkCount === 0) {
         throw new Error(
           "Nenhum arquivo textual elegível foi encontrado para indexação.",
         );
-      }
-
-      const batchSize = 16;
-      let embeddingDimensions = 0;
-
-      for (let offset = 0; offset < chunks.length; offset += batchSize) {
-        this.throwIfAborted(signal);
-        const batch = chunks.slice(offset, offset + batchSize);
-        const embeddings = await this.embeddingService.embedDocuments(
-          batch.map((chunk) => chunk.content),
-          signal,
-        );
-
-        embeddingDimensions = embeddingDimensions || embeddings[0]?.length || 0;
-
-        await this.repository.upsertChunks(
-          stagingCollectionName,
-          batch.map((chunk, index) => ({
-            ...chunk,
-            embedding: embeddings[index],
-          })),
-        );
-
-        await onProgress?.({
-          projectId,
-          phase: "embedding",
-          mode: "full",
-          processedFiles: files.length,
-          totalFiles: files.length,
-          processedChunks: Math.min(offset + batch.length, chunks.length),
-          totalChunks: chunks.length,
-        });
       }
 
       await onProgress?.({
@@ -485,10 +479,11 @@ export class AtlasRagService {
         mode: "full",
         processedFiles: files.length,
         totalFiles: files.length,
-        processedChunks: chunks.length,
-        totalChunks: chunks.length,
+        processedChunks: chunkCount,
+        totalChunks: chunkCount,
       });
 
+      this.throwIfAborted(signal);
       await this.repository.replaceCollection(
         stagingCollectionName,
         collectionName,
@@ -499,10 +494,10 @@ export class AtlasRagService {
         status: "ready",
         embeddingDimensions,
         sourceCount: sources.length,
-        chunkCount: chunks.length,
+        chunkCount,
         sizeBytes:
           sources.reduce((total, source) => total + source.sizeBytes, 0) +
-          chunks.length * embeddingDimensions * Float32Array.BYTES_PER_ELEMENT,
+          chunkCount * embeddingDimensions * Float32Array.BYTES_PER_ELEMENT,
         updatedAt: new Date().toISOString(),
         errorMessage: undefined,
       };
@@ -517,8 +512,8 @@ export class AtlasRagService {
         mode: "full",
         processedFiles: files.length,
         totalFiles: files.length,
-        processedChunks: chunks.length,
-        totalChunks: chunks.length,
+        processedChunks: chunkCount,
+        totalChunks: chunkCount,
       });
 
       return project;
@@ -561,6 +556,7 @@ export class AtlasRagService {
       throw error;
     } finally {
       this.indexingProjects.delete(projectId);
+      await this.embeddingService.dispose();
     }
   }
 
@@ -592,6 +588,7 @@ export class AtlasRagService {
     this.indexingProjects.add(projectId);
     this.emitProjectsChanged();
 
+    const newChunkIds = new Set<string>();
     try {
       const files = await this.scanFolder(folderUri, signal);
       await onProgress?.({
@@ -613,7 +610,8 @@ export class AtlasRagService {
           .map((source) => [source.relativePath, source]),
       );
       const nextSources: RagIndexedSource[] = [];
-      const chunksToUpsert: Array<Omit<RagChunkRecord, "embedding">> = [];
+      let processedChunkCount = 0;
+      let embeddingDimensions = previous.embeddingDimensions;
       const staleChunkIds = new Set<string>();
       let changedFiles = 0;
       let skippedFiles = 0;
@@ -643,8 +641,8 @@ export class AtlasRagService {
             mode: "incremental",
             processedFiles: index + 1,
             totalFiles: files.length,
-            processedChunks: chunksToUpsert.length,
-            totalChunks: chunksToUpsert.length,
+            processedChunks: processedChunkCount,
+            totalChunks: processedChunkCount,
             changedFiles,
             skippedFiles,
             deletedFiles,
@@ -670,8 +668,35 @@ export class AtlasRagService {
           }
 
           nextSources.push(prepared.source);
-          chunksToUpsert.push(...prepared.chunks);
           changedFiles += 1;
+          const previousChunkIds = new Set(previousSource?.chunkIds);
+          for (const id of prepared.source.chunkIds) {
+            if (!previousChunkIds.has(id)) {
+              newChunkIds.add(id);
+            }
+          }
+          const dimensions = await this.embedAndUpsertChunks(
+            collectionName,
+            prepared.chunks,
+            signal,
+            async (processedChunks) => {
+              await onProgress?.({
+                projectId,
+                phase: "embedding",
+                mode: "incremental",
+                processedFiles: index,
+                totalFiles: files.length,
+                processedChunks: processedChunkCount + processedChunks,
+                totalChunks: processedChunkCount + prepared.chunks.length,
+                changedFiles,
+                skippedFiles,
+                deletedFiles,
+                currentFile: vscode.workspace.asRelativePath(file, false),
+              });
+            },
+          );
+          embeddingDimensions = dimensions || embeddingDimensions;
+          processedChunkCount += prepared.chunks.length;
         }
 
         await onProgress?.({
@@ -680,8 +705,8 @@ export class AtlasRagService {
           mode: "incremental",
           processedFiles: index + 1,
           totalFiles: files.length,
-          processedChunks: chunksToUpsert.length,
-          totalChunks: chunksToUpsert.length,
+          processedChunks: processedChunkCount,
+          totalChunks: processedChunkCount,
           changedFiles,
           skippedFiles,
           deletedFiles,
@@ -694,48 +719,6 @@ export class AtlasRagService {
         deletedFiles += 1;
       }
 
-      const batchSize = 16;
-      let embeddingDimensions = previous.embeddingDimensions;
-
-      for (
-        let offset = 0;
-        offset < chunksToUpsert.length;
-        offset += batchSize
-      ) {
-        this.throwIfAborted(signal);
-        const batch = chunksToUpsert.slice(offset, offset + batchSize);
-        const embeddings = await this.embeddingService.embedDocuments(
-          batch.map((chunk) => chunk.content),
-          signal,
-        );
-
-        embeddingDimensions = embeddings[0]?.length || embeddingDimensions;
-
-        await this.repository.upsertChunks(
-          collectionName,
-          batch.map((chunk, index) => ({
-            ...chunk,
-            embedding: embeddings[index],
-          })),
-        );
-
-        await onProgress?.({
-          projectId,
-          phase: "embedding",
-          mode: "incremental",
-          processedFiles: files.length,
-          totalFiles: files.length,
-          processedChunks: Math.min(
-            offset + batch.length,
-            chunksToUpsert.length,
-          ),
-          totalChunks: chunksToUpsert.length,
-          changedFiles,
-          skippedFiles,
-          deletedFiles,
-        });
-      }
-
       const staleChunkIdsList = Array.from(staleChunkIds);
       await onProgress?.({
         projectId,
@@ -743,17 +726,17 @@ export class AtlasRagService {
         mode: "incremental",
         processedFiles: files.length,
         totalFiles: files.length,
-        processedChunks: chunksToUpsert.length,
-        totalChunks: chunksToUpsert.length,
+        processedChunks: processedChunkCount,
+        totalChunks: processedChunkCount,
         changedFiles,
         skippedFiles,
         deletedFiles,
       });
 
+      this.throwIfAborted(signal);
       await this.deleteChunksInBatches(
         collectionName,
         staleChunkIdsList,
-        signal,
       );
 
       project = {
@@ -772,6 +755,7 @@ export class AtlasRagService {
       };
       this.repository.replaceProjectSources(projectId, nextSources);
       this.repository.saveProject(project);
+      newChunkIds.clear();
       this.refreshProjectWatchers();
       this.emitProjectsChanged();
 
@@ -781,8 +765,8 @@ export class AtlasRagService {
         mode: "incremental",
         processedFiles: files.length,
         totalFiles: files.length,
-        processedChunks: chunksToUpsert.length,
-        totalChunks: chunksToUpsert.length,
+        processedChunks: processedChunkCount,
+        totalChunks: processedChunkCount,
         changedFiles,
         skippedFiles,
         deletedFiles,
@@ -790,6 +774,7 @@ export class AtlasRagService {
 
       return project;
     } catch (error) {
+      await this.deleteChunksInBatches(collectionName, Array.from(newChunkIds));
       if (error instanceof Error && error.name === "AbortError") {
         this.repository.saveProject(previous);
         this.emitProjectsChanged();
@@ -811,7 +796,36 @@ export class AtlasRagService {
       throw error;
     } finally {
       this.indexingProjects.delete(projectId);
+      await this.embeddingService.dispose();
     }
+  }
+
+  private async embedAndUpsertChunks(
+    collectionName: string,
+    chunks: Array<Omit<RagChunkRecord, "embedding">>,
+    signal?: AbortSignal,
+    onBatch?: (processedChunks: number) => void | Promise<void>,
+  ): Promise<number> {
+    const batchSize = AtlasEmbeddingService.batchSize;
+    let dimensions = 0;
+
+    for (let offset = 0; offset < chunks.length; offset += batchSize) {
+      this.throwIfAborted(signal);
+      const batch = chunks.slice(offset, offset + batchSize);
+      const embeddings = await this.embeddingService.embedDocuments(
+        batch.map((chunk) => chunk.content),
+        signal,
+      );
+      this.throwIfAborted(signal);
+      dimensions = embeddings[0]?.length || dimensions;
+      await this.repository.upsertChunks(
+        collectionName,
+        batch.map((chunk, index) => ({ ...chunk, embedding: embeddings[index] })),
+      );
+      await onBatch?.(offset + batch.length);
+    }
+
+    return dimensions;
   }
 
   private resolveIndexingMode(mode?: RagIndexingMode): RagIndexingMode {
@@ -845,7 +859,7 @@ export class AtlasRagService {
     const settings = this.configManager.getConfig().rag;
     return this.hashText(
       JSON.stringify({
-        indexerVersion: "rag-project-index-v2",
+        indexerVersion: "rag-project-index-v3",
         embeddingModel: this.embeddingService.getModelId(),
         chunkSize: settings.chunkSize,
         chunkOverlap: settings.chunkOverlap,
@@ -1359,6 +1373,8 @@ export class AtlasRagService {
       clearTimeout(timer);
     }
     this.autoIndexTimers.clear();
+    this.autoIndexChangedFiles.clear();
+    void this.embeddingService.dispose();
     this.chromaService.stop();
   }
 
@@ -1853,6 +1869,7 @@ export class AtlasRagService {
   private async prepareExternalDocument(
     projectId: string,
     uri: vscode.Uri,
+    signal?: AbortSignal,
   ): Promise<{
     source: RagIndexedSource;
     chunks: Array<Omit<RagChunkRecord, "embedding">>;
@@ -1877,7 +1894,7 @@ export class AtlasRagService {
     }
 
     const bytes = await vscode.workspace.fs.readFile(uri);
-    const parsed = await this.externalDocumentParser.parse(uri, bytes);
+    const parsed = await this.externalDocumentParser.parse(uri, bytes, signal);
     const normalizedPath =
       process.platform === "win32" ? uri.fsPath.toLowerCase() : uri.fsPath;
     const sourceId = this.hashText(
@@ -1898,7 +1915,7 @@ export class AtlasRagService {
       const chunkHash = this.hashText(chunk.content);
 
       return {
-        chunkId: this.hashText(`${sourceId}:${chunkIndex}:${chunkHash}`).slice(
+        chunkId: this.hashText(`${sourceId}:${contentHash}:${chunkIndex}:${chunkHash}`).slice(
           0,
           40,
         ),
@@ -1993,6 +2010,21 @@ export class AtlasRagService {
     let startIndex = 0;
 
     while (startIndex < lines.length) {
+      if (lines[startIndex].length > chunkSize) {
+        const line = lines[startIndex];
+        for (let offset = 0; offset < line.length; offset += chunkSize - overlap) {
+          const text = line.slice(offset, offset + chunkSize).trim();
+          if (text) {
+            chunks.push({ content: text, startLine: startIndex + 1, endLine: startIndex + 1 });
+          }
+          if (offset + chunkSize >= line.length) {
+            break;
+          }
+        }
+        startIndex += 1;
+        continue;
+      }
+
       let endIndex = startIndex;
       let currentSize = 0;
 

@@ -109,19 +109,18 @@ function updateIndexingProgress(progress) {
     label = isIncremental ? "Comparando arquivos" : "Analisando arquivos";
     details = `${totalFiles} ${totalFiles === 1 ? "arquivo encontrado" : "arquivos encontrados"}`;
   } else if (phase === "chunking") {
-    label = isIncremental ? "Preparando alterações" : "Preparando chunks";
+    label = isIncremental ? "Indexando alterações" : "Indexando arquivos";
     percentage = calculatePercentage(processedFiles, totalFiles);
     const remainingFiles = Math.max(0, totalFiles - processedFiles);
     details = isIncremental
       ? `${changedFiles} alterados/novos - ${deletedFiles} removidos - ${skippedFiles} sem alterações`
-      : `${processedChunks} chunks preparados • ${remainingFiles} ${remainingFiles === 1 ? "arquivo restante" : "arquivos restantes"}`;
+      : `${processedChunks} chunks indexados • ${remainingFiles} ${remainingFiles === 1 ? "arquivo restante" : "arquivos restantes"}`;
   } else if (phase === "embedding") {
     label = isIncremental
       ? "Gerando embeddings incrementais"
       : "Gerando embeddings";
-    percentage = calculatePercentage(processedChunks, totalChunks);
-    const remainingChunks = Math.max(0, totalChunks - processedChunks);
-    details = `${processedChunks} de ${totalChunks} chunks processados • ${remainingChunks} restantes`;
+    percentage = calculatePercentage(processedFiles, totalFiles);
+    details = `${processedChunks} chunks processados • ${processedFiles} de ${totalFiles} arquivos concluídos`;
   } else if (phase === "saving") {
     label = isIncremental ? "Aplicando alterações" : "Salvando base vetorial";
     percentage = 100;
