@@ -53,8 +53,8 @@
   }
 
   function setEmptyStateMessage(message) {
-    if (refs.emptyState) {
-      refs.emptyState.textContent = message;
+    if (refs.emptyStateMessage) {
+      refs.emptyStateMessage.textContent = message;
     }
   }
 

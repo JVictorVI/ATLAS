@@ -117,11 +117,15 @@ function renderSidebar() {
         </button>
         ${renderDownloadsToggleButton()}
       </form>
-      <div class="model-filter-bar" aria-label="Filtro de tipo de modelo">
-        ${renderModelFilterButton("all", "Ambos")}
-        ${renderModelFilterButton("llm", "LLM")}
-        ${renderModelFilterButton("embedding", "Embeddings")}
-      </div>
+      ${
+        state.downloadsPanelOpen
+          ? ""
+          : `<div class="model-filter-bar" aria-label="Filtro de tipo de modelo">
+              ${renderModelFilterButton("all", "Ambos")}
+              ${renderModelFilterButton("llm", "LLM")}
+              ${renderModelFilterButton("embedding", "Embeddings")}
+            </div>`
+      }
       ${
         state.downloadsPanelOpen
           ? renderDownloadsPanel()

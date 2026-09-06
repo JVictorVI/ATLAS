@@ -131,6 +131,9 @@ export class ChatMessageRouter {
       case "abrirPainelConfig":
         this.deps.openPanel(data.selectedView);
         return;
+      case "abrirRepositorioNoPainelLateral":
+        await this.deps.openSidebarRepository(false);
+        return;
       case "abrirDetalhesModelo":
         this.deps.openSearchModelDetails(data.modelId);
         return;
@@ -2299,6 +2302,7 @@ export class ChatMessageRouter {
       const downloadResult = await this.deps.downloadHuggingFaceModel(
         modelId,
         fileName,
+        modelName,
         (progress) => {
           const isFirstUpdate = activeDownloadContext.state === "preparando";
 
@@ -2336,11 +2340,14 @@ export class ChatMessageRouter {
       await this.sendHuggingFaceDownloadStatus();
 
       this.deps.sendModelsToWebview(webview);
-      vscode.window.showInformationMessage(
-        downloadResult.format === "ONNX"
-          ? `Modelo de embeddings baixado para ${path.basename(downloadResult.targetPath)}.`
-          : `Modelo GGUF baixado para ${path.basename(downloadResult.targetPath)}.`,
+      const action = await vscode.window.showInformationMessage(
+        `Download de ${modelName} concluído.`,
+        "Ver downloads",
       );
+
+      if (action === "Ver downloads") {
+        await this.deps.openSidebarRepository(true);
+      }
     } catch (error) {
       if (downloadContext) {
         this.activeHuggingFaceDownloads.delete(

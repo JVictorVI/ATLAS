@@ -3,6 +3,7 @@
     libraryPage: document.getElementById("library-page"),
     libraryLoading: document.getElementById("library-loading"),
     emptyState: document.getElementById("empty-state"),
+    emptyStateMessage: document.getElementById("empty-state-message"),
     modelDetails: document.getElementById("model-details"),
     modelPicker: document.getElementById("model-picker"),
     modelSelectButton: document.getElementById("model-select-button"),
@@ -30,7 +31,7 @@
     vscode: acquireVsCodeApi(),
     refs,
     defaultEmptyStateMessage:
-      refs.emptyState?.textContent?.replace(/\s+/g, " ").trim() ||
+      refs.emptyStateMessage?.textContent?.replace(/\s+/g, " ").trim() ||
       "Nenhum modelo encontrado.",
     state: {
       currentGpuSliderModel: null,

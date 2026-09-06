@@ -124,9 +124,11 @@ export type RouterDependencies = {
   downloadHuggingFaceModel: (
     modelId: string,
     fileName: string,
+    modelName: string,
     onProgress?: (progress: HuggingFaceDownloadProgress) => void,
     signal?: AbortSignal,
   ) => Promise<{ targetPath: string; format: "GGUF" | "ONNX" }>;
+  openSidebarRepository: (showDownloads?: boolean) => Promise<void>;
   refreshRagEmbeddingModels: () => RagEmbeddingModelInfo[];
   getRagEmbeddingModelsDir: () => string;
   downloadDefaultRagEmbeddingModel: (

@@ -266,6 +266,16 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         this.panelManager.openSearchModelDetails(modelId);
       },
 
+      openSidebarRepository: async (showDownloads = false) => {
+        await vscode.commands.executeCommand(
+          `${ChatViewProvider.viewType}.focus`,
+        );
+        await this._view?.webview.postMessage({
+          type: "mostrarRepositorioHuggingFace",
+          showDownloads,
+        });
+      },
+
       sendModelsToWebview: (webview: vscode.Webview) => {
         this.modelWebviewService.sendModelsToWebview(webview);
       },
@@ -425,13 +435,14 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       downloadHuggingFaceModel: async (
         modelId: string,
         fileName: string,
+        modelName: string,
         onProgress?: (progress: HuggingFaceDownloadProgress) => void,
         signal?: AbortSignal,
       ) => {
         return await vscode.window.withProgress(
           {
             location: vscode.ProgressLocation.Notification,
-            title: `ATLAS: baixando ${fileName}`,
+            title: `ATLAS: baixando ${modelName}`,
             cancellable: true,
           },
           async (progress, token) => {
@@ -1014,22 +1025,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private formatHuggingFaceDownloadProgress(
     progress: HuggingFaceDownloadProgress,
   ): string {
-    const percent = `${progress.percent}%`;
-    const fileCounter =
-      progress.totalFiles > 1
-        ? `${progress.fileIndex}/${progress.totalFiles}`
-        : "";
-    const fileName = path.basename(progress.fileName.replace(/\\/g, "/"));
-    const totalLabel =
-      progress.totalBytes > 0
-        ? `${this.formatBytes(progress.downloadedBytes)} de ${this.formatBytes(
-            progress.totalBytes,
-          )}`
-        : "";
-
-    return [percent, fileCounter, fileName, totalLabel]
-      .filter(Boolean)
-      .join(" · ");
+    return `${progress.percent}%`;
   }
 
   private isKnownLocalModelDownloadTarget(fileName: string): boolean {
@@ -1045,25 +1041,6 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         (model) =>
           model.path && path.resolve(model.path) === expectedPath,
       );
-  }
-
-  private formatBytes(bytes: number): string {
-    if (!Number.isFinite(bytes) || bytes <= 0) {
-      return "0 B";
-    }
-
-    const units = ["B", "KB", "MB", "GB", "TB"];
-    let value = bytes;
-    let unitIndex = 0;
-
-    while (value >= 1024 && unitIndex < units.length - 1) {
-      value /= 1024;
-      unitIndex += 1;
-    }
-
-    return `${value.toFixed(value >= 10 || unitIndex === 0 ? 0 : 1)} ${
-      units[unitIndex]
-    }`;
   }
 
   public dispose(): void {

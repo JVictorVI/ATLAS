@@ -1581,6 +1581,7 @@ textarea {
   display: contents;
 }
 
+.model-filter-bar[hidden],
 .search-results-info[hidden],
 .model-list[hidden] {
   display: none;

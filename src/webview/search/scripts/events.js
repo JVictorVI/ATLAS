@@ -13,6 +13,7 @@ function bindSearchForm() {
     ?.addEventListener("submit", (event) => {
       event.preventDefault();
       const input = document.getElementById("model-search");
+      state.downloadsPanelOpen = false;
       searchModels(input?.value || "");
     });
 }

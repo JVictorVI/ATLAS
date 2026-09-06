@@ -42,6 +42,36 @@
   }
 
   function setupButtons() {
+    ui.getById("btn-browse-models")?.addEventListener("click", () => {
+      vscode.postMessage({ type: "abrirRepositorioNoPainelLateral" });
+    });
+
+    ui.getById("btn-refresh-library")?.addEventListener("click", () => {
+      const button = ui.getById("btn-refresh-library");
+      const label = button?.querySelector("span");
+      const originalLabel = label?.textContent || "Atualizar biblioteca";
+
+      if (button) {
+        button.disabled = true;
+      }
+
+      if (label) {
+        label.textContent = "Atualizando...";
+      }
+
+      app.models.requestModels();
+
+      window.setTimeout(() => {
+        if (button) {
+          button.disabled = false;
+        }
+
+        if (label) {
+          label.textContent = originalLabel;
+        }
+      }, 1200);
+    });
+
     ui.getById("btn-save-params")?.addEventListener("click", () => {
       if (!state.selectedModelId) {
         return;

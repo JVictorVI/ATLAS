@@ -29,10 +29,45 @@
         </div>
       </header>
 
-      <div id="empty-state" class="empty-state hidden">
-        Nenhum modelo encontrado. Configure uma pasta de modelos nas
-        "Configurações Gerais" ou baixe modelos pela seção de pesquisa do ATLAS
-      </div>
+      <section
+        id="empty-state"
+        class="empty-state hidden"
+        role="status"
+        aria-live="polite"
+      >
+        <div class="empty-state-icon" aria-hidden="true">
+          <i class="codicon codicon-library"></i>
+        </div>
+        <div class="empty-state-content">
+          <span class="empty-state-eyebrow">BIBLIOTECA VAZIA</span>
+          <h2>Adicione seu primeiro modelo local</h2>
+          <p id="empty-state-message">
+            Os modelos instalados aparecerão aqui para você ajustar o desempenho
+            e o comportamento de cada um.
+          </p>
+          <div class="empty-state-actions">
+            <button class="btn-primary" id="btn-browse-models" type="button">
+              <i class="codicon codicon-search" aria-hidden="true"></i>
+              <span>Explorar repositório de modelos</span>
+            </button>
+            <button
+              class="btn-secondary"
+              id="btn-refresh-library"
+              type="button"
+            >
+              <i class="codicon codicon-refresh" aria-hidden="true"></i>
+              <span>Atualizar biblioteca</span>
+            </button>
+          </div>
+          <div class="empty-state-hint">
+            <i class="codicon codicon-info" aria-hidden="true"></i>
+            <span
+              >Você também pode adicionar arquivos GGUF à pasta de modelos
+              configurada no ATLAS.</span
+            >
+          </div>
+        </div>
+      </section>
 
       <div id="model-details" class="hidden">
         <section class="content-section header-actions">

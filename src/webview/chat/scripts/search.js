@@ -280,6 +280,8 @@ function bindSearchModelEvents() {
     .getElementById("model-search-form")
     ?.addEventListener("submit", (event) => {
       event.preventDefault();
+      downloadsState.panelOpen = false;
+      updateDownloadsUi();
       requestSearchModels(modelSearch?.value || "");
     });
 
@@ -917,6 +919,11 @@ function updateDownloadsUi() {
 
   const resultsInfo = document.getElementById("search-results-info");
   const modelList = document.getElementById("model-list");
+  const filterBar = document.getElementById("model-filter-bar");
+
+  if (filterBar) {
+    filterBar.hidden = downloadsState.panelOpen;
+  }
 
   if (resultsInfo) {
     resultsInfo.hidden = downloadsState.panelOpen;
@@ -976,7 +983,7 @@ function renderSearchView() {
           </button>
           <span id="downloads-toggle-slot">${renderDownloadsToggle()}</span>
         </form>
-        <div class="model-filter-bar" aria-label="Filtro de tipo de modelo">
+        <div class="model-filter-bar" id="model-filter-bar" aria-label="Filtro de tipo de modelo" ${downloadsState.panelOpen ? "hidden" : ""}>
           <button class="model-filter-button ${searchModelState.modelFilter === "all" ? "active" : ""}" type="button" data-model-filter="all">Ambos</button>
           <button class="model-filter-button ${searchModelState.modelFilter === "llm" ? "active" : ""}" type="button" data-model-filter="llm">LLM</button>
           <button class="model-filter-button ${searchModelState.modelFilter === "embedding" ? "active" : ""}" type="button" data-model-filter="embedding">Embeddings</button>

@@ -130,12 +130,15 @@ export interface HuggingFaceModelSearchResult {
 
 export class HuggingFaceModelService {
   private readonly baseUrl = "https://huggingface.co";
+  private readonly orphanedDownloadsCleanup: Promise<void>;
 
   constructor(
     private readonly getModelsDir: () => string,
     private readonly getApiToken?: () => Promise<string | undefined>,
     private readonly getEmbeddingModelsDir?: () => string,
-  ) {}
+  ) {
+    this.orphanedDownloadsCleanup = this.cleanupOrphanedDownloads();
+  }
 
   public async searchModels(
     query: string,
@@ -265,6 +268,7 @@ export class HuggingFaceModelService {
     onProgress?: (progress: HuggingFaceDownloadProgress) => void,
     signal?: AbortSignal,
   ): Promise<string> {
+    await this.orphanedDownloadsCleanup;
     const compatibilityError = getAtlasGgufCompatibilityError(fileName);
 
     if (compatibilityError) {
@@ -324,7 +328,7 @@ export class HuggingFaceModelService {
       await this.replaceFile(partialPath, targetPath);
       return targetPath;
     } catch (error) {
-      this.deletePartialDownload(partialPath);
+      await this.deletePartialDownload(partialPath);
 
       if (signal?.aborted || axios.isCancel(error)) {
         throw new Error("Download cancelado.");
@@ -356,6 +360,7 @@ export class HuggingFaceModelService {
     onProgress?: (progress: HuggingFaceDownloadProgress) => void,
     signal?: AbortSignal,
   ): Promise<string> {
+    await this.orphanedDownloadsCleanup;
     if (!this.isRunnableOnnxFile(fileName)) {
       throw new Error("Apenas arquivos ONNX de embeddings podem ser baixados.");
     }
@@ -472,7 +477,7 @@ export class HuggingFaceModelService {
       await fs.promises.rename(stagingDir, modelDir);
       return modelDir;
     } catch (error) {
-      this.deletePartialDownload(stagingDir);
+      await this.deletePartialDownload(stagingDir);
 
       if (signal?.aborted || axios.isCancel(error)) {
         throw new Error("Download cancelado.");
@@ -535,14 +540,65 @@ export class HuggingFaceModelService {
     return error instanceof Error ? error : new Error(fallback);
   }
 
-  private deletePartialDownload(targetPath: string): void {
+  private async deletePartialDownload(targetPath: string): Promise<void> {
     try {
-      if (fs.existsSync(targetPath)) {
-        fs.rmSync(targetPath, { force: true, recursive: true });
-      }
+      await fs.promises.rm(targetPath, {
+        force: true,
+        recursive: true,
+        maxRetries: 5,
+        retryDelay: 150,
+      });
     } catch (error) {
       console.warn(
         `[ATLAS HuggingFace] Nao foi possivel remover download parcial: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
+  private async cleanupOrphanedDownloads(): Promise<void> {
+    const partialPaths: string[] = [];
+
+    try {
+      const modelsDir = this.getModelsDir();
+
+      if (fs.existsSync(modelsDir)) {
+        const entries = await fs.promises.readdir(modelsDir, {
+          withFileTypes: true,
+        });
+
+        partialPaths.push(
+          ...entries
+            .filter((entry) => entry.isFile() && entry.name.endsWith(".part"))
+            .map((entry) => path.join(modelsDir, entry.name)),
+        );
+      }
+
+      const embeddingModelsDir = this.getEmbeddingModelsDir?.();
+
+      if (embeddingModelsDir && fs.existsSync(embeddingModelsDir)) {
+        const entries = await fs.promises.readdir(embeddingModelsDir, {
+          withFileTypes: true,
+        });
+
+        partialPaths.push(
+          ...entries
+            .filter(
+              (entry) => entry.isDirectory() && entry.name.endsWith(".download"),
+            )
+            .map((entry) => path.join(embeddingModelsDir, entry.name)),
+        );
+      }
+
+      await Promise.all(
+        partialPaths.map((partialPath) =>
+          this.deletePartialDownload(partialPath),
+        ),
+      );
+    } catch (error) {
+      console.warn(
+        `[ATLAS HuggingFace] Nao foi possivel limpar downloads parciais antigos: ${
           error instanceof Error ? error.message : String(error)
         }`,
       );
@@ -686,28 +742,29 @@ export class HuggingFaceModelService {
     onProgress?: (progress: FileDownloadProgress) => void,
   ): Promise<number> {
     const partialPath = `${targetPath}.part`;
-    const response = await axios.get(
-      `${this.baseUrl}/${this.encodeRepoId(modelId)}/resolve/main/${this.encodeRepoPath(relativePath)}`,
-      {
-        headers: await this.buildHeaders(),
-        responseType: "stream",
-        signal,
-        timeout: 30000,
-      },
-    );
-    const responseSize = Number(response.headers["content-length"]) || 0;
-    const sizeToValidate = expectedSize || responseSize;
-    let downloadedBytes = 0;
-    const progressStream = this.createProgressTransform((chunkBytes) => {
-      downloadedBytes += chunkBytes;
-      onProgress?.({
-        downloadedBytes,
-        totalBytes: sizeToValidate,
-      });
-    });
 
     try {
       await this.removePath(partialPath);
+      const response = await axios.get(
+        `${this.baseUrl}/${this.encodeRepoId(modelId)}/resolve/main/${this.encodeRepoPath(relativePath)}`,
+        {
+          headers: await this.buildHeaders(),
+          responseType: "stream",
+          signal,
+          timeout: 30000,
+        },
+      );
+      const responseSize = Number(response.headers["content-length"]) || 0;
+      const sizeToValidate = expectedSize || responseSize;
+      let downloadedBytes = 0;
+      const progressStream = this.createProgressTransform((chunkBytes) => {
+        downloadedBytes += chunkBytes;
+        onProgress?.({
+          downloadedBytes,
+          totalBytes: sizeToValidate,
+        });
+      });
+
       await pipeline(
         response.data,
         progressStream,
@@ -717,7 +774,7 @@ export class HuggingFaceModelService {
       await this.replaceFile(partialPath, targetPath);
       return downloadedBytes || fs.statSync(targetPath).size;
     } catch (error) {
-      this.deletePartialDownload(partialPath);
+      await this.deletePartialDownload(partialPath);
       throw error;
     }
   }

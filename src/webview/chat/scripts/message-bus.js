@@ -191,6 +191,15 @@ window.addEventListener("message", (event) => {
       break;
     }
 
+    case "mostrarRepositorioHuggingFace": {
+      downloadsState.panelOpen = message.showDownloads === true;
+      renderSearchView();
+      hideSessionsButton();
+      closeSessionsSidebar();
+      updateActiveTab("search-btn");
+      break;
+    }
+
     case "fimResposta": {
       clearGenerationForMessage(message);
 
