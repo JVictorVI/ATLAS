@@ -10,6 +10,9 @@ import { AtlasConfigManager } from "../managers/AtlasConfigManager";
 import { AtlasModelConfig } from "../interfaces/AtlasConfigTypes";
 import { ATLAS_LOCAL_MODEL_DEFAULTS } from "./AtlasLocalModelDefaults";
 import { getAtlasStoragePath } from "../utils/AtlasStoragePaths";
+import { AtlasRuntimeDiagnostics } from "../utils/AtlasRuntimeDiagnostics";
+import { logAtlasRuntimeError } from "./AtlasRuntimeLog";
+import { getAtlasNativeLaunch } from "../utils/AtlasNativeRuntime";
 
 type LocalEngineStartOptions = {
   reason?: "parameter-update";
@@ -98,39 +101,64 @@ export class AtlasLocalEngineService {
         : `Inicializando a engine ${engineSettings.engineType.toUpperCase()}`,
     );
 
-    this.process = spawn(executable, args, {
+    const diagnostics = new AtlasRuntimeDiagnostics();
+    const launch = getAtlasNativeLaunch(this.context.extensionPath, executable, args);
+    const child = spawn(launch.command, launch.args, {
       cwd: path.dirname(executable),
       windowsHide: true,
     });
+    this.process = child;
     this.runningModelId = model.id;
     this.runningEngineType = engineSettings.engineType;
     this.runningExecutablePath = executable;
     this.startupError = null;
 
-    this.process.stdout.on("data", (chunk) => {
+    child.stdout.on("data", (chunk) => {
+      diagnostics.append(chunk);
       console.log(`[ATLAS local engine] ${chunk.toString().trim()}`);
     });
 
-    this.process.stderr.on("data", (chunk) => {
+    child.stderr.on("data", (chunk) => {
+      diagnostics.append(chunk);
       console.warn(`[ATLAS local engine] ${chunk.toString().trim()}`);
     });
 
-    this.process.on("error", (error) => {
-      this.startupError = error;
+    child.on("error", (error) => {
+      if (this.process !== child) {
+        return;
+      }
+      this.startupError = diagnostics.failure(`Não foi possível iniciar ${executable}.`, error.message);
+      logAtlasRuntimeError("Engine local", this.startupError);
       this.process = null;
       this.runningModelId = null;
       this.runningEngineType = null;
       this.runningExecutablePath = null;
     });
 
-    this.process.on("exit", () => {
+    // close runs after stdout/stderr have drained, so the loader error is retained.
+    child.on("close", (code, signal) => {
+      if (this.process !== child) {
+        return;
+      }
+      this.startupError = diagnostics.failure(
+        `A engine local encerrou ${signal ? `com o sinal ${signal}` : `com o código ${code}`}.`,
+      );
+      logAtlasRuntimeError("Engine local", this.startupError);
       this.process = null;
       this.runningModelId = null;
       this.runningEngineType = null;
       this.runningExecutablePath = null;
     });
 
-    await this.waitUntilReady();
+    try {
+      await this.waitUntilReady(child);
+    } catch (error) {
+      if (this.process === child) {
+        this.stopEngine();
+      }
+      logAtlasRuntimeError("Engine local", error instanceof Error ? error : new Error(String(error)));
+      throw error;
+    }
     if (isParameterUpdate) {
       console.info(
         "[ATLAS local engine] Novos parâmetros aplicados; engine local pronta.",
@@ -185,11 +213,11 @@ export class AtlasLocalEngineService {
     const configured = this.getConfiguredLlamaServerPath(model);
     const engineFolder = this.getEngineFolder(engineSettings.engineType);
     const enginesDir = this.getEnginesDir();
+    const executableName = process.platform === "win32" ? "llama-server.exe" : "llama-server";
 
     const candidates = [
       configured,
-      path.join(enginesDir, engineFolder, "llama-server.exe"),
-      path.join(enginesDir, engineFolder, "llama-server"),
+      path.join(enginesDir, engineFolder, executableName),
     ].filter(Boolean);
 
     for (const candidate of candidates) {
@@ -205,8 +233,7 @@ export class AtlasLocalEngineService {
     }
 
     const fallbackCandidates = [
-      path.join(enginesDir, "bin", "llama-server.exe"),
-      path.join(enginesDir, "bin", "llama-server"),
+      path.join(enginesDir, "bin", executableName),
     ];
 
     for (const candidate of fallbackCandidates) {
@@ -367,19 +394,17 @@ export class AtlasLocalEngineService {
     }
   }
 
-  private async waitUntilReady(): Promise<void> {
+  private async waitUntilReady(child: ChildProcessWithoutNullStreams): Promise<void> {
     const deadline = Date.now() + 30000;
     const healthUrl = `http://${this.host}:${this.port}/health`;
     const modelsUrl = `http://${this.host}:${this.port}/v1/models`;
 
     while (Date.now() < deadline) {
       if (this.startupError) {
-        throw new Error(
-          `Não foi possível iniciar o llama-server. Configure o binário em custom.localEngine.llamaServerPath ou coloque-o na pasta de engines configurada. Detalhes: ${this.startupError.message}`,
-        );
+        throw this.startupError;
       }
 
-      if (!this.process) {
+      if (this.process !== child) {
         throw new Error("A engine local encerrou antes de ficar pronta.");
       }
 
@@ -387,7 +412,9 @@ export class AtlasLocalEngineService {
         (await this.canFetch(healthUrl)) ||
         (await this.canFetch(modelsUrl))
       ) {
-        return;
+        if (this.process === child && child.exitCode === null && child.signalCode === null) {
+          return;
+        }
       }
 
       await new Promise((resolve) => setTimeout(resolve, 500));
@@ -400,7 +427,7 @@ export class AtlasLocalEngineService {
 
   private async canFetch(url: string): Promise<boolean> {
     try {
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: AbortSignal.timeout(2000) });
       return response.ok;
     } catch {
       return false;

@@ -370,6 +370,53 @@ Depois de instalar o VSIX:
 
 ## Falhas comuns
 
+### WSL e devcontainers Ubuntu
+
+Instale o VSIX Linux correspondente à arquitetura no ambiente remoto. A extensão
+declara `extensionKind: ["workspace"]` para executar os serviços junto do workspace.
+
+O binding ChromaDB Linux x64 1.3.4 exige GLIBC 2.39. O VSIX agora inclui essa
+GLIBC com seu carregador ELF, além de libstdc++, libgcc, libgomp e OpenSSL 3 em
+`resources/linux-runtime/<target>/`. Assim, os serviços usam as bibliotecas
+distribuídas com o ATLAS mesmo quando o WSL/container possui bibliotecas antigas
+ou não tem `libgomp1`/OpenSSL 3 instalados.
+
+`npm run package` prepara o runtime automaticamente. A preparação também pode
+ser executada por `npm run prepare-linux-runtime -- --target linux-x64` ou
+`linux-arm64`, inclusive no Windows (requer tar com suporte a zstd/xz).
+Os pacotes Ubuntu têm versão/hash fixados em `scripts/linux-runtime-packages.mjs`;
+o build verifica o SHA-256, a arquitetura ELF e a presença das bibliotecas e
+licenças. O cache é revalidado por hash. Nenhum pacote é instalado no sistema.
+
+`AtlasNativeRuntime` usa `resources/linux-runtime/launch.cjs` para iniciar apenas
+os processos filhos pelo carregador privado, com `--library-path`. Não altera
+`process.env.LD_LIBRARY_PATH` nem tenta carregar outra GLIBC dentro do Extension
+Host. O launcher restaura o bit de execução do carregador caso a instalação do
+VSIX gerado no Windows não o preserve. O empacotamento exclui runtimes de outros
+targets, preservando os arquivos locais para futuros builds.
+
+Não é necessário atualizar a base Ubuntu nem executar apt para corrigir essas
+dependências dos dois serviços. O ambiente ainda deve suportar o próprio VS Code
+Server e permitir execução na pasta da extensão. GPU requer drivers/bibliotecas
+CUDA/Vulkan compatíveis no ambiente; Alpine/musl não é um target validado.
+
+O runtime privado precisa ser atualizado em novos releases do ATLAS quando os
+pacotes de origem receberem correções. As origens e licenças acompanham o VSIX.
+
+Na versão final, execute **ATLAS: Mostrar logs** na paleta de comandos ou abra
+**Exibir > Saída > ATLAS**. O canal registra somente erros importantes, sem
+repetir o mesmo erro e sem despejar dados do ambiente ou a saída dos processos.
+As falhas exibidas na interface apresentam as linhas relevantes e sugerem a
+correção quando reconhecida. Os logs de console anteriores à correção Linux
+continuam disponíveis no Extension Host.
+`npm run test-native-startup` valida a captura de erros e novas tentativas.
+
+`node scripts/test-packaged-chroma.mjs atlas-linux-x64.vsix` valida os arquivos
+extraídos do pacote, hashes, restauração de permissões, GLIBC/C++ efetivamente
+carregados, heartbeat e consulta vetorial. Execute esse teste no Linux do target.
+Para validar também a engine com geração, acrescente os caminhos do executável
+llama-server e de um GGUF como terceiro e quarto argumentos da linha de comando.
+
 | Sintoma | Causa provável | Ação |
 | --- | --- | --- |
 | `Runtime ChromaDB não encontrado` | Binding nativo não foi copiado para `resources/chroma/<platform>-<arch>/`. | Rodar `npm run prepare-rag-runtime` e conferir a plataforma alvo. |

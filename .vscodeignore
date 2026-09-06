@@ -15,6 +15,7 @@ engine/**
 docs/**
 models/**
 atlas.vsix
+*.vsix
 install-atlas.bat
 install-atlas.ps1
 package-vsix.bat

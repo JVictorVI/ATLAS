@@ -9,5 +9,6 @@ models/*.gguf
 models/**/*.gguf
 engine/
 resources/chroma/*/chromadb-binding.node
+resources/linux-runtime/linux-*/
 resources/embeddings/atlas-embedding/
 resources/embedding-runtime/node_modules/

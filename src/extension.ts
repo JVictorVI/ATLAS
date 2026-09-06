@@ -1,7 +1,9 @@
 import * as vscode from "vscode";
 import { ChatViewProvider } from "./providers/ChatViewProvider";
+import { initializeAtlasRuntimeLog } from "./services/AtlasRuntimeLog";
 
 export function activate(context: vscode.ExtensionContext) {
+  initializeAtlasRuntimeLog(context);
   const provider = new ChatViewProvider(context);
 
   context.subscriptions.push(

@@ -148,6 +148,13 @@ Se CUDA/Vulkan forem selecionados e a pasta esperada não existir, o serviço la
 
 ## Inicialização
 
+No Linux, o `llama-server` é iniciado pelo carregador privado de
+`resources/linux-runtime/<target>/`, com GLIBC, C++, OpenMP e OpenSSL incluídos
+no VSIX. Isso evita depender da versão dessas bibliotecas no WSL/devcontainer.
+O processo principal do VS Code mantém seu próprio runtime. Consulte o
+[processo de empacotamento](processo-build-empacotamento-distribuicao-atlas.md)
+para preparação, atualizações e validação desse runtime.
+
 `LocalApiService.sendChat` chama:
 
 ```text

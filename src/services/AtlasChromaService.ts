@@ -5,6 +5,9 @@ import * as vscode from "vscode";
 import { ChildProcess, spawn } from "child_process";
 import { ChromaClient } from "chromadb";
 import { RagRuntimeStatus } from "../interfaces/AtlasRagTypes";
+import { AtlasRuntimeDiagnostics } from "../utils/AtlasRuntimeDiagnostics";
+import { logAtlasRuntimeError } from "./AtlasRuntimeLog";
+import { getAtlasNativeLaunch } from "../utils/AtlasNativeRuntime";
 
 export class AtlasChromaService {
   private process: ChildProcess | null = null;
@@ -36,6 +39,10 @@ export class AtlasChromaService {
 
     try {
       return await this.startupPromise;
+    } catch (error) {
+      this.startupError = error instanceof Error ? error : new Error(String(error));
+      logAtlasRuntimeError("ChromaDB", this.startupError);
+      throw this.startupError;
     } finally {
       this.startupPromise = null;
     }
@@ -87,7 +94,9 @@ export class AtlasChromaService {
     this.port = await this.findAvailablePort();
     this.startupError = null;
 
-    this.process = spawn(
+    const diagnostics = new AtlasRuntimeDiagnostics();
+    const launch = getAtlasNativeLaunch(
+      this.context.extensionPath,
       process.execPath,
       [
         runnerPath,
@@ -99,6 +108,10 @@ export class AtlasChromaService {
         "--path",
         this.dataPath,
       ],
+    );
+    const child = spawn(
+      launch.command,
+      launch.args,
       {
         cwd: path.dirname(runnerPath),
         env: {
@@ -110,26 +123,35 @@ export class AtlasChromaService {
         windowsHide: true,
       },
     );
+    this.process = child;
 
-    this.process.stdout?.on("data", (chunk) => {
+    child.stdout?.on("data", (chunk) => {
+      diagnostics.append(chunk);
       console.log(`[ATLAS ChromaDB] ${chunk.toString().trim()}`);
     });
 
-    this.process.stderr?.on("data", (chunk) => {
+    child.stderr?.on("data", (chunk) => {
+      diagnostics.append(chunk);
       console.warn(`[ATLAS ChromaDB] ${chunk.toString().trim()}`);
     });
 
-    this.process.on("error", (error) => {
-      this.startupError = error;
+    child.on("error", (error) => {
+      if (this.process !== child) {
+        return;
+      }
+      this.startupError = diagnostics.failure("Não foi possível iniciar o ChromaDB.", error.message);
+      logAtlasRuntimeError("ChromaDB", this.startupError);
       this.clearStoppedProcess();
     });
 
-    this.process.on("exit", (code) => {
-      if (code && code !== 0 && !this.startupError) {
-        this.startupError = new Error(
-          `O ChromaDB encerrou com o código ${code}.`,
-        );
+    child.on("close", (code, signal) => {
+      if (this.process !== child) {
+        return;
       }
+      this.startupError = diagnostics.failure(
+        `O ChromaDB encerrou ${signal ? `com o sinal ${signal}` : `com o código ${code}`}.`,
+      );
+      logAtlasRuntimeError("ChromaDB", this.startupError);
 
       this.clearStoppedProcess();
     });
@@ -140,7 +162,7 @@ export class AtlasChromaService {
       ssl: false,
     });
 
-    await this.waitUntilReady(client);
+    await this.waitUntilReady(client, child);
     this.client = client;
     return client;
   }
@@ -184,7 +206,7 @@ export class AtlasChromaService {
     return packages[key] ?? null;
   }
 
-  private async waitUntilReady(client: ChromaClient): Promise<void> {
+  private async waitUntilReady(client: ChromaClient, child: ChildProcess): Promise<void> {
     const deadline = Date.now() + 30000;
 
     while (Date.now() < deadline) {
@@ -192,19 +214,23 @@ export class AtlasChromaService {
         throw this.startupError;
       }
 
-      if (!this.process) {
+      if (this.process !== child) {
         throw new Error("O ChromaDB encerrou antes de ficar pronto.");
       }
 
       try {
         await client.heartbeat();
-        return;
+        if (this.process === child && child.exitCode === null && child.signalCode === null) {
+          return;
+        }
       } catch {
         await new Promise((resolve) => setTimeout(resolve, 400));
       }
     }
 
-    this.stop();
+    if (this.process === child) {
+      this.stop();
+    }
     throw new Error("O ChromaDB não ficou pronto dentro de 30 segundos.");
   }
 

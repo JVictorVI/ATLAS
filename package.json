@@ -20,6 +20,7 @@
     "onCommand:atlas.baixarEngineAi"
   ],
   "main": "./dist/extension.js",
+  "extensionKind": ["workspace"],
   "contributes": {
     "viewsContainers": {
       "activitybar": [
@@ -41,6 +42,10 @@
     },
     "commands": [
       {
+        "command": "atlas.mostrarLogs",
+        "title": "ATLAS: Mostrar logs"
+      },
+      {
         "command": "atlas.baixarEngineAi",
         "title": "ATLAS: Baixar engine local automaticamente"
       }
@@ -53,11 +58,13 @@
     "watch:esbuild": "node esbuild.js --watch",
     "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
     "prepare-rag-runtime": "node scripts/copy-chroma-runtime.mjs",
+    "prepare-linux-runtime": "node scripts/prepare-linux-runtime.mjs",
     "prepare-embedding-model": "node scripts/download-embedding-model.mjs",
     "prepare-embedding-runtime": "node scripts/prepare-embedding-runtime.mjs",
     "test-rag-runtime": "npm run prepare-rag-runtime && node scripts/test-chroma-runtime.mjs",
+    "test-native-startup": "node scripts/test-native-startup.mjs",
     "test-rag-semantic": "npm run prepare-rag-runtime && npm run prepare-embedding-model && node scripts/test-rag-semantic.mjs",
-    "package": "npm run prepare-rag-runtime && npm run prepare-embedding-model && npm run prepare-embedding-runtime && npm run check-types && npm run lint && node esbuild.js --production",
+    "package": "npm run prepare-rag-runtime && npm run prepare-linux-runtime && npm run prepare-embedding-model && npm run prepare-embedding-runtime && npm run check-types && npm run lint && node esbuild.js --production",
     "vsix": "node scripts/package-vsix.mjs win32-x64",
     "vsix:win32-x64": "node scripts/package-vsix.mjs win32-x64",
     "vsix:linux-x64": "node scripts/package-vsix.mjs linux-x64",
