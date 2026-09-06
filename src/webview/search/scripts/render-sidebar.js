@@ -115,17 +115,24 @@ function renderSidebar() {
         <button class="search-submit" type="submit" title="Pesquisar">
           <i class="codicon codicon-search"></i>
         </button>
+        ${renderDownloadsToggleButton()}
       </form>
       <div class="model-filter-bar" aria-label="Filtro de tipo de modelo">
         ${renderModelFilterButton("all", "Ambos")}
         ${renderModelFilterButton("llm", "LLM")}
         ${renderModelFilterButton("embedding", "Embeddings")}
       </div>
-      ${renderSearchResultsInfo(visibleModels)}
-      <div class="model-list" id="model-list">
-        ${renderModelList(paginatedModels)}
-        ${renderModelPagination()}
-      </div>
+      ${
+        state.downloadsPanelOpen
+          ? renderDownloadsPanel()
+          : `
+            ${renderSearchResultsInfo(visibleModels)}
+            <div class="model-list" id="model-list">
+              ${renderModelList(paginatedModels)}
+              ${renderModelPagination()}
+            </div>
+          `
+      }
     </aside>
   `;
 }

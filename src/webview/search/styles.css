@@ -152,6 +152,294 @@ body {
   );
 }
 
+.downloads-toggle-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 32px;
+  flex-shrink: 0;
+  border: 1px solid var(--atlas-border);
+  border-radius: 4px;
+  color: var(--vscode-foreground);
+  background: var(--atlas-subtle-background);
+  cursor: pointer;
+}
+
+.downloads-toggle-button:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.downloads-toggle-button.active {
+  border-color: var(--atlas-accent-foreground);
+  color: var(--atlas-accent-foreground);
+}
+
+.downloads-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  padding: 0 4px;
+  color: var(--atlas-kicker-foreground);
+  background: var(--atlas-kicker-background);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.downloads-badge-inline {
+  position: static;
+}
+
+.downloads-panel {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.downloads-panel-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--atlas-border);
+  color: var(--vscode-descriptionForeground);
+  background: var(--atlas-subtle-background);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.downloads-panel-heading span:not(.downloads-badge) {
+  flex: 1;
+}
+
+.downloads-list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.downloads-empty {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px;
+  color: var(--vscode-descriptionForeground);
+  text-align: center;
+  font-size: 12px;
+}
+
+.downloads-empty i {
+  color: var(--atlas-accent-foreground);
+  font-size: 24px;
+}
+
+.download-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--atlas-border);
+}
+
+.download-card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.download-kind-pill {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--atlas-border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.download-card.embedding-model .download-kind-pill {
+  border-color: color-mix(
+    in srgb,
+    var(--atlas-embedding-foreground) 55%,
+    var(--atlas-border)
+  );
+  color: var(--atlas-embedding-foreground);
+  background: var(--atlas-embedding-background);
+}
+
+.download-card.generation-model .download-kind-pill {
+  border-color: color-mix(
+    in srgb,
+    var(--atlas-generation-foreground) 50%,
+    var(--atlas-border)
+  );
+  color: var(--atlas-generation-foreground);
+  background: var(--atlas-generation-background);
+}
+
+.download-card-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.download-card-percent {
+  flex: 0 0 auto;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.download-progress-track {
+  position: relative;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--vscode-input-background);
+}
+
+.download-progress-bar {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--vscode-progressBar-background);
+  transition: width 180ms ease-out;
+}
+
+.download-card-meta {
+  display: flex;
+  min-width: 0;
+}
+
+.download-card-file {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--vscode-descriptionForeground);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.download-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.download-card-status {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.download-status-baixando,
+.download-status-preparando,
+.download-status-concluido {
+  color: var(--atlas-compat-good);
+}
+
+.download-status-cancelando,
+.download-status-cancelado {
+  color: var(--vscode-descriptionForeground);
+}
+
+.download-status-erro {
+  color: var(--vscode-errorForeground, var(--atlas-compat-danger));
+}
+
+.download-card-bytes {
+  flex: 1;
+  overflow: hidden;
+  color: var(--vscode-descriptionForeground);
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+}
+
+.download-cancel-button {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  border: 1px solid var(--vscode-inputValidation-errorBorder, #f14c4c);
+  border-radius: 4px;
+  padding: 0 8px;
+  background: transparent;
+  color: var(--vscode-inputValidation-errorForeground, var(--vscode-foreground));
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.download-cancel-button:hover {
+  background: var(--vscode-inputValidation-errorBackground, rgba(241, 76, 76, 0.12));
+}
+
+.download-card-error {
+  margin: 0;
+  color: var(--vscode-errorForeground, var(--atlas-compat-danger));
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.downloads-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 42px;
+  padding: 7px 14px;
+  border-top: 1px solid var(--atlas-border);
+  color: var(--vscode-descriptionForeground);
+  font-size: 10px;
+}
+
+.clear-finished-downloads-button {
+  border: none;
+  background: transparent;
+  color: var(--atlas-accent-foreground);
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.clear-finished-downloads-button:disabled {
+  color: var(--vscode-descriptionForeground);
+  cursor: default;
+  text-decoration: none;
+  opacity: 0.6;
+}
+
 .search-results-info {
   display: flex;
   align-items: center;

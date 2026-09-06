@@ -115,13 +115,51 @@ function getDownloadKey(modelId, fileName) {
   return `${modelId || ""}\n${fileName || ""}`;
 }
 
+const TERMINAL_DOWNLOAD_STATES = ["concluido", "erro", "cancelado"];
+
+function isTerminalDownloadState(downloadState) {
+  return TERMINAL_DOWNLOAD_STATES.includes(downloadState);
+}
+
 function isModelFileDownloading(model, file) {
   const downloads = Array.isArray(state.downloads) ? state.downloads : [];
   const key = getDownloadKey(model?.id, file?.name);
 
   return downloads.some(
-    (download) => getDownloadKey(download.modelId, download.fileName) === key,
+    (download) =>
+      getDownloadKey(download.modelId, download.fileName) === key &&
+      !isTerminalDownloadState(download.state),
   );
+}
+
+function getDownloadKindByFormat(format) {
+  return format === "ONNX" ? embeddingModelKind : generationModelKind;
+}
+
+const DOWNLOAD_STATUS_LABELS = {
+  preparando: "Preparando",
+  baixando: "Baixando",
+  cancelando: "Cancelando",
+  concluido: "Concluído",
+  erro: "Erro",
+  cancelado: "Cancelado",
+};
+
+function getDownloadStatusLabel(downloadState) {
+  return DOWNLOAD_STATUS_LABELS[downloadState] || "Baixando";
+}
+
+function getActiveDownloadsCount() {
+  const downloads = Array.isArray(state.downloads) ? state.downloads : [];
+
+  return downloads.filter((download) => !isTerminalDownloadState(download.state))
+    .length;
+}
+
+function hasFinishedDownloads() {
+  const downloads = Array.isArray(state.downloads) ? state.downloads : [];
+
+  return downloads.some((download) => isTerminalDownloadState(download.state));
 }
 
 function getFirstModelFileName(model) {

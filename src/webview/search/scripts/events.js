@@ -3,6 +3,7 @@ function bindEvents() {
   bindSearchForm();
   bindSidebarEvents();
   bindDetailEvents();
+  bindDownloadsPanelEvents();
   bindVariantClose();
 }
 
@@ -17,6 +18,14 @@ function bindSearchForm() {
 }
 
 function bindSidebarEvents() {
+  document
+    .getElementById("downloads-toggle")
+    ?.addEventListener("click", () => {
+      state.downloadsPanelOpen = !state.downloadsPanelOpen;
+      state.variantMenuOpen = false;
+      render();
+    });
+
   document.getElementById("model-list")?.addEventListener("click", (event) => {
     const target = event.target;
 
@@ -132,18 +141,75 @@ function bindDetailEvents() {
     });
 }
 
+function bindDownloadsPanelEvents() {
+  document
+    .getElementById("downloads-panel")
+    ?.addEventListener("click", (event) => {
+      const target = event.target;
+
+      if (!(target instanceof Element)) {
+        return;
+      }
+
+      if (target.closest("#clear-finished-downloads")) {
+        clearFinishedDownloads();
+        render();
+        return;
+      }
+
+      const cancelButton = target.closest("[data-download-cancel]");
+
+      if (cancelButton) {
+        cancelDownloadItem(
+          cancelButton.getAttribute("data-model-id") || "",
+          cancelButton.getAttribute("data-file-name") || "",
+        );
+      }
+    });
+}
+
+function cancelDownloadItem(modelId, fileName) {
+  if (!modelId || !fileName) {
+    return;
+  }
+
+  vscode.postMessage({
+    type: "cancelarDownloadModeloHuggingFace",
+    modelId,
+    fileName,
+  });
+}
+
+function clearFinishedDownloads() {
+  state.downloads = (Array.isArray(state.downloads) ? state.downloads : []).filter(
+    (download) => !isTerminalDownloadState(download.state),
+  );
+}
+
 function bindVariantClose() {
   document
     .querySelector(".search-layout")
     ?.addEventListener("click", (event) => {
       const target = event.target;
 
+      if (!(target instanceof Element)) {
+        return;
+      }
+
       if (
         state.variantMenuOpen &&
-        target instanceof Element &&
         !target.closest(".variant-picker")
       ) {
         state.variantMenuOpen = false;
+        render();
+      }
+
+      if (
+        state.downloadsPanelOpen &&
+        !target.closest("#downloads-panel") &&
+        !target.closest("#downloads-toggle")
+      ) {
+        state.downloadsPanelOpen = false;
         render();
       }
     });
@@ -160,22 +226,37 @@ function downloadSelectedModel() {
     return;
   }
 
+  const model = state.selectedModel;
+  const modelName = model.name || model.id;
+  const format = model.format === "ONNX" ? "ONNX" : "GGUF";
+
   state.downloads = [
     ...(Array.isArray(state.downloads) ? state.downloads : []),
     {
-      modelId: state.selectedModel.id,
+      modelId: model.id,
       fileName: selectedFile.name,
+      modelName,
+      format,
+      state: "preparando",
+      percent: 0,
+      downloadedBytes: 0,
+      totalBytes: 0,
+      currentFileName: selectedFile.name,
+      fileIndex: 1,
+      totalFiles: 1,
     },
   ];
   state.downloading = true;
-  state.downloadingModelId = state.downloads[0]?.modelId || "";
-  state.downloadingFileName = state.downloads[0]?.fileName || "";
+  state.downloadingModelId = model.id;
+  state.downloadingFileName = selectedFile.name;
   state.variantMenuOpen = false;
   render();
   vscode.postMessage({
     type: "baixarModeloHuggingFace",
-    modelId: state.selectedModel.id,
+    modelId: model.id,
     fileName: selectedFile.name,
+    modelName,
+    format,
   });
 }
 
@@ -211,10 +292,15 @@ function openSelectedModelOnHuggingFace() {
 }
 
 window.addEventListener("keydown", (event) => {
-  if (!state.variantMenuOpen || event.key !== "Escape") {
+  if (event.key !== "Escape") {
+    return;
+  }
+
+  if (!state.variantMenuOpen && !state.downloadsPanelOpen) {
     return;
   }
 
   state.variantMenuOpen = false;
+  state.downloadsPanelOpen = false;
   render();
 });
