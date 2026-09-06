@@ -936,6 +936,53 @@ textarea {
   box-shadow: 0 0 0 3px var(--vscode-list-hoverBackground, transparent);
 }
 
+.local-engine-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.local-engine-selection label {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.local-engine-selection select {
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 8px;
+  color: var(--vscode-dropdown-foreground, var(--vscode-input-foreground));
+  background: var(--vscode-dropdown-background, var(--vscode-input-background));
+  border: 1px solid var(--vscode-dropdown-border, var(--atlas-border));
+  border-radius: 5px;
+  font-family: var(--vscode-font-family);
+  font-size: 12px;
+  outline: none;
+}
+
+.local-engine-selection select:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+.local-engine-selection select:disabled {
+  cursor: wait;
+  opacity: 0.75;
+}
+
+.local-engine-selection small {
+  color: var(--atlas-muted-fg);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.local-engine-selection-status:empty {
+  display: none;
+}
+
+.local-engine-selection-status.is-error {
+  color: var(--vscode-errorForeground);
+}
+
 .local-engine-toggle-button {
   display: inline-flex;
   align-items: center;

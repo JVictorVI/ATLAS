@@ -137,27 +137,54 @@
 
           <div class="inline-fields">
             <div class="field">
-              <label for="param-gpu">N.º de camadas na GPU</label>
-              <div class="gpu-slider-control">
-                <div class="gpu-slider-header">
-                  <span id="gpu-layer-value">Automático (0)</span>
-                  <span id="gpu-layer-recommendation">Calculando...</span>
-                </div>
-                <input type="range" id="param-gpu" min="0" max="0" value="0" />
-                <div class="gpu-slider-meta">
-                  <span id="gpu-layer-size"
-                    >0 usa ajuste automático da engine</span
-                  >
-                  <span id="gpu-vram-total">VRAM: -</span>
-                </div>
-              </div>
+              <label for="param-context">Tamanho do contexto</label>
+              <small class="field-description" id="param-context-description">
+                Total de tokens que o modelo mantém por conversa, incluindo a
+                entrada e a resposta. Valores maiores usam mais memória.
+              </small>
+              <input
+                type="number"
+                id="param-context"
+                value="8192"
+                aria-describedby="param-context-description"
+              />
+            </div>
+            <div class="field">
+              <label for="param-max-tokens">N.º máximo de tokens gerados</label>
+              <small
+                class="field-description"
+                id="param-max-tokens-description"
+              >
+                Limita o tamanho de cada resposta. Um valor maior permite
+                respostas mais longas, mas pode aumentar o tempo de geração.
+              </small>
+              <input
+                type="number"
+                id="param-max-tokens"
+                value="8192"
+                aria-describedby="param-max-tokens-description"
+              />
             </div>
             <div class="field">
               <label for="param-temp">Temperatura (criatividade)</label>
-              <input type="number" id="param-temp" value="0.4" step="0.1" />
+              <small class="field-description" id="param-temp-description">
+                Controla a variação das respostas. Valores menores são mais
+                previsíveis; valores maiores, mais criativos.
+              </small>
+              <input
+                type="number"
+                id="param-temp"
+                value="0.4"
+                step="0.1"
+                aria-describedby="param-temp-description"
+              />
             </div>
             <div class="field">
               <label for="param-top-p">Top-p (diversidade)</label>
+              <small class="field-description" id="param-top-p-description">
+                Limita a escolha aos tokens mais prováveis. Valores menores
+                deixam as respostas mais focadas.
+              </small>
               <input
                 type="number"
                 id="param-top-p"
@@ -165,15 +192,36 @@
                 min="0"
                 max="1"
                 step="0.01"
+                aria-describedby="param-top-p-description"
               />
             </div>
             <div class="field">
-              <label for="param-context">Tamanho do contexto</label>
-              <input type="number" id="param-context" value="8192" />
-            </div>
-            <div class="field">
-              <label for="param-max-tokens">N.º máximo de tokens gerados</label>
-              <input type="number" id="param-max-tokens" value="8192" />
+              <label for="param-gpu">N.º de camadas na GPU</label>
+              <small class="field-description" id="param-gpu-description">
+                Define quantas camadas são processadas pela GPU. Mais camadas
+                podem acelerar as respostas, mas consomem mais VRAM; 0 deixa o
+                ajuste com a engine.
+              </small>
+              <div class="gpu-slider-control">
+                <div class="gpu-slider-header">
+                  <span id="gpu-layer-value">Automático (0)</span>
+                  <span id="gpu-layer-recommendation">Calculando...</span>
+                </div>
+                <input
+                  type="range"
+                  id="param-gpu"
+                  min="0"
+                  max="0"
+                  value="0"
+                  aria-describedby="param-gpu-description gpu-layer-value gpu-layer-recommendation gpu-layer-size gpu-vram-total"
+                />
+                <div class="gpu-slider-meta">
+                  <span id="gpu-layer-size"
+                    >0 usa ajuste automático da engine</span
+                  >
+                  <span id="gpu-vram-total">VRAM: -</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -210,40 +258,73 @@
               <div class="advanced-settings-fields">
                 <div class="field">
                   <label for="param-threads">Threads da CPU</label>
+                  <small
+                    class="field-description"
+                    id="param-threads-description"
+                  >
+                    Define quantas tarefas a CPU executa em paralelo. Mais
+                    threads podem acelerar o modelo; 0 usa o ajuste automático.
+                  </small>
                   <input
                     type="number"
                     id="param-threads"
                     value="0"
                     min="0"
                     step="1"
+                    aria-describedby="param-threads-description"
                   />
-                  <small>0 = Automático (recomendado)</small>
                 </div>
                 <div class="field">
                   <label for="param-batch-size">Batch size</label>
+                  <small
+                    class="field-description"
+                    id="param-batch-size-description"
+                  >
+                    Define quantos tokens são processados em conjunto. Valores
+                    maiores podem ser mais rápidos, mas usam mais memória; 0 é
+                    automático.
+                  </small>
                   <input
                     type="number"
                     id="param-batch-size"
                     value="0"
                     min="0"
                     step="1"
+                    aria-describedby="param-batch-size-description"
                   />
-                  <small>0 = Automático (recomendado)</small>
                 </div>
                 <div class="field">
                   <label for="param-micro-batch-size">Micro-batch</label>
+                  <small
+                    class="field-description"
+                    id="param-micro-batch-size-description"
+                  >
+                    Divide o batch em partes processadas por vez. Valores
+                    menores reduzem o pico de memória; 0 usa o ajuste
+                    automático.
+                  </small>
                   <input
                     type="number"
                     id="param-micro-batch-size"
                     value="0"
                     min="0"
                     step="1"
+                    aria-describedby="param-micro-batch-size-description"
                   />
-                  <small>0 = Automático (recomendado)</small>
                 </div>
                 <div class="field">
                   <label for="param-flash-attention">Flash Attention</label>
-                  <select id="param-flash-attention">
+                  <small
+                    class="field-description"
+                    id="param-flash-attention-description"
+                  >
+                    Otimização que pode reduzir o uso de memória e acelerar o
+                    modelo em engines compatíveis.
+                  </small>
+                  <select
+                    id="param-flash-attention"
+                    aria-describedby="param-flash-attention-description"
+                  >
                     <option value="auto">Automático (recomendado)</option>
                     <option value="on">Ligado</option>
                     <option value="off">Desligado</option>
@@ -251,7 +332,18 @@
                 </div>
                 <div class="field">
                   <label for="param-kv-cache-type">Tipo do cache KV</label>
-                  <select id="param-kv-cache-type">
+                  <small
+                    class="field-description"
+                    id="param-kv-cache-type-description"
+                  >
+                    Define a precisão usada para guardar o contexto já
+                    processado. Menor precisão economiza memória, com possível
+                    perda de qualidade.
+                  </small>
+                  <select
+                    id="param-kv-cache-type"
+                    aria-describedby="param-kv-cache-type-description"
+                  >
                     <option value="auto">Automático (recomendado)</option>
                     <option value="f16">f16 — maior fidelidade</option>
                     <option value="q8_0">q8_0 — equilibrado</option>
@@ -262,7 +354,17 @@
                   <label for="param-load-mode"
                     >Modo de carregamento do modelo</label
                   >
-                  <select id="param-load-mode">
+                  <small
+                    class="field-description"
+                    id="param-load-mode-description"
+                  >
+                    Define como o arquivo do modelo ocupa a memória. mmap reduz
+                    o carregamento inicial; mlock tenta mantê-lo na RAM.
+                  </small>
+                  <select
+                    id="param-load-mode"
+                    aria-describedby="param-load-mode-description"
+                  >
                     <option value="auto">Automático (recomendado)</option>
                     <option value="none">Normal</option>
                     <option value="mmap">Memory mapping (mmap)</option>
@@ -305,7 +407,7 @@
               id="system-prompt"
               rows="3"
               disabled
-              placeholder="Exemplo: 'Sempre me chame de Doutor'"
+              placeholder="Exemplo: Prefira respostas mais objetivas e técnicas."
             ></textarea>
           </div>
           <div class="row-end">

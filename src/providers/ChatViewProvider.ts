@@ -245,6 +245,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       this.localModelDiscoveryService,
       this.configManager,
       () => this.localEngineService.isRunning(),
+      () =>
+        (["cpu", "cuda", "vulkan"] as const).filter((engineType) =>
+          this.engineDownloadService.isEngineDownloaded(engineType),
+        ),
     );
 
     // Router

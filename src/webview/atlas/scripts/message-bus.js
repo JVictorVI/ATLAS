@@ -48,4 +48,19 @@ window.addEventListener("message", (event) => {
   if (message.type === "engineModoExecucaoExclusaoFinalizada") {
     applyEngineModeDeletionResult(message.value);
   }
+
+  if (
+    message.type === "engineLocalSelecionada" &&
+    message.value?.error !== true
+  ) {
+    loadedEngineType = normalizeEngineType(message.value?.engineType);
+    setEngineType(loadedEngineType);
+
+    if (typeof message.value?.engineDownloaded === "boolean") {
+      engineDownloadStateByType[loadedEngineType] =
+        message.value.engineDownloaded;
+    }
+
+    updateEngineDownloadPrompt();
+  }
 });

@@ -299,6 +299,9 @@ export class ChatMessageRouter {
       case "stopLocalEngineRequest":
         await this.handleStopLocalEngineRequest(webview);
         return;
+      case "selecionarEngineLocal":
+        await this.handleSelectLocalEngine(data, webview);
+        return;
       case "loadModelRequest":
         await this.handleLoadModelRequest(data, webview);
         return;
@@ -1762,6 +1765,9 @@ export class ChatMessageRouter {
         currentCustom.localEngine !== null
           ? (currentCustom.localEngine as Record<string, unknown>)
           : {};
+      const previousEngineType = this.normalizeLocalEngineType(
+        currentLocalEngine.engineType,
+      );
       const engineType = this.normalizeLocalEngineType(payload.engineType);
       const startOnAtlasOpen = payload.startOnAtlasOpen === true;
       const prepareOnAtlasOpen = payload.prepareOnAtlasOpen !== false;
@@ -1844,6 +1850,18 @@ export class ChatMessageRouter {
         type: "configuracoesAtlasSalvas",
         value: saved,
       });
+
+      if (engineType !== previousEngineType) {
+        this.deps.broadcastMessage({
+          type: "engineLocalSelecionada",
+          value: {
+            engineType,
+            engineDownloaded:
+              this.deps.isLlamaEngineTypeDownloaded(engineType),
+            changed: true,
+          },
+        });
+      }
 
       vscode.window.showInformationMessage("Configurações do ATLAS salvas.");
     } catch (error) {
@@ -2888,6 +2906,90 @@ export class ChatMessageRouter {
         value: { loading: false, running: false },
       });
       await this.postError(webview, error, "Erro ao iniciar engine local.");
+    }
+  }
+
+  private async handleSelectLocalEngine(
+    data: any,
+    webview: vscode.Webview,
+  ): Promise<void> {
+    const previousEngineType = this.getConfiguredLocalEngineType();
+    const requestedEngineType = this.parseLocalEngineType(data.engineType);
+
+    try {
+      if (!requestedEngineType) {
+        throw new Error("Tipo de engine local inválido.");
+      }
+
+      if (this.configuredEngineDownloadPromise) {
+        throw new Error(
+          "Aguarde o download atual terminar ou cancele-o antes de trocar a engine.",
+        );
+      }
+
+      if (!this.deps.isLlamaEngineTypeDownloaded(requestedEngineType)) {
+        throw new Error(
+          `A engine ${this.formatLocalEngineType(requestedEngineType)} não está instalada neste computador.`,
+        );
+      }
+
+      const changed = requestedEngineType !== previousEngineType;
+
+      if (changed) {
+        const currentCustom = this.deps.configManager.getConfig().custom ?? {};
+        const currentLocalEngine =
+          typeof currentCustom.localEngine === "object" &&
+          currentCustom.localEngine !== null
+            ? (currentCustom.localEngine as Record<string, unknown>)
+            : {};
+
+        this.deps.configManager.updateCustomRoot({
+          ...currentCustom,
+          localEngine: {
+            ...currentLocalEngine,
+            engineType: requestedEngineType,
+          },
+        });
+
+        this.deps.stopLocalEngine();
+      }
+
+      const engineDownloaded =
+        this.deps.isLlamaEngineTypeDownloaded(requestedEngineType);
+
+      this.deps.broadcastMessage({
+        type: "engineLocalSelecionada",
+        value: {
+          engineType: requestedEngineType,
+          engineDownloaded,
+          changed,
+        },
+      });
+      this.deps.sendModelsToWebview(webview);
+
+      if (changed) {
+        vscode.window.showInformationMessage(
+          `Engine local alterada para ${this.formatLocalEngineType(requestedEngineType)}.`,
+        );
+      }
+    } catch (error) {
+      const message = this.getErrorMessage(
+        error,
+        "Não foi possível alterar a engine local.",
+      );
+      const configuredEngineType = this.getConfiguredLocalEngineType();
+
+      await webview.postMessage({
+        type: "engineLocalSelecionada",
+        value: {
+          engineType: configuredEngineType,
+          engineDownloaded:
+            this.deps.isLlamaEngineTypeDownloaded(configuredEngineType),
+          error: true,
+          message,
+        },
+      });
+      await this.postError(webview, error, "Erro ao alterar engine local.");
     }
   }
 

@@ -119,7 +119,7 @@ function renderDownloadsPanel() {
         ${renderDownloadsList()}
       </div>
       <div class="downloads-footer">
-        <span>${escapeHtml(formatNumber(activeCount))} downloads ativos</span>
+        <span>${escapeHtml(formatNumber(activeCount))} download(s) ativo(s)</span>
         <button
           class="clear-finished-downloads-button"
           id="clear-finished-downloads"

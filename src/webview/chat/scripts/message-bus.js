@@ -175,6 +175,31 @@ window.addEventListener("message", (event) => {
       }
       break;
     }
+    case "engineLocalSelecionada": {
+      const engineType = normalizeLocalEngineType(message.value?.engineType);
+      const engineDownloaded = message.value?.engineDownloaded === true;
+
+      isLocalEngineSelectionRunning = false;
+      pendingLocalEngineType = null;
+      localEngineSelectionError = message.value?.error === true;
+      localEngineSelectionMessage = localEngineSelectionError
+        ? message.value?.message || "Não foi possível alterar a engine."
+        : engineDownloaded
+          ? `${formatLocalEngineType(engineType)} selecionada.`
+          : `${formatLocalEngineType(engineType)} selecionada. Os arquivos serão preparados ao iniciar.`;
+      libraryHealth = {
+        ...(libraryHealth || {}),
+        engineType,
+        engineRunning: localEngineSelectionError
+          ? libraryHealth?.engineRunning === true
+          : false,
+      };
+
+      if (currentView === "library") {
+        renderLocalHealthPanel();
+      }
+      break;
+    }
 
     case "modelosHuggingFaceEncontrados": {
       handleSearchModelsLoaded(message.value);

@@ -133,6 +133,27 @@ button {
   min-width: 200px;
 }
 
+.cloud-execution-card .inline-fields {
+  display: grid;
+  max-width: 760px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.cloud-execution-card .field {
+  min-width: 0;
+}
+
+.field-description {
+  margin: 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.cloud-execution-card .field input {
+  margin-top: auto;
+}
+
 input[type="text"],
 input[type="number"] {
   background: var(--vscode-input-background);
@@ -276,6 +297,24 @@ textarea:disabled {
 
 .cloud-execution-card .cloud-toggle-list .toggle-option:hover {
   border-color: var(--vscode-focusBorder);
+}
+
+.cloud-execution-card .toggle-option-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cloud-execution-card .toggle-option-copy strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cloud-execution-card .toggle-option-copy small {
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .cloud-execution-card .cloud-toggle-list .toggle-option input {

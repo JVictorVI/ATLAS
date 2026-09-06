@@ -290,6 +290,13 @@ textarea {
   font-weight: 600;
 }
 
+.field-description {
+  margin: 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .model-info-section .inline-fields {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 18px 22px;
@@ -319,6 +326,12 @@ textarea {
 .model-params-section input[type="number"] {
   max-width: 160px;
   padding: 6px 8px;
+}
+
+.model-params-section .inline-fields .field:not(:has(#param-gpu)) input,
+.advanced-settings-fields .field > input,
+.advanced-settings-fields .field > select {
+  margin-top: auto;
 }
 
 .field:has(#param-context) {

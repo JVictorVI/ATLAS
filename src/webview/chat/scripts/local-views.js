@@ -47,48 +47,68 @@ function renderLibraryView() {
 
       <div id="local-health-content" class="local-health-content" aria-hidden="true">
         <div class="local-health-status">
-        <span class="local-health-dot"></span>
-        <span id="local-health-engine">Engine: -</span>
-      </div>
+          <span class="local-health-dot"></span>
+          <span id="local-health-engine">Engine: -</span>
+        </div>
 
-      <button class="local-engine-toggle-button" id="local-engine-toggle">
-        <i class="codicon codicon-debug-start"></i>
-        <span>Iniciar engine</span>
-      </button>
+        <div class="local-engine-selection">
+          <label for="local-engine-select">Engine de execução</label>
+          <select
+            id="local-engine-select"
+            aria-describedby="local-engine-select-description local-engine-selection-status"
+          >
+            <option value="" disabled>Carregando engines instaladas...</option>
+          </select>
+          <small id="local-engine-select-description">
+            Apenas engines instaladas são exibidas. Gerencie outras em
+            Configurações Gerais; trocar a opção encerra a engine ativa.
+          </small>
+          <small
+            id="local-engine-selection-status"
+            class="local-engine-selection-status"
+            role="status"
+            aria-live="polite"
+          ></small>
+        </div>
 
-      <div class="local-health-meter">
-        <div class="local-health-meter-top">
-          <span>VRAM</span>
-          <strong id="local-health-vram-summary">-</strong>
-        </div>
-        <div class="local-health-bar" aria-hidden="true">
-          <span id="local-health-vram-bar"></span>
-        </div>
-        <div class="local-health-meter-meta">
-          <span id="local-health-vram-used">Usada: -</span>
-          <span id="local-health-vram-free">Livre: -</span>
-        </div>
-      </div>
+        <button class="local-engine-toggle-button" id="local-engine-toggle">
+          <i class="codicon codicon-debug-start"></i>
+          <span>Iniciar engine</span>
+        </button>
 
-      <div class="local-health-list">
-        <div class="local-health-item">
-          <span>Modelos instalados</span>
-          <strong id="local-health-model-count">0</strong>
+        <div class="local-health-meter">
+          <div class="local-health-meter-top">
+            <span>VRAM</span>
+            <strong id="local-health-vram-summary">-</strong>
+          </div>
+          <div class="local-health-bar" aria-hidden="true">
+            <span id="local-health-vram-bar"></span>
+          </div>
+          <div class="local-health-meter-meta">
+            <span id="local-health-vram-used">Usada: -</span>
+            <span id="local-health-vram-free">Livre: -</span>
+          </div>
         </div>
-        <div class="local-health-item">
-          <span>Espaço ocupado</span>
-          <strong id="local-health-model-size">-</strong>
-        </div>
-        <div class="local-health-item local-health-folder">
-          <span>Pasta dos modelos</span>
-          <strong id="local-health-model-folder">-</strong>
-        </div>
-      </div>
 
-      <button class="local-health-folder-button" id="local-health-open-folder">
-        <i class="codicon codicon-folder-opened"></i>
-        <span>Abrir pasta</span>
-      </button>
+        <div class="local-health-list">
+          <div class="local-health-item">
+            <span>Modelos instalados</span>
+            <strong id="local-health-model-count">0</strong>
+          </div>
+          <div class="local-health-item">
+            <span>Espaço ocupado</span>
+            <strong id="local-health-model-size">-</strong>
+          </div>
+          <div class="local-health-item local-health-folder">
+            <span>Pasta dos modelos</span>
+            <strong id="local-health-model-folder">-</strong>
+          </div>
+        </div>
+
+        <button class="local-health-folder-button" id="local-health-open-folder">
+          <i class="codicon codicon-folder-opened"></i>
+          <span>Abrir pasta</span>
+        </button>
       </div>
     </section>
   `;
@@ -149,7 +169,7 @@ function bindLocalHealthEvents() {
   document
     .getElementById("local-engine-toggle")
     ?.addEventListener("click", () => {
-      if (isLocalEngineActionRunning) {
+      if (isLocalEngineActionRunning || isLocalEngineSelectionRunning) {
         return;
       }
 
@@ -158,6 +178,36 @@ function bindLocalHealthEvents() {
       renderLocalEngineToggle();
       vscode.postMessage({
         type: isRunning ? "stopLocalEngineRequest" : "startLocalEngineRequest",
+      });
+    });
+
+  document
+    .getElementById("local-engine-select")
+    ?.addEventListener("change", (event) => {
+      if (isLocalEngineActionRunning || isLocalEngineSelectionRunning) {
+        renderLocalEngineSelector();
+        return;
+      }
+
+      const engineType = normalizeLocalEngineType(event.target?.value);
+      const currentEngineType = normalizeLocalEngineType(
+        libraryHealth?.engineType,
+      );
+
+      if (engineType === currentEngineType) {
+        return;
+      }
+
+      pendingLocalEngineType = engineType;
+      isLocalEngineSelectionRunning = true;
+      localEngineSelectionError = false;
+      localEngineSelectionMessage = `Selecionando ${formatLocalEngineType(engineType)}...`;
+      renderLocalEngineSelector();
+      renderLocalEngineToggle();
+
+      vscode.postMessage({
+        type: "selecionarEngineLocal",
+        engineType,
       });
     });
 }
@@ -188,6 +238,7 @@ function renderLocalHealthPanel() {
       bar.style.width = "0%";
     }
 
+    renderLocalEngineSelector();
     renderLocalEngineToggle();
     return;
   }
@@ -229,7 +280,71 @@ function renderLocalHealthPanel() {
     bar.style.width = `${usedPercent}%`;
   }
 
+  renderLocalEngineSelector();
   renderLocalEngineToggle();
+}
+
+function renderLocalEngineSelector() {
+  const select = document.getElementById("local-engine-select");
+  const status = document.getElementById("local-engine-selection-status");
+  const availableEngineTypes = getAvailableLocalEngineTypes();
+  const engineType = normalizeLocalEngineType(
+    pendingLocalEngineType || libraryHealth?.engineType,
+  );
+
+  if (select) {
+    renderLocalEngineOptions(select, availableEngineTypes, engineType);
+    select.disabled =
+      availableEngineTypes.length === 0 ||
+      isLocalEngineActionRunning ||
+      isLocalEngineSelectionRunning;
+    select.setAttribute(
+      "aria-busy",
+      isLocalEngineSelectionRunning ? "true" : "false",
+    );
+  }
+
+  if (status) {
+    status.textContent = localEngineSelectionMessage;
+    status.classList.toggle("is-error", localEngineSelectionError);
+  }
+}
+
+function renderLocalEngineOptions(select, availableEngineTypes, engineType) {
+  const hasSelectedEngine = availableEngineTypes.includes(engineType);
+  const options = [];
+
+  if (availableEngineTypes.length === 0) {
+    options.push(
+      '<option value="" disabled>Nenhuma engine instalada</option>',
+    );
+  } else if (!hasSelectedEngine) {
+    options.push(
+      '<option value="" disabled>Selecione uma engine instalada</option>',
+    );
+  }
+
+  availableEngineTypes.forEach((availableEngineType) => {
+    options.push(
+      `<option value="${availableEngineType}">${formatLocalEngineType(availableEngineType)}</option>`,
+    );
+  });
+
+  select.innerHTML = options.join("");
+  select.value = hasSelectedEngine ? engineType : "";
+}
+
+function getAvailableLocalEngineTypes() {
+  if (
+    localHealthLoadError ||
+    !Array.isArray(libraryHealth?.availableEngineTypes)
+  ) {
+    return [];
+  }
+
+  return ["cpu", "cuda", "vulkan"].filter((engineType) =>
+    libraryHealth.availableEngineTypes.includes(engineType),
+  );
 }
 
 function renderLocalEngineToggle() {
@@ -252,12 +367,31 @@ function renderLocalEngineToggle() {
       ? "Parar engine"
       : "Iniciar engine";
 
-  button.disabled = isLocalEngineActionRunning;
+  button.disabled =
+    isLocalEngineActionRunning || isLocalEngineSelectionRunning;
   button.classList.toggle("running", isRunning);
   button.innerHTML = `
     <i class="codicon codicon-${icon}"></i>
     <span>${label}</span>
   `;
+}
+
+function normalizeLocalEngineType(engineType) {
+  return engineType === "cuda" || engineType === "vulkan"
+    ? engineType
+    : "cpu";
+}
+
+function formatLocalEngineType(engineType) {
+  if (engineType === "cuda") {
+    return "GPU NVIDIA CUDA";
+  }
+
+  if (engineType === "vulkan") {
+    return "GPU Vulkan";
+  }
+
+  return "CPU";
 }
 
 function setLocalHealthText(id, value) {

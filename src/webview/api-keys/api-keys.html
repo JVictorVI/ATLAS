@@ -63,18 +63,40 @@
       <div class="inline-fields">
         <div class="field">
           <label for="maxTokens">Máximo de tokens por requisição</label>
-          <input id="maxTokens" type="number" value="8192" />
+          <small class="field-description" id="maxTokens-description">
+            Define o limite manual de tokens da resposta. Valores maiores
+            permitem respostas mais longas e podem aumentar custo e tempo.
+          </small>
+          <input
+            id="maxTokens"
+            type="number"
+            value="8192"
+            aria-describedby="maxTokens-description"
+          />
         </div>
 
         <div class="field">
           <label for="timeout">Timeout máximo da requisição (segundos)</label>
-          <input id="timeout" type="number" value="30" />
+          <small class="field-description" id="timeout-description">
+            Tempo que o ATLAS aguarda o provedor antes de cancelar uma
+            requisição sem resposta.
+          </small>
+          <input
+            id="timeout"
+            type="number"
+            value="30"
+            aria-describedby="timeout-description"
+          />
         </div>
       </div>
 
       <div class="inline-fields">
         <div class="field">
           <label for="temperature">Temperatura (criatividade)</label>
+          <small class="field-description" id="temperature-description">
+            Controla a variação das respostas. Valores menores são mais
+            previsíveis; valores maiores, mais criativos.
+          </small>
           <input
             id="temperature"
             type="number"
@@ -82,11 +104,16 @@
             min="0"
             max="2"
             value="0.4"
+            aria-describedby="temperature-description"
           />
         </div>
 
         <div class="field">
           <label for="topP">Top-p (diversidade)</label>
+          <small class="field-description" id="topP-description">
+            Limita a escolha aos tokens mais prováveis. Valores menores deixam
+            as respostas mais focadas.
+          </small>
           <input
             id="topP"
             type="number"
@@ -94,42 +121,90 @@
             min="0"
             max="1"
             value="0.95"
+            aria-describedby="topP-description"
           />
         </div>
       </div>
 
       <div class="checkbox-group cloud-toggle-list">
         <label class="toggle-option">
-          <input type="checkbox" id="stream" checked />
+          <input
+            type="checkbox"
+            id="stream"
+            checked
+            aria-labelledby="stream-label"
+            aria-describedby="stream-description"
+          />
           <span class="checkbox" aria-hidden="true"></span>
-          <span>Responder em tempo real (streaming)</span>
-        </label>
-
-        <label
-          class="toggle-option"
-          title="Envia somente os campos obrigatórios para o provedor. Temperatura, top-p, limite de tokens e streaming não são enviados."
-        >
-          <input type="checkbox" id="sendOnlyRequiredParameters" />
-          <span class="checkbox" aria-hidden="true"></span>
-          <span>Enviar somente parâmetros obrigatórios (compatibilidade)</span>
-        </label>
-
-        <label
-          class="toggle-option"
-          title="Quando desativado, o limite não é enviado onde for opcional. Claude exige max_tokens para processar a chamada."
-        >
-          <input type="checkbox" id="limitPayload" checked />
-          <span class="checkbox" aria-hidden="true"></span>
-          <span>Limitar tamanho máximo da resposta (tokens)</span>
+          <span class="toggle-option-copy">
+            <strong id="stream-label"
+              >Responder em tempo real (streaming)</strong
+            >
+            <small id="stream-description">
+              Mostra os trechos conforme são enviados pelo provedor, sem
+              aguardar a resposta completa.
+            </small>
+          </span>
         </label>
 
         <label class="toggle-option">
-          <input type="checkbox" id="dynamicMaxTokens" />
+          <input
+            type="checkbox"
+            id="sendOnlyRequiredParameters"
+            aria-labelledby="required-parameters-label"
+            aria-describedby="required-parameters-description"
+          />
           <span class="checkbox" aria-hidden="true"></span>
-          <span>Ajustar máximo de tokens automaticamente</span>
+          <span class="toggle-option-copy">
+            <strong id="required-parameters-label">
+              Enviar somente parâmetros obrigatórios (compatibilidade)
+            </strong>
+            <small id="required-parameters-description">
+              Envia apenas os campos indispensáveis. Temperatura, top-p, limite
+              de tokens e streaming não participam da requisição.
+            </small>
+          </span>
+        </label>
+
+        <label class="toggle-option">
+          <input
+            type="checkbox"
+            id="limitPayload"
+            checked
+            aria-labelledby="limit-payload-label"
+            aria-describedby="limit-payload-description"
+          />
+          <span class="checkbox" aria-hidden="true"></span>
+          <span class="toggle-option-copy">
+            <strong id="limit-payload-label">
+              Limitar tamanho máximo da resposta (tokens)
+            </strong>
+            <small id="limit-payload-description">
+              Envia um limite para o tamanho da resposta. Quando desativado,
+              omite esse limite onde o provedor permitir; Claude ainda o exige.
+            </small>
+          </span>
+        </label>
+
+        <label class="toggle-option">
+          <input
+            type="checkbox"
+            id="dynamicMaxTokens"
+            aria-labelledby="dynamic-max-tokens-label"
+            aria-describedby="dynamic-max-tokens-description"
+          />
+          <span class="checkbox" aria-hidden="true"></span>
+          <span class="toggle-option-copy">
+            <strong id="dynamic-max-tokens-label">
+              Ajustar máximo de tokens automaticamente
+            </strong>
+            <small id="dynamic-max-tokens-description">
+              Tenta usar o limite informado pelo modelo no provedor. Se ele não
+              estiver disponível, usa o máximo configurado acima.
+            </small>
+          </span>
         </label>
       </div>
-
     </div>
 
     <div class="card">
@@ -157,7 +232,7 @@
           id="system-prompt"
           rows="3"
           disabled
-          placeholder="Exemplo: 'Prefira respostas mais objetivas e destaque impactos em testabilidade.'"
+          placeholder="Exemplo: Prefira respostas mais objetivas e técnicas."
         ></textarea>
       </div>
 

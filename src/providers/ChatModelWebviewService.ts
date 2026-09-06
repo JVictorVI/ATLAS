@@ -24,6 +24,8 @@ type LayerCountCacheEntry = {
   value: number | null;
 };
 
+type LocalEngineType = "cpu" | "cuda" | "vulkan";
+
 export class ChatModelWebviewService {
   private readonly layerCountCache = new Map<string, LayerCountCacheEntry>();
   private gpuMemoryCache: {
@@ -35,6 +37,7 @@ export class ChatModelWebviewService {
     private readonly localModelDiscoveryService: AtlasLocalModelDiscoveryService,
     private readonly configManager: AtlasConfigManager,
     private readonly isLocalEngineRunning: () => boolean,
+    private readonly getAvailableLocalEngineTypes: () => LocalEngineType[],
   ) {}
 
   public sendModelsToWebview(webview: vscode.Webview): void {
@@ -174,6 +177,7 @@ export class ChatModelWebviewService {
           this.configManager.getActiveLocalModel()?.id ?? null,
         health: {
           engineType: this.getConfiguredEngineType(),
+          availableEngineTypes: this.getAvailableLocalEngineTypes(),
           engineRunning: this.isLocalEngineRunning(),
           gpuMemory,
           modelsDir: this.localModelDiscoveryService.getModelsDir(),

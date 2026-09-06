@@ -51,9 +51,7 @@ function getSearchErrorMessage(value) {
     return value;
   }
 
-  return (
-    value?.message || "NÃ£o foi possÃ­vel buscar modelos no Hugging Face."
-  );
+  return value?.message || "NÃ£o foi possÃ­vel buscar modelos no Hugging Face.";
 }
 
 function clearSearchRequestTimeout() {
@@ -424,20 +422,22 @@ function renderModelCards(
     document
       .getElementById("retry-model-search")
       ?.addEventListener("click", () => {
-        requestSearchModels(searchModelState.query, searchModelState.currentPage);
+        requestSearchModels(
+          searchModelState.query,
+          searchModelState.currentPage,
+        );
       });
     return;
   }
 
   const paginatedModels = getPaginatedSearchModels(models);
-  const cardsHtml =
-    paginatedModels
-      .map((model) => {
-        const primaryFile = getPrimarySearchFile(model);
-        const active = model.id === activeModelId ? "active" : "";
-        const kind = getSearchModelKind(model);
+  const cardsHtml = paginatedModels
+    .map((model) => {
+      const primaryFile = getPrimarySearchFile(model);
+      const active = model.id === activeModelId ? "active" : "";
+      const kind = getSearchModelKind(model);
 
-        return `
+      return `
           <button class="model-card ${active} ${escapeHtml(kind.className)}" type="button" data-id="${escapeHtml(model.id)}">
             <span class="model-badge">${escapeHtml(getSearchModelBadge(model))}</span>
               <span class="model-card-info">
@@ -458,8 +458,8 @@ function renderModelCards(
             </span>
           </button>
         `;
-      })
-      .join("");
+    })
+    .join("");
 
   modelList.innerHTML =
     cardsHtml ||
@@ -519,9 +519,7 @@ function handleSearchModelsLoaded(payload) {
   const visibleModels = getVisibleSearchModels();
   searchModelState.selectedModelId =
     searchModelState.selectedModelId &&
-    visibleModels.some(
-      (model) => model.id === searchModelState.selectedModelId,
-    )
+    visibleModels.some((model) => model.id === searchModelState.selectedModelId)
       ? searchModelState.selectedModelId
       : visibleModels[0]?.id || "";
 
@@ -600,7 +598,8 @@ function getActiveDownloadForModel(modelId) {
   return (
     downloadsState.items.find(
       (download) =>
-        download.modelId === modelId && !isTerminalDownloadState(download.state),
+        download.modelId === modelId &&
+        !isTerminalDownloadState(download.state),
     ) || null
   );
 }
@@ -676,7 +675,9 @@ function normalizeDownloadEntry(download) {
 }
 
 function applyDownloadStatus(value) {
-  const activeDownloads = (Array.isArray(value?.downloads) ? value.downloads : [])
+  const activeDownloads = (
+    Array.isArray(value?.downloads) ? value.downloads : []
+  )
     .map(normalizeDownloadEntry)
     .filter(Boolean);
   const activeKeys = new Set(
@@ -893,7 +894,7 @@ function renderDownloadsPanel() {
         }
       </div>
       <div class="downloads-footer">
-        <span>${escapeHtml(activeCount)} downloads ativos</span>
+        <span>${escapeHtml(activeCount)} download(s) ativo(s)</span>
         <button class="clear-finished-downloads-button" id="clear-finished-downloads" type="button" ${hasFinishedDownloads() ? "" : "disabled"}>
           Limpar histórico
         </button>
