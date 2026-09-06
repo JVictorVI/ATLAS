@@ -51,9 +51,23 @@ export class ChatMessageRouter {
     {
       modelId: string;
       fileName: string;
+      modelName: string;
+      format: "GGUF" | "ONNX";
       controller: AbortController;
+      state: "preparando" | "baixando" | "cancelando";
+      percent: number;
+      downloadedBytes: number;
+      totalBytes: number;
+      currentFileName: string;
+      fileIndex: number;
+      totalFiles: number;
     }
   >();
+  private readonly downloadStatusThrottle: {
+    timer: ReturnType<typeof setTimeout> | null;
+    lastSentAt: number;
+  } = { timer: null, lastSentAt: 0 };
+  private static readonly DOWNLOAD_STATUS_THROTTLE_MS = 250;
   private readonly responseController: ChatResponseController;
   private readonly sessionController: ChatSessionController;
 
@@ -268,10 +282,10 @@ export class ChatMessageRouter {
         await this.handleDownloadHuggingFaceModel(data, webview);
         return;
       case "cancelarDownloadModeloHuggingFace":
-        await this.handleCancelHuggingFaceModelDownload(data, webview);
+        await this.handleCancelHuggingFaceModelDownload(data);
         return;
       case "solicitarStatusDownloadHuggingFace":
-        await this.sendHuggingFaceDownloadStatus(webview);
+        await this.sendHuggingFaceDownloadStatus();
         return;
       case "abrirArquivoHuggingFace":
         await this.handleOpenHuggingFaceFile(data);
@@ -2219,7 +2233,16 @@ export class ChatMessageRouter {
       | {
           modelId: string;
           fileName: string;
+          modelName: string;
+          format: "GGUF" | "ONNX";
           controller: AbortController;
+          state: "preparando" | "baixando" | "cancelando";
+          percent: number;
+          downloadedBytes: number;
+          totalBytes: number;
+          currentFileName: string;
+          fileIndex: number;
+          totalFiles: number;
         }
       | null = null;
 
@@ -2231,10 +2254,16 @@ export class ChatMessageRouter {
         throw new Error("Modelo ou arquivo inválido.");
       }
 
+      const modelName =
+        typeof data.modelName === "string" && data.modelName.trim()
+          ? data.modelName.trim()
+          : fileName;
+      const format: "GGUF" | "ONNX" = data.format === "ONNX" ? "ONNX" : "GGUF";
+
       const downloadKey = this.getHuggingFaceDownloadKey(modelId, fileName);
 
       if (this.activeHuggingFaceDownloads.has(downloadKey)) {
-        await this.sendHuggingFaceDownloadStatus(webview);
+        await this.sendHuggingFaceDownloadStatus();
         vscode.window.showWarningMessage(
           "ATLAS: este download de modelo já está em andamento.",
         );
@@ -2242,7 +2271,7 @@ export class ChatMessageRouter {
       }
 
       if (this.hasActiveEmbeddingDownloadForModel(modelId, fileName)) {
-        await this.sendHuggingFaceDownloadStatus(webview);
+        await this.sendHuggingFaceDownloadStatus();
         vscode.window.showWarningMessage(
           "ATLAS: já existe um download de variante deste embedding em andamento.",
         );
@@ -2252,20 +2281,50 @@ export class ChatMessageRouter {
       downloadContext = {
         modelId,
         fileName,
+        modelName,
+        format,
         controller: new AbortController(),
+        state: "preparando",
+        percent: 0,
+        downloadedBytes: 0,
+        totalBytes: 0,
+        currentFileName: fileName,
+        fileIndex: 1,
+        totalFiles: 1,
       };
       this.activeHuggingFaceDownloads.set(downloadKey, downloadContext);
-      await this.sendHuggingFaceDownloadStatus(webview);
+      await this.sendHuggingFaceDownloadStatus();
 
+      const activeDownloadContext = downloadContext;
       const downloadResult = await this.deps.downloadHuggingFaceModel(
         modelId,
         fileName,
+        (progress) => {
+          const isFirstUpdate = activeDownloadContext.state === "preparando";
+
+          activeDownloadContext.state =
+            activeDownloadContext.state === "cancelando"
+              ? "cancelando"
+              : "baixando";
+          activeDownloadContext.percent = progress.percent;
+          activeDownloadContext.downloadedBytes = progress.downloadedBytes;
+          activeDownloadContext.totalBytes = progress.totalBytes;
+          activeDownloadContext.currentFileName = progress.fileName;
+          activeDownloadContext.fileIndex = progress.fileIndex;
+          activeDownloadContext.totalFiles = progress.totalFiles;
+
+          if (isFirstUpdate) {
+            void this.sendHuggingFaceDownloadStatus();
+          } else {
+            this.scheduleHuggingFaceDownloadStatusUpdate();
+          }
+        },
         downloadContext.controller.signal,
       );
 
       this.activeHuggingFaceDownloads.delete(downloadKey);
 
-      await webview.postMessage({
+      this.deps.broadcastMessage({
         type: "downloadModeloHuggingFaceConcluido",
         value: {
           modelId,
@@ -2274,7 +2333,7 @@ export class ChatMessageRouter {
           format: downloadResult.format,
         },
       });
-      await this.sendHuggingFaceDownloadStatus(webview);
+      await this.sendHuggingFaceDownloadStatus();
 
       this.deps.sendModelsToWebview(webview);
       vscode.window.showInformationMessage(
@@ -2296,7 +2355,7 @@ export class ChatMessageRouter {
         error instanceof Error &&
         error.message.toLowerCase().includes("download cancelado")
       ) {
-        await webview.postMessage({
+        this.deps.broadcastMessage({
           type: "downloadModeloHuggingFaceConcluido",
           value: {
             modelId: downloadContext?.modelId ?? "",
@@ -2304,7 +2363,7 @@ export class ChatMessageRouter {
             canceled: true,
           },
         });
-        await this.sendHuggingFaceDownloadStatus(webview);
+        await this.sendHuggingFaceDownloadStatus();
 
         vscode.window.showInformationMessage("Download do modelo cancelado.");
         return;
@@ -2315,7 +2374,7 @@ export class ChatMessageRouter {
         "Erro ao baixar modelo do Hugging Face.",
       );
 
-      await webview.postMessage({
+      this.deps.broadcastMessage({
         type: "downloadModeloHuggingFaceConcluido",
         value: {
           modelId: downloadContext?.modelId ?? "",
@@ -2323,15 +2382,12 @@ export class ChatMessageRouter {
           error: message,
         },
       });
-      await this.sendHuggingFaceDownloadStatus(webview);
+      await this.sendHuggingFaceDownloadStatus();
       vscode.window.showErrorMessage(`ATLAS: ${message}`);
     }
   }
 
-  private async handleCancelHuggingFaceModelDownload(
-    data: any,
-    webview: vscode.Webview,
-  ): Promise<void> {
+  private async handleCancelHuggingFaceModelDownload(data: any): Promise<void> {
     const modelId = typeof data.modelId === "string" ? data.modelId : "";
     const fileName = typeof data.fileName === "string" ? data.fileName : "";
     const activeDownload =
@@ -2342,26 +2398,57 @@ export class ChatMessageRouter {
         : null;
 
     if (!activeDownload) {
-      await this.sendHuggingFaceDownloadStatus(webview);
+      await this.sendHuggingFaceDownloadStatus();
       return;
     }
 
+    activeDownload.state = "cancelando";
+    await this.sendHuggingFaceDownloadStatus();
     activeDownload.controller.abort();
-    await this.sendHuggingFaceDownloadStatus(webview);
   }
 
-  private async sendHuggingFaceDownloadStatus(
-    webview: vscode.Webview,
-  ): Promise<void> {
+  private scheduleHuggingFaceDownloadStatusUpdate(): void {
+    const now = Date.now();
+    const elapsed = now - this.downloadStatusThrottle.lastSentAt;
+
+    if (elapsed >= ChatMessageRouter.DOWNLOAD_STATUS_THROTTLE_MS) {
+      this.downloadStatusThrottle.lastSentAt = now;
+      void this.sendHuggingFaceDownloadStatus();
+      return;
+    }
+
+    if (this.downloadStatusThrottle.timer) {
+      return;
+    }
+
+    this.downloadStatusThrottle.timer = setTimeout(() => {
+      this.downloadStatusThrottle.timer = null;
+      this.downloadStatusThrottle.lastSentAt = Date.now();
+      void this.sendHuggingFaceDownloadStatus();
+    }, ChatMessageRouter.DOWNLOAD_STATUS_THROTTLE_MS - elapsed);
+  }
+
+  private async sendHuggingFaceDownloadStatus(): Promise<void> {
+    this.downloadStatusThrottle.lastSentAt = Date.now();
+
     const downloads = Array.from(this.activeHuggingFaceDownloads.values()).map(
       (download) => ({
         modelId: download.modelId,
         fileName: download.fileName,
+        modelName: download.modelName,
+        format: download.format,
+        state: download.state,
+        percent: download.percent,
+        downloadedBytes: download.downloadedBytes,
+        totalBytes: download.totalBytes,
+        currentFileName: download.currentFileName,
+        fileIndex: download.fileIndex,
+        totalFiles: download.totalFiles,
       }),
     );
     const firstDownload = downloads[0];
 
-    await webview.postMessage({
+    this.deps.broadcastMessage({
       type: "statusDownloadModeloHuggingFace",
       value: firstDownload
         ? {

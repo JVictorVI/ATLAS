@@ -1572,6 +1572,323 @@ textarea {
   background: var(--atlas-surface-hover-bg);
 }
 
+#downloads-toggle-slot {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+#downloads-panel-slot {
+  display: contents;
+}
+
+.search-results-info[hidden],
+.model-list[hidden] {
+  display: none;
+}
+
+.model-card-download {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--atlas-border);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.model-card-download-bar {
+  display: block;
+  height: 100%;
+  background: var(--atlas-generation-foreground);
+  transition: width 0.2s ease;
+}
+
+.model-card.embedding-model .model-card-download-bar {
+  background: var(--atlas-embedding-foreground);
+}
+
+.model-card-download.download-state-preparando .model-card-download-bar,
+.model-card-download.download-state-cancelando .model-card-download-bar {
+  background: var(--atlas-warning-fg);
+}
+
+.downloads-toggle-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 32px;
+  flex-shrink: 0;
+  border: 1px solid var(--atlas-border);
+  border-radius: 4px;
+  color: var(--vscode-foreground);
+  background: var(--atlas-surface-bg);
+  cursor: pointer;
+  font: inherit;
+}
+
+.downloads-toggle-button:hover {
+  background: var(--atlas-surface-hover-bg);
+}
+
+.downloads-toggle-button.active {
+  border-color: var(--atlas-accent-bg);
+  color: var(--atlas-accent-bg);
+}
+
+.downloads-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--atlas-accent-bg);
+  color: var(--atlas-accent-fg);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.downloads-badge-inline {
+  position: static;
+}
+
+.downloads-panel {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.downloads-panel-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--atlas-border);
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.downloads-panel-heading > span:not(.downloads-badge) {
+  flex: 1;
+}
+
+.downloads-list {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.downloads-empty {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 20px;
+  color: var(--vscode-descriptionForeground);
+  text-align: center;
+  font-size: 12px;
+}
+
+.downloads-empty i {
+  font-size: 24px;
+}
+
+.download-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 14px 0;
+  padding: 12px;
+  border: 1px solid var(--atlas-border);
+  border-radius: 6px;
+  background: var(--atlas-surface-bg);
+}
+
+.download-card:last-child {
+  margin-bottom: 10px;
+}
+
+.download-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.download-kind-pill {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border: 1px solid var(--atlas-border);
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.download-card.generation-model .download-kind-pill {
+  border-color: color-mix(
+    in srgb,
+    var(--atlas-generation-foreground) 50%,
+    var(--atlas-border)
+  );
+  color: var(--atlas-generation-foreground);
+  background: var(--atlas-generation-background);
+}
+
+.download-card.embedding-model .download-kind-pill {
+  border-color: color-mix(
+    in srgb,
+    var(--atlas-embedding-foreground) 55%,
+    var(--atlas-border)
+  );
+  color: var(--atlas-embedding-foreground);
+  background: var(--atlas-embedding-background);
+}
+
+.download-card-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.download-card-percent {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.download-progress-track {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--atlas-border);
+  overflow: hidden;
+}
+
+.download-progress-bar {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--atlas-generation-foreground);
+  transition: width 0.2s ease;
+}
+
+.download-card.embedding-model .download-progress-bar {
+  background: var(--atlas-embedding-foreground);
+}
+
+.download-card-file {
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.download-card-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.download-card-bytes {
+  flex: 1;
+  min-width: 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+}
+
+.download-card-status {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.download-status-baixando,
+.download-status-concluido {
+  color: var(--vscode-charts-green, #89d185);
+}
+
+.download-status-preparando,
+.download-status-cancelando {
+  color: var(--atlas-warning-fg);
+}
+
+.download-status-erro,
+.download-status-cancelado {
+  color: var(--atlas-danger-fg);
+}
+
+.download-cancel-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 1px solid var(--atlas-border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+}
+
+.download-cancel-button:hover {
+  border-color: var(--atlas-danger-fg);
+  color: var(--atlas-danger-fg);
+}
+
+.download-card-error {
+  margin: 0;
+  color: var(--atlas-danger-fg);
+  font-size: 11px;
+}
+
+.downloads-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--atlas-border);
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+}
+
+.clear-finished-downloads-button {
+  border: 0;
+  background: transparent;
+  color: var(--vscode-textLink-foreground);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+}
+
+.clear-finished-downloads-button[disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .model-filter-bar {
   display: flex;
   gap: 4px;
@@ -1677,6 +1994,7 @@ textarea {
 }
 
 .model-card {
+  position: relative;
   display: flex;
   align-items: flex-start;
   gap: 10px;

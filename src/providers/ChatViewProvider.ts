@@ -270,6 +270,11 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         this.modelWebviewService.sendModelsToWebview(webview);
       },
 
+      broadcastMessage: (message: unknown) => {
+        void this._view?.webview.postMessage(message);
+        this.panelManager.postMessage(message);
+      },
+
       executeQuickAnalysis: async (
         webview?: vscode.Webview,
         options?: {
@@ -420,6 +425,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       downloadHuggingFaceModel: async (
         modelId: string,
         fileName: string,
+        onProgress?: (progress: HuggingFaceDownloadProgress) => void,
         signal?: AbortSignal,
       ) => {
         return await vscode.window.withProgress(
@@ -473,6 +479,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
                           downloadProgress,
                         ),
                     });
+                    onProgress?.(downloadProgress);
                   },
                   abortController.signal,
                 );

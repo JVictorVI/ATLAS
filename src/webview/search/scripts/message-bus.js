@@ -76,22 +76,70 @@ function handleModelsFound(message) {
   }
 }
 
-function applyDownloadStatus(value) {
-  const downloads = Array.isArray(value?.downloads)
-    ? value.downloads
-    : value?.downloading
-      ? [{ modelId: value.modelId, fileName: value.fileName }]
-      : [];
+function normalizeActiveDownloadEntry(download) {
+  const modelId = typeof download?.modelId === "string" ? download.modelId : "";
+  const fileName =
+    typeof download?.fileName === "string" ? download.fileName : "";
 
-  state.downloads = downloads
-    .map((download) => ({
-      modelId: typeof download?.modelId === "string" ? download.modelId : "",
-      fileName: typeof download?.fileName === "string" ? download.fileName : "",
-    }))
-    .filter((download) => download.modelId && download.fileName);
-  state.downloading = state.downloads.length > 0;
-  state.downloadingModelId = state.downloads[0]?.modelId || "";
-  state.downloadingFileName = state.downloads[0]?.fileName || "";
+  if (!modelId || !fileName) {
+    return null;
+  }
+
+  const totalFiles = Number(download?.totalFiles);
+  const fileIndex = Number(download?.fileIndex);
+  const percent = Number(download?.percent);
+  const downloadedBytes = Number(download?.downloadedBytes);
+  const totalBytes = Number(download?.totalBytes);
+
+  return {
+    modelId,
+    fileName,
+    modelName:
+      typeof download?.modelName === "string" && download.modelName
+        ? download.modelName
+        : fileName,
+    format: download?.format === "ONNX" ? "ONNX" : "GGUF",
+    state:
+      download?.state === "preparando" ||
+      download?.state === "baixando" ||
+      download?.state === "cancelando"
+        ? download.state
+        : "baixando",
+    percent: Number.isFinite(percent) ? Math.min(100, Math.max(0, percent)) : 0,
+    downloadedBytes: Number.isFinite(downloadedBytes) ? downloadedBytes : 0,
+    totalBytes: Number.isFinite(totalBytes) ? totalBytes : 0,
+    currentFileName:
+      typeof download?.currentFileName === "string" && download.currentFileName
+        ? download.currentFileName
+        : fileName,
+    fileIndex: Number.isFinite(fileIndex) && fileIndex > 0 ? fileIndex : 1,
+    totalFiles: Number.isFinite(totalFiles) && totalFiles > 0 ? totalFiles : 1,
+  };
+}
+
+function applyDownloadStatus(value) {
+  const activeDownloads = (
+    Array.isArray(value?.downloads) ? value.downloads : []
+  )
+    .map(normalizeActiveDownloadEntry)
+    .filter(Boolean);
+  const activeKeys = new Set(
+    activeDownloads.map((download) =>
+      getDownloadKey(download.modelId, download.fileName),
+    ),
+  );
+  const finishedDownloads = (
+    Array.isArray(state.downloads) ? state.downloads : []
+  ).filter(
+    (download) =>
+      isTerminalDownloadState(download.state) &&
+      !activeKeys.has(getDownloadKey(download.modelId, download.fileName)),
+  );
+
+  state.downloads = [...activeDownloads, ...finishedDownloads];
+  state.downloading = activeDownloads.length > 0;
+  state.downloadingModelId = activeDownloads[0]?.modelId || "";
+  state.downloadingFileName = activeDownloads[0]?.fileName || "";
 
   state.variantMenuOpen = false;
   render();
@@ -100,21 +148,51 @@ function applyDownloadStatus(value) {
 function clearDownloadStatus(value = {}) {
   const modelId = typeof value?.modelId === "string" ? value.modelId : "";
   const fileName = typeof value?.fileName === "string" ? value.fileName : "";
+  const finalState = value?.error
+    ? "erro"
+    : value?.canceled
+      ? "cancelado"
+      : "concluido";
+  const downloads = Array.isArray(state.downloads) ? state.downloads : [];
 
   if (modelId && fileName) {
-    const completedKey = getDownloadKey(modelId, fileName);
-    state.downloads = (Array.isArray(state.downloads) ? state.downloads : [])
-      .filter(
+    const key = getDownloadKey(modelId, fileName);
+    const existing = downloads.find(
+      (download) => getDownloadKey(download.modelId, download.fileName) === key,
+    );
+
+    const finishedEntry = {
+      ...(existing || {
+        modelId,
+        fileName,
+        modelName: fileName,
+        format: "GGUF",
+        currentFileName: fileName,
+        fileIndex: 1,
+        totalFiles: 1,
+      }),
+      modelId,
+      fileName,
+      state: finalState,
+      percent: finalState === "concluido" ? 100 : existing?.percent || 0,
+      errorMessage: typeof value?.error === "string" ? value.error : "",
+    };
+
+    state.downloads = [
+      ...downloads.filter(
         (download) =>
-          getDownloadKey(download.modelId, download.fileName) !== completedKey,
-      );
-  } else {
-    state.downloads = [];
+          getDownloadKey(download.modelId, download.fileName) !== key,
+      ),
+      finishedEntry,
+    ];
   }
 
-  state.downloading = state.downloads.length > 0;
-  state.downloadingModelId = state.downloads[0]?.modelId || "";
-  state.downloadingFileName = state.downloads[0]?.fileName || "";
+  const activeDownloads = state.downloads.filter(
+    (download) => !isTerminalDownloadState(download.state),
+  );
+  state.downloading = activeDownloads.length > 0;
+  state.downloadingModelId = activeDownloads[0]?.modelId || "";
+  state.downloadingFileName = activeDownloads[0]?.fileName || "";
   state.variantMenuOpen = false;
 }
 

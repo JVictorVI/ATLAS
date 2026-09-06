@@ -240,37 +240,33 @@ export class ChatPanelManager {
 
     const htmlPath = this.resolveHtmlPath(webviewPath, normalizedView);
 
-    const styleUri = webview.asWebviewUri(
-      vscode.Uri.file(path.join(webviewPath, "styles.css")),
+    const styleUri = this.getVersionedWebviewUri(
+      webview,
+      path.join(webviewPath, "styles.css"),
     );
-    const scriptUri = webview.asWebviewUri(
-      vscode.Uri.file(path.join(webviewPath, "script.js")),
+    const scriptUri = this.getVersionedWebviewUri(
+      webview,
+      path.join(webviewPath, "script.js"),
     );
     const scriptTags = this.buildScriptTags(
       webview,
       webviewPath,
       normalizedView,
     );
-    const codiconsUri = webview.asWebviewUri(
-      vscode.Uri.file(
-        path.join(
-          this.context.extensionUri.fsPath,
-          "src",
-          "webview",
-          "vendor",
-          "codicons",
-          "codicon.css",
-        ),
+    const codiconsUri = this.getVersionedWebviewUri(
+      webview,
+      path.join(
+        this.context.extensionUri.fsPath,
+        "src",
+        "webview",
+        "vendor",
+        "codicons",
+        "codicon.css",
       ),
     );
-    const huggingFaceIconUri = webview.asWebviewUri(
-      vscode.Uri.file(
-        path.join(
-          this.context.extensionUri.fsPath,
-          "assets",
-          "hugging-face-icon.png",
-        ),
-      ),
+    const huggingFaceIconUri = this.getVersionedWebviewUri(
+      webview,
+      path.join(this.context.extensionUri.fsPath, "assets", "hugging-face-icon.png"),
     );
 
     const markedUri = this.tryGetMarkedUri(webview);
@@ -282,15 +278,32 @@ export class ChatPanelManager {
 
     html = html
       .replace(/{{cspSource}}/g, webview.cspSource)
-      .replace(/{{styleUri}}/g, styleUri.toString())
-      .replace(/{{scriptUri}}/g, scriptUri.toString())
+      .replace(/{{styleUri}}/g, styleUri)
+      .replace(/{{scriptUri}}/g, scriptUri)
       .replace(/{{scriptTags}}/g, scriptTags)
-      .replace(/{{codiconsUri}}/g, codiconsUri.toString())
-      .replace(/{{huggingFaceIconUri}}/g, huggingFaceIconUri.toString())
+      .replace(/{{codiconsUri}}/g, codiconsUri)
+      .replace(/{{huggingFaceIconUri}}/g, huggingFaceIconUri)
       .replace(/{{markedUri}}/g, markedUri)
       .replace(/{{initialSearchModelId}}/g, initialSearchModelId);
 
     return html;
+  }
+
+  private getVersionedWebviewUri(
+    webview: vscode.Webview,
+    filePath: string,
+  ): string {
+    const uri = webview.asWebviewUri(vscode.Uri.file(filePath)).toString();
+
+    let version = "0";
+
+    try {
+      version = String(Math.trunc(fs.statSync(filePath).mtimeMs));
+    } catch {
+      // Arquivo pode nao existir (ex.: marked.min.js opcional); mantem uri sem cache-busting confiavel.
+    }
+
+    return `${uri}${uri.includes("?") ? "&" : "?"}v=${version}`;
   }
 
   private buildScriptTags(
@@ -356,6 +369,7 @@ export class ChatPanelManager {
         "scripts/dom-utils.js",
         "scripts/model-utils.js",
         "scripts/render-components.js",
+        "scripts/render-downloads.js",
         "scripts/render-sidebar.js",
         "scripts/compatibility-diagnostics.js",
         "scripts/render-details.js",
@@ -370,11 +384,12 @@ export class ChatPanelManager {
 
     return scriptFiles
       .map((scriptFile) => {
-        const uri = webview.asWebviewUri(
-          vscode.Uri.file(path.join(webviewPath, scriptFile)),
+        const uri = this.getVersionedWebviewUri(
+          webview,
+          path.join(webviewPath, scriptFile),
         );
 
-        return `<script src="${uri.toString()}"></script>`;
+        return `<script src="${uri}"></script>`;
       })
       .join("\n    ");
   }
@@ -405,20 +420,17 @@ export class ChatPanelManager {
 
   private tryGetMarkedUri(webview: vscode.Webview): string {
     try {
-      return webview
-        .asWebviewUri(
-          vscode.Uri.file(
-            path.join(
-              this.context.extensionUri.fsPath,
-              "src",
-              "webview",
-              "chat",
-              "vendor",
-              "marked.min.js",
-            ),
-          ),
-        )
-        .toString();
+      return this.getVersionedWebviewUri(
+        webview,
+        path.join(
+          this.context.extensionUri.fsPath,
+          "src",
+          "webview",
+          "chat",
+          "vendor",
+          "marked.min.js",
+        ),
+      );
     } catch {
       return "";
     }

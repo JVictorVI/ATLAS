@@ -452,6 +452,7 @@ function renderModelCards(
                 ${model.pipelineTag ? `<span><i class="codicon codicon-symbol-method"></i> ${escapeHtml(model.pipelineTag)}</span>` : ""}
                 ${model.gated || model.private ? `<span><i class="codicon codicon-lock"></i> ${escapeHtml(getSearchAccessLabel(model))}</span>` : ""}
               </span>
+              ${renderModelCardDownload(model)}
             </span>
           </button>
         `;
@@ -559,6 +560,409 @@ function handleSearchModelsError(message) {
   renderSearchModelCards();
 }
 
+const TERMINAL_DOWNLOAD_STATES = ["concluido", "erro", "cancelado"];
+
+const DOWNLOAD_STATUS_LABELS = {
+  preparando: "Preparando",
+  baixando: "Baixando",
+  cancelando: "Cancelando",
+  concluido: "Concluído",
+  erro: "Erro",
+  cancelado: "Cancelado",
+};
+
+const downloadsState = {
+  panelOpen: false,
+  items: [],
+};
+
+function isTerminalDownloadState(downloadState) {
+  return TERMINAL_DOWNLOAD_STATES.includes(downloadState);
+}
+
+function getDownloadKey(modelId, fileName) {
+  return `${modelId || ""}\n${fileName || ""}`;
+}
+
+function getActiveDownloads() {
+  return downloadsState.items.filter(
+    (download) => !isTerminalDownloadState(download.state),
+  );
+}
+
+function getActiveDownloadForModel(modelId) {
+  if (!modelId) {
+    return null;
+  }
+
+  return (
+    downloadsState.items.find(
+      (download) =>
+        download.modelId === modelId && !isTerminalDownloadState(download.state),
+    ) || null
+  );
+}
+
+function hasFinishedDownloads() {
+  return downloadsState.items.some((download) =>
+    isTerminalDownloadState(download.state),
+  );
+}
+
+function getDownloadStatusLabel(downloadState) {
+  return DOWNLOAD_STATUS_LABELS[downloadState] || "Baixando";
+}
+
+function formatDownloadBytes(bytes) {
+  const value = Number(bytes);
+
+  if (!Number.isFinite(value) || value <= 0) {
+    return "";
+  }
+
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let size = value;
+  let unitIndex = 0;
+
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex += 1;
+  }
+
+  return `${unitIndex === 0 ? size : size.toFixed(2)} ${units[unitIndex]}`;
+}
+
+function normalizeDownloadEntry(download) {
+  const modelId = typeof download?.modelId === "string" ? download.modelId : "";
+  const fileName =
+    typeof download?.fileName === "string" ? download.fileName : "";
+
+  if (!modelId || !fileName) {
+    return null;
+  }
+
+  const percent = Number(download?.percent);
+  const downloadedBytes = Number(download?.downloadedBytes);
+  const totalBytes = Number(download?.totalBytes);
+  const fileIndex = Number(download?.fileIndex);
+  const totalFiles = Number(download?.totalFiles);
+
+  return {
+    modelId,
+    fileName,
+    modelName:
+      typeof download?.modelName === "string" && download.modelName
+        ? download.modelName
+        : modelId,
+    format: download?.format === "ONNX" ? "ONNX" : "GGUF",
+    state:
+      download?.state === "preparando" ||
+      download?.state === "cancelando" ||
+      download?.state === "baixando"
+        ? download.state
+        : "baixando",
+    percent: Number.isFinite(percent) ? Math.min(100, Math.max(0, percent)) : 0,
+    downloadedBytes: Number.isFinite(downloadedBytes) ? downloadedBytes : 0,
+    totalBytes: Number.isFinite(totalBytes) ? totalBytes : 0,
+    currentFileName:
+      typeof download?.currentFileName === "string" && download.currentFileName
+        ? download.currentFileName
+        : fileName,
+    fileIndex: Number.isFinite(fileIndex) && fileIndex > 0 ? fileIndex : 1,
+    totalFiles: Number.isFinite(totalFiles) && totalFiles > 0 ? totalFiles : 1,
+  };
+}
+
+function applyDownloadStatus(value) {
+  const activeDownloads = (Array.isArray(value?.downloads) ? value.downloads : [])
+    .map(normalizeDownloadEntry)
+    .filter(Boolean);
+  const activeKeys = new Set(
+    activeDownloads.map((download) =>
+      getDownloadKey(download.modelId, download.fileName),
+    ),
+  );
+  const finishedDownloads = downloadsState.items.filter(
+    (download) =>
+      isTerminalDownloadState(download.state) &&
+      !activeKeys.has(getDownloadKey(download.modelId, download.fileName)),
+  );
+
+  downloadsState.items = [...activeDownloads, ...finishedDownloads];
+  updateDownloadsUi();
+}
+
+function applyDownloadFinished(value) {
+  const modelId = typeof value?.modelId === "string" ? value.modelId : "";
+  const fileName = typeof value?.fileName === "string" ? value.fileName : "";
+
+  if (!modelId || !fileName) {
+    return;
+  }
+
+  const key = getDownloadKey(modelId, fileName);
+  const existing = downloadsState.items.find(
+    (download) => getDownloadKey(download.modelId, download.fileName) === key,
+  );
+  const finalState = value?.error
+    ? "erro"
+    : value?.canceled
+      ? "cancelado"
+      : "concluido";
+
+  downloadsState.items = [
+    ...downloadsState.items.filter(
+      (download) => getDownloadKey(download.modelId, download.fileName) !== key,
+    ),
+    {
+      ...(existing || {
+        modelId,
+        fileName,
+        modelName: modelId,
+        format: fileName.toLowerCase().endsWith(".onnx") ? "ONNX" : "GGUF",
+        currentFileName: fileName,
+        downloadedBytes: 0,
+        totalBytes: 0,
+        fileIndex: 1,
+        totalFiles: 1,
+      }),
+      state: finalState,
+      percent: finalState === "concluido" ? 100 : existing?.percent || 0,
+      errorMessage: typeof value?.error === "string" ? value.error : "",
+    },
+  ];
+
+  updateDownloadsUi();
+}
+
+function renderModelCardDownload(model) {
+  const download = getActiveDownloadForModel(model.id);
+
+  if (!download) {
+    return "";
+  }
+
+  const percent = Math.min(100, Math.max(0, Number(download.percent) || 0));
+
+  return `
+    <span
+      class="model-card-download download-state-${escapeHtml(download.state)}"
+      data-model-download="${escapeHtml(model.id)}"
+      title="${escapeHtml(getDownloadStatusLabel(download.state))} ${escapeHtml(Math.round(percent))}%"
+    >
+      <span class="model-card-download-bar" style="width: ${percent}%;"></span>
+    </span>
+  `;
+}
+
+function syncModelCardDownloads() {
+  const modelList = document.getElementById("model-list");
+
+  if (!modelList) {
+    return;
+  }
+
+  let needsRerender = false;
+
+  modelList.querySelectorAll(".model-card").forEach((card) => {
+    const download = getActiveDownloadForModel(card.getAttribute("data-id"));
+    const element = card.querySelector("[data-model-download]");
+
+    if (Boolean(download) !== Boolean(element)) {
+      needsRerender = true;
+      return;
+    }
+
+    if (!download || !element) {
+      return;
+    }
+
+    const percent = Math.min(100, Math.max(0, Number(download.percent) || 0));
+    const bar = element.querySelector(".model-card-download-bar");
+
+    if (bar) {
+      bar.style.width = `${percent}%`;
+    }
+
+    element.title = `${getDownloadStatusLabel(download.state)} ${Math.round(percent)}%`;
+  });
+
+  if (needsRerender) {
+    const scrollTop = modelList.scrollTop;
+    renderSearchModelCards();
+    modelList.scrollTop = scrollTop;
+  }
+}
+
+function renderDownloadsToggle() {
+  const activeCount = getActiveDownloads().length;
+
+  return `
+    <button
+      class="downloads-toggle-button ${downloadsState.panelOpen ? "active" : ""}"
+      id="downloads-toggle"
+      type="button"
+      title="Downloads"
+      aria-label="Downloads"
+      aria-expanded="${downloadsState.panelOpen ? "true" : "false"}"
+    >
+      <i class="codicon codicon-cloud-download"></i>
+      ${activeCount > 0 ? `<span class="downloads-badge">${escapeHtml(activeCount)}</span>` : ""}
+    </button>
+  `;
+}
+
+function renderDownloadCardTitle(download) {
+  return download.format === "ONNX"
+    ? `${escapeHtml(download.modelName)} / ${escapeHtml(download.fileName)}`
+    : escapeHtml(download.fileName);
+}
+
+function renderDownloadCard(download) {
+  const terminal = isTerminalDownloadState(download.state);
+  const percent = Math.min(100, Math.max(0, Number(download.percent) || 0));
+  const downloaded = formatDownloadBytes(download.downloadedBytes);
+  const total = formatDownloadBytes(download.totalBytes);
+  const kindClass =
+    download.format === "ONNX" ? "embedding-model" : "generation-model";
+
+  return `
+    <div class="download-card ${kindClass} download-card-${escapeHtml(download.state)}">
+      <div class="download-card-header">
+        <span class="download-kind-pill">${escapeHtml(download.format)}</span>
+        <span class="download-card-name" title="${escapeHtml(download.fileName)}">${renderDownloadCardTitle(download)}</span>
+        <span class="download-card-percent">${terminal ? "" : `${escapeHtml(Math.round(percent))}%`}</span>
+      </div>
+      ${
+        terminal
+          ? ""
+          : `<div class="download-progress-track">
+              <span class="download-progress-bar" style="width: ${percent}%;"></span>
+            </div>`
+      }
+      ${
+        download.totalFiles > 1
+          ? `<div class="download-card-file">arquivo ${escapeHtml(download.fileIndex)}/${escapeHtml(download.totalFiles)} ${escapeHtml(download.currentFileName)}</div>`
+          : ""
+      }
+      <div class="download-card-footer">
+        <span class="download-card-bytes">${total ? `${escapeHtml(downloaded || "0 B")} / ${escapeHtml(total)}` : ""}</span>
+        <span class="download-card-status download-status-${escapeHtml(download.state)}">${escapeHtml(getDownloadStatusLabel(download.state))}</span>
+        ${
+          terminal || download.state === "cancelando"
+            ? ""
+            : `<button class="download-cancel-button" type="button" data-download-cancel data-model-id="${escapeHtml(download.modelId)}" data-file-name="${escapeHtml(download.fileName)}" title="Cancelar download">
+                <i class="codicon codicon-close"></i>
+                <span>Cancelar</span>
+              </button>`
+        }
+      </div>
+      ${
+        download.state === "erro" && download.errorMessage
+          ? `<p class="download-card-error">${escapeHtml(download.errorMessage)}</p>`
+          : ""
+      }
+    </div>
+  `;
+}
+
+function renderDownloadsPanel() {
+  if (!downloadsState.panelOpen) {
+    return "";
+  }
+
+  const activeCount = getActiveDownloads().length;
+  const cards = downloadsState.items.map(renderDownloadCard).join("");
+
+  return `
+    <div class="downloads-panel" id="downloads-panel">
+      <div class="downloads-panel-heading">
+        <i class="codicon codicon-cloud-download"></i>
+        <span>Downloads</span>
+        ${activeCount > 0 ? `<span class="downloads-badge downloads-badge-inline">${escapeHtml(activeCount)}</span>` : ""}
+      </div>
+      <div class="downloads-list">
+        ${
+          cards ||
+          `<div class="downloads-empty">
+            <i class="codicon codicon-cloud-download" aria-hidden="true"></i>
+            <span>Nenhum download em andamento.</span>
+          </div>`
+        }
+      </div>
+      <div class="downloads-footer">
+        <span>${escapeHtml(activeCount)} downloads ativos</span>
+        <button class="clear-finished-downloads-button" id="clear-finished-downloads" type="button" ${hasFinishedDownloads() ? "" : "disabled"}>
+          Limpar histórico
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function updateDownloadsUi() {
+  const toggleSlot = document.getElementById("downloads-toggle-slot");
+
+  if (!toggleSlot) {
+    return;
+  }
+
+  toggleSlot.innerHTML = renderDownloadsToggle();
+
+  const panelSlot = document.getElementById("downloads-panel-slot");
+
+  if (panelSlot) {
+    panelSlot.innerHTML = renderDownloadsPanel();
+  }
+
+  const resultsInfo = document.getElementById("search-results-info");
+  const modelList = document.getElementById("model-list");
+
+  if (resultsInfo) {
+    resultsInfo.hidden = downloadsState.panelOpen;
+  }
+
+  if (modelList) {
+    modelList.hidden = downloadsState.panelOpen;
+  }
+
+  syncModelCardDownloads();
+}
+
+function bindDownloadsEvents() {
+  document
+    .querySelector(".search-sidebar")
+    ?.addEventListener("click", (event) => {
+      const target = event.target;
+
+      if (!(target instanceof Element)) {
+        return;
+      }
+
+      if (target.closest("#downloads-toggle")) {
+        downloadsState.panelOpen = !downloadsState.panelOpen;
+        updateDownloadsUi();
+        return;
+      }
+
+      if (target.closest("#clear-finished-downloads")) {
+        downloadsState.items = getActiveDownloads();
+        updateDownloadsUi();
+        return;
+      }
+
+      const cancelButton = target.closest("[data-download-cancel]");
+
+      if (cancelButton) {
+        vscode.postMessage({
+          type: "cancelarDownloadModeloHuggingFace",
+          modelId: cancelButton.getAttribute("data-model-id") || "",
+          fileName: cancelButton.getAttribute("data-file-name") || "",
+        });
+      }
+    });
+}
+
 function renderSearchView() {
   currentView = "search";
   notifyCurrentView();
@@ -570,23 +974,27 @@ function renderSearchView() {
           <button class="search-submit" type="submit" title="Pesquisar">
             <i class="codicon codicon-search"></i>
           </button>
+          <span id="downloads-toggle-slot">${renderDownloadsToggle()}</span>
         </form>
         <div class="model-filter-bar" aria-label="Filtro de tipo de modelo">
           <button class="model-filter-button ${searchModelState.modelFilter === "all" ? "active" : ""}" type="button" data-model-filter="all">Ambos</button>
           <button class="model-filter-button ${searchModelState.modelFilter === "llm" ? "active" : ""}" type="button" data-model-filter="llm">LLM</button>
           <button class="model-filter-button ${searchModelState.modelFilter === "embedding" ? "active" : ""}" type="button" data-model-filter="embedding">Embeddings</button>
         </div>
-        <div class="search-results-info">
+        <div id="downloads-panel-slot">${renderDownloadsPanel()}</div>
+        <div class="search-results-info" id="search-results-info" ${downloadsState.panelOpen ? "hidden" : ""}>
           <i class="codicon codicon-chevron-right"></i>
           <span id="search-results-count">${escapeHtml(getSearchResultsLabel())}</span>
         </div>
-        <div class="model-list" id="model-list"></div>
+        <div class="model-list" id="model-list" ${downloadsState.panelOpen ? "hidden" : ""}></div>
       </aside>
     </div>
   `;
 
   bindSearchModelEvents();
+  bindDownloadsEvents();
   renderSearchModelCards();
+  vscode.postMessage({ type: "solicitarStatusDownloadHuggingFace" });
 
   if (searchModelState.models.length === 0 && !searchModelState.loading) {
     requestSearchModels("");

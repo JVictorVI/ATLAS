@@ -181,6 +181,16 @@ window.addEventListener("message", (event) => {
       break;
     }
 
+    case "statusDownloadModeloHuggingFace": {
+      applyDownloadStatus(message.value);
+      break;
+    }
+
+    case "downloadModeloHuggingFaceConcluido": {
+      applyDownloadFinished(message.value);
+      break;
+    }
+
     case "fimResposta": {
       clearGenerationForMessage(message);
 

@@ -11,6 +11,7 @@ import { AtlasSessionService } from "../services/AtlasSessionService";
 import { CloudApiService } from "../services/CloudApiService";
 import { HardwareDiagnosticService } from "../services/HardwareDiagnosticService";
 import {
+  HuggingFaceDownloadProgress,
   HuggingFaceModelSearchFilter,
   HuggingFaceModelSearchResult,
 } from "../services/HuggingFaceModelService";
@@ -42,6 +43,7 @@ export type RouterDependencies = {
   openPanel: (selectedView?: string) => void;
   openSearchModelDetails: (modelId: string) => void;
   sendModelsToWebview: (webview: vscode.Webview) => void;
+  broadcastMessage: (message: unknown) => void;
   executeQuickAnalysis: (
     webview?: vscode.Webview,
     options?: {
@@ -122,6 +124,7 @@ export type RouterDependencies = {
   downloadHuggingFaceModel: (
     modelId: string,
     fileName: string,
+    onProgress?: (progress: HuggingFaceDownloadProgress) => void,
     signal?: AbortSignal,
   ) => Promise<{ targetPath: string; format: "GGUF" | "ONNX" }>;
   refreshRagEmbeddingModels: () => RagEmbeddingModelInfo[];
