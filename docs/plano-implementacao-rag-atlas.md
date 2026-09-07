@@ -1,6 +1,6 @@
 # Plano e Estado da Implementação do RAG no ATLAS
 
-Atualizado em 5 de setembro de 2026.
+Atualizado em 6 de setembro de 2026.
 
 > **Nota de sincronização:** a documentação geral e os diagramas foram alinhados para tratar materiais complementares e atualização incremental como funcionalidades implementadas. As evoluções pendentes do RAG continuam sendo chunking orientado a símbolos e melhorias de qualidade da recuperação.
 
@@ -30,11 +30,14 @@ O fluxo principal já está implementado. As evoluções restantes concentram-se
 | Modelo local de embeddings               | Implementado com pasta configurável, seletor e download do padrão                                          |
 | Indexação do workspace atual             | Implementada                                                                                               |
 | Indexação manual de outra pasta          | Implementada                                                                                               |
+| Seleção do escopo antes da indexação      | Implementada com raiz inteira ou múltiplas subpastas imediatas                                             |
 | Chunking textual e metadados de linhas   | Implementados                                                                                              |
 | Persistência por projeto                 | Implementada                                                                                               |
 | Recuperação no chat                      | Implementada                                                                                               |
+| Recuperação por pasta-mãe                | Implementada para índices pesquisáveis de projetos descendentes quando a raiz atual não possui índice próprio |
 | Fontes utilizadas na resposta            | Implementadas e persistidas na sessão                                                                      |
 | Tela de projetos indexados               | Implementada                                                                                               |
+| Remoção de todos os projetos             | Implementada com confirmação e limpeza dos materiais complementares associados                             |
 | Tela RAG com carregamento inicial seguro | Implementada; spinner inicial não bloqueia acesso em caso de erro ou timeout                               |
 | Barra de progresso e cancelamento        | Implementados                                                                                              |
 | Configurações de indexação e recuperação | Implementadas                                                                                              |
@@ -203,12 +206,19 @@ A organização atual da tela prioriza:
 3. materiais complementares no RAG;
 4. configurações principais, embeddings, indexação e recuperação.
 
-### 7.2 Fluxo de reconstrução completa de projetos
+### 7.2 Seleção do escopo de indexação
+
+Ao clicar em **Indexar workspace atual**, a pasta do workspace ativo vira a pasta-base do seletor. Em **Selecionar pasta**, o usuário escolhe primeiro a pasta-base no diálogo do sistema. Nos dois casos, um Quick Pick múltiplo permite escolher entre a raiz inteira e suas subpastas imediatas elegíveis.
+
+Diretórios ignorados pelo scanner não são oferecidos. A raiz e seus descendentes não podem ser selecionados ao mesmo tempo. Uma seleção de várias subpastas produz projetos RAG independentes e é processada sequencialmente, reduzindo o risco de transformar acidentalmente uma pasta-mãe extensa em um único índice. A falha de uma pasta é acumulada no resultado e não impede as seguintes; somente cancelamento ou `AbortError` interrompe o lote. A reindexação de um projeto existente não passa por esse seletor.
+
+### 7.3 Fluxo de reconstrução completa de projetos
 
 ```text
 Webview RAG
   -> ChatMessageRouter
-  -> AtlasRagService.indexCurrentWorkspace/indexSelectedFolder/indexProject
+  -> seletor de raiz inteira ou subpastas
+  -> AtlasRagService.indexSelectedFolder/indexProject
   -> scanner e filtros
   -> chunking
   -> AtlasEmbeddingService
@@ -228,7 +238,9 @@ A interface mostra:
 - salvamento da base;
 - conclusão e cancelamento.
 
-### 7.3 Seleção de arquivos
+Quando várias pastas são escolhidas, a interface também mostra o nome atual e sua posição no lote (`projectIndex/totalProjects`).
+
+### 7.4 Seleção de arquivos
 
 São aplicados:
 
@@ -253,7 +265,7 @@ JSON e configurações:
 .ini, .cfg, .conf, .properties, .txt
 ```
 
-### 7.4 Chunking
+### 7.5 Chunking
 
 O chunking atual é textual:
 
@@ -268,7 +280,7 @@ Os valores padrão são 1.000 caracteres por chunk e sobreposição de 200 carac
 
 Nos materiais complementares, `chunkExternalDocument` gera trechos sob demanda e divide também linhas que excedem o tamanho efetivo do chunk. O cabeçalho de metadados é acrescentado depois dessa divisão. Em PDFs, cada página é dividida separadamente, sem sobreposição entre páginas.
 
-### 7.5 Atualização automática
+### 7.6 Atualização automática
 
 O `FileSystemWatcher` observa projetos registrados. Quando um arquivo elegível é criado, alterado ou removido:
 
@@ -279,7 +291,7 @@ O `FileSystemWatcher` observa projetos registrados. Quando um arquivo elegível 
 
 No modo incremental, o ATLAS compara o hash das fontes já registradas no manifesto e gera embeddings apenas para arquivos novos ou alterados, removendo chunks de arquivos apagados. Quando a configuração que define a forma do índice muda, o serviço cai automaticamente para uma indexação completa.
 
-### 7.6 Materiais complementares e memória
+### 7.7 Materiais complementares e memória
 
 A importação valida o workspace, o formato e o tamanho do arquivo antes da leitura. O limite padrão é de 25 MiB por material, em `rag.externalDocumentMaxFileSizeBytes`.
 
@@ -303,7 +315,7 @@ Os bytes do arquivo ainda são lidos integralmente. Office e formatos textuais a
 
 O progresso inclui arquivo atual e trechos já gravados. O cancelamento é verificado entre páginas e lotes, aguardando a conclusão de uma inferência já iniciada. Em caso de falha, o serviço tenta limpar os IDs novos, inclusive os do lote em gravação, e mantém o registro anterior no manifesto. A reimportação remove os trechos obsoletos somente após concluir os novos lotes; essas operações não formam uma transação atômica.
 
-### 7.7 Concorrência de indexação
+### 7.8 Concorrência de indexação
 
 O serviço recusa uma indexação de projeto enquanto materiais complementares estão sendo importados, e recusa a importação enquanto há indexação de projeto ativa. A mensagem orienta aguardar o término; não há agendamento automático da operação recusada. Separadamente, a fila do `AtlasEmbeddingService` garante uma inferência por vez também para consultas do chat.
 
@@ -313,9 +325,9 @@ O serviço recusa uma indexação de projeto enquanto materiais complementares e
 
 1. validar se o RAG está habilitado;
 2. validar a política local/cloud;
-3. resolver o projeto correspondente ao workspace ativo;
+3. resolver o índice exato do workspace ativo ou os projetos indexados contidos nele;
 4. gerar o embedding da pergunta;
-5. consultar até `topK * 5` candidatos no ChromaDB;
+5. consultar até `topK * 5` candidatos por coleção selecionada no ChromaDB;
 6. aplicar filtros e limites;
 7. selecionar até `topK` resultados;
 8. respeitar `maxContextCharacters`;
@@ -343,9 +355,11 @@ relevance = clamp(1 - distance, 0, 1)
 
 O padrão atual usa distância máxima `0.9`.
 
-### 8.3 Projeto selecionado
+### 8.3 Projetos selecionados
 
-A consulta usa somente a coleção do projeto correspondente ao workspace ativo. Projetos adicionados manualmente ficam disponíveis para gestão e indexação, mas não são misturados automaticamente em perguntas feitas em outro workspace.
+A consulta prioriza a coleção correspondente exatamente ao workspace ativo. Quando não existe índice pesquisável para essa raiz, o ATLAS consulta as coleções dos projetos indexados contidos nela. Dessa forma, uma pasta-mãe pode recuperar o RAG de um ou mais subprojetos já indexados, enquanto projetos em pastas irmãs à raiz aberta, ancestrais ou localizados fora dela continuam fora do escopo das coleções de código.
+
+Quando vários índices descendentes são selecionados, os candidatos de suas coleções são combinados e ordenados por distância antes dos filtros e do `topK` final. Limites e diversidade usam `projectId` junto ao caminho relativo para não confundir arquivos homônimos. As fontes exibidas recebem o prefixo do subprojeto relativo à pasta aberta.
 
 Projetos com status `ready` ou `outdated` são pesquisáveis. Quando o status é `outdated`, a recuperação usa a última coleção indexada disponível até que a reindexação termine.
 

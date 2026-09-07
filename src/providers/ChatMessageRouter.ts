@@ -14,6 +14,7 @@ import {
   RagEmbeddingModelInfo,
   RagIndexingMode,
   RagIndexingProgress,
+  RagProjectIndex,
   RagRuntimeStatus,
 } from "../interfaces/AtlasRagTypes";
 import {
@@ -24,6 +25,7 @@ import {
 import { AtlasExternalDocumentParser } from "../services/AtlasExternalDocumentParser";
 import { AtlasContextProfileService } from "../services/AtlasContextProfileService";
 import { AtlasInferenceService } from "../services/AtlasInferenceService";
+import { getContainedRelativePath } from "../utils/AtlasPathUtils";
 
 type LocalEngineType = "cpu" | "cuda" | "vulkan";
 
@@ -37,6 +39,36 @@ type ConfiguredEngineDownloadStatus = {
   canceled?: boolean;
   message: string;
 };
+
+type RagIndexTargetQuickPickItem = vscode.QuickPickItem & {
+  folderUri: vscode.Uri;
+  indexesEntireRoot: boolean;
+};
+
+type RagIndexTarget = {
+  folderUri: vscode.Uri;
+  name: string;
+};
+
+type RagIndexFailure = {
+  name: string;
+  path: string;
+  message: string;
+};
+
+type RagFolderSizeEstimate = {
+  candidateFileCount: number;
+  candidateFileCountCapped: boolean;
+  candidateSizeBytes: number;
+  immediateSubfolderCount: number;
+  isLarge: boolean;
+};
+
+type RagRootIndexStrategy = "entire-root" | "subfolders" | "cancel";
+
+const RAG_LARGE_FOLDER_FILE_THRESHOLD = 400;
+const RAG_LARGE_FOLDER_SIZE_THRESHOLD_BYTES = 20 * 1024 * 1024;
+const RAG_LARGE_FOLDER_SUBFOLDER_THRESHOLD = 8;
 
 export class ChatMessageRouter {
   private activeWebviewRoute = "chat";
@@ -220,6 +252,9 @@ export class ChatMessageRouter {
         return;
       case "excluirProjetoRag":
         await this.handleDeleteRagProject(data, webview);
+        return;
+      case "removerTodosProjetosRag":
+        await this.handleDeleteAllRagProjects(webview);
         return;
       case "salvarConfiguracoesAtlas":
         await this.handleSaveAtlasSettings(data, webview);
@@ -1389,26 +1424,31 @@ export class ChatMessageRouter {
     this.ragIndexController = controller;
 
     try {
-      let selectedFolder: vscode.Uri | undefined;
+      let baseFolder: vscode.Uri | undefined;
 
       if (source === "folder") {
         const selection = await vscode.window.showOpenDialog({
           canSelectFiles: false,
           canSelectFolders: true,
           canSelectMany: false,
-          openLabel: "Indexar pasta",
-          title: "Selecione a pasta que será indexada pelo RAG",
+          openLabel: "Selecionar pasta-base",
+          title: "Selecione a pasta-base para escolher o que será indexado",
         });
-        selectedFolder = selection?.[0];
+        baseFolder = selection?.[0];
 
-        if (!selectedFolder) {
-          await webview.postMessage({
-            type: "indexacaoRagCancelada",
-            value: {
-              projects: this.deps.listRagProjects(),
-            },
-          });
+        if (!baseFolder) {
+          await this.postRagIndexSelectionCancelled(webview);
           return;
+        }
+      }
+
+      if (source === "workspace") {
+        baseFolder = this.resolveCurrentWorkspaceFolder()?.uri;
+
+        if (!baseFolder) {
+          throw new Error(
+            "Abra uma pasta ou workspace antes de indexar o projeto.",
+          );
         }
       }
 
@@ -1416,37 +1456,89 @@ export class ChatMessageRouter {
         throw new Error("Projeto RAG inválido para reindexação.");
       }
 
-      const onProgress = async (progress: RagIndexingProgress) => {
-        await webview.postMessage({
-          type: "progressoIndexacaoRag",
-          value: progress,
-        });
-      };
-      const project =
-        source === "project"
-          ? await this.deps.indexRagProject(
-              projectId!,
-              onProgress,
+      const indexTargets = baseFolder
+        ? await this.selectRagIndexTargets(baseFolder)
+        : null;
+
+      if (baseFolder && !indexTargets) {
+        await this.postRagIndexSelectionCancelled(webview);
+        return;
+      }
+
+      const indexedProjects: RagProjectIndex[] = [];
+      const failedProjects: RagIndexFailure[] = [];
+
+      if (source === "project") {
+        const project = await this.deps.indexRagProject(
+          projectId!,
+          async (progress) => {
+            await webview.postMessage({
+              type: "progressoIndexacaoRag",
+              value: progress,
+            });
+          },
+          controller.signal,
+          { mode: indexingMode },
+        );
+        indexedProjects.push(project);
+      } else {
+        const targets = indexTargets ?? [];
+
+        for (let index = 0; index < targets.length; index += 1) {
+          const target = targets[index];
+
+          try {
+            const project = await this.deps.indexSelectedFolder(
+              target.folderUri,
+              async (progress) => {
+                const batchProgress: RagIndexingProgress = {
+                  ...progress,
+                  currentProject: target.name,
+                  projectIndex: index + 1,
+                  totalProjects: targets.length,
+                };
+                await webview.postMessage({
+                  type: "progressoIndexacaoRag",
+                  value: batchProgress,
+                });
+              },
               controller.signal,
               { mode: indexingMode },
-            )
-          : selectedFolder
-            ? await this.deps.indexSelectedFolder(
-                selectedFolder,
-                onProgress,
-                controller.signal,
-                { mode: indexingMode },
-              )
-            : await this.deps.indexCurrentWorkspace(
-                onProgress,
-                controller.signal,
-                { mode: indexingMode },
-              );
+            );
+            indexedProjects.push(project);
+          } catch (error) {
+            if (
+              controller.signal.aborted ||
+              (error instanceof Error && error.name === "AbortError")
+            ) {
+              throw error;
+            }
+
+            const failure: RagIndexFailure = {
+              name: target.name,
+              path: target.folderUri.fsPath,
+              message: this.getErrorMessage(
+                error,
+                "Falha ao indexar esta pasta.",
+              ),
+            };
+            failedProjects.push(failure);
+            console.warn(
+              "[ATLAS RAG] Pasta ignorada após falha na indexação em lote:",
+              failure,
+            );
+          }
+        }
+      }
+
+      const project = indexedProjects[indexedProjects.length - 1];
 
       await webview.postMessage({
         type: "indexacaoRagConcluida",
         value: {
           project,
+          indexedProjects,
+          failedProjects,
           projects: this.deps.listRagProjects(),
         },
       });
@@ -1471,6 +1563,385 @@ export class ChatMessageRouter {
         this.ragIndexController = null;
       }
     }
+  }
+
+  private resolveCurrentWorkspaceFolder(): vscode.WorkspaceFolder | null {
+    const activeDocument = vscode.window.activeTextEditor?.document;
+
+    if (activeDocument) {
+      const activeFolder = vscode.workspace.getWorkspaceFolder(
+        activeDocument.uri,
+      );
+
+      if (activeFolder) {
+        return activeFolder;
+      }
+    }
+
+    return vscode.workspace.workspaceFolders?.[0] ?? null;
+  }
+
+  private async selectRagIndexTargets(
+    baseFolder: vscode.Uri,
+  ): Promise<RagIndexTarget[] | null> {
+    const baseName = path.basename(baseFolder.fsPath) || baseFolder.fsPath;
+    const normalizeDirectoryName = (value: string) =>
+      process.platform === "win32" ? value.toLowerCase() : value;
+    const ignoredDirectoryNames = new Set(
+      [
+        ...this.deps.configManager.getConfig().rag.ignoredPaths,
+        ".git",
+        ".svn",
+        ".hg",
+        "node_modules",
+        "dist",
+        "build",
+        "out",
+        "coverage",
+        ".next",
+        ".nuxt",
+        "vendor",
+        "bin",
+        "obj",
+      ]
+        .map((entry) => entry.replace(/\\/g, "/").replace(/^\.\//, ""))
+        .filter((entry) => !entry.includes("/") && !/[?*{}[\]]/.test(entry))
+        .map((entry) => normalizeDirectoryName(entry)),
+    );
+    const entries = await vscode.workspace.fs.readDirectory(baseFolder);
+    const subfolders = entries
+      .filter(
+        ([name, type]) =>
+          (type & vscode.FileType.Directory) !== 0 &&
+          !ignoredDirectoryNames.has(normalizeDirectoryName(name)),
+      )
+      .sort(([left], [right]) =>
+        left.localeCompare(right, undefined, {
+          numeric: true,
+          sensitivity: "base",
+        }),
+      );
+    const indexedProjects = this.deps.listRagProjects();
+    const indexedRootProject = indexedProjects.find(
+      (project) =>
+        getContainedRelativePath(baseFolder.fsPath, project.rootPath) === "",
+    );
+    const rootItem: RagIndexTargetQuickPickItem = {
+      label: `$(root-folder) Pasta inteira: ${baseName}`,
+      description: indexedRootProject
+        ? `Inclui toda a árvore • Já registrado • ${this.describeRagProjectStatus(indexedRootProject.status)}`
+        : "Inclui todos os arquivos e subpastas",
+      detail: baseFolder.fsPath,
+      folderUri: baseFolder,
+      indexesEntireRoot: true,
+      picked: subfolders.length === 0,
+      alwaysShow: true,
+    };
+    const items: RagIndexTargetQuickPickItem[] = [
+      rootItem,
+      ...subfolders.map(([name]) => {
+        const folderUri = vscode.Uri.joinPath(baseFolder, name);
+        const indexedProject = indexedProjects.find(
+          (project) =>
+            getContainedRelativePath(folderUri.fsPath, project.rootPath) === "",
+        );
+
+        return {
+          label: `$(folder) ${name}`,
+          description: indexedProject
+            ? `Já registrado • ${this.describeRagProjectStatus(indexedProject.status)}`
+            : "Subpasta",
+          detail: folderUri.fsPath,
+          folderUri,
+          indexesEntireRoot: false,
+        };
+      }),
+    ];
+
+    while (true) {
+      const selected = await vscode.window.showQuickPick(items, {
+        canPickMany: true,
+        ignoreFocusOut: true,
+        matchOnDescription: true,
+        matchOnDetail: true,
+        title: `RAG: selecione o que indexar em ${baseName}`,
+        placeHolder:
+          "Marque a pasta inteira ou uma ou mais subpastas e pressione Enter",
+      });
+
+      if (!selected || selected.length === 0) {
+        return null;
+      }
+
+      const selectsEntireRoot = selected.some(
+        (item) => item.indexesEntireRoot,
+      );
+
+      if (selectsEntireRoot && selected.length > 1) {
+        await vscode.window.showWarningMessage(
+          "Escolha a pasta inteira ou suas subpastas. As duas opções juntas indexariam conteúdo duplicado.",
+        );
+        continue;
+      }
+
+      if (selectsEntireRoot && subfolders.length >= 2) {
+        const strategy = await this.selectLargeRagRootStrategy(
+          baseFolder,
+          baseName,
+          subfolders.length,
+        );
+
+        if (strategy === "cancel") {
+          return null;
+        }
+
+        if (strategy === "subfolders") {
+          return subfolders.map(([name]) => ({
+            folderUri: vscode.Uri.joinPath(baseFolder, name),
+            name,
+          }));
+        }
+      }
+
+      return selected.map((item) => ({
+        folderUri: item.folderUri,
+        name:
+          path.basename(item.folderUri.fsPath) || item.folderUri.fsPath,
+      }));
+    }
+  }
+
+  private async selectLargeRagRootStrategy(
+    baseFolder: vscode.Uri,
+    baseName: string,
+    immediateSubfolderCount: number,
+  ): Promise<RagRootIndexStrategy> {
+    const estimate = await this.estimateRagFolderSize(
+      baseFolder,
+      immediateSubfolderCount,
+    );
+
+    if (!estimate.isLarge) {
+      return "entire-root";
+    }
+
+    const answer = await vscode.window.showWarningMessage(
+      `A pasta "${baseName}" parece grande e pode sobrecarregar a indexação se for tratada como um único projeto.`,
+      {
+        modal: true,
+        detail: `${this.describeRagFolderSizeEstimate(estimate)} Indexando por subpastas, o ATLAS processará uma pasta por vez e continuará o lote mesmo quando uma delas falhar. Arquivos diretamente na raiz não entram no modo por subpastas.`,
+      },
+      "Indexar por subpastas (recomendado)",
+      "Indexar como pasta única",
+    );
+
+    if (answer === "Indexar por subpastas (recomendado)") {
+      return "subfolders";
+    }
+
+    if (answer === "Indexar como pasta única") {
+      return "entire-root";
+    }
+
+    return "cancel";
+  }
+
+  private async estimateRagFolderSize(
+    baseFolder: vscode.Uri,
+    immediateSubfolderCount: number,
+  ): Promise<RagFolderSizeEstimate> {
+    const includePattern = this.createRagIndexCandidatePattern();
+
+    if (!includePattern) {
+      return {
+        candidateFileCount: 0,
+        candidateFileCountCapped: false,
+        candidateSizeBytes: 0,
+        immediateSubfolderCount,
+        isLarge:
+          immediateSubfolderCount >= RAG_LARGE_FOLDER_SUBFOLDER_THRESHOLD,
+      };
+    }
+
+    const files = await vscode.workspace.findFiles(
+      new vscode.RelativePattern(baseFolder, includePattern),
+      this.createRagIndexEstimateExcludePattern(),
+      RAG_LARGE_FOLDER_FILE_THRESHOLD,
+    );
+    const candidates = files.filter(
+      (file) => !this.isGeneratedRagDependencyFile(file.fsPath),
+    );
+    const candidateFileCountCapped =
+      files.length >= RAG_LARGE_FOLDER_FILE_THRESHOLD;
+    let candidateSizeBytes = 0;
+
+    if (!candidateFileCountCapped) {
+      const maxFileSizeBytes =
+        this.deps.configManager.getConfig().rag.maxFileSizeBytes;
+      const statBatchSize = 25;
+
+      for (
+        let offset = 0;
+        offset < candidates.length &&
+        candidateSizeBytes < RAG_LARGE_FOLDER_SIZE_THRESHOLD_BYTES;
+        offset += statBatchSize
+      ) {
+        const sizes = await Promise.all(
+          candidates.slice(offset, offset + statBatchSize).map(async (file) => {
+            try {
+              const stat = await vscode.workspace.fs.stat(file);
+              return stat.size > 0 && stat.size <= maxFileSizeBytes
+                ? stat.size
+                : 0;
+            } catch {
+              return 0;
+            }
+          }),
+        );
+        candidateSizeBytes += sizes.reduce((total, size) => total + size, 0);
+      }
+    }
+
+    return {
+      candidateFileCount: candidates.length,
+      candidateFileCountCapped,
+      candidateSizeBytes,
+      immediateSubfolderCount,
+      isLarge:
+        candidateFileCountCapped ||
+        candidates.length >= RAG_LARGE_FOLDER_FILE_THRESHOLD ||
+        candidateSizeBytes >= RAG_LARGE_FOLDER_SIZE_THRESHOLD_BYTES ||
+        immediateSubfolderCount >= RAG_LARGE_FOLDER_SUBFOLDER_THRESHOLD,
+    };
+  }
+
+  private createRagIndexCandidatePattern(): string | null {
+    const settings = this.deps.configManager.getConfig().rag;
+    const extensions = new Set(settings.allowedExtensions);
+
+    if (settings.includeMarkdownFiles) {
+      extensions.add(".md");
+      extensions.add(".markdown");
+    }
+
+    if (settings.includeConfigFiles) {
+      [
+        ".json",
+        ".jsonc",
+        ".yaml",
+        ".yml",
+        ".xml",
+        ".toml",
+        ".ini",
+        ".cfg",
+        ".conf",
+        ".properties",
+        ".txt",
+      ].forEach((extension) => extensions.add(extension));
+    }
+
+    const normalizedExtensions = Array.from(extensions)
+      .map((extension) => extension.trim().toLowerCase().replace(/^\./, ""))
+      .filter((extension) => /^[a-z0-9][a-z0-9_+-]*$/i.test(extension));
+
+    if (normalizedExtensions.length === 0) {
+      return null;
+    }
+
+    if (normalizedExtensions.length === 1) {
+      return `**/*.${normalizedExtensions[0]}`;
+    }
+
+    return `**/*.{${normalizedExtensions.join(",")}}`;
+  }
+
+  private createRagIndexEstimateExcludePattern(): string | undefined {
+    const ignoredEntries = [
+      ...this.deps.configManager.getConfig().rag.ignoredPaths,
+      ".git",
+      ".svn",
+      ".hg",
+      "node_modules",
+      "dist",
+      "build",
+      "out",
+      "coverage",
+      ".next",
+      ".nuxt",
+      "vendor",
+      "bin",
+      "obj",
+    ];
+    const patterns = ignoredEntries.flatMap((entry) => {
+      const normalized = entry
+        .trim()
+        .replace(/\\/g, "/")
+        .replace(/^\.\/+/, "")
+        .replace(/^\/+|\/+$/g, "");
+
+      if (!normalized) {
+        return [];
+      }
+
+      if (/[*?[\]{}()!+@]/.test(normalized)) {
+        const rooted = normalized.includes("/")
+          ? normalized
+          : `**/${normalized}`;
+        return [rooted, `${rooted}/**`];
+      }
+
+      return [`**/${normalized}`, `**/${normalized}/**`];
+    });
+
+    return patterns.length > 0 ? `{${Array.from(new Set(patterns)).join(",")}}` : undefined;
+  }
+
+  private isGeneratedRagDependencyFile(filePath: string): boolean {
+    const fileName = path.basename(filePath).toLowerCase();
+    return new Set([
+      "package-lock.json",
+      "npm-shrinkwrap.json",
+      "yarn.lock",
+      "pnpm-lock.yaml",
+      "composer.lock",
+      "poetry.lock",
+      "cargo.lock",
+    ]).has(fileName);
+  }
+
+  private describeRagFolderSizeEstimate(
+    estimate: RagFolderSizeEstimate,
+  ): string {
+    const fileCount = estimate.candidateFileCountCapped
+      ? `pelo menos ${estimate.candidateFileCount} arquivos textuais`
+      : `${estimate.candidateFileCount} arquivos textuais`;
+    const size = estimate.candidateSizeBytes
+      ? `, cerca de ${Math.ceil(estimate.candidateSizeBytes / 1048576)} MB analisáveis`
+      : "";
+    return `Foram detectados ${estimate.immediateSubfolderCount} subpastas e ${fileCount}${size}.`;
+  }
+
+  private describeRagProjectStatus(status: string): string {
+    const labels: Record<string, string> = {
+      "not-indexed": "não indexado",
+      indexing: "indexando",
+      ready: "atualizado",
+      outdated: "desatualizado",
+      error: "com erro",
+    };
+
+    return labels[status] ?? status;
+  }
+
+  private async postRagIndexSelectionCancelled(
+    webview: vscode.Webview,
+  ): Promise<void> {
+    await webview.postMessage({
+      type: "selecaoIndexacaoRagCancelada",
+      value: {
+        projects: this.deps.listRagProjects(),
+      },
+    });
   }
 
   private async handleCancelRagIndexing(
@@ -1517,12 +1988,12 @@ export class ChatMessageRouter {
       }
 
       const answer = await vscode.window.showWarningMessage(
-        "Deseja excluir a base vetorial deste projeto?",
+        "Excluir este projeto do RAG? O índice e os materiais complementares associados também serão removidos.",
         { modal: true },
-        "Excluir",
+        "Excluir projeto",
       );
 
-      if (answer !== "Excluir") {
+      if (answer !== "Excluir projeto") {
         return;
       }
 
@@ -1531,6 +2002,7 @@ export class ChatMessageRouter {
         type: "projetoRagExcluido",
         value: {
           projects: this.deps.listRagProjects(),
+          externalDocuments: this.deps.listExternalRagDocuments(),
         },
       });
     } catch (error) {
@@ -1538,6 +2010,75 @@ export class ChatMessageRouter {
         webview,
         error,
         "Não foi possível excluir a base vetorial.",
+      );
+    }
+  }
+
+  private async handleDeleteAllRagProjects(
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      if (
+        this.ragIndexController !== null ||
+        this.ragExternalDocumentsController !== null
+      ) {
+        vscode.window.showWarningMessage(
+          "ATLAS: aguarde a indexação em andamento antes de remover todos os projetos.",
+        );
+        await webview.postMessage({
+          type: "remocaoTodosProjetosRagCancelada",
+        });
+        return;
+      }
+
+      const projects = this.deps.listRagProjects();
+
+      if (projects.length === 0) {
+        await webview.postMessage({
+          type: "todosProjetosRagExcluidos",
+          value: {
+            removedCount: 0,
+            projects: [],
+            externalDocuments: this.deps.listExternalRagDocuments(),
+          },
+        });
+        return;
+      }
+
+      const answer = await vscode.window.showWarningMessage(
+        `Remover todos os ${projects.length} projetos do RAG? Os índices e materiais complementares associados também serão excluídos.`,
+        { modal: true },
+        "Remover todos",
+      );
+
+      if (answer !== "Remover todos") {
+        await webview.postMessage({
+          type: "remocaoTodosProjetosRagCancelada",
+        });
+        return;
+      }
+
+      await this.deps.deleteAllRagProjects();
+      await webview.postMessage({
+        type: "todosProjetosRagExcluidos",
+        value: {
+          removedCount: projects.length,
+          projects: this.deps.listRagProjects(),
+          externalDocuments: this.deps.listExternalRagDocuments(),
+        },
+      });
+    } catch (error) {
+      await webview.postMessage({
+        type: "projetosRagAtualizados",
+        value: {
+          projects: this.deps.listRagProjects(),
+          externalDocuments: this.deps.listExternalRagDocuments(),
+        },
+      });
+      await this.postError(
+        webview,
+        error,
+        "Não foi possível remover todos os projetos do RAG.",
       );
     }
   }

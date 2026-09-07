@@ -1,6 +1,6 @@
 ﻿# Processos de Contexto, Janela Local e RAG
 
-Atualizado em 15 de agosto de 2026.
+Atualizado em 6 de setembro de 2026.
 
 Este documento descreve três fluxos operacionais do ATLAS:
 
@@ -220,6 +220,30 @@ O ATLAS tem três entradas principais:
 
 Também existe `registerSelectedFolder`, que registra uma pasta como projeto `not-indexed` sem necessariamente construir o índice naquele momento.
 
+As ações da tela **Indexar workspace atual** e **Selecionar pasta** não iniciam mais o scanner imediatamente. Primeiro, o `ChatMessageRouter` abre um Quick Pick múltiplo com:
+
+- a opção de indexar a pasta-base inteira;
+- cada subpasta imediata elegível como projeto independente;
+- caminho absoluto e status do índice existente, quando houver.
+
+Pastas que o scanner ignora diretamente, como `.git`, `node_modules`, `dist`, `build`, `out`, `coverage`, `.next`, `.nuxt`, `vendor`, `bin` e `obj`, não aparecem como alvos. Nenhuma subpasta é pré-selecionada. A raiz inteira é pré-selecionada somente quando não existem subpastas elegíveis.
+
+A pasta inteira e suas subpastas não podem ser confirmadas juntas, pois isso duplicaria o escopo. O usuário pode selecionar uma ou várias subpastas; nesse caso, cada pasta vira um projeto RAG separado e as indexações são executadas sequencialmente. A ação **Reindexar** de um projeto já registrado continua operando diretamente sobre aquele projeto, sem reabrir o seletor de escopo.
+
+Quando o usuário escolhe a pasta-base inteira e existem ao menos duas subpastas elegíveis, o roteador executa uma estimativa preventiva antes de iniciar o scanner completo. O escopo é considerado grande quando alcança qualquer um destes limites:
+
+- 400 arquivos com extensões textuais habilitadas;
+- aproximadamente 20 MB de arquivos textuais elegíveis;
+- 8 subpastas imediatas.
+
+Para limitar o custo dessa verificação, a busca para ao alcançar o limite de arquivos e consulta metadados em lotes de 25. Os padrões configurados em `rag.ignoredPaths` e os diretórios ignorados nativamente são excluídos da estimativa.
+
+Quando um limite é atingido, um aviso modal oferece **Indexar por subpastas (recomendado)** ou **Indexar como pasta única**. A primeira opção converte todas as subpastas exibidas no Quick Pick em alvos independentes e reutiliza a fila sequencial já existente; a segunda mantém a raiz como um único projeto, assumindo o risco de maior uso de memória e tempo de processamento. Fechar o aviso cancela a operação. Como o modo dividido indexa somente as subpastas imediatas, arquivos localizados diretamente na pasta-base não entram nesse lote, e isso é informado no próprio aviso.
+
+Cada alvo é isolado dentro do lote. Se uma pasta falhar — por exemplo, com `Nenhum arquivo textual elegível foi encontrado para indexação.` — o serviço preserva seu status e sua mensagem de erro, o roteador registra a falha e inicia a próxima pasta. Ao final, a interface informa quantos projetos foram concluídos e resume os alvos que falharam. Apenas um cancelamento explícito ou um `AbortError` interrompe imediatamente o restante do lote.
+
+Na lista de projetos, **Remover todos** solicita confirmação modal e chama `deleteAllProjectIndexes`. Os projetos são removidos sequencialmente; para cada um, a coleção de código, as coleções de materiais complementares, as fontes do manifesto e o watcher são descartados. A tabela de projetos e a lista de materiais complementares são atualizadas ao final. O botão fica indisponível quando não existem projetos, durante indexações ou enquanto outra remoção está em andamento.
+
 O modo de indexação é controlado por `rag.indexingMode`:
 
 - `full`: cria uma coleção temporária e substitui a coleção ativa ao final.
@@ -384,6 +408,8 @@ embedding
 saving
 completed
 ```
+
+Em um lote com várias pastas, o progresso também inclui `currentProject`, `projectIndex` e `totalProjects`. A Webview mostra a posição do projeto no lote, por exemplo `2/4 • backend`, enquanto mantém as fases, arquivos e chunks específicos da pasta atual.
 
 Estados do projeto:
 
@@ -630,10 +656,10 @@ Quando o chat precisa de contexto RAG:
 
 1. `ChatResponseController` solicita `AtlasRagService.retrieveContext`.
 2. O serviço verifica se o RAG está ativo e se o modo cloud tem permissão para receber contexto.
-3. Resolve o projeto do arquivo ativo ou workspace atual.
+3. Resolve o índice da pasta atual ou, quando ela não possui índice pesquisável próprio, os projetos indexados descendentes.
 4. Gera embedding da pergunta.
-5. Consulta a coleção do projeto pronto e, se habilitado, coleções externas.
-6. Pede mais candidatos que o `topK` final:
+5. Consulta as coleções dos projetos selecionados e, se habilitado, coleções externas.
+6. Pede, em cada coleção selecionada, mais candidatos que o `topK` final:
 
 ```text
 candidateCount = max(rag.topK * 5, rag.topK)
@@ -646,7 +672,19 @@ candidateCount = max(rag.topK * 5, rag.topK)
 
 Se o orçamento de caracteres for atingido, a seleção para antes de adicionar o próximo chunk.
 
-Cada fonte retornada ao chat inclui distância, relevância, tipo, caminho e linhas quando disponíveis.
+Cada fonte retornada ao chat inclui `projectId`, distância, relevância, tipo, caminho e linhas quando disponíveis.
+
+### 6.1 Resolução de projetos pela pasta atual
+
+A recuperação mantém o comportamento mais específico possível:
+
+1. se a raiz atual possui um índice com status `ready` ou `outdated`, somente esse índice é usado;
+2. se a raiz atual não possui índice pesquisável próprio, o ATLAS seleciona todos os projetos `ready` ou `outdated` cuja raiz esteja contida nela;
+3. índices de pastas irmãs, ancestrais ou externas à raiz atual não entram nessa seleção de coleções de projeto.
+
+Isso permite abrir uma pasta-mãe com vários repositórios e consultar, por exemplo, somente o backend previamente indexado, sem precisar indexar a pasta-mãe inteira. Se mais de um projeto descendente estiver indexado, cada coleção fornece candidatos e o ATLAS os combina por distância antes de aplicar os filtros e o `topK` global.
+
+Os limites e a diversificação por arquivo usam a combinação de `projectId` e caminho relativo, evitando colisões entre arquivos como `src/index.ts` presentes em projetos diferentes. A exclusão do arquivo ativo também calcula o caminho em relação à raiz do subprojeto correspondente. Nas fontes apresentadas ao usuário, o caminho recebe o prefixo relativo do subprojeto, por exemplo `rtc-caixapostal-14117-backend-api/src/index.ts`.
 
 ### RAG em edições aplicadas
 

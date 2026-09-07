@@ -5,6 +5,7 @@ const ragLoading = document.getElementById("rag-loading");
 const projectsTable = document.getElementById("projects-table");
 const addProjectButton = document.getElementById("add-project");
 const selectFolderButton = document.getElementById("select-folder");
+const clearRagProjectsButton = document.getElementById("clear-rag-projects");
 const addFileButton = document.getElementById("add-file");
 const cancelExternalIndexingButton = document.getElementById(
   "cancel-external-indexing",
@@ -125,6 +126,9 @@ const deleteEmbeddingModelButton = document.getElementById(
 );
 const embeddingModelStatus = document.getElementById("embedding-model-status");
 let indexingInProgress = false;
+let ragProjectsDeletionInProgress = false;
+let ragProjectsCount = 0;
+let ragProjectsHaveActiveIndexing = false;
 let externalDocumentsInProgress = false;
 let externalDocumentsCount = 0;
 let embeddingModelsRefreshInProgress = false;

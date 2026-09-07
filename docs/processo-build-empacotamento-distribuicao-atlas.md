@@ -1,6 +1,6 @@
 # Build, empacotamento e distribuição
 
-Atualizado em 15 de agosto de 2026 com base nos scripts e artefatos presentes no repositório.
+Atualizado em 6 de setembro de 2026 com base nos scripts e artefatos presentes no repositório.
 
 Este documento descreve como preparar o ATLAS para distribuição como extensão VS Code, incluindo ChromaDB, embeddings, runtime ONNX, geração do VSIX, limitações atuais de plataforma e conteúdo esperado em `resources`.
 
@@ -49,9 +49,24 @@ Função de cada etapa:
 
 `vscode:prepublish` aponta para `npm run package`, então a geração por `vsce` também passa pelo fluxo de preparação antes de montar o VSIX.
 
+## Identidade e apresentação da extensão
+
+Os metadados canônicos ficam no `package.json`:
+
+| Campo | Valor | Uso |
+| --- | --- | --- |
+| `name` | `atlas` | Nome técnico da extensão. |
+| `publisher` | `vscode` | Publicador que compõe a identidade. |
+| `displayName` | `ATLAS` | Nome apresentado ao usuário. |
+| `icon` | `assets/atlas-logo.png` | Logo exibido no cartão e nos detalhes da extensão. |
+
+O identificador resultante é `vscode.atlas`. O PNG do cartão possui 256 × 256 pixels e fundo transparente. O arquivo `assets/atlas-logo.svg` permanece separado porque é usado como ícone do contêiner ATLAS na Activity Bar.
+
+Pacotes antigos usavam `atlas.atlas`. Como o VS Code trata identificadores diferentes como extensões distintas, a instalação do primeiro pacote deve ser removida antes de instalar um VSIX identificado como `vscode.atlas`.
+
 ## Fluxo recomendado de release
 
-1. Atualizar `version`, `displayName`, `publisher`, descrição e metadados necessários em `package.json`.
+1. Atualizar `version`, descrição e demais metadados necessários em `package.json`, preservando `displayName: ATLAS`, `publisher: vscode` e `icon: assets/atlas-logo.png`.
 2. Instalar dependências com `npm install`.
 3. Rodar `npm run package`.
 4. Rodar `npm run test-rag-runtime`.

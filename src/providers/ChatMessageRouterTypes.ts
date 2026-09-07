@@ -186,6 +186,7 @@ export type RouterDependencies = {
     options?: RagIndexingOptions,
   ) => Promise<RagProjectIndex>;
   deleteRagProject: (projectId: string) => Promise<void>;
+  deleteAllRagProjects: () => Promise<void>;
   getRagContext: (
     query: string,
     signal?: AbortSignal,

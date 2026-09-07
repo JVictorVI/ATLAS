@@ -1,6 +1,6 @@
 # Processo do Repositório de Modelos
 
-Atualizado em 25 de julho de 2026.
+Atualizado em 7 de setembro de 2026.
 
 Este documento descreve como o ATLAS apresenta o repositório visual de modelos, consulta modelos compatíveis no Hugging Face, detalha variantes disponíveis, baixa arquivos e integra o resultado com a biblioteca local, a engine local e o RAG.
 
@@ -270,7 +270,7 @@ custom.localModels.modelsDir
 ou, se não configurada:
 
 ```text
-<extensionPath>/models
+context.globalStorageUri/models/
 ```
 
 Após o download:
@@ -279,6 +279,30 @@ Após o download:
 2. Cada arquivo encontrado é convertido em `AtlasModelConfig`.
 3. O modelo é salvo em `llms.localModels`.
 4. A lista de LLMs e a biblioteca local são atualizadas no webview.
+
+## Acompanhamento e cancelamento de downloads
+
+O roteador mantém os downloads ativos em um mapa identificado por `modelId` e `fileName`. Downloads diferentes podem avançar ao mesmo tempo; uma repetição do mesmo arquivo é recusada e somente uma variante ONNX do mesmo modelo de embedding pode ser baixada por vez.
+
+As Webviews solicitam o estado corrente com `solicitarStatusDownloadHuggingFace` e recebem `statusDownloadModeloHuggingFace`. O payload `downloads` informa, para cada item ativo:
+
+```text
+modelId
+fileName
+modelName
+format
+state
+percent
+downloadedBytes
+totalBytes
+currentFileName
+fileIndex
+totalFiles
+```
+
+O painel **Downloads** mostra um contador de itens ativos, o arquivo atual, bytes, progresso e os estados `preparando`, `baixando` e `cancelando`. O usuário pode cancelar cada item por `cancelarDownloadModeloHuggingFace`. Ao terminar, `downloadModeloHuggingFaceConcluido` registra na memória da Webview o estado `concluido`, `cancelado` ou `erro`; esses itens podem ser removidos da lista com **Limpar histórico**. Esse histórico visual não é persistido entre processos da Webview, enquanto os downloads ainda ativos são restaurados a partir do roteador.
+
+As atualizações de progresso são limitadas a uma emissão a cada 250 ms. A notificação de conclusão oferece **Ver downloads**, que reabre o Repositório já no painel de acompanhamento.
 
 ## Registro local do modelo
 
@@ -327,6 +351,12 @@ maxTokens: 8192
 topP: 0.95
 gpuLayers: 0
 contextWindow: 8192
+threads: 0
+batchSize: 0
+microBatchSize: 0
+flashAttention: auto
+kvCacheType: auto
+loadMode: auto
 ```
 
 Metadados inferidos:
@@ -450,6 +480,8 @@ Quando o download é cancelado, downloads parciais são removidos.
 - `src/providers/ChatMessageRouter.ts`: mensagens entre webview e backend.
 - `src/providers/ChatPanelManager.ts`: abertura da rota `search` e detalhe direto por modelo.
 - `src/webview/search/scripts/search-requests.js`: disparo de busca, detalhe e hardware.
-- `src/webview/search/scripts/message-bus.js`: recepção das respostas do backend.
+- `src/webview/search/scripts/events.js`: download, cancelamento individual e limpeza do histórico visual.
+- `src/webview/search/scripts/message-bus.js`: recepção das respostas e reconciliação dos downloads ativos/terminados.
 - `src/webview/search/scripts/model-utils.js`: regras de apresentação, filtros e variantes.
 - `src/webview/search/scripts/render-details.js`: renderização do painel de detalhes, ações e diagnóstico.
+- `src/webview/search/scripts/render-downloads.js`: contador e painel de acompanhamento dos downloads.

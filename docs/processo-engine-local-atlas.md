@@ -1,6 +1,6 @@
 # Processo da Engine Local
 
-Atualizado em 30 de agosto de 2026.
+Atualizado em 7 de setembro de 2026.
 
 Este documento descreve a execução local com `llama-server`, incluindo seleção de modelo, lifecycle da engine, health check, troca de parâmetros e relação com a Biblioteca.
 
@@ -43,7 +43,7 @@ custom.localModels.modelsDir
 Se não houver pasta configurada:
 
 ```text
-<extensionPath>/models
+context.globalStorageUri/models/
 ```
 
 Cada arquivo gera id:
@@ -78,6 +78,7 @@ engine: llama.cpp
 - tamanho total;
 - engine ativa/parada;
 - tipo de engine configurado;
+- tipos de engine instalados e disponíveis para seleção;
 - memória de GPU, quando detectada;
 - contagem de camadas GGUF, quando possível;
 - contagem de parâmetros inferida pelo nome do arquivo, com indicação quando
@@ -131,6 +132,8 @@ llama.cpp-vulkan
 ```
 
 O download e a validação dessas pastas são feitos por `AtlasEngineDownloadService`, descrito em [Processo de configuração automática da engine](processo-configuracao-automatica-engine-atlas.md).
+
+Na Biblioteca, o seletor **Engine de execução** lista apenas os tipos instalados. A Webview envia `selecionarEngineLocal`; `ChatMessageRouter.handleSelectLocalEngine` valida o valor e a instalação, persiste `custom.localEngine.engineType` e encerra a engine ativa quando o tipo realmente muda. O evento `engineLocalSelecionada` sincroniza a Biblioteca e as Configurações Gerais. A troca é recusada enquanto há download de engine em andamento.
 
 ## Resolução do executável
 
@@ -343,6 +346,7 @@ Chamadas que podem parar a engine:
 
 - troca para modo cloud;
 - troca de modelo local;
+- troca do tipo de engine pela Biblioteca;
 - salvamento de parâmetros do modelo ativo;
 - alteração de Configurações Gerais;
 - troca de pasta de modelos/engines;

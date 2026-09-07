@@ -11,14 +11,16 @@ function setIndexingState(indexing) {
   }
 
   if (addProjectButton) {
-    addProjectButton.disabled = indexing || externalDocumentsInProgress;
+    addProjectButton.disabled =
+      indexing || externalDocumentsInProgress || ragProjectsDeletionInProgress;
     addProjectButton.textContent = indexing
       ? "Indexando..."
       : "Indexar workspace atual";
   }
 
   if (selectFolderButton) {
-    selectFolderButton.disabled = indexing || externalDocumentsInProgress;
+    selectFolderButton.disabled =
+      indexing || externalDocumentsInProgress || ragProjectsDeletionInProgress;
     selectFolderButton.hidden = indexing;
   }
 
@@ -29,11 +31,22 @@ function setIndexingState(indexing) {
   }
 
   document.querySelectorAll(".project-action-button").forEach((button) => {
-    button.disabled = indexing || externalDocumentsInProgress;
+    button.disabled =
+      indexing || externalDocumentsInProgress || ragProjectsDeletionInProgress;
   });
 
   if (addFileButton) {
-    addFileButton.disabled = indexing || externalDocumentsInProgress;
+    addFileButton.disabled =
+      indexing || externalDocumentsInProgress || ragProjectsDeletionInProgress;
+  }
+
+  if (clearRagProjectsButton) {
+    clearRagProjectsButton.disabled =
+      indexing ||
+      externalDocumentsInProgress ||
+      ragProjectsDeletionInProgress ||
+      ragProjectsHaveActiveIndexing ||
+      ragProjectsCount === 0;
   }
 }
 
@@ -62,28 +75,82 @@ function setExternalDocumentsState(loading) {
     return;
   }
 
-  addFileButton.disabled = loading || indexingInProgress;
+  addFileButton.disabled =
+    loading || indexingInProgress || ragProjectsDeletionInProgress;
   addFileButton.textContent = loading ? "Adicionando..." : "Adicionar arquivos";
   if (clearExternalDocumentsButton) {
     clearExternalDocumentsButton.disabled =
-      loading || externalDocumentsCount === 0;
+      loading || ragProjectsDeletionInProgress || externalDocumentsCount === 0;
   }
 
   document.querySelectorAll(".document-delete-button").forEach((button) => {
-    button.disabled = loading;
+    button.disabled = loading || ragProjectsDeletionInProgress;
   });
 
   if (addProjectButton) {
-    addProjectButton.disabled = loading || indexingInProgress;
+    addProjectButton.disabled =
+      loading || indexingInProgress || ragProjectsDeletionInProgress;
   }
 
   if (selectFolderButton) {
-    selectFolderButton.disabled = loading || indexingInProgress;
+    selectFolderButton.disabled =
+      loading || indexingInProgress || ragProjectsDeletionInProgress;
   }
 
   document.querySelectorAll(".project-action-button").forEach((button) => {
-    button.disabled = loading || indexingInProgress;
+    button.disabled =
+      loading || indexingInProgress || ragProjectsDeletionInProgress;
   });
+
+  if (clearRagProjectsButton) {
+    clearRagProjectsButton.disabled =
+      loading ||
+      indexingInProgress ||
+      ragProjectsDeletionInProgress ||
+      ragProjectsHaveActiveIndexing ||
+      ragProjectsCount === 0;
+  }
+}
+
+function setRagProjectsDeletionState(deleting) {
+  ragProjectsDeletionInProgress = deleting;
+
+  if (clearRagProjectsButton) {
+    clearRagProjectsButton.disabled =
+      deleting ||
+      indexingInProgress ||
+      externalDocumentsInProgress ||
+      ragProjectsHaveActiveIndexing ||
+      ragProjectsCount === 0;
+    clearRagProjectsButton.textContent = deleting
+      ? "Removendo..."
+      : "Remover todos";
+  }
+
+  if (addProjectButton) {
+    addProjectButton.disabled =
+      deleting || indexingInProgress || externalDocumentsInProgress;
+  }
+
+  if (selectFolderButton) {
+    selectFolderButton.disabled =
+      deleting || indexingInProgress || externalDocumentsInProgress;
+  }
+
+  document.querySelectorAll(".project-action-button").forEach((button) => {
+    button.disabled =
+      deleting || indexingInProgress || externalDocumentsInProgress;
+  });
+
+  if (addFileButton) {
+    addFileButton.disabled =
+      deleting || indexingInProgress || externalDocumentsInProgress;
+  }
+
+  if (clearExternalDocumentsButton) {
+    clearExternalDocumentsButton.disabled =
+      deleting || externalDocumentsInProgress || externalDocumentsCount === 0;
+  }
 }
 
 function setExternalDocumentImportState(importing) {
@@ -146,6 +213,9 @@ function updateIndexingProgress(progress) {
   const skippedFiles = Math.max(0, Number(progress.skippedFiles) || 0);
   const deletedFiles = Math.max(0, Number(progress.deletedFiles) || 0);
   const isIncremental = progress.mode === "incremental";
+  const currentProject = String(progress.currentProject ?? "");
+  const projectIndex = Math.max(0, Number(progress.projectIndex) || 0);
+  const totalProjects = Math.max(0, Number(progress.totalProjects) || 0);
   let label = "Preparando indexação...";
   let details = "Analisando o projeto...";
   let percentage = null;
@@ -181,6 +251,14 @@ function updateIndexingProgress(progress) {
     details = isIncremental
       ? `${changedFiles} alterados/novos - ${deletedFiles} removidos - ${skippedFiles} sem alterações`
       : `${totalChunks} chunks indexados`;
+  }
+
+  if (currentProject) {
+    const batchPosition =
+      totalProjects > 1 && projectIndex > 0
+        ? `${projectIndex}/${totalProjects} • `
+        : "";
+    label = `${batchPosition}${currentProject} — ${label}`;
   }
 
   if (percentage === null) {

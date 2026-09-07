@@ -1732,6 +1732,30 @@ textarea {
   flex: 1;
 }
 
+.downloads-back-button {
+  display: inline-flex;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: var(--atlas-strong-fg);
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.downloads-back-button:hover {
+  background: var(--atlas-surface-hover-bg);
+}
+
+.downloads-back-button:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+}
+
 .downloads-list {
   display: flex;
   flex: 1;

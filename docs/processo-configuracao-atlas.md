@@ -1,6 +1,6 @@
 ﻿# Processo de Configuração
 
-Atualizado em 30 de agosto de 2026.
+Atualizado em 7 de setembro de 2026.
 
 Este documento descreve onde as configurações do ATLAS vivem, como são normalizadas e quais fluxos da UI alteram cada seção.
 
@@ -21,10 +21,10 @@ AtlasConfigManager
 As configurações são salvas em:
 
 ```text
-config/atlas-config.json
+context.globalStorageUri/config/atlas-config.json
 ```
 
-`AtlasConfigRepository.load` garante que o arquivo exista. Se ele estiver ausente ou inválido, o repositório recria a configuração padrão.
+`AtlasConfigRepository.load` garante que o arquivo exista. Na primeira execução após uma atualização, se ainda houver um arquivo legado em `<extensionPath>/config/atlas-config.json`, ele é copiado para o armazenamento global. Se nenhum arquivo existir, ou se o conteúdo atual for inválido, o repositório grava a configuração padrão no `globalStorageUri`.
 
 Depois de carregar, o conteúdo sempre passa por:
 
@@ -374,6 +374,7 @@ Se o usuário altera manualmente uma opção gerenciada pelo preset, como contex
 | `editModelMetadata` | `handleEditModelMetadata` | nome/provedor do modelo local. |
 | `deleteModelRequest` | `handleDeleteModelRequest` | remove o arquivo `.gguf` da pasta de modelos e exclui o registro local. |
 | `baixarEngineConfigurada` | `handleDownloadConfiguredEngineRequest` | prepara a engine selecionada em `custom.localEngine.engineType`. |
+| `selecionarEngineLocal` | `handleSelectLocalEngine` | troca `custom.localEngine.engineType` pela Biblioteca, aceitando somente uma engine instalada e parando o processo ativo quando o tipo muda. |
 
 ## Provedores
 
@@ -425,7 +426,7 @@ atlas.apiKeyMetadata.<provider>
 
 `AtlasLocalModelDiscoveryService.refreshLocalModels`:
 
-1. lê a pasta de modelos;
+1. lê `custom.localModels.modelsDir` ou, quando essa opção está vazia, `context.globalStorageUri/models/`;
 2. filtra `.gguf`;
 3. cria ou atualiza `AtlasModelConfig`;
 4. remove da lista retornada modelos que não existem mais na pasta;
@@ -455,6 +456,7 @@ Algumas alterações exigem parar a engine:
 
 - trocar modelo local ativo;
 - salvar parâmetros do modelo ativo;
+- trocar o tipo de engine pela Biblioteca;
 - alterar configurações gerais de engine;
 - trocar pasta de modelos ou engines.
 

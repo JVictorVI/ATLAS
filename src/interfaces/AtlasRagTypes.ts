@@ -82,6 +82,7 @@ export interface RagChunkRecord {
 
 export interface RagSearchResult {
   chunkId: string;
+  projectId: string;
   sourceId: string;
   content: string;
   relativePath: string;
@@ -96,6 +97,7 @@ export interface RagSearchResult {
 
 export interface RagContextSource {
   chunkId: string;
+  projectId: string;
   relativePath: string;
   sourceType: "code" | "document";
   externalDocument?: boolean;
@@ -131,6 +133,9 @@ export interface RagIndexingProgress {
   projectId: string;
   phase: "scanning" | "chunking" | "embedding" | "saving" | "completed";
   mode?: RagIndexingMode;
+  currentProject?: string;
+  projectIndex?: number;
+  totalProjects?: number;
   processedFiles: number;
   totalFiles: number;
   processedChunks: number;

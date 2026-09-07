@@ -315,6 +315,7 @@ export class AtlasRagRepository {
       return [
         {
           chunkId,
+          projectId: String(metadata.projectId),
           sourceId: String(metadata.sourceId),
           content,
           relativePath: String(metadata.relativePath),

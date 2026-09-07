@@ -880,6 +880,15 @@ function renderDownloadsPanel() {
   return `
     <div class="downloads-panel" id="downloads-panel">
       <div class="downloads-panel-heading">
+        <button
+          class="downloads-back-button"
+          id="downloads-back"
+          type="button"
+          title="Voltar aos modelos"
+          aria-label="Voltar aos modelos"
+        >
+          <i class="codicon codicon-arrow-left" aria-hidden="true"></i>
+        </button>
         <i class="codicon codicon-cloud-download"></i>
         <span>Downloads</span>
         ${activeCount > 0 ? `<span class="downloads-badge downloads-badge-inline">${escapeHtml(activeCount)}</span>` : ""}
@@ -944,6 +953,12 @@ function bindDownloadsEvents() {
       const target = event.target;
 
       if (!(target instanceof Element)) {
+        return;
+      }
+
+      if (target.closest("#downloads-back")) {
+        downloadsState.panelOpen = false;
+        updateDownloadsUi();
         return;
       }
 

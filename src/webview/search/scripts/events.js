@@ -152,6 +152,12 @@ function bindDownloadsPanelEvents() {
         return;
       }
 
+      if (target.closest("#downloads-back")) {
+        state.downloadsPanelOpen = false;
+        render();
+        return;
+      }
+
       if (target.closest("#clear-finished-downloads")) {
         clearFinishedDownloads();
         render();

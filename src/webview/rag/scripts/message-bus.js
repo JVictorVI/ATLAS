@@ -5,6 +5,7 @@ window.addEventListener("message", (event) => {
   if (message.type === "erro") {
     setIndexingState(false);
     setExternalDocumentsState(false);
+    setRagProjectsDeletionState(false);
     setEmbeddingDownloadState(false);
     embeddingModelsRefreshInProgress = false;
 
@@ -45,14 +46,63 @@ window.addEventListener("message", (event) => {
   }
 
   if (message.type === "indexacaoRagConcluida") {
+    const indexedProjects = Array.isArray(message.value?.indexedProjects)
+      ? message.value.indexedProjects
+      : message.value?.project
+        ? [message.value.project]
+        : [];
+    const failedProjects = Array.isArray(message.value?.failedProjects)
+      ? message.value.failedProjects
+      : [];
+    const totalChunks = indexedProjects.reduce(
+      (total, project) => total + (Number(project?.chunkCount) || 0),
+      0,
+    );
     updateIndexingProgress({
       phase: "completed",
-      processedChunks: message.value?.project?.chunkCount ?? 0,
-      totalChunks: message.value?.project?.chunkCount ?? 0,
+      processedChunks: totalChunks,
+      totalChunks,
     });
     setIndexingState(false);
     renderProjects(message.value?.projects ?? []);
-    showFeedback("Workspace indexado com sucesso.");
+
+    if (failedProjects.length > 0) {
+      const totalProjects = indexedProjects.length + failedProjects.length;
+      const visibleFailures = failedProjects
+        .slice(0, 3)
+        .map(
+          (failure) =>
+            `${failure?.name || "Pasta"}: ${failure?.message || "falha desconhecida"}`,
+        )
+        .join(" | ");
+      const remainingFailures = failedProjects.length - 3;
+      const failureSuffix =
+        remainingFailures > 0
+          ? ` | e mais ${remainingFailures} ${remainingFailures === 1 ? "falha" : "falhas"}`
+          : "";
+      const resultSummary =
+        indexedProjects.length > 0
+          ? `${indexedProjects.length} de ${totalProjects} projetos indexados.`
+          : `Nenhum dos ${totalProjects} projetos foi indexado.`;
+      showFeedback(
+        `${resultSummary} Falhas: ${visibleFailures}${failureSuffix}`,
+        indexedProjects.length > 0 ? "warning" : "error",
+      );
+      return;
+    }
+
+    showFeedback(
+      indexedProjects.length === 1
+        ? `${indexedProjects[0]?.name || "Projeto"} indexado com sucesso.`
+        : `${indexedProjects.length} projetos indexados com sucesso.`,
+    );
+    return;
+  }
+
+  if (message.type === "selecaoIndexacaoRagCancelada") {
+    setIndexingState(false);
+    renderProjects(message.value?.projects ?? []);
+    showFeedback("Seleção de pastas cancelada.", "warning");
     return;
   }
 
@@ -97,12 +147,34 @@ window.addEventListener("message", (event) => {
 
   if (message.type === "projetoRagExcluido") {
     renderProjects(message.value?.projects ?? []);
+    renderExternalDocuments(message.value?.externalDocuments ?? []);
     showFeedback("Base vetorial excluída.");
+    return;
+  }
+
+  if (message.type === "todosProjetosRagExcluidos") {
+    setRagProjectsDeletionState(false);
+    renderProjects(message.value?.projects ?? []);
+    renderExternalDocuments(message.value?.externalDocuments ?? []);
+    const removedCount = Math.max(0, Number(message.value?.removedCount) || 0);
+    showFeedback(
+      removedCount > 0
+        ? `${removedCount} ${removedCount === 1 ? "projeto removido" : "projetos removidos"} do RAG.`
+        : "Não há projetos para remover.",
+    );
+    return;
+  }
+
+  if (message.type === "remocaoTodosProjetosRagCancelada") {
+    setRagProjectsDeletionState(false);
     return;
   }
 
   if (message.type === "projetosRagAtualizados") {
     renderProjects(message.value?.projects ?? []);
+    if (Array.isArray(message.value?.externalDocuments)) {
+      renderExternalDocuments(message.value.externalDocuments);
+    }
     return;
   }
 

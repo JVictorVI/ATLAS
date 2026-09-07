@@ -1,6 +1,6 @@
 # Processo de Sessões, Histórico e Resumo Arquitetural
 
-Atualizado em 15 de agosto de 2026.
+Atualizado em 7 de setembro de 2026.
 
 Este documento descreve como o ATLAS cria sessões, persiste histórico, usa janela recente e gera resumo arquitetural para conversas longas.
 
@@ -20,8 +20,10 @@ ChatMessageRouter
 O histórico é salvo em:
 
 ```text
-config/atlas-history.json
+context.globalStorageUri/config/atlas-history.json
 ```
+
+Ao inicializar esse armazenamento pela primeira vez, `AtlasHistoryRepository` migra por cópia o arquivo legado de `<extensionPath>/config/atlas-history.json`, quando ele existe. Novas gravações sempre usam o `globalStorageUri`.
 
 Formato de alto nível:
 
@@ -277,7 +279,7 @@ Se a resposta termina e o usuário não está visualizando a sessão corresponde
 
 ## Limitações atuais
 
-- Histórico e configuração ficam em `config/` dentro da extensão em desenvolvimento.
+- Histórico e configuração ficam sob `context.globalStorageUri/config/`, fora da pasta instalada da extensão; arquivos antigos sob `<extensionPath>/config/` servem apenas como origem de migração.
 - O resumo depende do modelo ativo no momento da sumarização.
 - Falha de sumarização não bloqueia o usuário e apenas mantém o resumo anterior.
 - O resumo substitui o texto anterior por uma versão consolidada, não guarda versões.

@@ -1,7 +1,8 @@
 {
   "name": "atlas",
-  "displayName": "atlas",
-  "publisher": "atlas",
+  "displayName": "ATLAS",
+  "publisher": "vscode",
+  "icon": "assets/atlas-logo.png",
   "license": "UNLICENSED",
   "description": "Assistente Técnico, Lógico e Arquitetural de Software",
   "version": "0.0.1",

@@ -125,6 +125,11 @@ cancelIndexingButton?.addEventListener("click", () => {
   vscode.postMessage({ type: "cancelarIndexacaoRag" });
 });
 
+clearRagProjectsButton?.addEventListener("click", () => {
+  setRagProjectsDeletionState(true);
+  vscode.postMessage({ type: "removerTodosProjetosRag" });
+});
+
 chooseEmbeddingModelsFolderButton?.addEventListener("click", () => {
   vscode.postMessage({ type: "selecionarPastaModelosEmbeddingRag" });
 });

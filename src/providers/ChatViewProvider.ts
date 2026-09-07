@@ -655,6 +655,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         await this.ragService.deleteProjectIndex(projectId);
       },
 
+      deleteAllRagProjects: async () => {
+        await this.ragService.deleteAllProjectIndexes();
+      },
+
       getRagContext: async (query, signal) => {
         return this.ragService.retrieveContext(query, signal);
       },

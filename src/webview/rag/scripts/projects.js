@@ -4,11 +4,26 @@ function renderProjects(projects) {
     return;
   }
 
+  const safeProjects = Array.isArray(projects) ? projects : [];
+  ragProjectsCount = safeProjects.length;
+  ragProjectsHaveActiveIndexing = safeProjects.some(
+    (project) => project?.status === "indexing",
+  );
+
+  if (clearRagProjectsButton) {
+    clearRagProjectsButton.disabled =
+      ragProjectsDeletionInProgress ||
+      indexingInProgress ||
+      externalDocumentsInProgress ||
+      ragProjectsHaveActiveIndexing ||
+      ragProjectsCount === 0;
+  }
+
   projectsTable
     .querySelectorAll(".project-row:not(.project-header), .empty-state")
     .forEach((element) => element.remove());
 
-  if (!projects.length) {
+  if (!safeProjects.length) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
     empty.textContent = "Nenhum projeto indexado";
@@ -16,7 +31,7 @@ function renderProjects(projects) {
     return;
   }
 
-  projects.forEach((project) => {
+  safeProjects.forEach((project) => {
     projectsTable.appendChild(createProjectRow(project));
   });
 }
@@ -26,11 +41,16 @@ function createProjectRow(project) {
   row.className = "project-row";
   row.setAttribute("role", "row");
 
-  row.appendChild(createCell("Projeto", project.name || project.projectId));
+  const projectNameCell = createCell(
+    "Projeto",
+    project.name || project.projectId,
+  );
+  projectNameCell.classList.add("project-name-cell");
+  row.appendChild(projectNameCell);
   row.appendChild(
     createCell(
       "Caminho",
-      abbreviateProjectPath(project.rootPath || ""),
+      project.rootPath || "",
       project.rootPath || "",
     ),
   );
@@ -125,21 +145,4 @@ function formatBytes(bytes) {
   );
   const value = bytes / 1024 ** unitIndex;
   return `${value.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
-}
-
-function abbreviateProjectPath(value) {
-  const fullPath = String(value || "");
-
-  if (!fullPath) {
-    return "";
-  }
-
-  const separator = fullPath.includes("\\") ? "\\" : "/";
-  const parts = fullPath.split(/[\\/]+/).filter(Boolean);
-  const visibleParts = parts.slice(-4);
-  const suffix = visibleParts.join(separator);
-
-  return parts.length > visibleParts.length
-    ? `...${separator}${suffix}`
-    : suffix;
 }

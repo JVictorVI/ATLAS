@@ -22,6 +22,7 @@ import { AtlasChromaService } from "./AtlasChromaService";
 import { AtlasEmbeddingService } from "./AtlasEmbeddingService";
 import { AtlasExternalDocumentParser } from "./AtlasExternalDocumentParser";
 import { chunkExternalDocument } from "../utils/AtlasExternalDocumentChunks";
+import { getContainedRelativePath } from "../utils/AtlasPathUtils";
 
 export class AtlasRagService {
   private readonly watchers = new Map<string, vscode.FileSystemWatcher>();
@@ -1045,6 +1046,39 @@ export class AtlasRagService {
     this.emitProjectsChanged();
   }
 
+  public async deleteAllProjectIndexes(): Promise<void> {
+    if (
+      this.activeProjectIndexingOperations > 0 ||
+      this.activeExternalIndexingOperations > 0
+    ) {
+      throw new Error(
+        "Aguarde as indexações em andamento antes de remover todos os projetos.",
+      );
+    }
+
+    const projects = this.repository.listProjects();
+    const failures: string[] = [];
+
+    for (const project of projects) {
+      try {
+        await this.repository.deleteProject(project.projectId);
+        this.disposeProjectWatcher(project.projectId);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Falha desconhecida.";
+        failures.push(`${project.name}: ${message}`);
+      }
+    }
+
+    this.emitProjectsChanged();
+
+    if (failures.length > 0) {
+      throw new Error(
+        `Não foi possível remover ${failures.length} ${failures.length === 1 ? "projeto" : "projetos"}: ${failures.join(" | ")}`,
+      );
+    }
+  }
+
   public async upsertChunks(
     collectionName: string,
     chunks: Omit<RagChunkRecord, "embedding">[],
@@ -1148,8 +1182,10 @@ export class AtlasRagService {
     const project = projectId
       ? this.repository.getProject(projectId)
       : undefined;
-    const canSearchProject =
-      project?.status === "ready" || project?.status === "outdated";
+    const searchableProjects = workspaceFolder
+      ? this.resolveSearchableProjects(workspaceFolder.uri.fsPath)
+      : [];
+    const canSearchProject = searchableProjects.length > 0;
     const externalSources = settings.includeExternalDocuments
       ? this.repository.listExternalSources(undefined, settings.embeddingModel)
       : [];
@@ -1172,6 +1208,7 @@ export class AtlasRagService {
         projectId,
         projectFound: Boolean(project),
         status: project?.status ?? "not-indexed",
+        indexedDescendants: searchableProjects.length,
         externalDocuments: externalSources.length,
       });
       console.groupEnd();
@@ -1181,13 +1218,16 @@ export class AtlasRagService {
     console.log("Índice selecionado:", {
       projectId,
       projectIndexSearchable: canSearchProject,
-      projectStatus: project?.status,
-      projectName: project?.name,
-      collectionName: project?.collectionName,
+      projects: searchableProjects.map((item) => ({
+        projectId: item.projectId,
+        name: item.name,
+        rootPath: item.rootPath,
+        status: item.status,
+        collectionName: item.collectionName,
+        sources: item.sourceCount,
+        chunks: item.chunkCount,
+      })),
       externalCollectionNames,
-      sources: project?.sourceCount ?? 0,
-      chunks: project?.chunkCount ?? 0,
-      embeddingDimensions: project?.embeddingDimensions ?? 0,
     });
 
     try {
@@ -1208,20 +1248,22 @@ export class AtlasRagService {
       const queryStartedAt = Date.now();
       const candidateCount = Math.max(settings.topK * 5, settings.topK);
       console.log("Consultando ChromaDB...", {
-        collectionName: canSearchProject ? project?.collectionName : undefined,
+        projectCollectionNames: searchableProjects.map(
+          (item) => item.collectionName,
+        ),
         externalCollectionNames,
         topK: settings.topK,
         candidateCount,
       });
       const candidates = (
         await Promise.all([
-          canSearchProject && project
-            ? this.repository.search(
-                project.collectionName,
+          ...searchableProjects.map((item) =>
+            this.repository.search(
+                item.collectionName,
                 queryEmbedding,
                 candidateCount,
-              )
-            : Promise.resolve([]),
+              ),
+          ),
           ...externalCollectionNames.map((collectionName) =>
             this.repository
               .search(collectionName, queryEmbedding, candidateCount)
@@ -1240,7 +1282,7 @@ export class AtlasRagService {
       const results = this.selectRetrievalResults(
         candidates,
         settings,
-        workspaceFolder ?? undefined,
+        searchableProjects,
       );
       console.log("Resultados retornados:", {
         candidates: candidates.length,
@@ -1269,8 +1311,13 @@ export class AtlasRagService {
       let currentSize = 0;
 
       for (const result of results) {
+        const displayPath = this.getRetrievalDisplayPath(
+          result,
+          rootPath,
+          searchableProjects,
+        );
         const formatted = [
-          `Fonte: ${result.relativePath}`,
+          `Fonte: ${displayPath}`,
           result.startLine && result.endLine
             ? `Linhas: ${result.startLine}-${result.endLine}`
             : undefined,
@@ -1297,7 +1344,8 @@ export class AtlasRagService {
         context.push(formatted);
         sources.push({
           chunkId: result.chunkId,
-          relativePath: result.relativePath,
+          projectId: result.projectId,
+          relativePath: displayPath,
           sourceType: result.sourceType,
           externalDocument: result.externalDocument,
           distance: result.distance,
@@ -1327,19 +1375,26 @@ export class AtlasRagService {
   private selectRetrievalResults(
     candidates: RagSearchResult[],
     settings: ReturnType<AtlasConfigManager["getConfig"]>["rag"],
-    workspaceFolder?: vscode.WorkspaceFolder,
+    searchableProjects: RagProjectIndex[],
   ): RagSearchResult[] {
     const activeDocument = vscode.window.activeTextEditor?.document;
-    const activeFile =
-      workspaceFolder &&
-      activeDocument &&
-      vscode.workspace
-        .getWorkspaceFolder(activeDocument.uri)
-        ?.uri.toString() === workspaceFolder.uri.toString()
-        ? path
-            .relative(workspaceFolder.uri.fsPath, activeDocument.uri.fsPath)
-            .replace(/\\/g, "/")
-        : null;
+    const activeFilesByProject = new Map<string, string>();
+
+    if (activeDocument) {
+      for (const project of searchableProjects) {
+        const relativePath = getContainedRelativePath(
+          project.rootPath,
+          activeDocument.uri.fsPath,
+        );
+
+        if (relativePath !== null) {
+          activeFilesByProject.set(
+            project.projectId,
+            relativePath.replace(/\\/g, "/"),
+          );
+        }
+      }
+    }
     const directoryPatterns = settings.directoryFilters.flatMap((entry) =>
       this.expandFilterPattern(entry),
     );
@@ -1380,10 +1435,11 @@ export class AtlasRagService {
 
       if (
         settings.excludeActiveFile &&
-        activeFile &&
+        activeFilesByProject.has(result.projectId) &&
         (process.platform === "win32"
-          ? result.relativePath.toLowerCase() === activeFile.toLowerCase()
-          : result.relativePath === activeFile)
+          ? result.relativePath.toLowerCase() ===
+            activeFilesByProject.get(result.projectId)!.toLowerCase()
+          : result.relativePath === activeFilesByProject.get(result.projectId))
       ) {
         filterStats.activeFile += 1;
         return false;
@@ -1421,14 +1477,15 @@ export class AtlasRagService {
 
     const perFile = new Map<string, number>();
     const limited = filtered.filter((result) => {
-      const count = perFile.get(result.relativePath) ?? 0;
+      const fileKey = this.getRetrievalFileKey(result);
+      const count = perFile.get(fileKey) ?? 0;
 
       if (count >= settings.maxChunksPerFile) {
         filterStats.perFileLimit += 1;
         return false;
       }
 
-      perFile.set(result.relativePath, count + 1);
+      perFile.set(fileKey, count + 1);
       return true;
     });
 
@@ -1449,15 +1506,81 @@ export class AtlasRagService {
     const seenFiles = new Set<string>();
 
     for (const result of limited) {
-      if (seenFiles.has(result.relativePath)) {
+      const fileKey = this.getRetrievalFileKey(result);
+
+      if (seenFiles.has(fileKey)) {
         deferred.push(result);
       } else {
         selected.push(result);
-        seenFiles.add(result.relativePath);
+        seenFiles.add(fileKey);
       }
     }
 
     return [...selected, ...deferred].slice(0, settings.topK);
+  }
+
+  private resolveSearchableProjects(workspaceRootPath: string): RagProjectIndex[] {
+    const matchingProjects = this.repository
+      .listProjects()
+      .filter(
+        (project) =>
+          project.status === "ready" || project.status === "outdated",
+      )
+      .map((project) => ({
+        project,
+        relativeRoot: getContainedRelativePath(
+          workspaceRootPath,
+          project.rootPath,
+        ),
+      }))
+      .filter(
+        (
+          item,
+        ): item is { project: RagProjectIndex; relativeRoot: string } =>
+          item.relativeRoot !== null,
+      );
+    const exactProject = matchingProjects.find(
+      (item) => item.relativeRoot === "",
+    );
+
+    return exactProject
+      ? [exactProject.project]
+      : matchingProjects.map((item) => item.project);
+  }
+
+  private getRetrievalDisplayPath(
+    result: RagSearchResult,
+    workspaceRootPath: string | undefined,
+    searchableProjects: RagProjectIndex[],
+  ): string {
+    if (!workspaceRootPath || result.externalDocument === true) {
+      return result.relativePath;
+    }
+
+    const project = searchableProjects.find(
+      (item) => item.projectId === result.projectId,
+    );
+    const relativeRoot = project
+      ? getContainedRelativePath(workspaceRootPath, project.rootPath)
+      : null;
+
+    if (!relativeRoot) {
+      return result.relativePath;
+    }
+
+    return path.posix.join(
+      relativeRoot.replace(/\\/g, "/"),
+      result.relativePath,
+    );
+  }
+
+  private getRetrievalFileKey(result: RagSearchResult): string {
+    const relativePath =
+      process.platform === "win32"
+        ? result.relativePath.toLowerCase()
+        : result.relativePath;
+
+    return `${result.projectId}:${relativePath}`;
   }
 
   private distanceToRelevance(distance: number): number {

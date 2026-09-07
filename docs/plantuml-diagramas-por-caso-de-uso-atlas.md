@@ -1,6 +1,6 @@
 ﻿# Diagramas por Caso de Uso - ATLAS
 
-Atualizado em 15 de agosto de 2026.
+Atualizado em 7 de setembro de 2026.
 
 Este arquivo contém diagramas de classe e de sequência em PlantUML para cada caso de uso atualizado do ATLAS.
 Os blocos podem ser copiados diretamente para o PlantText.
@@ -60,7 +60,7 @@ ChatViewProvider --> ChatMessageRouter
 ChatMessageRouter --> ChatResponseController
 ChatResponseController --> AtlasEditorContextService
 ChatResponseController --> AtlasDocumentStructureService : se architectural-analysis
-ChatResponseController --> AtlasRagService : recuperar contexto do projeto
+ChatResponseController --> AtlasRagService : recuperar índice exato ou projetos descendentes
 ChatResponseController --> AtlasPromptAssemblyService
 ChatResponseController --> AtlasSessionService
 ChatResponseController --> AtlasInferenceService
@@ -96,6 +96,8 @@ EditorContext --> Response : contexto ou null
 Response -> Sessions : obter histórico e resumo
 Sessions --> Response : janela recente + resumo
 Response -> RAG : retrieveContext(pergunta, signal)
+RAG -> RAG : prioriza índice exato\nou resolve índices descendentes
+RAG -> RAG : consulta coleções e\ncombina candidatos por distância
 RAG --> Response : contexto + fontes
 Response -> Prompt : buildMessages(input)
 Prompt --> Response : messages + mode
@@ -669,7 +671,13 @@ class ChatViewProvider
 class ChatMessageRouter
 class ChatModelWebviewService {
   +sendModelsToWebview(webview)
-  +sendLocalEngineHealth(webview)
+}
+class AtlasLocalEngineService {
+  +stopEngine()
+  +isRunning()
+}
+class AtlasEngineDownloadService {
+  +isEngineDownloaded(engineType)
 }
 class AtlasConfigManager {
   +getAllModels()
@@ -683,9 +691,12 @@ interface AtlasModelConfig
 
 ChatPanelManager --> ChatMessageRouter
 ChatMessageRouter --> ChatModelWebviewService
+ChatMessageRouter --> AtlasConfigManager : selecionarEngineLocal
+ChatMessageRouter --> AtlasLocalEngineService : encerra ao trocar
 ChatViewProvider --> ChatModelWebviewService
 ChatModelWebviewService --> AtlasConfigManager
 ChatModelWebviewService --> AtlasLocalModelDiscoveryService
+ChatModelWebviewService --> AtlasEngineDownloadService : tipos instalados
 AtlasConfigManager --> AtlasModelRegistryService
 AtlasModelRegistryService ..> AtlasModelConfig
 @enduml
@@ -702,6 +713,7 @@ participant ChatMessageRouter as Router
 participant ChatModelWebviewService as ModelWebview
 participant AtlasConfigManager as Config
 participant AtlasModelRegistryService as Registry
+participant AtlasLocalEngineService as Engine
 
 Usuário -> Library : abre biblioteca
 Library -> Router : requestModels
@@ -710,7 +722,13 @@ ModelWebview -> Config : getAllModels()
 Config -> Registry : getAllModels()
 Registry --> Config : modelos registrados
 Config --> ModelWebview : modelos
-ModelWebview --> Library : updateModelsList(models)
+ModelWebview --> Library : updateModelsList(models, health.availableEngineTypes)
+opt usuário troca para outra engine instalada
+  Library -> Router : selecionarEngineLocal(engineType)
+  Router -> Config : updateCustomRoot(localEngine.engineType)
+  Router -> Engine : stopEngine()
+  Router --> Library : engineLocalSelecionada
+end
 @enduml
 ```
 
@@ -795,7 +813,7 @@ class AtlasHistoryRepository {
   +load()
   +save(history)
 }
-database "config/atlas-history.json" as HistoryFile
+database "globalStorageUri/config/atlas-history.json" as HistoryFile
 
 ChatMessageRouter --> ChatSessionController
 ChatSessionController --> AtlasSessionService
@@ -815,7 +833,7 @@ participant ChatMessageRouter as Router
 participant ChatSessionController as Controller
 participant AtlasSessionService as Sessions
 participant AtlasHistoryRepository as Repository
-database "config/atlas-history.json" as HistoryFile
+database "globalStorageUri/config/atlas-history.json" as HistoryFile
 
 Usuário -> Webview : cria/alterna/renomeia/exclui sessão
 Webview -> Router : ação de sessão
@@ -863,7 +881,7 @@ participant ChatResponseController as Response
 participant AtlasSessionService as Sessions
 participant AtlasInferenceService as Inference
 participant AtlasHistoryRepository as Repository
-database "config/atlas-history.json" as HistoryFile
+database "globalStorageUri/config/atlas-history.json" as HistoryFile
 
 Response -> Sessions : appendMessage(sessionId, resposta)
 Sessions -> Sessions : verifica WINDOW_SIZE
@@ -1035,15 +1053,19 @@ class "Webview RAG" as RagConfigurationUI {
   +exibirProgresso()
   +liberarTelaEmErroOuTimeout()
   +cancelarIndexacao()
+  +removerTodosProjetos()
 }
 class ChatMessageRouter {
   -handleIndexWorkspaceRag(webview, source, projectId)
+  -selectRagIndexTargets(baseFolder)
+  -handleDeleteAllRagProjects(webview)
 }
 class AtlasRagService {
   +indexCurrentWorkspace(onProgress, signal)
   +indexSelectedFolder(folderUri, onProgress, signal)
   +indexProject(projectId, onProgress, signal)
   +deleteProjectIndex(projectId)
+  +deleteAllProjectIndexes()
 }
 class AtlasEmbeddingService {
   +embedDocuments(chunks, signal)
@@ -1102,30 +1124,45 @@ end
 
 Usuário -> UI : indexa workspace, pasta ou projeto
 UI -> Router : indexarWorkspaceRag / selecionarPastaRag / reindexarProjetoRag
-Router -> RAG : index...(onProgress, signal)
-RAG -> Runtime : ensureReady()
-Runtime --> RAG : ChromaClient disponível
-RAG -> RAG : lê, filtra e gera chunks
-loop preparação por arquivo
-  RAG --> Router : progresso de arquivos/chunks
-  Router --> UI : progressoIndexacaoRag
+alt workspace ou nova pasta
+  Router --> Usuário : seletor múltiplo de raiz/subpastas
+  Usuário --> Router : confirma alvos sem sobreposição
+else reindexação de projeto existente
+  Router -> Router : usa projectId como alvo único
 end
-loop lotes de 16 chunks
-  Embeddings -> EmbeddingModels : resolveActiveModel()
-  EmbeddingModels --> Embeddings : caminho do modelo selecionado
-  RAG -> Embeddings : embedDocuments(texts, signal)
-  Embeddings --> RAG : vetores normalizados
-  RAG -> Repository : upsertChunks(coleção temporária, chunks)
-  Repository -> Chroma : persistir documentos, metadados e vetores
-  RAG --> Router : progresso dos embeddings
-  Router --> UI : chunks processados/restantes
+loop cada alvo, sequencialmente
+  Router -> RAG : indexSelectedFolder(alvo) ou indexProject(projectId)
+  RAG -> Runtime : ensureReady()
+  Runtime --> RAG : ChromaClient disponível
+  RAG -> RAG : lê, filtra e gera chunks
+  loop preparação por arquivo
+    RAG --> Router : progresso de arquivos/chunks + posição do projeto
+    Router --> UI : progressoIndexacaoRag
+  end
+  loop lotes de 16 chunks
+    Embeddings -> EmbeddingModels : resolveActiveModel()
+    EmbeddingModels --> Embeddings : caminho do modelo selecionado
+    RAG -> Embeddings : embedDocuments(texts, signal)
+    Embeddings --> RAG : vetores normalizados
+    RAG -> Repository : upsertChunks(coleção temporária, chunks)
+    Repository -> Chroma : persistir documentos, metadados e vetores
+    RAG --> Router : progresso dos embeddings
+    Router --> UI : chunks processados/restantes
+  end
+  RAG -> Repository : replaceCollection(staging, coleção ativa)
+  Repository -> Chroma : substitui coleção
+  RAG -> Repository : saveProject/replaceProjectSources
+  Repository -> Manifest : grava estado
+  alt projeto concluído
+    RAG --> Router : projeto indexado
+  else falha da pasta
+    RAG --> Router : erro preservado no projeto
+    Router -> Router : acumula falha e segue para o próximo alvo
+  else cancelamento / AbortError
+    RAG --> Router : interrompe o lote
+  end
 end
-RAG -> Repository : replaceCollection(staging, coleção ativa)
-Repository -> Chroma : substitui coleção
-RAG -> Repository : saveProject/replaceProjectSources
-Repository -> Manifest : grava estado
-RAG --> Router : projeto concluído
-Router --> UI : indexacaoRagConcluida
+Router --> UI : indexacaoRagConcluida + sucessos/falhas
 UI --> Usuário : exibe status, tamanho e fontes
 @enduml
 ```
@@ -1220,9 +1257,14 @@ skinparam classAttributeIconSize 0
 
 class "Webview Search" as ModelDownloadUI {
   +downloadSelectedModel()
+  +renderDownloadsPanel()
+  +cancelDownloadItem(modelId, fileName)
+  +clearFinishedDownloads()
 }
 class ChatMessageRouter {
   -handleDownloadHuggingFaceModel(data, webview)
+  -handleCancelHuggingFaceModelDownload(data)
+  -sendHuggingFaceDownloadStatus()
 }
 class ChatViewProvider {
   +downloadHuggingFaceModel(modelId, fileName, webview)
@@ -1251,6 +1293,7 @@ database "Pasta de modelos GGUF" as ModelDir
 database "Pasta de embeddings ONNX" as EmbeddingDir
 
 ModelDownloadUI --> ChatMessageRouter : baixarModeloHuggingFace
+ModelDownloadUI --> ChatMessageRouter : solicitar status / cancelar item
 ChatMessageRouter --> ChatViewProvider
 ChatViewProvider --> HuggingFaceModelService
 HuggingFaceModelService --> RepoAPI
@@ -1283,28 +1326,38 @@ database "Pasta ONNX" as EmbeddingDir
 
 Usuário -> UI : seleciona modelo para baixar
 UI -> Router : baixarModeloHuggingFace(modelId, fileName)
+Router -> Router : registra download ativo por modelo + arquivo
+Router --> UI : statusDownloadModeloHuggingFace(downloads)
 Router -> Provider : downloadHuggingFaceModel(modelId, fileName, webview)
 Provider -> HF : getModelDetails(modelId)
 HF -> RepoAPI : consulta detalhes
 RepoAPI --> HF : formato GGUF ou ONNX
-alt GGUF
-  Provider -> HF : downloadGguf(...)
-  HF -> RepoAPI : resolve/main/<arquivo.gguf>
-  RepoAPI --> HF : stream do arquivo
-  HF -> ModelDir : grava GGUF
-  Provider -> LocalDiscovery : refreshLocalModels()
-  LocalDiscovery -> LocalDiscovery : cria AtlasModelConfig
-else ONNX embedding
-  Provider -> HF : downloadEmbeddingModel(...)
-  HF -> RepoAPI : ONNX + arquivos auxiliares
-  RepoAPI --> HF : arquivos do modelo
-  HF -> EmbeddingDir : grava modelo e atlas-model.json
-  Provider -> EmbeddingDiscovery : refreshEmbeddingModels()
+alt usuário cancela um item em andamento
+  UI -> Router : cancelarDownloadModeloHuggingFace(modelId, fileName)
+  Router -> Provider : AbortController.abort()
+  Provider --> Router : download cancelado
+  Router --> UI : downloadModeloHuggingFaceConcluido(canceled)
+else download continua
+  alt GGUF
+    Provider -> HF : downloadGguf(...)
+    HF -> RepoAPI : resolve/main/<arquivo.gguf>
+    RepoAPI --> HF : stream do arquivo
+    HF -> ModelDir : grava GGUF
+    Provider -> LocalDiscovery : refreshLocalModels()
+    LocalDiscovery -> LocalDiscovery : cria AtlasModelConfig
+  else ONNX embedding
+    Provider -> HF : downloadEmbeddingModel(...)
+    HF -> RepoAPI : ONNX + arquivos auxiliares
+    RepoAPI --> HF : arquivos do modelo
+    HF -> EmbeddingDir : grava modelo e atlas-model.json
+    Provider -> EmbeddingDiscovery : refreshEmbeddingModels()
+  end
+  Provider -> ModelWebview : sendModelsToWebview()
+  Provider --> Router : targetPath, format
+  Router --> UI : downloadModeloHuggingFaceConcluido
+  UI --> Usuário : modelo disponível e histórico visual atualizado
 end
-Provider -> ModelWebview : sendModelsToWebview()
-Provider --> Router : targetPath, format
-Router --> UI : downloadModeloHuggingFaceConcluido
-UI --> Usuário : modelo disponível
+Router --> UI : statusDownloadModeloHuggingFace(downloads ativos)
 @enduml
 ```
 
@@ -1448,7 +1501,7 @@ participant ChatMessageRouter as Router
 participant AtlasConfigManager as Config
 participant AtlasSettingsService as Settings
 participant AtlasConfigRepository as Repository
-database "config/atlas-config.json" as ConfigFile
+database "globalStorageUri/config/atlas-config.json" as ConfigFile
 participant "Fluxo solicitante\n(QuickAnalysis / Architecture / Edit)" as Consumer
 participant AtlasDocumentStructureService as Structure
 participant "Provedores de linguagem do VS Code" as LanguageProviders

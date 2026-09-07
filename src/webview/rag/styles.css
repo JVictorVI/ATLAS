@@ -559,10 +559,19 @@ body.rag-loading-active .rag-page {
 
 .project-row:not(.project-header) > .path-cell {
   display: block;
-  direction: rtl;
+  direction: ltr;
   text-align: left;
-  text-overflow: ellipsis;
   unicode-bidi: plaintext;
+}
+
+.project-row:not(.project-header) > .project-name-cell,
+.project-row:not(.project-header) > .path-cell {
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.4;
 }
 
 .status {

@@ -1,6 +1,6 @@
 # Processo de configuração automática da engine
 
-Atualizado em 15 de agosto de 2026.
+Atualizado em 7 de setembro de 2026.
 
 Este documento descreve como o ATLAS escolhe, baixa, valida e prepara automaticamente a engine local `llama.cpp` usada para executar modelos GGUF.
 
@@ -214,6 +214,8 @@ for o modo de processamento selecionado, a execução local é encerrada antes d
 remoção e a interface volta a oferecer o download.
 
 O estado visual é mantido por tipo de engine. Se uma engine estiver sendo baixada, a tela mostra que o progresso continua mesmo quando o usuário troca de rota na Webview. Quando a pasta de engines muda, o estado conhecido por tipo é limpo para que a verificação seja refeita na nova pasta.
+
+A Biblioteca oferece um segundo ponto de seleção, limitado às engines que já estão instaladas. `ChatModelWebviewService` publica `health.availableEngineTypes`; ao escolher outra opção, a Webview envia `selecionarEngineLocal`. O roteador persiste o novo `engineType`, encerra a engine ativa e transmite `engineLocalSelecionada` para manter as telas sincronizadas. A seleção não baixa binários e é bloqueada enquanto um download de engine está em andamento.
 
 O status exibido vem do backend em mensagens como:
 

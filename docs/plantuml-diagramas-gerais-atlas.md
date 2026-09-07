@@ -1,11 +1,27 @@
 ﻿# Casos de Uso e Diagramas PlantUML - ATLAS
 
-Atualizado em 15 de agosto de 2026.
+Atualizado em 7 de setembro de 2026.
 
 Este arquivo contém os casos de uso e os diagramas PlantUML atualizados com base na implementação atual do ATLAS.
 Os blocos podem ser copiados diretamente para o PlantText ou para uma extensão PlantUML compatível com UTF-8.
 
 > **Nota de atualização:** a arquitetura atual do ATLAS é uma extensão do VS Code implementada em TypeScript. O ponto central de inferência é o `AtlasInferenceService`, que decide entre execução em nuvem e execução local. O projeto possui sessões, histórico, resumo de conversas, modelos `.gguf`, análise rápida, contexto estrutural do VS Code, edição aplicada com prévia e confirmação, refatoração guiada por análise, RAG local, materiais complementares no RAG, busca real no Hugging Face, download de modelos GGUF/ONNX e preparação automática da engine `llama.cpp`. Em execução local, o ajuste automático de contexto recalcula e salva apenas a janela de contexto quando a requisição não cabe na configuração atual.
+
+## Pontos atualizados na versão 1.9
+
+- Configuração, histórico, modelos e engines gerenciados passam a aparecer sob o `globalStorageUri`, preservando os caminhos antigos na pasta da extensão apenas como origem de migração.
+- A Biblioteca lista as engines CPU/CUDA/Vulkan instaladas e permite trocar o tipo ativo, encerrando o processo anterior e sincronizando as outras Webviews.
+- O Repositório acompanha múltiplos downloads, restaura itens ativos, permite cancelamento individual e mantém um histórico visual de conclusões, cancelamentos e erros.
+- O diagrama de implantação representa os targets Windows e Linux e inclui a Webview do Repositório de Modelos.
+
+## Pontos atualizados na versão 1.8
+
+- A recuperação RAG prioriza o índice da raiz atual e, quando ele não existe, consulta os projetos indexados descendentes da pasta aberta.
+- Candidatos de vários subprojetos são combinados antes dos filtros e do `topK`; limites e diversidade distinguem arquivos pelo projeto e pelo caminho relativo.
+- As fontes de subprojetos recebem o prefixo relativo à pasta-mãe aberta, mantendo sua origem identificável.
+- A indexação manual abre um seletor múltiplo de escopo; subpastas escolhidas são indexadas sequencialmente como projetos independentes.
+- Uma falha de pasta é acumulada no resumo e o lote segue para o próximo alvo; cancelamentos continuam interrompendo o processamento.
+- A tela RAG permite remover todos os projetos com confirmação, incluindo índices e materiais complementares associados.
 
 ## Pontos atualizados na versão 1.7
 
@@ -209,7 +225,9 @@ package "Aplicação" {
     -handleRestoreAtlasSettings(webview)
     -handleSearchHuggingFaceModels(data, webview)
     -handleDownloadHuggingFaceModel(data, webview)
+    -handleCancelHuggingFaceModelDownload(data)
     -handleDownloadConfiguredEngineRequest(webview)
+    -handleSelectLocalEngine(data, webview)
     -handleArchitectureGuidedRefactor(data, webview)
   }
 
@@ -251,7 +269,6 @@ package "Aplicação" {
 
   class ChatModelWebviewService {
     +sendModelsToWebview(webview)
-    +sendLocalEngineHealth(webview)
   }
 }
 
@@ -345,6 +362,7 @@ package "RAG Local" {
     +indexProject(projectId, onProgress, signal)
     +retrieveContext(query, signal)
     +deleteProjectIndex(projectId)
+    +deleteAllProjectIndexes()
   }
 
   class AtlasEmbeddingService {
@@ -439,14 +457,14 @@ WebviewSearch --> ChatMessageRouter : postMessage
 
 ChatMessageRouter --> ChatResponseController
 ChatMessageRouter --> ChatSessionController
-ChatMessageRouter --> ChatModelWebviewService
+ChatMessageRouter --> ChatModelWebviewService : modelos e engines instaladas
 ChatMessageRouter --> AtlasQuickAnalysisController
 ChatMessageRouter --> AtlasCodeEditController : refatoração arquitetural
 ChatMessageRouter --> ApiKeyManager
-ChatMessageRouter --> AtlasConfigManager
+ChatMessageRouter --> AtlasConfigManager : configuração e seleção de engine
 ChatMessageRouter --> AtlasRagService : indexação e gestão
-ChatMessageRouter --> HuggingFaceModelService : busca e download
-ChatMessageRouter --> AtlasEngineDownloadService : baixar engine selecionada
+ChatMessageRouter --> HuggingFaceModelService : busca, download e cancelamento
+ChatMessageRouter --> AtlasEngineDownloadService : baixa e valida engines
 ChatMessageRouter --> HardwareDiagnosticService : diagnóstico
 
 ChatResponseController --> AtlasEditorContextService
@@ -591,8 +609,8 @@ package "Persistência" {
     +mergeWithDefaults(partial)
   }
 
-  database "config/atlas-config.json" as ConfigFile
-  database "config/atlas-history.json" as HistoryFile
+  database "globalStorageUri/config/atlas-config.json" as ConfigFile
+  database "globalStorageUri/config/atlas-history.json" as HistoryFile
 }
 
 package "Sessões" {
@@ -809,24 +827,24 @@ skinparam shadowing false
 skinparam componentStyle rectangle
 title ATLAS - Visão de Implantação Atual
 
-node "Máquina do Desenvolvedor (Windows + VS Code)" as DevMachine {
+node "Máquina do Desenvolvedor (Windows ou Linux + VS Code)" as DevMachine {
   node "Visual Studio Code" as VSCode {
     component "ATLAS Extension (TypeScript)" as Extension
-    component "Webviews chat / atlas / library / api-keys / rag" as Webviews
+    component "Webviews chat / atlas / library / api-keys / rag / search" as Webviews
     component "Serviços da Extensão: ChatResponseController, AtlasCodeEditController, AtlasCodeEditService, AtlasInferenceService, AtlasSessionService, AtlasDocumentStructureService, AtlasRagService" as ExtensionServices
     database "VS Code SecretStorage" as SecretStorage
   }
 
-  folder "Configuração Local" as LocalConfig {
-    artifact "config/atlas-config.json" as ConfigJson
-    artifact "config/atlas-history.json" as HistoryJson
+  folder "VS Code globalStorageUri/config" as LocalConfig {
+    artifact "atlas-config.json" as ConfigJson
+    artifact "atlas-history.json" as HistoryJson
   }
 
-  folder "Modelos Locais" as LocalModels {
+  folder "VS Code globalStorageUri/models ou pasta configurada" as LocalModels {
     artifact "Arquivos .gguf" as GgufModels
   }
 
-  folder "Engines Locais" as LocalEngines {
+  folder "VS Code globalStorageUri/engine ou pasta configurada" as LocalEngines {
     artifact "llama.cpp CPU / CUDA / Vulkan" as LlamaBins
   }
 
@@ -919,6 +937,7 @@ class FonteIndexada <<implementado>> {
 
 class ChunkRAG <<implementado>> {
   +chunk_id
+  +project_id
   +conteudo_texto
   +source_type
   +external_document
