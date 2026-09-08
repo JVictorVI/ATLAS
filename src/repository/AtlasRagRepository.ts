@@ -375,29 +375,15 @@ export class AtlasRagRepository {
     );
 
     if (project) {
-      const externalCollections = new Set(
-        manifest.sources
-          .filter(
-            (source) =>
-              source.projectId === projectId &&
-              source.externalDocument === true &&
-              source.collectionName,
-          )
-          .map((source) => source.collectionName!),
-      );
       await this.deleteCollection(project.collectionName);
-      await this.deleteCollection(`${project.collectionName}_external`);
-
-      for (const collectionName of externalCollections) {
-        await this.deleteCollection(collectionName);
-      }
     }
 
     manifest.projects = manifest.projects.filter(
       (item) => item.projectId !== projectId,
     );
     manifest.sources = manifest.sources.filter(
-      (source) => source.projectId !== projectId,
+      (source) =>
+        source.projectId !== projectId || source.externalDocument === true,
     );
     manifest.updatedAt = new Date().toISOString();
     this.saveManifest(manifest);

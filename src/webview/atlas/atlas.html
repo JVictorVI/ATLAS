@@ -526,13 +526,63 @@
               >
             </div>
 
+            <div class="engine-update-control">
+              <div class="engine-update-details">
+                <strong>Atualizações da engine</strong>
+                <small>
+                  As três instalações são registradas separadamente. A busca
+                  verifica somente o modo de processamento selecionado acima.
+                </small>
+                <div
+                  class="engine-version-list"
+                  aria-label="Versões das engines"
+                >
+                  <span>
+                    <strong>CPU</strong>
+                    <span data-engine-version="cpu">Verificando...</span>
+                  </span>
+                  <span>
+                    <strong>CUDA</strong>
+                    <span data-engine-version="cuda">Verificando...</span>
+                  </span>
+                  <span>
+                    <strong>Vulkan</strong>
+                    <span data-engine-version="vulkan">Verificando...</span>
+                  </span>
+                </div>
+                <small id="engine-update-status">
+                  Procure atualizações para a engine selecionada.
+                </small>
+              </div>
+              <div class="engine-update-actions">
+                <button
+                  id="check-engine-updates"
+                  class="btn-secondary"
+                  type="button"
+                >
+                  <i class="codicon codicon-sync" aria-hidden="true"></i>
+                  <span>Procurar atualizações</span>
+                </button>
+                <button
+                  id="update-engine-now"
+                  class="btn-primary"
+                  type="button"
+                  hidden
+                >
+                  Atualizar agora
+                </button>
+              </div>
+            </div>
+
             <div
               class="engine-download-prompt"
               id="engine-download-prompt"
               hidden
             >
               <div>
-                <strong>Modo de execução alterado</strong>
+                <strong id="engine-download-prompt-title">
+                  Modo de execução alterado
+                </strong>
                 <small id="engine-download-prompt-text">
                   Baixe a engine correspondente agora para deixar o ATLAS pronto
                   para usar.

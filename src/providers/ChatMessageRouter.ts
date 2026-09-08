@@ -32,6 +32,7 @@ type LocalEngineType = "cpu" | "cuda" | "vulkan";
 type ConfiguredEngineDownloadStatus = {
   engineType: LocalEngineType;
   enginesDir: string;
+  operation?: "download" | "update";
   loading: boolean;
   done: boolean;
   error?: boolean;
@@ -53,6 +54,15 @@ type RagIndexTarget = {
 type RagIndexFailure = {
   name: string;
   path: string;
+  message: string;
+};
+
+type ConfiguredEngineUpdateStatus = {
+  checking: boolean;
+  error?: boolean;
+  updateAvailable?: boolean;
+  currentVersion?: string | null;
+  latestVersion?: string | null;
   message: string;
 };
 
@@ -78,6 +88,11 @@ export class ChatMessageRouter {
     null;
   private configuredEngineDownloadPromise: Promise<void> | null = null;
   private configuredEngineDownloadController: AbortController | null = null;
+  private configuredEngineUpdateCheckPromise: Promise<void> | null = null;
+  private availableConfiguredEngineUpdate: {
+    engineType: LocalEngineType;
+    enginesDir: string;
+  } | null = null;
   private readonly activeHuggingFaceDownloads = new Map<
     string,
     {
@@ -274,6 +289,12 @@ export class ChatMessageRouter {
       case "baixarEngineConfigurada":
         await this.handleDownloadConfiguredEngineRequest(webview);
         return;
+      case "procurarAtualizacaoEngine":
+        await this.handleCheckConfiguredEngineUpdate(webview);
+        return;
+      case "atualizarEngineAgora":
+        await this.handleUpdateConfiguredEngineRequest(webview);
+        return;
       case "cancelarDownloadEngineConfigurada":
         await this.handleCancelConfiguredEngineDownload(webview);
         return;
@@ -341,17 +362,30 @@ export class ChatMessageRouter {
         await this.handleLoadModelRequest(data, webview);
         return;
       case "executarAnaliseRapida":
-        await this.deps.executeQuickAnalysis(webview, {
-          source: "button",
-          sessionId:
-            typeof data.sessionId === "string"
-              ? data.sessionId
-              : this.deps.sessionService.getActiveSessionId() ?? undefined,
-          generationId:
-            typeof data.generationId === "string"
-              ? data.generationId
-              : undefined,
-        });
+        {
+          const generation = {
+            sessionId:
+              typeof data.sessionId === "string"
+                ? data.sessionId
+                : this.deps.sessionService.getActiveSessionId() ?? undefined,
+            generationId:
+              typeof data.generationId === "string"
+                ? data.generationId
+                : undefined,
+          };
+
+          if (!(await this.ensureValidModelSelection(webview, generation))) {
+            return;
+          }
+
+          await this.deps.executeQuickAnalysis(webview, {
+            source: "button",
+            ...generation,
+          });
+        }
+        return;
+      case "responderConfirmacaoEdicaoCodigo":
+        await this.handleCodeEditConfirmation(data, webview);
         return;
       case "executarRefatoracaoArquitetural":
         await this.handleArchitectureGuidedRefactor(data, webview);
@@ -409,6 +443,37 @@ export class ChatMessageRouter {
     return [...generationsBySession.values()];
   }
 
+  private async handleCodeEditConfirmation(
+    data: any,
+    webview: vscode.Webview,
+  ): Promise<void> {
+    const target = {
+      sessionId:
+        typeof data.sessionId === "string" ? data.sessionId : undefined,
+      generationId:
+        typeof data.generationId === "string" ? data.generationId : undefined,
+    };
+    const approved = data.approved === true;
+    const accepted =
+      typeof data.approved === "boolean" &&
+      this.deps.resolveCodeEditConfirmation(target, approved);
+
+    await webview.postMessage({
+      type: "edicaoCodigoConfirmacaoRecebida",
+      sessionId: target.sessionId,
+      generationId: target.generationId,
+      value: {
+        accepted,
+        approved,
+        message: accepted
+          ? approved
+            ? "Aplicando alterações..."
+            : "Cancelando edição..."
+          : "Esta confirmação não está mais disponível.",
+      },
+    });
+  }
+
   private async handleLoadLlms(webview: vscode.Webview): Promise<void> {
     try {
       const providers = this.deps.configManager
@@ -435,6 +500,7 @@ export class ChatMessageRouter {
           localModels: localModels.map((model) => ({
             id: model.id,
             name: model.name || model.id,
+            enabled: model.enabled !== false,
           })),
           hardware: null,
         },
@@ -1434,6 +1500,7 @@ export class ChatMessageRouter {
           openLabel: "Selecionar pasta-base",
           title: "Selecione a pasta-base para escolher o que será indexado",
         });
+        this.throwIfRagIndexingAborted(controller.signal);
         baseFolder = selection?.[0];
 
         if (!baseFolder) {
@@ -1456,9 +1523,11 @@ export class ChatMessageRouter {
         throw new Error("Projeto RAG inválido para reindexação.");
       }
 
+      this.throwIfRagIndexingAborted(controller.signal);
       const indexTargets = baseFolder
-        ? await this.selectRagIndexTargets(baseFolder)
+        ? await this.selectRagIndexTargets(baseFolder, controller.signal)
         : null;
+      this.throwIfRagIndexingAborted(controller.signal);
 
       if (baseFolder && !indexTargets) {
         await this.postRagIndexSelectionCancelled(webview);
@@ -1485,6 +1554,7 @@ export class ChatMessageRouter {
         const targets = indexTargets ?? [];
 
         for (let index = 0; index < targets.length; index += 1) {
+          this.throwIfRagIndexingAborted(controller.signal);
           const target = targets[index];
 
           try {
@@ -1583,7 +1653,9 @@ export class ChatMessageRouter {
 
   private async selectRagIndexTargets(
     baseFolder: vscode.Uri,
+    signal: AbortSignal,
   ): Promise<RagIndexTarget[] | null> {
+    this.throwIfRagIndexingAborted(signal);
     const baseName = path.basename(baseFolder.fsPath) || baseFolder.fsPath;
     const normalizeDirectoryName = (value: string) =>
       process.platform === "win32" ? value.toLowerCase() : value;
@@ -1609,6 +1681,7 @@ export class ChatMessageRouter {
         .map((entry) => normalizeDirectoryName(entry)),
     );
     const entries = await vscode.workspace.fs.readDirectory(baseFolder);
+    this.throwIfRagIndexingAborted(signal);
     const subfolders = entries
       .filter(
         ([name, type]) =>
@@ -1659,15 +1732,37 @@ export class ChatMessageRouter {
     ];
 
     while (true) {
-      const selected = await vscode.window.showQuickPick(items, {
-        canPickMany: true,
-        ignoreFocusOut: true,
-        matchOnDescription: true,
-        matchOnDetail: true,
-        title: `RAG: selecione o que indexar em ${baseName}`,
-        placeHolder:
-          "Marque a pasta inteira ou uma ou mais subpastas e pressione Enter",
-      });
+      this.throwIfRagIndexingAborted(signal);
+      const cancellationSource = new vscode.CancellationTokenSource();
+      const cancelQuickPick = () => cancellationSource.cancel();
+      signal.addEventListener("abort", cancelQuickPick, { once: true });
+
+      if (signal.aborted) {
+        cancelQuickPick();
+      }
+
+      let selected: RagIndexTargetQuickPickItem[] | undefined;
+
+      try {
+        selected = await vscode.window.showQuickPick(
+          items,
+          {
+            canPickMany: true,
+            ignoreFocusOut: true,
+            matchOnDescription: true,
+            matchOnDetail: true,
+            title: `RAG: selecione o que indexar em ${baseName}`,
+            placeHolder:
+              "Marque a pasta inteira ou uma ou mais subpastas e pressione Enter",
+          },
+          cancellationSource.token,
+        );
+      } finally {
+        signal.removeEventListener("abort", cancelQuickPick);
+        cancellationSource.dispose();
+      }
+
+      this.throwIfRagIndexingAborted(signal);
 
       if (!selected || selected.length === 0) {
         return null;
@@ -1681,6 +1776,7 @@ export class ChatMessageRouter {
         await vscode.window.showWarningMessage(
           "Escolha a pasta inteira ou suas subpastas. As duas opções juntas indexariam conteúdo duplicado.",
         );
+        this.throwIfRagIndexingAborted(signal);
         continue;
       }
 
@@ -1689,6 +1785,7 @@ export class ChatMessageRouter {
           baseFolder,
           baseName,
           subfolders.length,
+          signal,
         );
 
         if (strategy === "cancel") {
@@ -1715,11 +1812,15 @@ export class ChatMessageRouter {
     baseFolder: vscode.Uri,
     baseName: string,
     immediateSubfolderCount: number,
+    signal: AbortSignal,
   ): Promise<RagRootIndexStrategy> {
+    this.throwIfRagIndexingAborted(signal);
     const estimate = await this.estimateRagFolderSize(
       baseFolder,
       immediateSubfolderCount,
+      signal,
     );
+    this.throwIfRagIndexingAborted(signal);
 
     if (!estimate.isLarge) {
       return "entire-root";
@@ -1734,6 +1835,7 @@ export class ChatMessageRouter {
       "Indexar por subpastas (recomendado)",
       "Indexar como pasta única",
     );
+    this.throwIfRagIndexingAborted(signal);
 
     if (answer === "Indexar por subpastas (recomendado)") {
       return "subfolders";
@@ -1749,7 +1851,9 @@ export class ChatMessageRouter {
   private async estimateRagFolderSize(
     baseFolder: vscode.Uri,
     immediateSubfolderCount: number,
+    signal: AbortSignal,
   ): Promise<RagFolderSizeEstimate> {
+    this.throwIfRagIndexingAborted(signal);
     const includePattern = this.createRagIndexCandidatePattern();
 
     if (!includePattern) {
@@ -1768,6 +1872,7 @@ export class ChatMessageRouter {
       this.createRagIndexEstimateExcludePattern(),
       RAG_LARGE_FOLDER_FILE_THRESHOLD,
     );
+    this.throwIfRagIndexingAborted(signal);
     const candidates = files.filter(
       (file) => !this.isGeneratedRagDependencyFile(file.fsPath),
     );
@@ -1786,6 +1891,7 @@ export class ChatMessageRouter {
         candidateSizeBytes < RAG_LARGE_FOLDER_SIZE_THRESHOLD_BYTES;
         offset += statBatchSize
       ) {
+        this.throwIfRagIndexingAborted(signal);
         const sizes = await Promise.all(
           candidates.slice(offset, offset + statBatchSize).map(async (file) => {
             try {
@@ -1798,6 +1904,7 @@ export class ChatMessageRouter {
             }
           }),
         );
+        this.throwIfRagIndexingAborted(signal);
         candidateSizeBytes += sizes.reduce((total, size) => total + size, 0);
       }
     }
@@ -1944,6 +2051,16 @@ export class ChatMessageRouter {
     });
   }
 
+  private throwIfRagIndexingAborted(signal: AbortSignal): void {
+    if (!signal.aborted) {
+      return;
+    }
+
+    const error = new Error("Indexação RAG cancelada.");
+    error.name = "AbortError";
+    throw error;
+  }
+
   private async handleCancelRagIndexing(
     webview: vscode.Webview,
   ): Promise<void> {
@@ -1988,7 +2105,7 @@ export class ChatMessageRouter {
       }
 
       const answer = await vscode.window.showWarningMessage(
-        "Excluir este projeto do RAG? O índice e os materiais complementares associados também serão removidos.",
+        "Excluir este projeto do RAG? Somente o índice do projeto será removido; os materiais complementares serão mantidos.",
         { modal: true },
         "Excluir projeto",
       );
@@ -2046,7 +2163,7 @@ export class ChatMessageRouter {
       }
 
       const answer = await vscode.window.showWarningMessage(
-        `Remover todos os ${projects.length} projetos do RAG? Os índices e materiais complementares associados também serão excluídos.`,
+        `Remover todos os ${projects.length} projetos do RAG? Somente os índices dos projetos serão removidos; os materiais complementares serão mantidos.`,
         { modal: true },
         "Remover todos",
       );
@@ -2115,6 +2232,8 @@ export class ChatMessageRouter {
         type: "modoSelecionado",
         value: {
           mode: data.mode,
+          selectedLocalModelId:
+            this.deps.configManager.getActiveLocalModel()?.id ?? null,
         },
       });
     } catch (error) {
@@ -3072,6 +3191,13 @@ export class ChatMessageRouter {
   private async handleDownloadConfiguredEngineRequest(
     webview: vscode.Webview,
   ): Promise<void> {
+    await this.runConfiguredEngineOperationRequest(webview, "download");
+  }
+
+  private async runConfiguredEngineOperationRequest(
+    webview: vscode.Webview,
+    operation: "download" | "update",
+  ): Promise<void> {
     if (this.configuredEngineDownloadPromise) {
       if (this.configuredEngineDownloadStatus) {
         await webview.postMessage({
@@ -3084,9 +3210,10 @@ export class ChatMessageRouter {
 
     const controller = new AbortController();
     this.configuredEngineDownloadController = controller;
-    const downloadPromise = this.runConfiguredEngineDownload(
+    const downloadPromise = this.runConfiguredEngineOperation(
       webview,
       controller,
+      operation,
     );
     this.configuredEngineDownloadPromise = downloadPromise;
 
@@ -3100,30 +3227,44 @@ export class ChatMessageRouter {
     }
   }
 
-  private async runConfiguredEngineDownload(
+  private async runConfiguredEngineOperation(
     webview: vscode.Webview,
     controller: AbortController,
+    operation: "download" | "update",
   ): Promise<void> {
     const enginesDir = this.deps.getLocalEnginesDir();
+    const isUpdate = operation === "update";
 
     try {
       await this.postConfiguredEngineDownloadStatus(webview, {
         engineType: this.getConfiguredLocalEngineType(),
         enginesDir,
+        operation,
         loading: true,
         done: false,
-        message: "Verificando a engine selecionada...",
+        message: isUpdate
+          ? "Preparando a atualização da engine..."
+          : "Verificando a engine selecionada...",
       });
 
-      await this.deps.downloadConfiguredLlamaEngine(
+      const executeOperation = isUpdate
+        ? this.deps.updateConfiguredLlamaEngine
+        : this.deps.downloadConfiguredLlamaEngine;
+
+      await executeOperation(
         (message) => {
           void this.postConfiguredEngineDownloadStatus(webview, {
             engineType: this.getConfiguredLocalEngineType(),
             enginesDir,
+            operation,
             loading: true,
             done: false,
             canceling: controller.signal.aborted,
-            message: controller.signal.aborted ? "Cancelando download..." : message,
+            message: controller.signal.aborted
+              ? isUpdate
+                ? "Cancelando atualização..."
+                : "Cancelando download..."
+              : message,
           });
         },
         controller.signal,
@@ -3132,9 +3273,12 @@ export class ChatMessageRouter {
       await this.postConfiguredEngineDownloadStatus(webview, {
         engineType: this.getConfiguredLocalEngineType(),
         enginesDir,
+        operation,
         loading: false,
         done: true,
-        message: "Engine selecionada pronta para uso.",
+        message: isUpdate
+          ? "Engine atualizada e pronta para uso."
+          : "Engine selecionada pronta para uso.",
       });
 
       await webview.postMessage({
@@ -3143,17 +3287,31 @@ export class ChatMessageRouter {
       });
 
       vscode.window.showInformationMessage(
-        "ATLAS: engine selecionada pronta para uso.",
+        isUpdate
+          ? "ATLAS: engine atualizada e pronta para uso."
+          : "ATLAS: engine selecionada pronta para uso.",
       );
+
+      if (isUpdate) {
+        this.availableConfiguredEngineUpdate = null;
+        await this.postConfiguredEngineUpdateStatus(webview, {
+          checking: false,
+          updateAvailable: false,
+          message: "Engine atualizada para a versão mais recente.",
+        });
+      }
     } catch (error) {
       if (controller.signal.aborted) {
         await this.postConfiguredEngineDownloadStatus(webview, {
           engineType: this.getConfiguredLocalEngineType(),
           enginesDir,
+          operation,
           loading: false,
           done: true,
           canceled: true,
-          message: "Download cancelado.",
+          message: isUpdate
+            ? "Atualização cancelada. A versão anterior foi mantida."
+            : "Download cancelado.",
         });
 
         await webview.postMessage({
@@ -3162,19 +3320,36 @@ export class ChatMessageRouter {
         });
 
         vscode.window.showInformationMessage(
-          "ATLAS: download da engine cancelado.",
+          isUpdate
+            ? "ATLAS: atualização cancelada; a versão anterior da engine foi mantida."
+            : "ATLAS: download da engine cancelado.",
         );
+
+        if (isUpdate) {
+          this.availableConfiguredEngineUpdate = {
+            engineType: this.getConfiguredLocalEngineType(),
+            enginesDir,
+          };
+          await this.postConfiguredEngineUpdateStatus(webview, {
+            checking: false,
+            updateAvailable: true,
+            message: "Atualização cancelada. A versão anterior foi mantida.",
+          });
+        }
         return;
       }
 
       const message = this.getErrorMessage(
         error,
-        "Erro ao baixar a engine selecionada.",
+        isUpdate
+          ? "Erro ao atualizar a engine selecionada."
+          : "Erro ao baixar a engine selecionada.",
       );
 
       await this.postConfiguredEngineDownloadStatus(webview, {
         engineType: this.getConfiguredLocalEngineType(),
         enginesDir,
+        operation,
         loading: false,
         done: true,
         error: true,
@@ -3182,7 +3357,197 @@ export class ChatMessageRouter {
       });
 
       vscode.window.showErrorMessage(`ATLAS: ${message}`);
+
+      if (isUpdate) {
+        this.availableConfiguredEngineUpdate = {
+          engineType: this.getConfiguredLocalEngineType(),
+          enginesDir,
+        };
+        await this.postConfiguredEngineUpdateStatus(webview, {
+          checking: false,
+          error: true,
+          updateAvailable: true,
+          message,
+        });
+      }
     }
+  }
+
+  private async handleCheckConfiguredEngineUpdate(
+    webview: vscode.Webview,
+  ): Promise<void> {
+    if (this.configuredEngineUpdateCheckPromise) {
+      await this.postConfiguredEngineUpdateStatus(webview, {
+        checking: true,
+        message: "A consulta de atualizações já está em andamento...",
+      });
+      return;
+    }
+
+    const checkPromise = this.runConfiguredEngineUpdateCheck(webview);
+    this.configuredEngineUpdateCheckPromise = checkPromise;
+
+    try {
+      await checkPromise;
+    } finally {
+      if (this.configuredEngineUpdateCheckPromise === checkPromise) {
+        this.configuredEngineUpdateCheckPromise = null;
+      }
+    }
+  }
+
+  private async handleUpdateConfiguredEngineRequest(
+    webview: vscode.Webview,
+  ): Promise<void> {
+    const availableUpdate = this.availableConfiguredEngineUpdate;
+    const currentEngineType = this.getConfiguredLocalEngineType();
+    const currentEnginesDir = this.deps.getLocalEnginesDir();
+
+    if (
+      !availableUpdate ||
+      availableUpdate.engineType !== currentEngineType ||
+      path.resolve(availableUpdate.enginesDir) !== path.resolve(currentEnginesDir)
+    ) {
+      await this.postConfiguredEngineUpdateStatus(webview, {
+        checking: false,
+        error: true,
+        updateAvailable: false,
+        message:
+          "Procure atualizações novamente antes de iniciar a instalação.",
+      });
+      return;
+    }
+
+    if (this.configuredEngineUpdateCheckPromise) {
+      await this.postConfiguredEngineUpdateStatus(webview, {
+        checking: true,
+        updateAvailable: true,
+        message: "Aguarde a consulta de atualizações terminar.",
+      });
+      return;
+    }
+
+    if (this.configuredEngineDownloadPromise) {
+      await this.postConfiguredEngineUpdateStatus(webview, {
+        checking: false,
+        updateAvailable: true,
+        message:
+          "Aguarde o download ou a atualização em andamento terminar.",
+      });
+      if (this.configuredEngineDownloadStatus) {
+        await webview.postMessage({
+          type: "downloadEngineConfiguradaStatus",
+          value: this.configuredEngineDownloadStatus,
+        });
+      }
+      return;
+    }
+
+    this.availableConfiguredEngineUpdate = null;
+    await this.postConfiguredEngineUpdateStatus(webview, {
+      checking: false,
+      updateAvailable: false,
+      message: "Iniciando atualização da engine...",
+    });
+    this.deps.stopLocalEngine({ force: true });
+    await this.runConfiguredEngineOperationRequest(webview, "update");
+  }
+
+  private async runConfiguredEngineUpdateCheck(
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      if (this.configuredEngineDownloadPromise) {
+        throw new Error(
+          "Aguarde o download ou a atualização em andamento terminar.",
+        );
+      }
+
+      await this.postConfiguredEngineUpdateStatus(webview, {
+        checking: true,
+        message: "Procurando atualizações da engine...",
+      });
+      this.availableConfiguredEngineUpdate = null;
+
+      const result = await this.deps.checkConfiguredLlamaEngineUpdate();
+
+      if (result.engineType !== this.getConfiguredLocalEngineType()) {
+        await this.postConfiguredEngineUpdateStatus(webview, {
+          checking: false,
+          message:
+            "O modo de processamento mudou durante a consulta. Procure atualizações novamente.",
+        });
+        return;
+      }
+
+      if (!result.installed) {
+        await this.postConfiguredEngineUpdateStatus(webview, {
+          checking: false,
+          updateAvailable: false,
+          message: `A engine ${this.formatLocalEngineType(result.engineType)} ainda não está instalada.`,
+        });
+        return;
+      }
+
+      if (!result.managed) {
+        await this.postConfiguredEngineUpdateStatus(webview, {
+          checking: false,
+          updateAvailable: false,
+          message:
+            "A engine usa um executável personalizado e deve ser atualizada manualmente.",
+        });
+        return;
+      }
+
+      if (!result.updateAvailable) {
+        await this.postConfiguredEngineUpdateStatus(webview, {
+          checking: false,
+          updateAvailable: false,
+          currentVersion: result.currentVersion,
+          latestVersion: result.latestVersion,
+          message: `A engine já está na versão mais recente (${result.latestVersion}).`,
+        });
+        return;
+      }
+
+      const versionMessage = result.currentVersion
+        ? `Atualização encontrada: ${result.currentVersion} → ${result.latestVersion}.`
+        : `A versão instalada não estava registrada. Versão mais recente encontrada: ${result.latestVersion}.`;
+
+      this.availableConfiguredEngineUpdate = {
+        engineType: result.engineType,
+        enginesDir: this.deps.getLocalEnginesDir(),
+      };
+      await this.postConfiguredEngineUpdateStatus(webview, {
+        checking: false,
+        updateAvailable: true,
+        currentVersion: result.currentVersion,
+        latestVersion: result.latestVersion,
+        message: versionMessage,
+      });
+    } catch (error) {
+      const message = this.getErrorMessage(
+        error,
+        "Não foi possível procurar atualizações da engine.",
+      );
+
+      await this.postConfiguredEngineUpdateStatus(webview, {
+        checking: false,
+        error: true,
+        message,
+      });
+      vscode.window.showErrorMessage(`ATLAS: ${message}`);
+    }
+  }
+
+  private async postConfiguredEngineUpdateStatus(
+    webview: vscode.Webview,
+    status: ConfiguredEngineUpdateStatus,
+  ): Promise<void> {
+    await webview.postMessage({
+      type: "atualizacaoEngineStatus",
+      value: status,
+    });
   }
 
   private async postConfiguredEngineDownloadStatus(
@@ -3219,6 +3584,8 @@ export class ChatMessageRouter {
         downloaded: this.deps.isLlamaEngineTypeDownloaded(requestedEngineType),
         deletable:
           this.deps.isManagedLlamaEngineTypeDownloaded(requestedEngineType),
+        installInfo:
+          this.deps.getLlamaEngineInstallInfo()[requestedEngineType],
       },
     });
   }
@@ -3319,7 +3686,10 @@ export class ChatMessageRouter {
       loading: true,
       done: false,
       canceling: true,
-      message: "Cancelando download...",
+      message:
+        currentStatus.operation === "update"
+          ? "Cancelando atualização..."
+          : "Cancelando download...",
     });
   }
 
@@ -3333,6 +3703,7 @@ export class ChatMessageRouter {
         engineType,
         downloaded: this.deps.isLlamaEngineTypeDownloaded(engineType),
         deletable: this.deps.isManagedLlamaEngineTypeDownloaded(engineType),
+        installInfo: this.deps.getLlamaEngineInstallInfo()[engineType],
       },
     });
   }
@@ -3649,6 +4020,8 @@ export class ChatMessageRouter {
     let generationId: string | undefined;
 
     try {
+      this.deps.configManager.requireResolvedSelectionForCurrentMode();
+
       if (!this.deps.configManager.isRefactoringEnabled()) {
         throw new Error(
           "A refatoração aplicada está desativada nas configurações do ATLAS.",
@@ -3855,6 +4228,27 @@ export class ChatMessageRouter {
     });
   }
 
+  private async ensureValidModelSelection(
+    webview: vscode.Webview,
+    generation?: {
+      sessionId?: string;
+      generationId?: string;
+    },
+  ): Promise<boolean> {
+    try {
+      this.deps.configManager.requireResolvedSelectionForCurrentMode();
+      return true;
+    } catch (error) {
+      await this.postError(
+        webview,
+        error,
+        "Selecione um modelo válido antes de continuar.",
+        generation,
+      );
+      return false;
+    }
+  }
+
   private getErrorMessage(error: unknown, fallback: string): string {
     return error instanceof Error ? error.message : fallback;
   }
@@ -3922,6 +4316,7 @@ export class ChatMessageRouter {
     const contextProfileRag =
       this.deps.configManager.getContextProfileRag(contextProfileTarget);
     const engineType = this.normalizeLocalEngineType(value.engineType);
+    const engineInstallInfo = this.deps.getLlamaEngineInstallInfo();
     const contextProfiles = {
       local: this.getContextProfilePayload("local", value),
       cloud: this.getContextProfilePayload("cloud", value),
@@ -3984,6 +4379,7 @@ export class ChatMessageRouter {
           ],
         ),
       ),
+      engineInstallInfo,
       startOnAtlasOpen: value.startOnAtlasOpen === true,
       prepareOnAtlasOpen: value.prepareOnAtlasOpen !== false,
       dynamicContextWindow: value.dynamicContextWindow !== false,

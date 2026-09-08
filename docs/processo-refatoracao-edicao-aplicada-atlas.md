@@ -1,6 +1,6 @@
 # Processo de Refatoração e Edição Aplicada
 
-Atualizado em 15 de agosto de 2026.
+Atualizado em 7 de setembro de 2026.
 
 Este documento descreve como o ATLAS reconhece pedidos de alteração no código, gera um plano de edições, apresenta uma prévia e só modifica o arquivo após confirmação do usuário.
 
@@ -35,9 +35,9 @@ Webview Chat
 Responsabilidades principais:
 
 - `ChatResponseController`: decide se a pergunta deve seguir para edição direta antes da resposta textual;
-- `ChatMessageRouter`: recebe a ação de refatoração baseada em análise arquitetural e localiza a mensagem que a originou;
-- `AtlasCodeEditController`: aplica guardas, classifica a intenção, coleta contexto, controla cancelamento e valida a identidade do arquivo;
-- `AtlasCodeEditService`: monta o prompt de edição, interpreta e valida o plano, abre o diff e aplica as mudanças;
+- `ChatMessageRouter`: recebe a ação de refatoração baseada em análise arquitetural, localiza a mensagem que a originou e encaminha a escolha feita no chat;
+- `AtlasCodeEditController`: aplica guardas, classifica a intenção, coleta contexto, controla cancelamento, mantém a confirmação pendente e valida a identidade do arquivo;
+- `AtlasCodeEditService`: monta o prompt de edição, interpreta e valida o plano, abre o diff e só aplica as mudanças depois da resposta do chat;
 - `AtlasCodeEditPreviewProvider`: fornece ao VS Code o conteúdo virtual usado no lado direito da prévia;
 - `AtlasInferenceService`: envia tanto a classificação opcional de intenção quanto o pedido do plano de edição ao modelo ativo.
 
@@ -204,8 +204,11 @@ Quando há edições propostas:
 1. o conteúdo final é calculado sem alterar o arquivo real;
 2. `AtlasCodeEditPreviewProvider` publica um documento virtual no esquema `atlas-code-edit-preview`;
 3. o comando `vscode.diff` abre o original e a prévia;
-4. o VS Code exibe as opções `Aplicar alterações` e `Cancelar`;
-5. somente a confirmação explícita cria e aplica um `vscode.WorkspaceEdit`.
+4. o chat exibe um cartão persistente com o resumo, o risco e as opções `Aplicar` e `Cancelar`;
+5. a edição permanece pendente no controller até uma escolha explícita ou o cancelamento da geração;
+6. somente a confirmação explícita cria e aplica um `vscode.WorkspaceEdit`.
+
+Se o arquivo for modificado enquanto o plano ou a confirmação estiverem pendentes, a aplicação é bloqueada e o ATLAS solicita uma nova prévia. Isso evita usar intervalos de linhas que já ficaram desatualizados.
 
 Se o plano vier sem edições, não há diff. O fluxo é concluído como `Nenhuma alteração aplicada`.
 
@@ -214,6 +217,8 @@ Se o plano vier sem edições, não há diff. O fluxo é concluído como `Nenhum
 | Evento | Uso |
 | --- | --- |
 | `edicaoCodigoStatus` | Mostra ou remove o estado de carregamento da aplicação. |
+| `edicaoCodigoAguardandoConfirmacao` | Exibe no chat a decisão persistente de aplicar ou cancelar. |
+| `edicaoCodigoConfirmacaoRecebida` | Confirma visualmente que a escolha foi entregue ao backend. |
 | `edicaoCodigoCancelada` | Limpa o estado quando a prévia não é confirmada. |
 | `edicaoCodigoConcluida` | Finaliza uma edição direta sem criar resposta do assistente no chat. |
 | `novaResposta` | Exibe o resumo da refatoração guiada por análise. |
@@ -224,7 +229,7 @@ Na edição direta aprovada, o pedido do usuário é salvo, mas não é criada u
 
 Quando o usuário cancela a prévia da edição direta, nenhuma mensagem desse pedido é persistida.
 
-Enquanto a edição está em andamento, `AtlasCodeEditController` mantém `activeEdits` por `sessionId`, `generationId` ou chave standalone e serializa esses itens como `activeGenerations`. A Webview usa `forcedMode="code-edit"` ou `forcedMode="architecture-code-edit"` para mostrar o loading correto na conversa e na lista de sessões.
+Enquanto a edição está em andamento, `AtlasCodeEditController` mantém `activeEdits` por `sessionId`, `generationId` ou chave standalone e serializa esses itens como `activeGenerations`. Quando há uma decisão pendente, o snapshot também inclui `pendingCodeEditConfirmation`; por isso, os botões reaparecem ao trocar de sessão e voltar. A Webview usa `forcedMode="code-edit"` ou `forcedMode="architecture-code-edit"` para mostrar o estado correto na conversa e na lista de sessões.
 
 ## Cancelamento e erros
 

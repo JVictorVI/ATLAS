@@ -442,10 +442,75 @@ h1 {
 .engine-option small,
 .startup-option small,
 .engine-download-prompt small,
+.engine-update-control small,
 .note {
   color: var(--vscode-descriptionForeground);
   font-size: 12px;
   line-height: 1.45;
+}
+
+.engine-update-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  border: 1px solid var(--vscode-widget-border);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.engine-update-details {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.engine-version-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0;
+}
+
+.engine-version-list > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--vscode-widget-border);
+  border-radius: 5px;
+  padding: 4px 7px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+}
+
+.engine-version-list > span.is-selected {
+  border-color: var(--vscode-focusBorder);
+  color: var(--vscode-foreground);
+}
+
+.engine-version-list strong {
+  color: var(--vscode-foreground);
+}
+
+.engine-update-actions {
+  display: inline-flex;
+  align-items: center;
+  flex-direction: row;
+  gap: 7px;
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+}
+
+.engine-update-actions > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.engine-update-control small.is-error {
+  color: var(--vscode-errorForeground);
 }
 
 .engine-download-prompt {
@@ -569,6 +634,11 @@ button {
   font-size: 13px;
 }
 
+button:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
 .btn-primary {
   background: var(--vscode-button-background);
   color: var(--vscode-button-foreground);
@@ -610,6 +680,21 @@ button {
   .engine-download-prompt {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .engine-update-control {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .engine-update-actions {
+    align-items: stretch;
+    flex-direction: row;
+  }
+
+  .engine-update-actions > button {
+    flex: 1 1 auto;
+    justify-content: center;
   }
 
   .engine-download-prompt > .engine-download-actions {

@@ -264,9 +264,10 @@ partialContent
 isStreaming
 generationId
 forcedMode
+pendingCodeEditConfirmation (opcional)
 ```
 
-`ChatSessionController` envia `activeGenerations` ao listar, criar, trocar ou excluir sessões. A Webview mantém `activeGenerationSnapshots` por `sessionId`, mostra spinner na sessão correspondente, restaura mensagens parciais quando o usuário volta para a conversa e sincroniza os controles do chat com a geração da sessão ativa.
+`ChatSessionController` envia `activeGenerations` ao listar, criar, trocar ou excluir sessões. A Webview mantém `activeGenerationSnapshots` por `sessionId`, mostra o estado ativo na sessão correspondente, restaura mensagens parciais e também a confirmação persistente de uma edição quando o usuário volta para a conversa, além de sincronizar os controles do chat com a geração da sessão ativa.
 
 Eventos de resposta, erro, cancelamento, análise rápida e edição aplicada carregam `sessionId` e `generationId` sempre que possível. Isso permite limpar apenas o snapshot correto e ignorar mensagens atrasadas de gerações já canceladas.
 

@@ -14,17 +14,15 @@ function hydratemodelsDataFromBackend(payload) {
 
   selectedMode = payload.selectedMode || "local";
   selectedProvider = payload.selectedProviderId || null;
+  configuredLocalModelId = payload.selectedLocalModelId || null;
+  configuredCloudModelId = payload.selectedCloudModelId || null;
 
   if (selectedMode === "local") {
     const localModels = modelsData.local?.models || [];
     selectedModel =
-      localModels.find((m) => m.id === payload.selectedLocalModelId) ||
-      localModels[0] ||
-      null;
+      localModels.find((m) => m.id === configuredLocalModelId) || null;
   } else {
-    selectedModel = payload.selectedCloudModelId
-      ? { id: payload.selectedCloudModelId, name: payload.selectedCloudModelId }
-      : null;
+    selectedModel = null;
   }
 
   updateMainButton();
@@ -70,8 +68,8 @@ function renderPopoverContent() {
       ? localModels
           .map(
             (m) => `
-        <div class="dropdown-item model-item ${selectedModel?.id === m.id && selectedMode === "local" ? "selected" : ""}"
-          data-mode="local" data-value="${m.id}" data-name="${m.name}" title="${m.name}">
+        <div class="dropdown-item model-item ${selectedModel?.id === m.id && selectedMode === "local" ? "selected" : ""} ${m.enabled === false ? "disabled" : ""}"
+          data-mode="local" data-value="${m.id}" data-name="${m.name}" title="${m.enabled === false ? `${m.name} (desabilitado)` : m.name}" aria-disabled="${m.enabled === false}">
           <span class="dropdown-item-label">${m.name}</span>
         </div>`,
           )
@@ -152,7 +150,8 @@ function renderPopoverContent() {
     e.stopPropagation();
     if (selectedMode !== "local") {
       selectedMode = "local";
-      selectedModel = localModels[0] || null;
+      selectedModel =
+        localModels.find((model) => model.id === configuredLocalModelId) || null;
       isLoadingCloudModels = false;
       cloudModelLoadError = null;
       vscode.postMessage({ type: "selecionarModo", mode: "local" });
@@ -165,7 +164,10 @@ function renderPopoverContent() {
     e.stopPropagation();
     if (selectedMode !== "cloud") {
       selectedMode = "cloud";
-      if (!selectedProvider) {selectedProvider = cloudProviders[0]?.[0] || null;}
+      if (!selectedProvider) {
+        selectedProvider = cloudProviders[0]?.[0] || null;
+        configuredCloudModelId = null;
+      }
       selectedModel = null;
       cloudModelLoadError = null;
       vscode.postMessage({ type: "selecionarModo", mode: "cloud" });
@@ -195,6 +197,7 @@ function renderPopoverContent() {
       e.stopPropagation();
       selectedProvider = item.getAttribute("data-value");
       selectedModel = null;
+      configuredCloudModelId = null;
       isLoadingCloudModels = true;
       cloudModelLoadError = null;
       renderPopoverContent();
@@ -216,10 +219,18 @@ function renderPopoverContent() {
   document.querySelectorAll(".model-item").forEach((item) => {
     item.addEventListener("click", (e) => {
       e.stopPropagation();
+      if (item.classList.contains("disabled")) {
+        return;
+      }
       selectedModel = {
         id: item.getAttribute("data-value"),
         name: item.getAttribute("data-name"),
       };
+      if (item.getAttribute("data-mode") === "local") {
+        configuredLocalModelId = selectedModel.id;
+      } else {
+        configuredCloudModelId = selectedModel.id;
+      }
       document.getElementById("list-model")?.classList.add("hidden");
       renderPopoverContent();
       updateMainButton();
@@ -239,13 +250,41 @@ function updateMainButton() {
     mainBtnText.textContent = selectedModel
       ? selectedModel.name
       : "Selecionar modelo local";
-    return;
+  } else {
+    const providerName =
+      selectedProvider && modelsData[selectedProvider]
+        ? modelsData[selectedProvider].name
+        : "Nuvem";
+    mainBtnText.textContent = `${providerName} · ${selectedModel ? selectedModel.name : "Selecionar modelo"}`;
   }
-  const providerName =
-    selectedProvider && modelsData[selectedProvider]
-      ? modelsData[selectedProvider].name
-      : "Nuvem";
-  mainBtnText.textContent = `${providerName} · ${selectedModel ? selectedModel.name : "Selecionar modelo"}`;
+
+  hydrateChatControlState();
+}
+
+function hasValidModelSelection() {
+  if (!selectedModel?.id) {
+    return false;
+  }
+
+  if (selectedMode === "local") {
+    return (modelsData.local?.models || []).some(
+      (model) => model.id === selectedModel.id && model.enabled !== false,
+    );
+  }
+
+  if (!selectedProvider || isLoadingCloudModels || cloudModelLoadError) {
+    return false;
+  }
+
+  return (modelsData[selectedProvider]?.models || []).some(
+    (model) => model.id === selectedModel.id,
+  );
+}
+
+function getInvalidModelSelectionMessage() {
+  return selectedMode === "cloud"
+    ? "Selecione um provedor e um modelo em nuvem válidos."
+    : "Selecione um modelo local válido.";
 }
 
 // ── Chat events ───────────────────────────────────────────────────────────────

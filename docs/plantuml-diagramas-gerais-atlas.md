@@ -11,6 +11,7 @@ Os blocos podem ser copiados diretamente para o PlantText ou para uma extensão 
 
 - Configuração, histórico, modelos e engines gerenciados passam a aparecer sob o `globalStorageUri`, preservando os caminhos antigos na pasta da extensão apenas como origem de migração.
 - A Biblioteca lista as engines CPU/CUDA/Vulkan instaladas e permite trocar o tipo ativo, encerrando o processo anterior e sincronizando as outras Webviews.
+- As Configurações Gerais consultam releases recentes, exibem uma ação de confirmação e atualizam a engine gerenciada por meio de manifesto, staging e restauração da versão anterior em caso de falha.
 - O Repositório acompanha múltiplos downloads, restaura itens ativos, permite cancelamento individual e mantém um histórico visual de conclusões, cancelamentos e erros.
 - O diagrama de implantação representa os targets Windows e Linux e inclui a Webview do Repositório de Modelos.
 
@@ -21,12 +22,12 @@ Os blocos podem ser copiados diretamente para o PlantText ou para uma extensão 
 - As fontes de subprojetos recebem o prefixo relativo à pasta-mãe aberta, mantendo sua origem identificável.
 - A indexação manual abre um seletor múltiplo de escopo; subpastas escolhidas são indexadas sequencialmente como projetos independentes.
 - Uma falha de pasta é acumulada no resumo e o lote segue para o próximo alvo; cancelamentos continuam interrompendo o processamento.
-- A tela RAG permite remover todos os projetos com confirmação, incluindo índices e materiais complementares associados.
+- A tela RAG permite remover todos os projetos com confirmação, sem remover os materiais complementares, que possuem ciclo de vida independente.
 
 ## Pontos atualizados na versão 1.7
 
-- `AtlasCodeEditController` representa guardas determinísticas, heurística local, classificação opcional de intenção pelo modelo e validação do arquivo analisado por URI e hash.
-- `AtlasCodeEditService` representa o plano JSON por linhas, a prévia via `vscode.diff`, a confirmação humana e a aplicação com `vscode.WorkspaceEdit`.
+- `AtlasCodeEditController` representa guardas determinísticas, heurística local, classificação opcional de intenção pelo modelo, validação do arquivo analisado e confirmação persistente no chat.
+- `AtlasCodeEditService` representa o plano JSON por linhas, a prévia via `vscode.diff` e a aplicação com `vscode.WorkspaceEdit` somente depois da escolha encaminhada pelo controller.
 - O UC019 cobre tanto a edição direta pedida no chat quanto a refatoração guiada por uma análise arquitetural.
 - A configuração passa a incluir `custom.refactoring`, `custom.staticAnalysis.useInRefactoring` e `rag.useInCodeEditing`.
 
@@ -245,6 +246,7 @@ package "Aplicação" {
     +executeDirectEdit(webview, options)
     +executeArchitectureGuidedEdit(webview, options)
     +cancelActiveEdit()
+    +resolvePendingConfirmation(target, approved)
     +buildRefactorMetadata(editorContext)
     -assertDocumentStillMatches(editorContext, metadata)
     -classifyEditIntentWithModel(userRequest, options)
@@ -255,7 +257,7 @@ package "Aplicação" {
     +formatResultMessage(result)
     -parsePlan(raw)
     -validatePlan(plan, document)
-    -previewAndConfirm(document, plan, signal)
+    -previewAndConfirm(document, plan, confirm, signal)
     -applyLineEdits(document, edits)
   }
 
@@ -337,6 +339,9 @@ package "Inferência" {
   class AtlasEngineDownloadService {
     +ensureEngineDownloaded(onStatus)
     +ensureConfiguredEngineDownloaded(onStatus)
+    +checkConfiguredEngineUpdate()
+    +updateConfiguredEngine(onStatus)
+    +getEngineInstallInfo()
     +downloadEngine(engineType, onStatus)
     +isEngineDownloaded(engineType)
   }
@@ -464,7 +469,7 @@ ChatMessageRouter --> ApiKeyManager
 ChatMessageRouter --> AtlasConfigManager : configuração e seleção de engine
 ChatMessageRouter --> AtlasRagService : indexação e gestão
 ChatMessageRouter --> HuggingFaceModelService : busca, download e cancelamento
-ChatMessageRouter --> AtlasEngineDownloadService : baixa e valida engines
+ChatMessageRouter --> AtlasEngineDownloadService : baixa, atualiza e valida engines
 ChatMessageRouter --> HardwareDiagnosticService : diagnóstico
 
 ChatResponseController --> AtlasEditorContextService
@@ -764,13 +769,14 @@ package "Edição Aplicada" {
     +shouldApplyDirectEditRequest(userRequest, options)
     +executeDirectEdit(webview, options)
     +executeArchitectureGuidedEdit(webview, options)
+    +resolvePendingConfirmation(target, approved)
   }
 
   class AtlasCodeEditService {
     +applyEdit(request)
     -buildEditMessages(request)
     -validatePlan(plan, document)
-    -previewAndConfirm(document, plan, signal)
+    -previewAndConfirm(document, plan, confirm, signal)
   }
 }
 

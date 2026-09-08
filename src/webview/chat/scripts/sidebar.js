@@ -376,6 +376,7 @@ function loadChatMessages(session, activeGenerations = []) {
   loadingDefaultMessage = "Pensando";
   mensagemAtualBot = null;
   pendingCodeEditUserMessage = null;
+  pendingCodeEditConfirmationElement = null;
   bufferResposta = "";
   fadeFramePending = false;
 
@@ -465,6 +466,19 @@ function renderPendingGeneration(activeGeneration) {
     if (activeGeneration.forcedMode === "architecture-code-edit") {
       pendingCodeEditUserMessage = userMessage;
     }
+  }
+
+  if (activeGeneration.pendingCodeEditConfirmation) {
+    renderPendingCodeEditConfirmation(
+      activeGeneration.pendingCodeEditConfirmation,
+      {
+        sessionId: activeGeneration.sessionId,
+        generationId: activeGeneration.generationId,
+      },
+    );
+    setGenerationState(true);
+    hydrateChatControlState();
+    return;
   }
 
   const partialContent = String(activeGeneration.partialContent || "");

@@ -49,10 +49,15 @@ export class AtlasCodeEditService implements vscode.Disposable {
   public async applyEdit(
     request: AtlasCodeEditRequest,
   ): Promise<AtlasCodeEditResult> {
+    const initialDocumentVersion = request.editorContext.document.version;
     const messages = this.buildEditMessages(request);
     const response = await this.inferenceService.sendChat(messages, undefined, {
       signal: request.signal,
     });
+    this.assertDocumentVersion(
+      request.editorContext.document,
+      initialDocumentVersion,
+    );
     const plan = this.parsePlan(response.content);
     const normalizedPlan = this.validatePlan(
       plan,
@@ -61,8 +66,15 @@ export class AtlasCodeEditService implements vscode.Disposable {
     const approved = await this.previewAndConfirm(
       request.editorContext.document,
       normalizedPlan,
+      request.confirm,
       request.signal,
     );
+    if (approved) {
+      this.assertDocumentVersion(
+        request.editorContext.document,
+        initialDocumentVersion,
+      );
+    }
     const appliedEdits = approved
       ? await this.applyLineEdits(
           request.editorContext.document,
@@ -313,6 +325,7 @@ export class AtlasCodeEditService implements vscode.Disposable {
   private async previewAndConfirm(
     document: vscode.TextDocument,
     plan: AtlasCodeEditPlan,
+    confirm: AtlasCodeEditRequest["confirm"],
     signal?: AbortSignal,
   ): Promise<boolean> {
     if (!plan.edits.length) {
@@ -335,17 +348,31 @@ export class AtlasCodeEditService implements vscode.Disposable {
       `ATLAS: Prévia de edição - ${path.basename(document.fileName)}`,
     );
 
-    const action = await vscode.window.showWarningMessage(
-      "O diff do ATLAS está aberto. Revise a prévia antes de aplicar no arquivo atual.",
-      "Aplicar alterações",
-      "Cancelar",
-    );
+    const approved = await confirm({
+      targetFile: path.basename(document.fileName),
+      summary: plan.summary,
+      risk: plan.risk,
+      editCount: plan.edits.length,
+    });
 
     if (signal?.aborted) {
       this.throwAbortError();
     }
 
-    return action === "Aplicar alterações";
+    return approved;
+  }
+
+  private assertDocumentVersion(
+    document: vscode.TextDocument,
+    expectedVersion: number,
+  ): void {
+    if (document.version === expectedVersion) {
+      return;
+    }
+
+    throw new Error(
+      "O arquivo foi alterado enquanto a edição estava sendo preparada. Gere uma nova prévia antes de aplicar.",
+    );
   }
 
   private buildPreviewContent(

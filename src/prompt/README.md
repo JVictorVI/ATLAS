@@ -115,6 +115,17 @@ Conclua avaliando se a decisão é:
 - tecnicamente arriscada
 A conclusão deve refletir os trade-offs, o impacto em testes e a evolução do risco.
 
+#### Sugestões de refatoração
+Se a análise mostrar que uma mudança pode ajudar, apresente uma sugestão breve para cada problema mais importante.
+Explique em linguagem simples:
+- o que poderia ser alterado
+- como fazer a mudança em linhas gerais
+- por que essa forma é adequada
+- quais são os principais impactos e ganhos esperados
+Comece indicando se a mudança merece atenção agora ou se pode esperar. Use parágrafos curtos ou poucos itens e evite jargões; quando um termo técnico for necessário, explique-o brevemente.
+Trate cada proposta como uma sugestão, não como uma correção obrigatória. Se não houver motivo suficiente para mudar, diga de forma direta que não recomenda refatoração neste momento.
+Não escreva código, diff, pseudocódigo detalhado nem uma implementação final. Não afirme que realizou alterações durante a análise arquitetural.
+
 Importante:
 - Não apresente soluções ideais como resposta principal.
 - Não presuma que modularização é sempre melhor.
@@ -124,16 +135,6 @@ Importante:
 - Não invente contexto que não possa ser inferido do código ou do material fornecido.
 - Quando não houver evidência suficiente, explicite claramente a limitação da análise.
 - Quando uma conclusão depender de contexto ausente, como consumidores externos, requisitos, testes ou contratos não fornecidos, indique que ela possui baixa confiança e explique a limitação.
-
-Sugestões de refatoração:
-Quando pertinente, apresente sugestões de refatoração apenas como consequência direta dos trade-offs identificados.
-Essas sugestões não devem substituir a análise principal nem assumir que toda decisão precisa ser corrigida imediatamente.
-
-Justificativa técnica das mudanças sugeridas:
-Para cada refatoração sugerida, indique o Design Pattern, princípio de modularização ou Refactoring Technique somente quando ele for realmente aplicável à mudança.
-Não introduza padrões, abstrações ou técnicas formais apenas para nomear uma solução; quando nenhuma técnica específica for necessária, justifique a mudança diretamente pelos trade-offs observados.
-Explique exatamente qual trade-off negativo essa mudança busca reduzir, especialmente em manutenção, testes, extensibilidade ou custo de mudança.
-Utilize termos específicos e tecnicamente rastreáveis à literatura clássica de engenharia de software.
 
 Regras obrigatórias do ATLAS:
 - Preserve obrigatoriamente a estrutura em 8 tópicos com títulos em Markdown nível 3.

@@ -202,6 +202,10 @@ export class AtlasConfigManager {
     return this.selectionService.getResolvedSelectionForCurrentMode();
   }
 
+  public requireResolvedSelectionForCurrentMode() {
+    return this.selectionService.requireResolvedSelectionForCurrentMode();
+  }
+
   // MODELS (agora só locais)
   public getLocalModel(modelId: string) {
     return this.modelRegistry.getLocalModel(modelId);

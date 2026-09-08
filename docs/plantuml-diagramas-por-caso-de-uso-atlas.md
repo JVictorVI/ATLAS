@@ -550,6 +550,12 @@ class ChatMessageRouter {
   -handleSaveCloudConfigs(data, webview)
   -handleLoadAtlasSettings(webview)
   -handleSaveAtlasSettings(data, webview)
+  -handleCheckConfiguredEngineUpdate(webview)
+}
+class AtlasEngineDownloadService {
+  +checkConfiguredEngineUpdate()
+  +updateConfiguredEngine(onStatus)
+  +getEngineInstallInfo()
 }
 class AtlasConfigManager {
   +getStaticAnalysisConfig()
@@ -567,6 +573,7 @@ interface AtlasLlmDefaults
 interface AtlasStaticAnalysisConfig
 
 ChatMessageRouter --> AtlasConfigManager
+ChatMessageRouter --> AtlasEngineDownloadService
 AtlasConfigManager --> AtlasSettingsService
 AtlasSettingsService --> AtlasConfigRepository
 AtlasConfigRepository --> AtlasConfigDefaults
@@ -587,6 +594,8 @@ participant ChatMessageRouter as Router
 participant AtlasConfigManager as Config
 participant AtlasSettingsService as Settings
 participant AtlasConfigRepository as Repository
+participant AtlasEngineDownloadService as EngineDownload
+participant AtlasLocalEngineService as Engine
 
 Usuário -> Webview : altera parâmetros
 alt segurança e parâmetros de LLM
@@ -601,6 +610,22 @@ else execução local e análise estática
   Config -> Settings : persiste localEngine/localModels/staticAnalysis
   Settings -> Repository : save(config)
   Router --> Webview : configuracoesAtlasSalvas
+end
+opt usuário procura atualização da engine
+  Webview -> Router : procurarAtualizacaoEngine
+  Router -> EngineDownload : checkConfiguredEngineUpdate()
+  alt versão mais recente disponível
+    Router --> Webview : atualizacaoEngineStatus(updateAvailable)
+    Webview -> Usuário : exibe "Atualizar agora"
+    Usuário -> Webview : confirma atualização
+    Webview -> Router : atualizarEngineAgora
+    Router -> Engine : stopEngine(force)
+    Router -> EngineDownload : updateConfiguredEngine(onStatus)
+    EngineDownload -> EngineDownload : baixa, valida e troca via staging
+    Router --> Webview : downloadEngineConfiguradaStatus
+  else instalação atualizada ou manual
+    Router --> Webview : atualizacaoEngineStatus
+  end
 end
 @enduml
 ```
@@ -1558,6 +1583,7 @@ skinparam classAttributeIconSize 0
 
 class ChatMessageRouter {
   -handleArchitectureGuidedRefactor(data, webview)
+  -handleCodeEditConfirmation(data, webview)
 }
 class ChatResponseController {
   +handleSendQuestion(data, webview)
@@ -1569,6 +1595,7 @@ class AtlasCodeEditController {
   +executeDirectEdit(webview, options)
   +executeArchitectureGuidedEdit(webview, options)
   +cancelActiveEdit()
+  +resolvePendingConfirmation(target, approved)
   +buildRefactorMetadata(editorContext)
   -passesDeterministicEditGuards(normalizedUserRequest)
   -classifyEditIntentWithModel(userRequest, options)
@@ -1580,7 +1607,7 @@ class AtlasCodeEditService {
   -buildEditMessages(request)
   -parsePlan(raw)
   -validatePlan(plan, document)
-  -previewAndConfirm(document, plan, signal)
+  -previewAndConfirm(document, plan, confirm, signal)
   -applyLineEdits(document, edits)
 }
 class AtlasCodeEditPreviewProvider {
@@ -1672,8 +1699,13 @@ else edição aplicada
   EditService -> EditService : validar linhas e sobreposições
   EditService -> Diff : abrir original x prévia
   Diff --> Usuário : revisar alterações
+  EditService -> EditController : solicitar confirmação
+  EditController --> UI : edicaoCodigoAguardandoConfirmacao
   alt usuário confirma
-    Usuário -> EditService : Aplicar alterações
+    Usuário -> UI : Aplicar
+    UI -> Router : responderConfirmacaoEdicaoCodigo(true)
+    Router -> EditController : resolvePendingConfirmation(true)
+    EditController --> EditService : aprovado
     EditService -> WorkspaceEdit : applyEdit(edits)
     WorkspaceEdit --> EditService : aplicado
     EditService --> EditController : resultado aprovado
@@ -1681,7 +1713,10 @@ else edição aplicada
     Response -> Session : appendMessage(pedido do usuário)
     Response --> UI : edicaoCodigoConcluida
   else usuário cancela
-    Usuário -> EditService : Cancelar
+    Usuário -> UI : Cancelar
+    UI -> Router : responderConfirmacaoEdicaoCodigo(false)
+    Router -> EditController : resolvePendingConfirmation(false)
+    EditController --> EditService : cancelado
     EditService --> EditController : resultado não aprovado
     EditController --> Response : edição cancelada
     Response --> UI : edicaoCodigoCancelada
@@ -1734,15 +1769,23 @@ else arquivo ainda corresponde
   EditService -> EditService : validar plano
   EditService -> Diff : abrir original x prévia
   Diff --> Usuário : revisar alterações
+  EditService -> EditController : solicitar confirmação
+  EditController --> UI : edicaoCodigoAguardandoConfirmacao
   alt usuário confirma
-    Usuário -> EditService : Aplicar alterações
+    Usuário -> UI : Aplicar
+    UI -> Router : responderConfirmacaoEdicaoCodigo(true)
+    Router -> EditController : resolvePendingConfirmation(true)
+    EditController --> EditService : aprovado
     EditService -> WorkspaceEdit : applyEdit(edits)
     WorkspaceEdit --> EditService : aplicado
     EditService --> Router : resultado aprovado
     Router -> Session : persistir pedido + resumo da refatoração
     Router --> UI : novaResposta + sessoesAtualizadas
   else usuário cancela
-    Usuário -> EditService : Cancelar
+    Usuário -> UI : Cancelar
+    UI -> Router : responderConfirmacaoEdicaoCodigo(false)
+    Router -> EditController : resolvePendingConfirmation(false)
+    EditController --> EditService : cancelado
     EditService --> Router : resultado não aprovado
     Router --> UI : edicaoCodigoCancelada
   end

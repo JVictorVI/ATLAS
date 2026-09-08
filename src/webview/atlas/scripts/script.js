@@ -18,7 +18,13 @@ window.addEventListener("DOMContentLoaded", () => {
 function bindAtlasInteractions() {
   engineTypeInputs.forEach((input) => {
     input?.addEventListener("change", () => {
+      engineUpdateAvailable = false;
+      startingEngineUpdate = false;
+      setEngineUpdateStatus(
+        "Procure atualizações para o modo de processamento selecionado.",
+      );
       updateEngineDownloadPrompt();
+      updateEngineUpdateAction();
       scheduleAtlasSettingsSave(0);
     });
   });
@@ -28,6 +34,8 @@ function bindAtlasInteractions() {
     "click",
     cancelCurrentEngineDownload,
   );
+  checkEngineUpdates?.addEventListener("click", checkCurrentEngineUpdate);
+  updateEngineNow?.addEventListener("click", updateCurrentEngineNow);
 
   engineDeleteButtons.forEach((button) => {
     button.addEventListener("click", (event) => {

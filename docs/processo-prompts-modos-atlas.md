@@ -184,9 +184,7 @@ O modo arquitetural exige resposta em oito tópicos Markdown:
 7. Impacto em testes, isolamento e verificabilidade.
 8. Síntese crítica da decisão e prioridade de atenção.
 
-O prompt reforça que sugestões de refatoração são consequência da análise, não substituto da análise.
-
-Quando houver sugestão de mudança, o prompt também pede uma justificativa técnica explícita, indicando qual Design Pattern, princípio de modularização ou Refactoring Technique sustenta a recomendação e qual trade-off negativo ela busca reduzir.
+Dentro do último tópico, a subseção **Sugestões de refatoração** explica brevemente o que poderia ser alterado, como fazer isso em linhas gerais, por que seguir esse caminho e quais impactos e ganhos esperar. A linguagem deve ser acessível, e a resposta não inclui código nem uma implementação final. Se a análise não justificar uma mudança, o ATLAS informa que não recomenda refatorar naquele momento.
 
 ## Análise rápida
 

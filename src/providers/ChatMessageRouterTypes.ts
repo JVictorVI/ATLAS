@@ -10,6 +10,10 @@ import { AtlasInferenceService } from "../services/AtlasInferenceService";
 import { AtlasSessionService } from "../services/AtlasSessionService";
 import { CloudApiService } from "../services/CloudApiService";
 import { HardwareDiagnosticService } from "../services/HardwareDiagnosticService";
+import type {
+  EngineInstallInfoByType,
+  EngineUpdateCheckResult,
+} from "../services/AtlasEngineDownloadService";
 import {
   HuggingFaceDownloadProgress,
   HuggingFaceModelSearchFilter,
@@ -27,6 +31,7 @@ import {
   RagRuntimeStatus,
 } from "../interfaces/AtlasRagTypes";
 import {
+  AtlasCodeEditConfirmation,
   AtlasCodeEditRefactorMetadata,
   AtlasCodeEditResult,
 } from "../interfaces/AtlasCodeEditTypes";
@@ -86,6 +91,10 @@ export type RouterDependencies = {
   ) => Promise<AtlasCodeEditResult>;
   formatCodeEditResult: (result: AtlasCodeEditResult) => string;
   cancelCodeEdit: (target?: GenerationTarget) => void;
+  resolveCodeEditConfirmation: (
+    target: GenerationTarget,
+    approved: boolean,
+  ) => boolean;
   getActiveCodeEditGenerations: () => ActiveGenerationPayload[];
   clearQuickAnalysisDecorations: () => void;
   sendQuickAnalysisAvailability: (webview: vscode.Webview) => Promise<void>;
@@ -102,6 +111,7 @@ export type RouterDependencies = {
   isManagedLlamaEngineTypeDownloaded: (
     engineType: "cpu" | "cuda" | "vulkan",
   ) => boolean;
+  getLlamaEngineInstallInfo: () => EngineInstallInfoByType;
   deleteManagedLlamaEngine: (
     engineType: "cpu" | "cuda" | "vulkan",
   ) => boolean;
@@ -109,6 +119,13 @@ export type RouterDependencies = {
     onStatus?: (message: string) => void,
   ) => Promise<void>;
   downloadConfiguredLlamaEngine: (
+    onStatus?: (message: string) => void,
+    signal?: AbortSignal,
+  ) => Promise<void>;
+  checkConfiguredLlamaEngineUpdate: (
+    signal?: AbortSignal,
+  ) => Promise<EngineUpdateCheckResult>;
+  updateConfiguredLlamaEngine: (
     onStatus?: (message: string) => void,
     signal?: AbortSignal,
   ) => Promise<void>;
@@ -219,4 +236,5 @@ export type ActiveGenerationPayload = {
   isStreaming: boolean;
   generationId?: string;
   forcedMode?: string;
+  pendingCodeEditConfirmation?: AtlasCodeEditConfirmation;
 };

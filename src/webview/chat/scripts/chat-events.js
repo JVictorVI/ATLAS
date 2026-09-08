@@ -68,6 +68,7 @@ function setupChatEvents() {
 
   quickAnalysisBtn?.addEventListener("click", () => {
     if (hasActiveShortcutLoading() || isGeneratingResponse) {return;}
+    if (!hasValidModelSelection()) {return;}
     if (!hasEditorContextForAnalysis) {
       return;
     }
@@ -90,6 +91,10 @@ function setupChatEvents() {
   if (architetureAnalysisBtn) {
     architetureAnalysisBtn.addEventListener("click", () => {
       if (hasActiveShortcutLoading() || isGeneratingResponse) {
+        return;
+      }
+
+      if (!hasValidModelSelection()) {
         return;
       }
 
@@ -119,6 +124,10 @@ function setupChatEvents() {
   function enviarPergunta() {
     if (isGeneratingResponse) {
       cancelarGeracao();
+      return;
+    }
+
+    if (!hasValidModelSelection()) {
       return;
     }
 
@@ -176,6 +185,7 @@ function cancelarGeracao() {
   clearActiveGenerationSnapshot({ sessionId, generationId });
   renderSessionList();
   removeLoading();
+  removePendingCodeEditConfirmation();
   finishCurrentBotMessage(true);
   clearShortcutLoadingStates();
 }
@@ -280,13 +290,17 @@ function appendArchitecturalRefactorAction(messageElement, metadata) {
 
   const button = document.createElement("button");
   button.type = "button";
-  button.className = "message-action-btn";
+  button.className = "message-action-btn architecture-refactor-action";
   button.title = "Aplicar refatoração guiada pela análise arquitetural";
   button.innerHTML =
     '<i class="codicon codicon-tools" aria-hidden="true"></i><span>Refatorar com base nesta análise</span>';
 
   button.addEventListener("click", () => {
     if (hasActiveShortcutLoading() || isGeneratingResponse) {
+      return;
+    }
+
+    if (!hasValidModelSelection()) {
       return;
     }
 
@@ -395,6 +409,159 @@ function removePendingCodeEditUserMessage() {
   pendingCodeEditUserMessage = null;
 }
 
+function renderPendingCodeEditConfirmation(confirmation, context = {}) {
+  const chatContainer = getChatContainer();
+
+  if (!chatContainer || !confirmation) {
+    return null;
+  }
+
+  removePendingCodeEditConfirmation();
+
+  const card = document.createElement("div");
+  card.className = "message bot code-edit-confirmation";
+  card.dataset.sessionId = context.sessionId || "";
+  card.dataset.generationId = context.generationId || "";
+  card.setAttribute("role", "group");
+  card.setAttribute("aria-label", "Confirmar edição de código");
+
+  const heading = document.createElement("div");
+  heading.className = "code-edit-confirmation-heading";
+  heading.innerHTML =
+    '<i class="codicon codicon-diff" aria-hidden="true"></i><strong>Revisar alteração</strong>';
+  card.appendChild(heading);
+
+  const description = document.createElement("p");
+  description.textContent =
+    "O diff está aberto. Revise a prévia e escolha o que deseja fazer.";
+  card.appendChild(description);
+
+  if (confirmation.summary) {
+    const summary = document.createElement("p");
+    summary.className = "code-edit-confirmation-summary";
+    summary.textContent = confirmation.summary;
+    card.appendChild(summary);
+  }
+
+  const details = document.createElement("div");
+  details.className = "code-edit-confirmation-details";
+  const riskLabels = {
+    low: "baixo",
+    medium: "médio",
+    high: "alto",
+  };
+  const editCount = Number(confirmation.editCount) || 0;
+  details.textContent = `${confirmation.targetFile || "Arquivo atual"} · ${editCount} ${editCount === 1 ? "edição" : "edições"} · risco ${riskLabels[confirmation.risk] || "não informado"}`;
+  card.appendChild(details);
+
+  const status = document.createElement("div");
+  status.className = "code-edit-confirmation-status";
+  status.setAttribute("aria-live", "polite");
+
+  const actions = document.createElement("div");
+  actions.className = "code-edit-confirmation-actions";
+  const applyButton = document.createElement("button");
+  applyButton.type = "button";
+  applyButton.className = "code-edit-confirmation-button primary";
+  applyButton.innerHTML =
+    '<i class="codicon codicon-check" aria-hidden="true"></i><span>Aplicar</span>';
+  const cancelButton = document.createElement("button");
+  cancelButton.type = "button";
+  cancelButton.className = "code-edit-confirmation-button secondary";
+  cancelButton.innerHTML =
+    '<i class="codicon codicon-close" aria-hidden="true"></i><span>Cancelar</span>';
+
+  const respond = (approved) => {
+    if (card.dataset.responded === "true") {
+      return;
+    }
+
+    card.dataset.responded = "true";
+    applyButton.disabled = true;
+    cancelButton.disabled = true;
+    status.textContent = approved
+      ? "Aplicando alterações..."
+      : "Cancelando edição...";
+    vscode.postMessage({
+      type: "responderConfirmacaoEdicaoCodigo",
+      sessionId: context.sessionId,
+      generationId: context.generationId,
+      approved,
+    });
+  };
+
+  applyButton.addEventListener("click", () => respond(true));
+  cancelButton.addEventListener("click", () => respond(false));
+  actions.append(applyButton, cancelButton);
+  card.append(actions, status);
+  chatContainer.appendChild(card);
+  pendingCodeEditConfirmationElement = card;
+  scrollChatToBottom(true);
+
+  return card;
+}
+
+function updatePendingCodeEditConfirmation(message) {
+  const card = pendingCodeEditConfirmationElement;
+
+  if (!card) {
+    return;
+  }
+
+  const messageGenerationId = getMessageGenerationId(message);
+
+  if (
+    (message.sessionId && card.dataset.sessionId !== message.sessionId) ||
+    (messageGenerationId &&
+      card.dataset.generationId !== messageGenerationId)
+  ) {
+    return;
+  }
+
+  if (message.sessionId) {
+    rememberActiveGeneration({
+      sessionId: message.sessionId,
+      generationId: messageGenerationId,
+      pendingCodeEditConfirmation: null,
+    });
+  }
+
+  card.dataset.responded = "true";
+  card
+    .querySelectorAll(".code-edit-confirmation-button")
+    .forEach((button) => {
+      button.disabled = true;
+    });
+  const status = card.querySelector(".code-edit-confirmation-status");
+
+  if (status) {
+    status.textContent =
+      message.value?.message || "A escolha foi recebida pelo ATLAS.";
+    status.classList.toggle("error", message.value?.accepted !== true);
+  }
+}
+
+function removePendingCodeEditConfirmation(message = {}) {
+  const card = pendingCodeEditConfirmationElement;
+
+  if (!card) {
+    return;
+  }
+
+  const messageGenerationId = getMessageGenerationId(message);
+
+  if (
+    (message.sessionId && card.dataset.sessionId !== message.sessionId) ||
+    (messageGenerationId &&
+      card.dataset.generationId !== messageGenerationId)
+  ) {
+    return;
+  }
+
+  card.remove();
+  pendingCodeEditConfirmationElement = null;
+}
+
 function setGenerationState(isGenerating) {
   isGeneratingResponse = isGenerating;
 
@@ -402,8 +569,14 @@ function setGenerationState(isGenerating) {
   const input = document.getElementById("pergunta");
 
   if (sendBtn) {
+    const hasValidModel = hasValidModelSelection();
     sendBtn.classList.toggle("stop", isGenerating);
-    sendBtn.title = isGenerating ? "Interromper" : "Enviar";
+    sendBtn.disabled = !isGenerating && !hasValidModel;
+    sendBtn.title = isGenerating
+      ? "Interromper"
+      : hasValidModel
+        ? "Enviar"
+        : getInvalidModelSelectionMessage();
     sendBtn.innerHTML = isGenerating
       ? '<i class="codicon codicon-debug-stop"></i>'
       : '<i class="codicon codicon-arrow-up"></i>';
@@ -430,12 +603,18 @@ function hydrateChatControlState() {
   }
 
   const hasShortcutLoading = hasActiveShortcutLoading();
+  const blocksModelActions =
+    isGeneratingResponse || hasShortcutLoading || !hasValidModelSelection();
 
   if (shortcutLoadingState.quickAnalysis && !loadingElement) {
     showLoading("Analisando");
   }
 
-  if (shortcutLoadingState.codeEdit && !loadingElement) {
+  if (
+    shortcutLoadingState.codeEdit &&
+    !loadingElement &&
+    !pendingCodeEditConfirmationElement
+  ) {
     showLoading("Refatorando");
   }
 
@@ -445,6 +624,15 @@ function hydrateChatControlState() {
     "architecture-analysis",
     shortcutLoadingState.architectureAnalysis,
   );
+
+  document
+    .querySelectorAll(".architecture-refactor-action")
+    .forEach((button) => {
+      button.disabled = blocksModelActions;
+      button.title = !hasValidModelSelection()
+        ? getInvalidModelSelectionMessage()
+        : "Aplicar refatoração guiada pela análise arquitetural";
+    });
 }
 
 function clearShortcutLoadingStates() {

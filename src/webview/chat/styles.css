@@ -695,6 +695,15 @@ textarea {
   background-color: var(--atlas-accent-hover-bg);
 }
 
+#send-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+#send-btn:disabled:hover {
+  background-color: var(--atlas-accent-bg);
+}
+
 #send-btn.stop {
   background-color: var(
     --vscode-inputValidation-errorBorder,
@@ -1215,6 +1224,15 @@ textarea {
   background: var(--atlas-surface-hover-bg);
 }
 
+.dropdown-item.disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.dropdown-item.disabled:hover {
+  background: transparent;
+}
+
 .dropdown-item.selected {
   background: var(
     --vscode-list-activeSelectionBackground,
@@ -1529,6 +1547,84 @@ textarea {
   flex-shrink: 0;
 }
 
+.code-edit-confirmation {
+  width: min(100%, 520px);
+  max-width: 100%;
+  border: 1px solid var(--vscode-focusBorder, var(--atlas-accent-bg));
+  box-shadow: 0 4px 14px var(--atlas-shadow-color);
+}
+
+.code-edit-confirmation-heading {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 8px;
+  color: var(--vscode-editor-foreground);
+}
+
+.code-edit-confirmation-summary {
+  color: var(--vscode-editor-foreground);
+}
+
+.code-edit-confirmation-details {
+  margin-top: 8px;
+  color: var(--atlas-muted-fg);
+  font-size: 11px;
+}
+
+.code-edit-confirmation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  border-top: 1px solid var(--atlas-border);
+  padding-top: 10px;
+}
+
+.code-edit-confirmation-button {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--atlas-accent-bg);
+  border-radius: 4px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.code-edit-confirmation-button.primary {
+  background: var(--atlas-accent-bg);
+  color: var(--atlas-accent-fg);
+}
+
+.code-edit-confirmation-button.secondary {
+  background: transparent;
+  color: var(--atlas-accent-bg);
+}
+
+.code-edit-confirmation-button:hover:not(:disabled) {
+  background: var(--atlas-accent-hover-bg);
+  color: var(--atlas-accent-fg);
+}
+
+.code-edit-confirmation-button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.code-edit-confirmation-status {
+  min-height: 18px;
+  margin-top: 8px;
+  color: var(--atlas-muted-fg);
+  font-size: 11px;
+}
+
+.code-edit-confirmation-status.error {
+  color: var(--atlas-danger-fg);
+}
+
 .rag-sources {
   margin-top: 12px;
   border-top: 1px solid var(--atlas-border);
@@ -1730,6 +1826,11 @@ textarea {
 
 .downloads-panel-heading > span:not(.downloads-badge) {
   flex: 1;
+}
+
+.message-action-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .downloads-back-button {

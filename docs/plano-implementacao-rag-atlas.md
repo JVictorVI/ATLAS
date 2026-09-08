@@ -37,7 +37,7 @@ O fluxo principal já está implementado. As evoluções restantes concentram-se
 | Recuperação por pasta-mãe                | Implementada para índices pesquisáveis de projetos descendentes quando a raiz atual não possui índice próprio |
 | Fontes utilizadas na resposta            | Implementadas e persistidas na sessão                                                                      |
 | Tela de projetos indexados               | Implementada                                                                                               |
-| Remoção de todos os projetos             | Implementada com confirmação e limpeza dos materiais complementares associados                             |
+| Remoção de todos os projetos             | Implementada com confirmação; remove apenas índices de projetos e preserva os materiais complementares     |
 | Tela RAG com carregamento inicial seguro | Implementada; spinner inicial não bloqueia acesso em caso de erro ou timeout                               |
 | Barra de progresso e cancelamento        | Implementados                                                                                              |
 | Configurações de indexação e recuperação | Implementadas                                                                                              |
@@ -208,7 +208,7 @@ A organização atual da tela prioriza:
 
 ### 7.2 Seleção do escopo de indexação
 
-Ao clicar em **Indexar workspace atual**, a pasta do workspace ativo vira a pasta-base do seletor. Em **Selecionar pasta**, o usuário escolhe primeiro a pasta-base no diálogo do sistema. Nos dois casos, um Quick Pick múltiplo permite escolher entre a raiz inteira e suas subpastas imediatas elegíveis.
+Ao clicar em **Indexar workspace atual**, a pasta do workspace ativo vira a pasta-base do seletor. Em **Selecionar pasta**, o usuário escolhe primeiro a pasta-base no diálogo do sistema. Nos dois casos, um Quick Pick múltiplo permite escolher entre a raiz inteira e suas subpastas imediatas elegíveis. O Quick Pick recebe o mesmo sinal de cancelamento da indexação: ao confirmar **Cancelar indexação**, o seletor é fechado e nenhuma pasta escolhida depois pode iniciar o processamento.
 
 Diretórios ignorados pelo scanner não são oferecidos. A raiz e seus descendentes não podem ser selecionados ao mesmo tempo. Uma seleção de várias subpastas produz projetos RAG independentes e é processada sequencialmente, reduzindo o risco de transformar acidentalmente uma pasta-mãe extensa em um único índice. A falha de uma pasta é acumulada no resultado e não impede as seguintes; somente cancelamento ou `AbortError` interrompe o lote. A reindexação de um projeto existente não passa por esse seletor.
 

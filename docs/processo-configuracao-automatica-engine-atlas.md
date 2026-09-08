@@ -15,6 +15,8 @@ Quando possível, o ATLAS:
 - baixa o pacote correto do `llama.cpp`;
 - extrai os arquivos na pasta de engines;
 - valida se `llama-server` está disponível;
+- registra o release e o pacote instalados;
+- procura e aplica versões mais recentes sob demanda;
 - deixa a engine pronta para ser iniciada pela biblioteca local ou pelo chat.
 
 A preparação automática não inicia necessariamente um modelo. Ela garante que os binários da engine existam. A inicialização do processo `llama-server` é responsabilidade do fluxo descrito em [Processo da Engine Local](processo-engine-local-atlas.md).
@@ -205,6 +207,25 @@ Ao trocar o modo, `engine-download.js`:
 7. envia `cancelarDownloadEngineConfigurada` quando solicitado;
 8. atualiza a UI com `downloadEngineConfiguradaStatus`.
 
+O bloco "Atualizações da engine" oferece o botão "Procurar atualizações". Se o
+usuário acabou de trocar o modo de processamento, a tela salva a seleção antes
+de enviar `procurarAtualizacaoEngine`; caso contrário, consulta diretamente. O
+backend compara o manifesto local com o primeiro asset compatível encontrado nos
+releases recentes. Quando há uma versão mais recente, a tela informa as versões
+encontradas e exibe "Atualizar agora". Somente após esse segundo clique a engine
+ativa é encerrada e o download começa. O progresso e o cancelamento usam o mesmo
+controle do download inicial.
+
+A seção lista CPU, CUDA e Vulkan ao mesmo tempo, indicando o release conhecido,
+"versão desconhecida", "instalação personalizada" ou "não instalada". Essa lista
+não muda o escopo da busca: somente a opção marcada em "Modo de processamento" é
+consultada quando o usuário aciona "Procurar atualizações".
+
+Executáveis personalizados fora da pasta gerenciada não são substituídos. Nesse
+caso, a tela informa que a atualização deve ser feita manualmente. Instalações
+gerenciadas anteriores ao manifesto são tratadas como versão desconhecida e
+recebem a versão recente na primeira atualização.
+
 Cada opção encontrada na pasta gerenciada pelo ATLAS exibe uma lixeira. A ação envia
 `excluirEngineModoExecucao`, exige confirmação modal e remove somente a pasta
 gerenciada correspondente (`llama.cpp`, `llama.cpp-cuda` ou
@@ -244,6 +265,35 @@ Accept: application/vnd.github+json
 
 O ATLAS percorre os releases do mais recente para o mais antigo e escolhe o primeiro asset compatível com plataforma, arquitetura e modo de execução. Isso é necessário porque releases estáveis podem publicar apenas metadados e código-fonte, deixando os binários de plataforma em um build `b...` próximo.
 
+## Controle de versão e atualização
+
+O ATLAS mantém um único registro central em:
+
+```text
+<enginesDir>/atlas-engine-install.json
+```
+
+O arquivo usa `schemaVersion: 2` e contém entradas separadas para os três tipos:
+
+```text
+schemaVersion
+engines.cpu
+engines.cuda
+engines.vulkan
+```
+
+Cada entrada registra `installed`, `releaseTag`, `assetName` e `installedAt`.
+Engines ausentes continuam representadas com `installed: false`; instalações
+gerenciadas antigas sem versão conhecida usam os campos de release como `null`.
+Manifestos antigos encontrados dentro da subpasta de uma engine são importados
+automaticamente para o registro central e removidos depois da consolidação.
+
+A consulta usa o modo configurado e exige um pacote exato para esse modo; o
+fallback de CUDA para Vulkan continua disponível apenas no download automático
+inicial. Existe atualização quando `releaseTag` ou `assetName` difere do pacote
+compatível mais recente. Se o manifesto não existir ou estiver inválido, a
+versão é considerada desconhecida e a reinstalação recente é oferecida.
+
 ## Seleção de pacote
 
 No Windows:
@@ -269,17 +319,25 @@ Se o usuário pedir CUDA, o ATLAS procura primeiro um asset CUDA em todos os rel
 
 O fluxo de download:
 
-1. cria a pasta da engine;
-2. cria uma pasta temporária em `os.tmpdir()`;
+1. cria a pasta-base de engines;
+2. cria uma pasta temporária em `os.tmpdir()` e uma pasta de staging ao lado da
+   instalação gerenciada;
 3. baixa o pacote do GitHub;
 4. grava o arquivo temporário;
 5. extrai `.zip` ou `.tar.gz`;
 6. encontra a pasta que contém `llama-server`;
-7. copia os arquivos para a pasta final;
+7. copia os arquivos para o staging;
 8. ajusta permissão executável em sistemas não-Windows;
 9. instala DLLs CUDA complementares quando necessário;
-10. valida com `isEngineDownloaded`;
-11. remove a pasta temporária.
+10. valida o runtime;
+11. move a instalação anterior para um backup temporário;
+12. troca o staging pela pasta final e restaura o backup se essa troca falhar;
+13. sincroniza as entradas CPU, CUDA e Vulkan em `atlas-engine-install.json`;
+14. remove os arquivos temporários ao terminar.
+
+O download e a extração não alteram a engine instalada. A substituição acontece
+somente depois da validação completa. Assim, cancelar uma atualização ou falhar
+antes da troca preserva a versão anterior.
 
 Para `.zip`, no Windows o ATLAS usa:
 
@@ -360,6 +418,7 @@ Para o download iniciado nas Configurações Gerais, `ChatMessageRouter` também
 ```text
 configuredEngineDownloadPromise
 configuredEngineDownloadStatus
+configuredEngineUpdateCheckPromise
 ```
 
 Se `baixarEngineConfigurada` for chamado enquanto o download ainda está em andamento, o roteador reaproveita a promessa atual e reenvia o último status conhecido para a Webview, em vez de iniciar outro download. O status guarda:
@@ -379,9 +438,9 @@ Ao carregar configurações, `getAtlasSettingsPayload` inclui esse status quando
 
 O download iniciado pela tela de Configurações Gerais possui um
 `AbortController`. O sinal é repassado às consultas e transferências HTTP; ao
-cancelar, o ATLAS interrompe a requisição, remove a pasta parcial quando ela foi
-criada pelo download atual e atualiza a interface para permitir uma nova
-tentativa.
+cancelar, o ATLAS interrompe a requisição, remove o staging parcial e atualiza a
+interface para permitir uma nova tentativa. Em uma atualização, a versão
+anterior permanece disponível.
 
 Os downloads automáticos exibidos como notificação ainda usam:
 
@@ -468,12 +527,12 @@ error: true
 
 ## Arquivos relacionados
 
-- `src/services/AtlasEngineDownloadService.ts`: seleção, download, extração, fallback e validação da engine.
+- `src/services/AtlasEngineDownloadService.ts`: seleção, download, manifesto, atualização atômica, fallback e validação da engine.
 - `src/services/AtlasLocalEngineService.ts`: resolução do executável e inicialização do `llama-server`.
 - `src/services/HardwareDiagnosticService.ts`: coleta de GPU, fornecedor e VRAM.
 - `src/providers/ChatViewProvider.ts`: preparo automático na abertura, início opcional e comando de download.
-- `src/providers/ChatMessageRouter.ts`: mensagens de configuração, verificação, download e exclusão da engine selecionada.
-- `src/webview/atlas/scripts/engine-download.js`: estado visual, download sob demanda e exclusão das engines instaladas.
+- `src/providers/ChatMessageRouter.ts`: mensagens de configuração, verificação, download, atualização e exclusão da engine selecionada.
+- `src/webview/atlas/scripts/engine-download.js`: estado visual, download, atualização sob demanda e exclusão das engines instaladas.
 - `src/webview/atlas/scripts/settings.js`: leitura e salvamento de `custom.localEngine`.
 - `src/webview/atlas/scripts/message-bus.js`: tratamento das respostas do backend.
 - `src/repository/AtlasConfigDefaults.ts`: defaults de `prepareOnAtlasOpen`, streaming e timeout local.

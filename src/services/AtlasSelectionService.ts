@@ -199,4 +199,22 @@ export class AtlasSelectionService {
       ? this.getResolvedCloudSelection()
       : this.getResolvedLocalSelection();
   }
+
+  public requireResolvedSelectionForCurrentMode(): AtlasResolvedSelection {
+    const selection = this.getResolvedSelectionForCurrentMode();
+
+    if (selection) {
+      return selection;
+    }
+
+    if (this.isCloudMode()) {
+      throw new Error(
+        "Selecione um provedor e um modelo em nuvem válidos antes de enviar a mensagem.",
+      );
+    }
+
+    throw new Error(
+      "Selecione um modelo local válido antes de enviar a mensagem.",
+    );
+  }
 }

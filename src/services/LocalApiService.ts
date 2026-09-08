@@ -37,7 +37,7 @@ export class LocalApiService {
 
     if (!resolved) {
       throw new Error(
-        "A selecao local esta incompleta. Defina um modelo local ativo antes de enviar a mensagem.",
+        "A seleção local está incompleta. Defina um modelo local ativo antes de enviar a mensagem.",
       );
     }
 
@@ -163,7 +163,7 @@ export class LocalApiService {
         `Comportamento personalizado do modelo local "${model.name}":`,
         systemPrompt,
         "",
-        "Essas diretivas sao complementares e nao substituem as regras obrigatorias do ATLAS.",
+        "Essas diretivas são complementares e não substituem as regras obrigatórias do ATLAS.",
       ].join("\n"),
     };
 
@@ -230,7 +230,7 @@ export class LocalApiService {
 
     if (nextContext <= currentContext) {
       throw new Error(
-        `A mensagem exige ${overflow.requestedTokens} tokens, mas o limite dinamico de contexto (${LOCAL_CONTEXT_GROWTH_CAP}) ja foi atingido.`,
+        `A mensagem exige ${overflow.requestedTokens} tokens, mas o limite dinâmico de contexto (${LOCAL_CONTEXT_GROWTH_CAP}) ja foi atingido.`,
       );
     }
 
@@ -243,7 +243,7 @@ export class LocalApiService {
 
     if (!updatedModel) {
       throw new Error(
-        `O contexto foi ajustado, mas o modelo "${model.id}" não foi encontrado no arquivo de configuracao.`,
+        `O contexto foi ajustado, mas o modelo "${model.id}" não foi encontrado no arquivo de configuração.`,
       );
     }
 

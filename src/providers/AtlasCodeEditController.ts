@@ -3,6 +3,7 @@ import * as vscode from "vscode";
 import { ChatMessage } from "../interfaces/ApiTypes";
 import { AtlasConfigManager } from "../managers/AtlasConfigManager";
 import {
+  AtlasCodeEditConfirmation,
   AtlasCodeEditRefactorMetadata,
   AtlasCodeEditResult,
 } from "../interfaces/AtlasCodeEditTypes";
@@ -41,6 +42,12 @@ type ActiveCodeEdit = {
   generationId?: string;
   userContent: string;
   source: AtlasCodeEditStatusSource;
+  pendingConfirmation?: AtlasCodeEditConfirmation;
+};
+
+type PendingCodeEditConfirmation = {
+  resolve: (approved: boolean) => void;
+  reject: (error: Error) => void;
 };
 
 type AtlasOperationalEditDecisionOptions = {
@@ -60,6 +67,10 @@ type AtlasCodeEditIntentDecision = {
 export class AtlasCodeEditController {
   private readonly activeControllers = new Map<string, AbortController>();
   private readonly activeEdits = new Map<string, ActiveCodeEdit>();
+  private readonly pendingConfirmations = new Map<
+    string,
+    PendingCodeEditConfirmation
+  >();
 
   private readonly operationalEditTerms = [
     "aplique",
@@ -530,6 +541,8 @@ export class AtlasCodeEditController {
         ),
         ragContext: options.ragContext,
         signal,
+        confirm: (confirmation) =>
+          this.awaitConfirmation(webview, activeEdit, confirmation, signal),
       });
 
       this.showResultNotification(result);
@@ -594,6 +607,8 @@ export class AtlasCodeEditController {
         ),
         ragContext: options.ragContext,
         signal,
+        confirm: (confirmation) =>
+          this.awaitConfirmation(webview, activeEdit, confirmation, signal),
       });
 
       this.showResultNotification(result);
@@ -623,6 +638,23 @@ export class AtlasCodeEditController {
     this.activeEdits.delete(activeEdit.key);
   }
 
+  public resolvePendingConfirmation(
+    target: GenerationTarget,
+    approved: boolean,
+  ): boolean {
+    const activeEdit = this.findActiveEdit(target);
+    const pending = activeEdit
+      ? this.pendingConfirmations.get(activeEdit.key)
+      : undefined;
+
+    if (!pending) {
+      return false;
+    }
+
+    pending.resolve(approved);
+    return true;
+  }
+
   public serializeActiveGenerations(): ActiveGenerationPayload[] {
     return [...this.activeEdits.values()]
       .filter(
@@ -639,6 +671,7 @@ export class AtlasCodeEditController {
           edit.source === "architectural-analysis"
             ? "architecture-code-edit"
             : "code-edit",
+        pendingCodeEditConfirmation: edit.pendingConfirmation,
       }));
   }
 
@@ -679,6 +712,96 @@ export class AtlasCodeEditController {
     if (this.activeControllers.get(editKey)?.signal === signal) {
       this.activeControllers.delete(editKey);
     }
+  }
+
+  private async awaitConfirmation(
+    webview: vscode.Webview | undefined,
+    activeEdit: ActiveCodeEdit,
+    confirmation: AtlasCodeEditConfirmation,
+    signal?: AbortSignal,
+  ): Promise<boolean> {
+    if (!webview) {
+      throw new Error(
+        "Não foi possível exibir a confirmação da edição no chat do ATLAS.",
+      );
+    }
+
+    if (signal?.aborted) {
+      throw this.createAbortError();
+    }
+
+    this.pendingConfirmations.get(activeEdit.key)?.reject(
+      new Error("A confirmação anterior desta edição foi substituída."),
+    );
+    activeEdit.pendingConfirmation = confirmation;
+
+    let resolvePromise!: (approved: boolean) => void;
+    let rejectPromise!: (error: Error) => void;
+    const confirmationPromise = new Promise<boolean>((resolve, reject) => {
+      resolvePromise = resolve;
+      rejectPromise = reject;
+    });
+    let settled = false;
+    let pending!: PendingCodeEditConfirmation;
+    const cleanup = () => {
+      signal?.removeEventListener("abort", handleAbort);
+
+      if (this.pendingConfirmations.get(activeEdit.key) === pending) {
+        this.pendingConfirmations.delete(activeEdit.key);
+      }
+
+      delete activeEdit.pendingConfirmation;
+    };
+    const finish = (callback: () => void) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      cleanup();
+      callback();
+    };
+    const handleAbort = () => {
+      finish(() => rejectPromise(this.createAbortError()));
+    };
+
+    pending = {
+      resolve: (approved) => finish(() => resolvePromise(approved)),
+      reject: (error) => finish(() => rejectPromise(error)),
+    };
+    this.pendingConfirmations.set(activeEdit.key, pending);
+    signal?.addEventListener("abort", handleAbort, { once: true });
+
+    try {
+      const delivered = await webview.postMessage({
+        type: "edicaoCodigoAguardandoConfirmacao",
+        sessionId: activeEdit.sessionId,
+        generationId: activeEdit.generationId,
+        value: confirmation,
+      });
+
+      if (!delivered) {
+        pending.reject(
+          new Error(
+            "Não foi possível manter a confirmação da edição visível no chat.",
+          ),
+        );
+      }
+    } catch (error) {
+      pending.reject(
+        error instanceof Error
+          ? error
+          : new Error("Não foi possível exibir a confirmação da edição."),
+      );
+    }
+
+    return confirmationPromise;
+  }
+
+  private createAbortError(): Error {
+    const error = new Error("Operação cancelada.");
+    error.name = "AbortError";
+    return error;
   }
 
   private findActiveEdit(target: GenerationTarget): ActiveCodeEdit | null {

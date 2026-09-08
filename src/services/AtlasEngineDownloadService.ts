@@ -3,11 +3,30 @@ import * as os from "os";
 import * as path from "path";
 import * as vscode from "vscode";
 import { execFileSync } from "child_process";
+import { randomUUID } from "crypto";
 import { AtlasConfigManager } from "../managers/AtlasConfigManager";
 import { HardwareDiagnosticService } from "./HardwareDiagnosticService";
 import { getAtlasStoragePath } from "../utils/AtlasStoragePaths";
 
 export type EngineType = "cpu" | "cuda" | "vulkan";
+
+export type EngineUpdateCheckResult = {
+  engineType: EngineType;
+  installed: boolean;
+  managed: boolean;
+  currentVersion: string | null;
+  latestVersion: string | null;
+  updateAvailable: boolean;
+};
+
+export type EngineInstallInfo = {
+  installed: boolean;
+  releaseTag: string | null;
+  assetName: string | null;
+  installedAt: string | null;
+};
+
+export type EngineInstallInfoByType = Record<EngineType, EngineInstallInfo>;
 
 type LlamaReleaseAsset = {
   name: string;
@@ -31,8 +50,23 @@ type EngineDownloadSelection = {
   plan: EngineDownloadPlan;
 };
 
+type LegacyEngineInstallManifest = {
+  schemaVersion: 1;
+  engineType: EngineType;
+  releaseTag: string;
+  assetName: string;
+  installedAt: string;
+};
+
+type EngineInstallRegistry = {
+  schemaVersion: 2;
+  engines: EngineInstallInfoByType;
+};
+
 const LLAMA_RELEASES_API_URL =
   "https://api.github.com/repos/ggml-org/llama.cpp/releases?per_page=20";
+
+const ENGINE_INSTALL_REGISTRY_FILE = "atlas-engine-install.json";
 
 const MIN_GPU_ACCELERATION_VRAM_BYTES = 2 * 1024 ** 3;
 
@@ -95,6 +129,132 @@ export class AtlasEngineDownloadService {
   public isManagedEngineDownloaded(engineType: EngineType): boolean {
     const folder = this.getManagedEnginePath(engineType);
 
+    return this.hasEngineRuntimeAt(folder, engineType);
+  }
+
+  public getEngineInstallInfo(): EngineInstallInfoByType {
+    return this.synchronizeEngineInstallRegistry().engines;
+  }
+
+  public async checkConfiguredEngineUpdate(
+    signal?: AbortSignal,
+  ): Promise<EngineUpdateCheckResult> {
+    this.throwIfDownloadCancelled(signal);
+    const engineType = this.getEngineType();
+    const installed = this.isEngineDownloaded(engineType);
+
+    if (this.hasExternalConfiguredExecutable(engineType)) {
+      return {
+        engineType,
+        installed,
+        managed: false,
+        currentVersion: null,
+        latestVersion: null,
+        updateAvailable: false,
+      };
+    }
+
+    const managed = this.isManagedEngineDownloaded(engineType);
+
+    if (!managed) {
+      return {
+        engineType,
+        installed,
+        managed: false,
+        currentVersion: null,
+        latestVersion: null,
+        updateAvailable: false,
+      };
+    }
+
+    const releases = await this.fetchRecentReleases(signal);
+    this.throwIfDownloadCancelled(signal);
+    const selection = this.resolveDownloadSelection(
+      releases,
+      engineType,
+      false,
+    );
+
+    if (!selection) {
+      const newestVersion = releases[0]?.tag_name ?? "consultada";
+      throw new Error(
+        `Nenhum pacote do llama.cpp foi encontrado para ${this.describePlatform()} (${engineType.toUpperCase()}) nos releases recentes a partir da versão ${newestVersion}.`,
+      );
+    }
+
+    const installInfo = this.getEngineInstallInfo()[engineType];
+    const currentVersion = installInfo.releaseTag;
+    const latestVersion = selection.release.tag_name;
+    const updateAvailable =
+      !installInfo.releaseTag ||
+      !installInfo.assetName ||
+      installInfo.releaseTag !== latestVersion ||
+      installInfo.assetName !== selection.plan.asset.name;
+
+    return {
+      engineType,
+      installed: true,
+      managed: true,
+      currentVersion,
+      latestVersion,
+      updateAvailable,
+    };
+  }
+
+  public async updateConfiguredEngine(
+    onStatus?: (message: string) => void,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    this.throwIfDownloadCancelled(signal);
+    const engineType = this.getEngineType();
+
+    if (this.hasExternalConfiguredExecutable(engineType)) {
+      throw new Error(
+        "A engine configurada usa um executável personalizado e deve ser atualizada manualmente.",
+      );
+    }
+
+    if (!this.isManagedEngineDownloaded(engineType)) {
+      throw new Error(
+        "A engine selecionada não está instalada na pasta gerenciada pelo ATLAS.",
+      );
+    }
+
+    onStatus?.("Consultando os releases recentes do llama.cpp no GitHub...");
+    const releases = await this.fetchRecentReleases(signal);
+    this.throwIfDownloadCancelled(signal);
+    const selection = this.resolveDownloadSelection(
+      releases,
+      engineType,
+      false,
+    );
+
+    if (!selection) {
+      const newestVersion = releases[0]?.tag_name ?? "consultada";
+      throw new Error(
+        `Nenhum pacote do llama.cpp foi encontrado para ${this.describePlatform()} (${engineType.toUpperCase()}) nos releases recentes a partir da versão ${newestVersion}.`,
+      );
+    }
+
+    const installInfo = this.getEngineInstallInfo()[engineType];
+
+    if (
+      installInfo.releaseTag === selection.release.tag_name &&
+      installInfo.assetName === selection.plan.asset.name
+    ) {
+      onStatus?.(
+        `A engine ${engineType.toUpperCase()} já está na versão mais recente (${selection.release.tag_name}).`,
+      );
+      return;
+    }
+
+    await this.installEngineSelection(selection, onStatus, signal);
+  }
+
+  private hasEngineRuntimeAt(
+    folder: string,
+    engineType: EngineType,
+  ): boolean {
     const executableNames =
       process.platform === "win32"
         ? ["llama-server.exe", "llama-server"]
@@ -134,6 +294,7 @@ export class AtlasEngineDownloadService {
     }
 
     fs.rmSync(targetFolder, { force: true, recursive: true });
+    this.synchronizeEngineInstallRegistry();
     return true;
   }
 
@@ -154,6 +315,204 @@ export class AtlasEngineDownloadService {
     const configured = value.llamaServerPath;
 
     return typeof configured === "string" ? configured.trim() : "";
+  }
+
+  private hasExternalConfiguredExecutable(engineType: EngineType): boolean {
+    const configuredExecutable = this.getConfiguredLlamaServerPath(engineType);
+
+    if (!configuredExecutable || !fs.existsSync(configuredExecutable)) {
+      return false;
+    }
+
+    const managedFolder = this.getManagedEnginePath(engineType);
+    const relativeExecutable = path.relative(
+      managedFolder,
+      path.resolve(configuredExecutable),
+    );
+
+    return (
+      relativeExecutable === "" ||
+      relativeExecutable.startsWith(`..${path.sep}`) ||
+      relativeExecutable === ".." ||
+      path.isAbsolute(relativeExecutable)
+    );
+  }
+
+  private synchronizeEngineInstallRegistry(
+    overrides: Partial<EngineInstallInfoByType> = {},
+  ): EngineInstallRegistry {
+    const existingRegistry = this.readEngineInstallRegistry();
+    const engines = {} as EngineInstallInfoByType;
+
+    for (const engineType of ["cpu", "cuda", "vulkan"] as const) {
+      const installed = this.isManagedEngineDownloaded(engineType);
+      const existingInfo = existingRegistry?.engines[engineType] ?? null;
+      const legacyInfo = this.readLegacyEngineInstallInfo(engineType);
+      const sourceInfo =
+        overrides[engineType] ??
+        (existingInfo?.releaseTag ? existingInfo : legacyInfo ?? existingInfo);
+
+      engines[engineType] = installed
+        ? {
+            installed: true,
+            releaseTag: sourceInfo?.releaseTag ?? null,
+            assetName: sourceInfo?.assetName ?? null,
+            installedAt: sourceInfo?.installedAt ?? null,
+          }
+        : {
+            installed: false,
+            releaseTag: null,
+            assetName: null,
+            installedAt: null,
+          };
+    }
+
+    const registry: EngineInstallRegistry = {
+      schemaVersion: 2,
+      engines,
+    };
+    const registryPath = path.join(
+      path.resolve(this.getEnginesDir()),
+      ENGINE_INSTALL_REGISTRY_FILE,
+    );
+    const serializedRegistry = `${JSON.stringify(registry, null, 2)}\n`;
+    const currentContents = fs.existsSync(registryPath)
+      ? fs.readFileSync(registryPath, "utf8")
+      : "";
+
+    if (currentContents !== serializedRegistry) {
+      fs.mkdirSync(path.dirname(registryPath), { recursive: true });
+      fs.writeFileSync(registryPath, serializedRegistry, "utf8");
+    }
+
+    this.removeLegacyEngineInstallManifests();
+
+    return registry;
+  }
+
+  private removeLegacyEngineInstallManifests(): void {
+    for (const engineType of ["cpu", "cuda", "vulkan"] as const) {
+      if (!this.readLegacyEngineInstallInfo(engineType)) {
+        continue;
+      }
+
+      const legacyManifestPath = path.join(
+        this.getManagedEnginePath(engineType),
+        ENGINE_INSTALL_REGISTRY_FILE,
+      );
+
+      try {
+        fs.unlinkSync(legacyManifestPath);
+      } catch {}
+    }
+  }
+
+  private readEngineInstallRegistry(): EngineInstallRegistry | null {
+    const registryPath = path.join(
+      path.resolve(this.getEnginesDir()),
+      ENGINE_INSTALL_REGISTRY_FILE,
+    );
+
+    if (!fs.existsSync(registryPath)) {
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(
+        fs.readFileSync(registryPath, "utf8"),
+      ) as Partial<EngineInstallRegistry>;
+
+      if (parsed.schemaVersion !== 2 || !parsed.engines) {
+        return null;
+      }
+
+      const engines = {} as EngineInstallInfoByType;
+
+      for (const engineType of ["cpu", "cuda", "vulkan"] as const) {
+        const normalized = this.normalizeEngineInstallInfo(
+          parsed.engines[engineType],
+        );
+
+        if (!normalized) {
+          return null;
+        }
+
+        engines[engineType] = normalized;
+      }
+
+      return { schemaVersion: 2, engines };
+    } catch {
+      return null;
+    }
+  }
+
+  private readLegacyEngineInstallInfo(
+    engineType: EngineType,
+  ): EngineInstallInfo | null {
+    const manifestPath = path.join(
+      this.getManagedEnginePath(engineType),
+      ENGINE_INSTALL_REGISTRY_FILE,
+    );
+
+    if (!fs.existsSync(manifestPath)) {
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(
+        fs.readFileSync(manifestPath, "utf8"),
+      ) as Partial<LegacyEngineInstallManifest>;
+
+      if (
+        parsed.schemaVersion !== 1 ||
+        parsed.engineType !== engineType ||
+        typeof parsed.releaseTag !== "string" ||
+        !parsed.releaseTag ||
+        typeof parsed.assetName !== "string" ||
+        !parsed.assetName ||
+        typeof parsed.installedAt !== "string" ||
+        !parsed.installedAt
+      ) {
+        return null;
+      }
+
+      return {
+        installed: true,
+        releaseTag: parsed.releaseTag,
+        assetName: parsed.assetName,
+        installedAt: parsed.installedAt,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private normalizeEngineInstallInfo(
+    value: unknown,
+  ): EngineInstallInfo | null {
+    if (typeof value !== "object" || value === null) {
+      return null;
+    }
+
+    const info = value as Partial<EngineInstallInfo>;
+    const isOptionalString = (candidate: unknown) =>
+      candidate === null || typeof candidate === "string";
+
+    if (
+      typeof info.installed !== "boolean" ||
+      !isOptionalString(info.releaseTag) ||
+      !isOptionalString(info.assetName) ||
+      !isOptionalString(info.installedAt)
+    ) {
+      return null;
+    }
+
+    return {
+      installed: info.installed,
+      releaseTag: info.releaseTag ?? null,
+      assetName: info.assetName ?? null,
+      installedAt: info.installedAt ?? null,
+    };
   }
 
   private getManagedEnginePath(engineType: EngineType): string {
@@ -215,7 +574,6 @@ export class AtlasEngineDownloadService {
     this.throwIfDownloadCancelled(signal);
     const requestedType =
       engineType ?? (await this.selectEngineTypeForCurrentMachine());
-    const enginesDir = this.getEnginesDir();
 
     onStatus?.("Consultando os releases recentes do llama.cpp no GitHub...");
 
@@ -238,19 +596,28 @@ export class AtlasEngineDownloadService {
 
     this.saveSelectedEngineType(plan.effectiveType);
 
-    const targetFolder = path.join(
-      enginesDir,
-      this.getEngineFolder(plan.effectiveType),
-    );
-    const targetFolderAlreadyExisted = fs.existsSync(targetFolder);
+    await this.installEngineSelection(selection, onStatus, signal);
+  }
+
+  private async installEngineSelection(
+    selection: EngineDownloadSelection,
+    onStatus?: (message: string) => void,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const { release, plan } = selection;
+    const enginesDir = path.resolve(this.getEnginesDir());
+    const targetFolder = this.getManagedEnginePath(plan.effectiveType);
+
+    fs.mkdirSync(enginesDir, { recursive: true });
 
     onStatus?.(
       `Baixando a engine da llama (${plan.asset.name}, versão ${release.tag_name})...`,
     );
 
-    fs.mkdirSync(targetFolder, { recursive: true });
-
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-engine-"));
+    const stagingFolder = fs.mkdtempSync(
+      path.join(enginesDir, ".atlas-engine-staging-"),
+    );
     const archivePath = path.join(tempDir, plan.asset.name);
 
     try {
@@ -268,14 +635,14 @@ export class AtlasEngineDownloadService {
       this.extractArchive(archivePath, extractDir);
       this.throwIfDownloadCancelled(signal);
 
-      this.copyEngineFiles(extractDir, targetFolder);
+      this.copyEngineFiles(extractDir, stagingFolder);
       this.throwIfDownloadCancelled(signal);
 
       if (plan.effectiveType === "cuda" && process.platform === "win32") {
         await this.installCudaRuntimeDlls(
           release,
           plan.asset.name,
-          targetFolder,
+          stagingFolder,
           onStatus,
           signal,
         );
@@ -283,25 +650,88 @@ export class AtlasEngineDownloadService {
 
       this.throwIfDownloadCancelled(signal);
 
-      if (!this.isEngineDownloaded(plan.effectiveType)) {
+      if (!this.hasEngineRuntimeAt(stagingFolder, plan.effectiveType)) {
         throw new Error(
           "A engine foi baixada, mas o executável llama-server não foi encontrado após a extração.",
         );
       }
 
+      const installInfo: EngineInstallInfo = {
+        installed: true,
+        releaseTag: release.tag_name,
+        assetName: plan.asset.name,
+        installedAt: new Date().toISOString(),
+      };
+      this.throwIfDownloadCancelled(signal);
+
+      onStatus?.("Aplicando a nova versão da engine...");
+      this.replaceManagedEngine(
+        plan.effectiveType,
+        stagingFolder,
+        targetFolder,
+      );
+      this.synchronizeEngineInstallRegistry({
+        [plan.effectiveType]: installInfo,
+      });
+
       onStatus?.(
-        `Engine da llama baixada com sucesso (${plan.effectiveType.toUpperCase()}).`,
+        `Engine da llama instalada com sucesso (${plan.effectiveType.toUpperCase()}, versão ${release.tag_name}).`,
       );
     } finally {
       try {
         fs.rmSync(tempDir, { recursive: true, force: true });
       } catch {}
 
-      if (signal?.aborted && !targetFolderAlreadyExisted) {
+      try {
+        fs.rmSync(stagingFolder, { recursive: true, force: true });
+      } catch {}
+    }
+  }
+
+  private replaceManagedEngine(
+    engineType: EngineType,
+    stagingFolder: string,
+    targetFolder: string,
+  ): void {
+    const enginesDir = path.resolve(this.getEnginesDir());
+    const resolvedTarget = path.resolve(targetFolder);
+    const targetRelativePath = path.relative(enginesDir, resolvedTarget);
+
+    if (
+      targetRelativePath !== this.getEngineFolder(engineType) ||
+      path.isAbsolute(targetRelativePath)
+    ) {
+      throw new Error(
+        "Por segurança, a engine só pode ser atualizada na pasta gerenciada pelo ATLAS.",
+      );
+    }
+
+    const backupFolder = path.join(
+      enginesDir,
+      `.atlas-engine-backup-${randomUUID()}`,
+    );
+    const hadPreviousInstallation = fs.existsSync(resolvedTarget);
+
+    if (hadPreviousInstallation) {
+      fs.renameSync(resolvedTarget, backupFolder);
+    }
+
+    try {
+      fs.renameSync(stagingFolder, resolvedTarget);
+    } catch (error) {
+      if (hadPreviousInstallation && !fs.existsSync(resolvedTarget)) {
         try {
-          fs.rmSync(targetFolder, { recursive: true, force: true });
+          fs.renameSync(backupFolder, resolvedTarget);
         } catch {}
       }
+
+      throw error;
+    }
+
+    if (hadPreviousInstallation) {
+      try {
+        fs.rmSync(backupFolder, { recursive: true, force: true });
+      } catch {}
     }
   }
 
@@ -388,6 +818,7 @@ export class AtlasEngineDownloadService {
   private resolveDownloadSelection(
     releases: LlamaRelease[],
     requestedType: EngineType,
+    allowCudaFallback = true,
   ): EngineDownloadSelection | null {
     for (const release of releases) {
       const asset = this.selectAssetForPlatform(release, requestedType);
@@ -400,7 +831,7 @@ export class AtlasEngineDownloadService {
       }
     }
 
-    if (requestedType === "cuda") {
+    if (requestedType === "cuda" && allowCudaFallback) {
       for (const release of releases) {
         const vulkanAsset = this.selectAssetForPlatform(release, "vulkan");
 

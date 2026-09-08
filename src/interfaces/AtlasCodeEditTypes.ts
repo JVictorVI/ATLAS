@@ -30,6 +30,13 @@ export interface AtlasCodeEditResult extends AtlasCodeEditPlan {
   approved: boolean;
 }
 
+export interface AtlasCodeEditConfirmation {
+  targetFile: string;
+  summary: string;
+  risk: AtlasCodeEditRisk;
+  editCount: number;
+}
+
 export interface AtlasCodeEditRequest {
   editorContext: AtlasEditorContext;
   userRequest: string;
@@ -38,6 +45,7 @@ export interface AtlasCodeEditRequest {
   structureContext?: string;
   ragContext?: string[];
   signal?: AbortSignal;
+  confirm: (confirmation: AtlasCodeEditConfirmation) => Promise<boolean>;
 }
 
 export interface AtlasCodeEditRefactorMetadata {

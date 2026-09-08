@@ -19,6 +19,9 @@ const contextWindowFixed = document.getElementById("context-window-fixed");
 const engineStartOnOpen = document.getElementById("engine-start-on-open");
 const enginePrepareOnOpen = document.getElementById("engine-prepare-on-open");
 const engineDownloadPrompt = document.getElementById("engine-download-prompt");
+const engineDownloadPromptTitle = document.getElementById(
+  "engine-download-prompt-title",
+);
 const engineDownloadPromptText = document.getElementById(
   "engine-download-prompt-text",
 );
@@ -28,6 +31,12 @@ const downloadSelectedEngine = document.getElementById(
 );
 const cancelEngineDownload = document.getElementById(
   "cancel-engine-download",
+);
+const checkEngineUpdates = document.getElementById("check-engine-updates");
+const updateEngineNow = document.getElementById("update-engine-now");
+const engineUpdateStatus = document.getElementById("engine-update-status");
+const engineVersionLabels = Array.from(
+  document.querySelectorAll("[data-engine-version]"),
 );
 const engineDeleteButtons = Array.from(
   document.querySelectorAll(".engine-delete-button"),
@@ -96,15 +105,21 @@ let initialAtlasSettingsLoaded = false;
 let initialAtlasSettingsTimeout = undefined;
 let loadedEngineType = "cpu";
 let downloadAfterSave = false;
+let updateCheckAfterSave = false;
 let atlasSettingsSaveTimeout = null;
 let contextProfilePresets = {};
 let contextProfilesByExecutionMode = {};
 let customContextProfilesByExecutionMode = {};
 let activeContextProfileTarget = "local";
 let activeEngineDownloadType = null;
+let activeEngineOperation = "download";
 let engineDownloadCancelRequested = false;
+let checkingEngineUpdates = false;
+let engineUpdateAvailable = false;
+let startingEngineUpdate = false;
 let deletingEngineType = null;
 let loadedEnginesDir = "";
 
 const engineDownloadStateByType = {};
 const engineDeleteStateByType = {};
+const engineInstallInfoByType = {};

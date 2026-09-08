@@ -19,8 +19,8 @@ O projeto oferece modos diferentes de interação: conversa geral de desenvolvim
 - Resumo arquitetural de conversas longas para manter contexto entre interações.
 - Análise rápida do arquivo atual com marcações diretamente no editor, acionada pelo botão da interface ou por intenção textual no chat.
 - Normalização de achados da análise rápida, com categorias arquiteturais, severidade (`low`, `medium`, `high`), sanitização de linhas e hover explicativo no editor.
-- Modo de análise arquitetural com foco em decisões de design, trade-offs, evolução do risco, testabilidade e custo de mudança.
-- Edição aplicada do arquivo aberto para pedidos operacionais, com detecção de intenção por heurística ou pelo modelo ativo, plano JSON validado, prévia em diff e confirmação obrigatória antes da alteração.
+- Modo de análise arquitetural com foco em decisões de design, trade-offs, evolução do risco, testabilidade e sugestões breves de refatoração, sem entregar uma implementação pronta.
+- Edição aplicada do arquivo aberto para pedidos operacionais, com detecção de intenção por heurística ou pelo modelo ativo, plano JSON validado, prévia em diff e confirmação persistente no chat antes da alteração.
 - Refatoração guiada por análise arquitetural, protegida pela identidade e pelo hash do arquivo analisado, com apoio opcional de análise estática e RAG.
 - RAG local com ChromaDB gerenciado pela extensão, embeddings locais, seletor múltiplo de pastas antes da indexação do workspace ou de uma pasta-base, detecção preventiva de pastas grandes com alternativa de processamento sequencial por subpastas, materiais complementares e recuperação semântica integrada ao chat, inclusive a partir de uma pasta-mãe que contenha projetos já indexados.
 - Tela RAG com projetos indexados, remoção individual ou de todos os projetos, materiais complementares, status da base vetorial, progresso por arquivos/chunks, cancelamento, seleção de modelo de embeddings e carregamento inicial não bloqueante.

@@ -21,7 +21,12 @@ function updateEngineDownloadPrompt() {
     return;
   }
 
+  if (engineDownloadPromptTitle) {
+    engineDownloadPromptTitle.textContent = "Modo de execução alterado";
+  }
+
   const selectedEngineType = getSelectedEngineType();
+  renderEngineInstallInfo();
   const changed = selectedEngineType !== loadedEngineType;
   const knownDownloadState = engineDownloadStateByType[selectedEngineType];
 
@@ -29,8 +34,18 @@ function updateEngineDownloadPrompt() {
     engineDownloadPrompt.hidden = false;
     updateEngineDownloadActions(true, engineDownloadCancelRequested);
 
+    if (engineDownloadPromptTitle) {
+      engineDownloadPromptTitle.textContent =
+        activeEngineOperation === "update"
+          ? "Atualizando engine"
+          : "Preparando engine";
+    }
+
     if (engineDownloadPromptText) {
-      engineDownloadPromptText.textContent = `A engine ${formatEngineType(activeEngineDownloadType)} está sendo baixada. O progresso continuará mesmo ao trocar de tela.`;
+      engineDownloadPromptText.textContent =
+        activeEngineOperation === "update"
+          ? `A engine ${formatEngineType(activeEngineDownloadType)} está sendo atualizada. A versão anterior será mantida se a operação for cancelada.`
+          : `A engine ${formatEngineType(activeEngineDownloadType)} está sendo baixada. O progresso continuará mesmo ao trocar de tela.`;
     }
     return;
   }
@@ -74,6 +89,7 @@ function applyEngineModeCheck(value) {
 
   engineDownloadStateByType[engineType] = value?.downloaded === true;
   engineDeleteStateByType[engineType] = value?.deletable === true;
+  applyEngineInstallInfo(engineType, value?.installInfo);
   updateEngineDeleteButtons();
 
   if (engineType === getSelectedEngineType()) {
@@ -86,7 +102,9 @@ function requestEngineModeDeletion(engineType) {
     !atlasEngineTypes.includes(engineType) ||
     engineDeleteStateByType[engineType] !== true ||
     deletingEngineType !== null ||
-    activeEngineDownloadType !== null
+    activeEngineDownloadType !== null ||
+    checkingEngineUpdates ||
+    startingEngineUpdate
   ) {
     return;
   }
@@ -109,6 +127,7 @@ function applyEngineModeDeletionResult(value) {
   deletingEngineType = null;
   engineDownloadStateByType[engineType] = value?.downloaded === true;
   engineDeleteStateByType[engineType] = value?.deletable === true;
+  applyEngineInstallInfo(engineType, value?.installInfo);
   updateEngineDeleteButtons();
 
   if (engineType === getSelectedEngineType()) {
@@ -123,18 +142,127 @@ function updateEngineDeleteButtons() {
 
     button.hidden = engineDeleteStateByType[engineType] !== true;
     button.disabled =
-      deletingEngineType !== null || activeEngineDownloadType !== null;
+      deletingEngineType !== null ||
+      activeEngineDownloadType !== null ||
+      checkingEngineUpdates ||
+      startingEngineUpdate;
     button.title = isDeleting
       ? `Excluindo engine ${formatEngineType(engineType)}...`
       : `Excluir engine ${formatEngineType(engineType)}`;
     button.setAttribute("aria-label", button.title);
   });
+
+  updateEngineUpdateAction();
+}
+
+function applyEngineInstallInfo(engineType, value) {
+  if (!atlasEngineTypes.includes(engineType)) {
+    return;
+  }
+
+  engineInstallInfoByType[engineType] = {
+    installed: value?.installed === true,
+    releaseTag:
+      typeof value?.releaseTag === "string" && value.releaseTag
+        ? value.releaseTag
+        : null,
+    assetName:
+      typeof value?.assetName === "string" && value.assetName
+        ? value.assetName
+        : null,
+    installedAt:
+      typeof value?.installedAt === "string" && value.installedAt
+        ? value.installedAt
+        : null,
+  };
+  renderEngineInstallInfo();
+}
+
+function renderEngineInstallInfo() {
+  const selectedEngineType = getSelectedEngineType();
+
+  engineVersionLabels.forEach((label) => {
+    const engineType = label.dataset.engineVersion;
+    const installInfo = engineInstallInfoByType[engineType];
+    const downloaded = engineDownloadStateByType[engineType] === true;
+    const managed = engineDeleteStateByType[engineType] === true;
+    let text = "Não instalada";
+
+    if (installInfo?.releaseTag) {
+      text = installInfo.releaseTag;
+    } else if (downloaded && !managed) {
+      text = "Instalação personalizada";
+    } else if (installInfo?.installed || downloaded) {
+      text = "Versão desconhecida";
+    }
+
+    label.textContent = text;
+    label.title = installInfo?.assetName || text;
+    label.parentElement?.classList.toggle(
+      "is-selected",
+      engineType === selectedEngineType,
+    );
+  });
 }
 
 function downloadCurrentEngineMode() {
+  if (
+    checkingEngineUpdates ||
+    startingEngineUpdate ||
+    activeEngineDownloadType !== null
+  ) {
+    return;
+  }
+
   downloadAfterSave = true;
   saveAtlasSettings();
   setEngineDownloadStatus("Salvando modo selecionado e preparando download...");
+}
+
+function checkCurrentEngineUpdate() {
+  if (
+    checkingEngineUpdates ||
+    startingEngineUpdate ||
+    activeEngineDownloadType !== null ||
+    deletingEngineType !== null
+  ) {
+    return;
+  }
+
+  checkingEngineUpdates = true;
+  engineUpdateAvailable = false;
+  updateEngineDownloadActions(false, false);
+  updateEngineDeleteButtons();
+
+  if (getSelectedEngineType() === loadedEngineType) {
+    updateCheckAfterSave = false;
+    setEngineUpdateStatus("Procurando atualizações da engine...");
+    vscode.postMessage({ type: "procurarAtualizacaoEngine" });
+    return;
+  }
+
+  updateCheckAfterSave = true;
+  setEngineUpdateStatus("Salvando o modo selecionado...");
+  saveAtlasSettings();
+}
+
+function updateCurrentEngineNow() {
+  if (
+    !engineUpdateAvailable ||
+    checkingEngineUpdates ||
+    startingEngineUpdate ||
+    activeEngineDownloadType !== null ||
+    deletingEngineType !== null
+  ) {
+    return;
+  }
+
+  engineUpdateAvailable = false;
+  startingEngineUpdate = true;
+  setEngineUpdateStatus("Iniciando atualização da engine...");
+  updateEngineDownloadActions(false, false);
+  updateEngineDeleteButtons();
+  vscode.postMessage({ type: "atualizarEngineAgora" });
 }
 
 function cancelCurrentEngineDownload() {
@@ -143,7 +271,11 @@ function cancelCurrentEngineDownload() {
   }
 
   engineDownloadCancelRequested = true;
-  setEngineDownloadStatus("Cancelando download...");
+  setEngineDownloadStatus(
+    activeEngineOperation === "update"
+      ? "Cancelando atualização..."
+      : "Cancelando download...",
+  );
   updateEngineDownloadActions(true, true);
   vscode.postMessage({ type: "cancelarDownloadEngineConfigurada" });
 }
@@ -151,13 +283,18 @@ function cancelCurrentEngineDownload() {
 function updateEngineDownloadActions(loading, canceling) {
   engineTypeInputs.forEach((input) => {
     if (input) {
-      input.disabled = loading;
+      input.disabled = loading || checkingEngineUpdates || startingEngineUpdate;
     }
   });
 
   if (downloadSelectedEngine) {
-    downloadSelectedEngine.disabled = loading;
-    downloadSelectedEngine.textContent = loading ? "Baixando..." : "Baixar";
+    downloadSelectedEngine.disabled =
+      loading || checkingEngineUpdates || startingEngineUpdate;
+    downloadSelectedEngine.textContent = loading
+      ? activeEngineOperation === "update"
+        ? "Atualizando..."
+        : "Baixando..."
+      : "Baixar";
   }
 
   if (cancelEngineDownload) {
@@ -165,6 +302,55 @@ function updateEngineDownloadActions(loading, canceling) {
     cancelEngineDownload.disabled = canceling;
     cancelEngineDownload.textContent = canceling ? "Cancelando..." : "Cancelar";
   }
+
+  updateEngineUpdateAction();
+}
+
+function updateEngineUpdateAction() {
+  if (!checkEngineUpdates) {
+    return;
+  }
+
+  const disabled =
+    checkingEngineUpdates ||
+    startingEngineUpdate ||
+    activeEngineDownloadType !== null ||
+    deletingEngineType !== null;
+  const label = checkEngineUpdates.querySelector("span");
+
+  checkEngineUpdates.disabled = disabled;
+
+  if (label) {
+    label.textContent = checkingEngineUpdates
+      ? "Procurando..."
+      : "Procurar atualizações";
+  }
+
+  if (updateEngineNow) {
+    updateEngineNow.hidden = !engineUpdateAvailable;
+    updateEngineNow.disabled = disabled;
+  }
+}
+
+function applyEngineUpdateStatus(value) {
+  checkingEngineUpdates = value?.checking === true;
+  startingEngineUpdate = false;
+  engineUpdateAvailable = value?.updateAvailable === true;
+  setEngineUpdateStatus(value?.message || "", value?.error === true);
+  updateEngineDownloadActions(
+    activeEngineDownloadType !== null,
+    engineDownloadCancelRequested,
+  );
+  updateEngineDeleteButtons();
+}
+
+function setEngineUpdateStatus(message, isError = false) {
+  if (!engineUpdateStatus) {
+    return;
+  }
+
+  engineUpdateStatus.textContent = message;
+  engineUpdateStatus.classList.toggle("is-error", isError);
 }
 
 function updateEngineDownloadStatus(value) {
@@ -174,6 +360,13 @@ function updateEngineDownloadStatus(value) {
     : selectedEngineType;
 
   if (value?.loading === true) {
+    activeEngineOperation = value?.operation === "update" ? "update" : "download";
+
+    if (activeEngineOperation === "update") {
+      startingEngineUpdate = false;
+      engineUpdateAvailable = false;
+    }
+
     if (activeEngineDownloadType !== statusEngineType) {
       engineDownloadCancelRequested = false;
     }
@@ -193,6 +386,10 @@ function updateEngineDownloadStatus(value) {
   );
   updateEngineDeleteButtons();
 
+  if (value?.loading === true) {
+    updateEngineDownloadPrompt();
+  }
+
   if (statusEngineType !== selectedEngineType) {
     setEngineDownloadStatus(
       activeEngineDownloadType !== null ? value?.message || "" : "",
@@ -201,7 +398,10 @@ function updateEngineDownloadStatus(value) {
     return;
   }
 
-  if (value?.error === true || value?.canceled === true) {
+  if (
+    (value?.error === true || value?.canceled === true) &&
+    value?.operation !== "update"
+  ) {
     engineDownloadStateByType[statusEngineType] = false;
   }
 
@@ -219,7 +419,11 @@ function updateEngineDownloadStatus(value) {
     chooseEnginesFolder.disabled = value?.loading === true;
   }
 
-  if (value?.done === true && value?.error !== true) {
+  if (
+    value?.done === true &&
+    value?.error !== true &&
+    value?.canceled !== true
+  ) {
     engineDownloadStateByType[statusEngineType] = true;
     loadedEngineType = statusEngineType;
     requestEngineModeCheck(statusEngineType);

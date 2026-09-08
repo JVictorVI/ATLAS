@@ -46,6 +46,7 @@ function applyAtlasSettings(value) {
   setChecked(saveInterruptedResponses, value?.saveInterruptedResponses !== false);
   setInputValue(localEngineTimeout, value?.localTimeout ?? 30);
 
+  const previousLoadedEngineType = loadedEngineType;
   loadedEngineType = normalizeEngineType(value?.engineType);
   setEngineType(loadedEngineType);
 
@@ -63,11 +64,23 @@ function applyAtlasSettings(value) {
   setPathValue(modelsFolderPath, value?.modelsDir);
 
   const nextEnginesDir = String(value?.enginesDir || "");
+  const engineUpdateContextChanged =
+    previousLoadedEngineType !== loadedEngineType ||
+    (loadedEnginesDir && loadedEnginesDir !== nextEnginesDir);
+
+  if (engineUpdateContextChanged) {
+    engineUpdateAvailable = false;
+    startingEngineUpdate = false;
+    setEngineUpdateStatus(
+      "Procure atualizações para o modo de processamento selecionado.",
+    );
+  }
 
   if (loadedEnginesDir && loadedEnginesDir !== nextEnginesDir) {
     atlasEngineTypes.forEach((engineType) => {
       delete engineDownloadStateByType[engineType];
       delete engineDeleteStateByType[engineType];
+      delete engineInstallInfoByType[engineType];
     });
   }
 
@@ -88,7 +101,13 @@ function applyAtlasSettings(value) {
     if (typeof engineModeState?.deletable === "boolean") {
       engineDeleteStateByType[engineType] = engineModeState.deletable;
     }
+
+    applyEngineInstallInfo(
+      engineType,
+      value?.engineInstallInfo?.[engineType],
+    );
   });
+  renderEngineInstallInfo();
 
   const engineDownloadStatusValue = value?.engineDownloadStatus;
   const engineDownloadStatusMatchesDirectory =
@@ -99,6 +118,11 @@ function applyAtlasSettings(value) {
     atlasEngineTypes.includes(engineDownloadStatusValue?.engineType)
       ? engineDownloadStatusValue.engineType
       : null;
+  activeEngineOperation =
+    activeEngineDownloadType !== null &&
+    engineDownloadStatusValue?.operation === "update"
+      ? "update"
+      : "download";
   updateEngineDeleteButtons();
   updateEngineDownloadPrompt();
 

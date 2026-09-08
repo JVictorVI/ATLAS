@@ -242,7 +242,9 @@ Quando um limite é atingido, um aviso modal oferece **Indexar por subpastas (re
 
 Cada alvo é isolado dentro do lote. Se uma pasta falhar — por exemplo, com `Nenhum arquivo textual elegível foi encontrado para indexação.` — o serviço preserva seu status e sua mensagem de erro, o roteador registra a falha e inicia a próxima pasta. Ao final, a interface informa quantos projetos foram concluídos e resume os alvos que falharam. Apenas um cancelamento explícito ou um `AbortError` interrompe imediatamente o restante do lote.
 
-Na lista de projetos, **Remover todos** solicita confirmação modal e chama `deleteAllProjectIndexes`. Os projetos são removidos sequencialmente; para cada um, a coleção de código, as coleções de materiais complementares, as fontes do manifesto e o watcher são descartados. A tabela de projetos e a lista de materiais complementares são atualizadas ao final. O botão fica indisponível quando não existem projetos, durante indexações ou enquanto outra remoção está em andamento.
+O cancelamento também cobre a etapa de seleção. Enquanto o Quick Pick de raiz ou subpastas estiver aberto, confirmar **Cancelar indexação** cancela o seletor, fecha o popup e interrompe o fluxo antes que qualquer nova pasta seja enviada ao serviço.
+
+Na lista de projetos, **Remover todos** solicita confirmação modal e chama `deleteAllProjectIndexes`. Os projetos são removidos sequencialmente; para cada um, somente a coleção de código, suas fontes no manifesto e o watcher são descartados. As coleções e fontes dos materiais complementares são preservadas, pois têm ciclo de vida independente do índice de projeto, ainda que usem o identificador do workspace como escopo. A tabela de projetos e a lista de materiais complementares são atualizadas ao final. O botão fica indisponível quando não existem projetos, durante indexações ou enquanto outra remoção está em andamento.
 
 O modo de indexação é controlado por `rag.indexingMode`:
 

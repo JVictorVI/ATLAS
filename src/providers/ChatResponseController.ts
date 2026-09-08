@@ -40,6 +40,8 @@ export class ChatResponseController {
     const usesLocalEngine = this.deps.configManager.isLocalMode();
 
     try {
+      this.deps.configManager.requireResolvedSelectionForCurrentMode();
+
       const requestedSessionId =
         typeof data.sessionId === "string" && data.sessionId.trim()
           ? data.sessionId.trim()

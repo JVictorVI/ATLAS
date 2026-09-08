@@ -118,6 +118,7 @@ export class ChatModelWebviewService {
       id: model.id,
       name: model.name || model.id,
       provider: model.provider || "Local",
+      enabled: model.enabled !== false,
       tag: model.metadata?.tags?.[0] || "LLM",
       quant: model.metadata?.quantization || "-",
       date: model.metadata?.installedAt

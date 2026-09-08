@@ -34,8 +34,10 @@ function renderShortcutButton(action) {
   const requiresEditorContext =
     action === "quick-analysis" || action === "architecture-analysis";
   const isUnavailable = requiresEditorContext && !hasEditorContextForAnalysis;
+  const hasValidModel = hasValidModelSelection();
   const isBlocked =
     isUnavailable ||
+    !hasValidModel ||
     isLoading ||
     hasActiveShortcutLoading() ||
     isGeneratingResponse;
@@ -44,7 +46,9 @@ function renderShortcutButton(action) {
   button.classList.toggle("loading", isLoading);
   button.title = isUnavailable
     ? "Abra um arquivo no editor para executar esta análise."
-    : button.dataset.originalTitle;
+    : !hasValidModel
+      ? getInvalidModelSelectionMessage()
+      : button.dataset.originalTitle;
   if (isLoading) {
     button.innerHTML = `<span class="btn-spinner" aria-hidden="true"></span><span>${originalLabel}</span>`;
   } else {

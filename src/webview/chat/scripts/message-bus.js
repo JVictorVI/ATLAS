@@ -270,6 +270,7 @@ window.addEventListener("message", (event) => {
       }
 
       removeLoading();
+      removePendingCodeEditConfirmation(message);
       finishCurrentBotMessage(true);
       clearShortcutLoadingStates();
       break;
@@ -299,6 +300,7 @@ window.addEventListener("message", (event) => {
       }
 
       removeLoading();
+      removePendingCodeEditConfirmation(message);
       mensagemAtualBot = null;
       bufferResposta = "";
       isLoadingCloudModels = false;
@@ -379,6 +381,46 @@ window.addEventListener("message", (event) => {
       clearShortcutLoadingState("quick-analysis");
       break;
     }
+    case "edicaoCodigoAguardandoConfirmacao": {
+      if (shouldIgnoreGenerationMessage(message)) {
+        break;
+      }
+
+      const generationId = getMessageGenerationId(message);
+
+      if (message.sessionId) {
+        rememberActiveGeneration({
+          sessionId: message.sessionId,
+          generationId,
+          pendingCodeEditConfirmation: message.value,
+        });
+        renderSessionList();
+      }
+
+      if (!isMessageForActiveSession(message)) {
+        break;
+      }
+
+      removeLoading();
+      shortcutLoadingState.codeEdit = true;
+      renderPendingCodeEditConfirmation(message.value, {
+        sessionId: message.sessionId,
+        generationId,
+      });
+      setGenerationState(true);
+      break;
+    }
+    case "edicaoCodigoConfirmacaoRecebida": {
+      if (
+        shouldIgnoreGenerationMessage(message) ||
+        !isMessageForActiveSession(message)
+      ) {
+        break;
+      }
+
+      updatePendingCodeEditConfirmation(message);
+      break;
+    }
     case "edicaoCodigoStatus": {
       if (shouldIgnoreGenerationMessage(message)) {
         break;
@@ -410,6 +452,10 @@ window.addEventListener("message", (event) => {
 
       shortcutLoadingState.codeEdit = isLoading;
 
+      if (!isLoading) {
+        removePendingCodeEditConfirmation(message);
+      }
+
       if (isLoading) {
         const statusMessage =
           message.value?.message || "Aplicando alteração no código...";
@@ -439,6 +485,7 @@ window.addEventListener("message", (event) => {
       }
 
       removeLoading();
+      removePendingCodeEditConfirmation(message);
       removePendingCodeEditUserMessage();
       clearShortcutLoadingState("code-edit");
       setGenerationState(false);
@@ -456,6 +503,7 @@ window.addEventListener("message", (event) => {
       }
 
       removeLoading();
+      removePendingCodeEditConfirmation(message);
       clearShortcutLoadingState("code-edit");
       pendingCodeEditUserMessage = null;
       setGenerationState(false);
@@ -481,6 +529,21 @@ window.addEventListener("message", (event) => {
     }
     case "updateModelsList": {
       libraryModels = message.models || [];
+      modelsData.local.models = libraryModels.map((model) => ({
+        id: model.id,
+        name: model.name || model.id,
+        provider: model.provider || "Local",
+        enabled: model.enabled !== false,
+      }));
+      configuredLocalModelId = message.selectedLocalModelId || null;
+
+      if (selectedMode === "local") {
+        selectedModel =
+          modelsData.local.models.find(
+            (model) => model.id === configuredLocalModelId,
+          ) || null;
+        updateMainButton();
+      }
       libraryHealth = message.health || null;
       localHealthLoadError = null;
       releaseLocalHealthLoading();
@@ -496,13 +559,23 @@ window.addEventListener("message", (event) => {
       isLoadingCloudModels = false;
       cloudModelLoadError = null;
       if (selectedMode === "cloud" && selectedProvider === providerId) {
-        const prevId = selectedModel?.id;
         selectedModel =
-          models.find((m) => m.id === prevId) || selectedModel || null;
+          models.find((model) => model.id === configuredCloudModelId) || null;
         updateMainButton();
         const popover = document.getElementById("agent-popover");
         if (popover && !popover.classList.contains("hidden"))
           {renderPopoverContent();}
+      }
+      break;
+    }
+    case "modoSelecionado": {
+      if (message.value?.mode === "local") {
+        configuredLocalModelId = message.value.selectedLocalModelId || null;
+        selectedModel =
+          (modelsData.local?.models || []).find(
+            (model) => model.id === configuredLocalModelId,
+          ) || null;
+        updateMainButton();
       }
       break;
     }

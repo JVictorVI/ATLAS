@@ -335,6 +335,13 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         this.codeEditController.cancelActiveEdit(target);
       },
 
+      resolveCodeEditConfirmation: (target, approved) => {
+        return this.codeEditController.resolvePendingConfirmation(
+          target,
+          approved,
+        );
+      },
+
       getActiveCodeEditGenerations: () => {
         return this.codeEditController.serializeActiveGenerations();
       },
@@ -408,6 +415,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         return this.engineDownloadService.isManagedEngineDownloaded(engineType);
       },
 
+      getLlamaEngineInstallInfo: () => {
+        return this.engineDownloadService.getEngineInstallInfo();
+      },
+
       deleteManagedLlamaEngine: (engineType) => {
         return this.engineDownloadService.deleteManagedEngine(engineType);
       },
@@ -418,6 +429,17 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
       downloadConfiguredLlamaEngine: async (onStatus, signal) => {
         await this.engineDownloadService.ensureConfiguredEngineDownloaded(
+          onStatus,
+          signal,
+        );
+      },
+
+      checkConfiguredLlamaEngineUpdate: async (signal) => {
+        return this.engineDownloadService.checkConfiguredEngineUpdate(signal);
+      },
+
+      updateConfiguredLlamaEngine: async (onStatus, signal) => {
+        await this.engineDownloadService.updateConfiguredEngine(
           onStatus,
           signal,
         );
@@ -732,6 +754,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           id: model.id,
           name: model.name || model.id,
           provider: model.provider || "Local",
+          enabled: model.enabled !== false,
         })),
         hardware: null,
       },
