@@ -64,7 +64,7 @@ autoSave
 logLevel
 ```
 
-A UI de Configurações Gerais altera partes de `custom`, `rag` e análise estática. A mesma tela possui a ação `Restaurar padrões`, que volta essas preferências para os defaults sem apagar provedores, chaves, modelos, índices RAG nem histórico.
+A UI de Configurações Gerais altera partes de `custom`, `rag` e análise estática. A mesma tela possui a ação `Restaurar padrões`, que volta essas preferências para os defaults sem alterar a configuração da engine local nem apagar provedores, chaves, modelos, índices RAG ou histórico.
 
 ## Configurações de execução cloud
 
@@ -366,7 +366,7 @@ Se o usuário altera manualmente uma opção gerenciada pelo preset, como contex
 | `salvarConfiguracoesCloud` | `handleSaveCloudConfigs` | `cloudConfigs`. |
 | `salvarConfiguracoesAtlas` | `handleSaveAtlasSettings` | O perfil local ou cloud em `custom.contextProfiles`, `custom.localEngine`, `custom.refactoring`, `custom.staticAnalysis`, `rag.topK`, `rag.maxContextCharacters`. |
 | `salvarConfiguracoesRag` | `handleSaveRagSettings` | `rag`. |
-| `restaurarConfiguracoesAtlas` | `handleRestoreAtlasSettings` | Restaura defaults de perfil/contexto, engine local, refatoração, análise estática e seleção/pasta de embeddings, preservando dados do usuário. |
+| `restaurarConfiguracoesAtlas` | `handleRestoreAtlasSettings` | Restaura defaults de perfil/contexto, refatoração, análise estática e seleção/pasta de embeddings, preservando a configuração da engine local e os dados do usuário. |
 | `selecionarModo` | `handleSelectMode` | `llms.selection.mode`. |
 | `selecionarModelo` | `handleSelectModel` | modelo local ou cloud ativo. |
 | `saveModelParams` | `handleSaveModelParams` | `llms.localModels[modelId].parameters`. |
@@ -469,6 +469,7 @@ A próxima geração local reinicia a engine com a configuração atual.
 Quando confirmado, o ATLAS preserva:
 
 - provedores configurados e chaves no Secret Storage;
+- toda a configuração de `custom.localEngine`, incluindo tipo, opções de abertura, pasta, contexto dinâmico, streaming e timeout;
 - modelos locais e arquivos `.gguf`;
 - índices e materiais do RAG;
 - sessões, mensagens e histórico.
@@ -479,11 +480,10 @@ E restaura para os defaults:
 - `custom.saveInterruptedResponses`;
 - `custom.refactoring`;
 - `custom.staticAnalysis`;
-- `custom.localEngine.engineType`, `startOnAtlasOpen`, `prepareOnAtlasOpen`, `enginesDir`, `dynamicContextWindow`, `stream` e `timeout`;
 - `custom.localModels.modelsDir`;
 - `rag.embeddingModel`, `rag.embeddingModelsDir`, `rag.topK` e `rag.maxContextCharacters`.
 
-Depois de salvar, o roteador reconcilia a seleção de embeddings disponível, limpa status de download de engine se a pasta mudou, para a engine local e devolve `configuracoesAtlasRestauradas` para a Webview.
+Depois de salvar, o roteador reconcilia a seleção de embeddings disponível e devolve `configuracoesAtlasRestauradas` para a Webview. A engine local não é interrompida e seu estado de download permanece intacto.
 
 ## Relações com outros processos
 

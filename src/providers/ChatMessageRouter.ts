@@ -2538,7 +2538,7 @@ export class ChatMessageRouter {
   ): Promise<void> {
     try {
       const confirmation = await vscode.window.showWarningMessage(
-        "Restaurar as configurações gerais do ATLAS? As pastas configuradas voltarão ao padrão. Provedores, chaves de API, arquivos de modelos, índices do RAG e histórico serão preservados.",
+        "Restaurar as configurações gerais do ATLAS? A configuração da engine local, provedores, chaves de API, arquivos de modelos, índices do RAG e histórico serão preservados.",
         { modal: true },
         "Restaurar",
       );
@@ -2548,32 +2548,14 @@ export class ChatMessageRouter {
       }
 
       const current = this.deps.configManager.getConfig();
-      const previousEnginesDir = this.deps.getLocalEnginesDir();
       const defaults = this.deps.configManager.getDefaultConfig();
       const currentCustom = current.custom ?? {};
       const defaultCustom = defaults.custom ?? {};
-      const currentLocalEngine =
-        typeof currentCustom.localEngine === "object" &&
-        currentCustom.localEngine !== null
-          ? { ...currentCustom.localEngine }
-          : {};
       const currentLocalModels =
         typeof currentCustom.localModels === "object" &&
         currentCustom.localModels !== null
           ? { ...(currentCustom.localModels as Record<string, unknown>) }
           : {};
-
-      for (const key of [
-        "engineType",
-        "startOnAtlasOpen",
-        "prepareOnAtlasOpen",
-        "enginesDir",
-        "dynamicContextWindow",
-        "stream",
-        "timeout",
-      ]) {
-        delete currentLocalEngine[key];
-      }
 
       delete currentLocalModels.modelsDir;
 
@@ -2594,10 +2576,6 @@ export class ChatMessageRouter {
           refactoring: defaultCustom.refactoring,
           staticAnalysis: defaultCustom.staticAnalysis,
           localModels: currentLocalModels,
-          localEngine: {
-            ...currentLocalEngine,
-            ...(defaultCustom.localEngine ?? {}),
-          },
         },
       });
 
@@ -2605,11 +2583,6 @@ export class ChatMessageRouter {
         this.deps.configManager.getSection("rag"),
         this.deps.refreshRagEmbeddingModels(),
       );
-      this.clearConfiguredEngineDownloadStatusForDirectoryChange(
-        previousEnginesDir,
-      );
-
-      this.deps.stopLocalEngine();
 
       await webview.postMessage({
         type: "configuracoesAtlasRestauradas",

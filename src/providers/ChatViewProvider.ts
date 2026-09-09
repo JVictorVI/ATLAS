@@ -852,7 +852,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       return;
     }
 
-    if (await this.engineDownloadService.isRecommendedEngineDownloaded()) {
+    // A análise de hardware só é necessária na primeira preparação. Se já
+    // houver qualquer engine utilizável, preserve a seleção atual e não atrase
+    // as próximas aberturas do ATLAS com um novo diagnóstico da máquina.
+    if (this.engineDownloadService.isAnyEngineDownloaded()) {
       return;
     }
 

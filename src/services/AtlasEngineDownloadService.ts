@@ -251,10 +251,7 @@ export class AtlasEngineDownloadService {
     await this.installEngineSelection(selection, onStatus, signal);
   }
 
-  private hasEngineRuntimeAt(
-    folder: string,
-    engineType: EngineType,
-  ): boolean {
+  private hasEngineRuntimeAt(folder: string, engineType: EngineType): boolean {
     const executableNames =
       process.platform === "win32"
         ? ["llama-server.exe", "llama-server"]
@@ -350,7 +347,9 @@ export class AtlasEngineDownloadService {
       const legacyInfo = this.readLegacyEngineInstallInfo(engineType);
       const sourceInfo =
         overrides[engineType] ??
-        (existingInfo?.releaseTag ? existingInfo : legacyInfo ?? existingInfo);
+        (existingInfo?.releaseTag
+          ? existingInfo
+          : (legacyInfo ?? existingInfo));
 
       engines[engineType] = installed
         ? {
@@ -487,9 +486,7 @@ export class AtlasEngineDownloadService {
     }
   }
 
-  private normalizeEngineInstallInfo(
-    value: unknown,
-  ): EngineInstallInfo | null {
+  private normalizeEngineInstallInfo(value: unknown): EngineInstallInfo | null {
     if (typeof value !== "object" || value === null) {
       return null;
     }
@@ -523,12 +520,6 @@ export class AtlasEngineDownloadService {
     return (["cpu", "cuda", "vulkan"] as EngineType[]).some((engineType) =>
       this.isEngineDownloaded(engineType),
     );
-  }
-
-  public async isRecommendedEngineDownloaded(): Promise<boolean> {
-    const engineType = await this.selectEngineTypeForCurrentMachine();
-    this.saveSelectedEngineType(engineType);
-    return this.isEngineDownloaded(engineType);
   }
 
   public async ensureEngineDownloaded(
@@ -935,7 +926,9 @@ export class AtlasEngineDownloadService {
     release: LlamaRelease,
     cudaEngineAssetName: string,
   ): LlamaReleaseAsset | null {
-    const cudaVersion = cudaEngineAssetName.match(/cuda-([\d.]+)-x64\.zip$/i)?.[1];
+    const cudaVersion = cudaEngineAssetName.match(
+      /cuda-([\d.]+)-x64\.zip$/i,
+    )?.[1];
     const exactPattern = cudaVersion
       ? new RegExp(
           `^cudart-llama-bin-win-cuda-${cudaVersion.replace(/\./g, "\\.")}-x64\\.zip$`,
@@ -955,11 +948,13 @@ export class AtlasEngineDownloadService {
       }
     }
 
-    return release.assets.find(
-      (candidate) =>
-        /^cudart-llama-bin-win-cuda-[\d.]+-x64\.zip$/i.test(candidate.name) &&
-        candidate.browser_download_url.startsWith("https://"),
-    ) ?? null;
+    return (
+      release.assets.find(
+        (candidate) =>
+          /^cudart-llama-bin-win-cuda-[\d.]+-x64\.zip$/i.test(candidate.name) &&
+          candidate.browser_download_url.startsWith("https://"),
+      ) ?? null
+    );
   }
 
   private getAssetPatterns(engineType: EngineType): RegExp[] {
@@ -1152,10 +1147,13 @@ export class AtlasEngineDownloadService {
       return false;
     }
 
-    return fs.readdirSync(folder).some((entry) =>
-      /^cudart64_\d+\.dll$/i.test(entry) ||
-      /^cublas(?:lt)?64_\d+\.dll$/i.test(entry),
-    );
+    return fs
+      .readdirSync(folder)
+      .some(
+        (entry) =>
+          /^cudart64_\d+\.dll$/i.test(entry) ||
+          /^cublas(?:lt)?64_\d+\.dll$/i.test(entry),
+      );
   }
 
   private findLlamaServerDir(rootDir: string): string | null {
