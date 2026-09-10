@@ -503,7 +503,7 @@ body.sidebar-resizing {
   max-width: 90%;
   padding: 10px 14px;
   border-radius: 12px;
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1.48;
   overflow-wrap: anywhere;
   word-break: normal;
@@ -1341,17 +1341,17 @@ textarea {
 }
 
 .message h1 {
-  font-size: 18px;
+  font-size: 22px;
   padding-bottom: 6px;
   border-bottom: 1px solid var(--atlas-border);
 }
 
 .message h2 {
-  font-size: 16px;
+  font-size: 20px;
 }
 
 .message h3 {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
 }
 
@@ -1365,7 +1365,7 @@ textarea {
 }
 
 .message h4 {
-  font-size: 13px;
+  font-size: 17px;
 }
 
 .message p {
