@@ -153,6 +153,17 @@ h1 {
   gap: 12px;
 }
 
+.layout-position-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  max-width: 760px;
+}
+
+.layout-position-option {
+  max-width: none;
+}
+
 .context-profile-environments {
   background: var(--vscode-editorWidget-background);
   border: 1px solid var(--vscode-widget-border);
@@ -669,6 +680,10 @@ button:disabled {
   }
 
   .folder-control {
+    grid-template-columns: 1fr;
+  }
+
+  .layout-position-options {
     grid-template-columns: 1fr;
   }
 

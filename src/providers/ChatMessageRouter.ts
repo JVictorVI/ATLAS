@@ -21,11 +21,13 @@ import {
   AtlasContextProfileSettings,
   AtlasExecutionMode,
   AtlasRagSettings,
+  AtlasSideBarLocation,
 } from "../interfaces/AtlasConfigTypes";
 import { AtlasExternalDocumentParser } from "../services/AtlasExternalDocumentParser";
 import { AtlasContextProfileService } from "../services/AtlasContextProfileService";
 import { AtlasInferenceService } from "../services/AtlasInferenceService";
 import { getContainedRelativePath } from "../utils/AtlasPathUtils";
+import { AtlasLayoutService } from "../services/AtlasLayoutService";
 
 type LocalEngineType = "cpu" | "cuda" | "vulkan";
 
@@ -273,6 +275,9 @@ export class ChatMessageRouter {
         return;
       case "salvarConfiguracoesAtlas":
         await this.handleSaveAtlasSettings(data, webview);
+        return;
+      case "alterarPosicaoAtlas":
+        await this.handleChangeAtlasSideBarLocation(data, webview);
         return;
       case "restaurarConfiguracoesAtlas":
         await this.handleRestoreAtlasSettings(webview);
@@ -2392,6 +2397,38 @@ export class ChatMessageRouter {
     }
   }
 
+  private async handleChangeAtlasSideBarLocation(
+    data: any,
+    webview: vscode.Webview,
+  ): Promise<void> {
+    try {
+      const sideBarLocation = this.parseAtlasSideBarLocation(data.location);
+
+      if (!sideBarLocation) {
+        throw new Error("Posição da barra lateral inválida.");
+      }
+
+      await AtlasLayoutService.moveAtlasTo(sideBarLocation);
+      this.deps.configManager.updateUiSettings({ sideBarLocation });
+      await webview.postMessage({
+        type: "posicaoAtlasAlterada",
+        value: { sideBarLocation },
+      });
+    } catch (error) {
+      await this.postError(
+        webview,
+        error,
+        "Não foi possível alterar a posição do ATLAS.",
+      );
+      await webview.postMessage({
+        type: "posicaoAtlasAlterada",
+        value: {
+          sideBarLocation: this.getConfiguredAtlasSideBarLocation(),
+        },
+      });
+    }
+  }
+
   private async handleSaveAtlasSettings(
     data: any,
     webview: vscode.Webview,
@@ -2559,8 +2596,15 @@ export class ChatMessageRouter {
 
       delete currentLocalModels.modelsDir;
 
+      const defaultSideBarLocation = defaults.ui.sideBarLocation;
+      await AtlasLayoutService.moveAtlasTo(defaultSideBarLocation);
+
       this.deps.configManager.saveConfig({
         ...current,
+        ui: {
+          ...current.ui,
+          sideBarLocation: defaultSideBarLocation,
+        },
         rag: {
           ...current.rag,
           embeddingModel: defaults.rag.embeddingModel,
@@ -4311,6 +4355,7 @@ export class ChatMessageRouter {
 
     return {
       contextProfilePresets: this.getContextProfilePresetsPayload(),
+      sideBarLocation: this.getConfiguredAtlasSideBarLocation(),
       contextProfileTarget,
       contextProfiles,
       customContextProfiles,
@@ -4471,6 +4516,18 @@ export class ChatMessageRouter {
     }
 
     return "cpu";
+  }
+
+  private parseAtlasSideBarLocation(
+    value: unknown,
+  ): AtlasSideBarLocation | null {
+    return value === "left" || value === "right" ? value : null;
+  }
+
+  private getConfiguredAtlasSideBarLocation(): AtlasSideBarLocation {
+    return this.deps.configManager.getSection("ui").sideBarLocation === "right"
+      ? "right"
+      : "left";
   }
 
   private parseLocalEngineType(value: unknown): LocalEngineType | null {

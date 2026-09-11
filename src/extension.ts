@@ -18,6 +18,20 @@ export function activate(context: vscode.ExtensionContext) {
     ),
   );
 
+  const synchronizeSideBarLocation = () => {
+    void provider.synchronizeSideBarLocation().catch((error) => {
+      console.error("ATLAS: não foi possível sincronizar a posição.", error);
+    });
+  };
+
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((event) => {
+      if (event.affectsConfiguration("workbench.sideBar.location")) {
+        synchronizeSideBarLocation();
+      }
+    }),
+  );
+
   context.subscriptions.push(
     vscode.commands.registerCommand("atlas.baixarEngineAi", async () => {
       await provider.downloadEngineAI();

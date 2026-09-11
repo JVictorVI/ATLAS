@@ -39,6 +39,7 @@ import { AtlasCodeEditController } from "./AtlasCodeEditController";
 import { ChatPanelManager } from "./ChatPanelManager";
 import { ChatMessageRouter } from "./ChatMessageRouter";
 import { ChatModelWebviewService } from "./ChatModelWebviewService";
+import { AtlasLayoutService } from "../services/AtlasLayoutService";
 
 export class ChatViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "atlas-chat.view";
@@ -726,6 +727,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       void this.sendAvailableLlmsToWebview(webviewView.webview);
       void webviewView.webview.postMessage({ type: "sincronizarChat" });
     });
+
+    void this.synchronizeSideBarLocation().catch((error) => {
+      console.error("ATLAS: não foi possível sincronizar a posição.", error);
+    });
   }
 
   private async sendAvailableLlmsToWebview(
@@ -1082,6 +1087,15 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this.localEngineService.stopEngine();
     this.quickAnalysisController.dispose();
     this.codeEditService.dispose();
+  }
+
+  public async synchronizeSideBarLocation(): Promise<void> {
+    const sideBarLocation =
+      this.configManager.getSection("ui").sideBarLocation === "right"
+        ? "right"
+        : "left";
+
+    await AtlasLayoutService.moveAtlasTo(sideBarLocation);
   }
 
   public async downloadEngineAI(): Promise<void> {

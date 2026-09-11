@@ -42,6 +42,7 @@ function updateRefactoringAvailability() {
 function applyAtlasSettings(value) {
   applyContextProfilePresets(value?.contextProfilePresets);
 
+  setSideBarLocation(value?.sideBarLocation);
   setChecked(localStreamResponses, value?.localStream !== false);
   setChecked(saveInterruptedResponses, value?.saveInterruptedResponses !== false);
   setInputValue(localEngineTimeout, value?.localTimeout ?? 30);
@@ -131,6 +132,14 @@ function applyAtlasSettings(value) {
   } else {
     setEngineDownloadStatus("");
   }
+}
+
+function setSideBarLocation(location) {
+  const normalizedLocation = location === "right" ? "right" : "left";
+
+  sideBarLocationInputs.forEach((input) => {
+    input.checked = input.value === normalizedLocation;
+  });
 }
 
 function saveAtlasSettings(options = {}) {

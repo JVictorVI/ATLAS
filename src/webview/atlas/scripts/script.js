@@ -16,6 +16,19 @@ window.addEventListener("DOMContentLoaded", () => {
 });
 
 function bindAtlasInteractions() {
+  sideBarLocationInputs.forEach((input) => {
+    input.addEventListener("change", () => {
+      if (!input.checked) {
+        return;
+      }
+
+      vscode.postMessage({
+        type: "alterarPosicaoAtlas",
+        location: input.value,
+      });
+    });
+  });
+
   engineTypeInputs.forEach((input) => {
     input?.addEventListener("change", () => {
       engineUpdateAvailable = false;

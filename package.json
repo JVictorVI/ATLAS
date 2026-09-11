@@ -30,6 +30,13 @@
           "title": "ATLAS",
           "icon": "assets/atlas-logo.svg"
         }
+      ],
+      "secondarySidebar": [
+        {
+          "id": "atlas-chat-secondary-container",
+          "title": "ATLAS",
+          "icon": "assets/atlas-logo.svg"
+        }
       ]
     },
     "views": {

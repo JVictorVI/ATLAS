@@ -96,6 +96,7 @@ export class AtlasConfigDefaults {
       ui: {
         defaultView: "chat",
         showTips: true,
+        sideBarLocation: "left",
       },
       llms: {
         selection: {
@@ -215,6 +216,10 @@ export class AtlasConfigDefaults {
       ui: {
         ...defaults.ui,
         ...(partial.ui ?? {}),
+        sideBarLocation:
+          partial.ui?.sideBarLocation === "right"
+            ? "right"
+            : defaults.ui.sideBarLocation,
       },
       llms: {
         ...defaults.llms,

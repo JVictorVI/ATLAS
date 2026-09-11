@@ -4,6 +4,7 @@ import {
   AtlasContextProfileSettings,
   AtlasExecutionMode,
   AtlasStaticAnalysisConfig,
+  AtlasSideBarLocation,
 } from "../interfaces/AtlasConfigTypes";
 import { AtlasConfigDefaults } from "../repository/AtlasConfigDefaults";
 import { AtlasConfigRepository } from "../repository/AtlasConfigRepository";
@@ -30,6 +31,7 @@ export {
   AtlasContextProfileMode,
   AtlasContextProfileSettings,
   AtlasStaticAnalysisConfig,
+  AtlasSideBarLocation,
   ProviderConfig,
   AtlasConfigSchema,
   AtlasExecutionMode,

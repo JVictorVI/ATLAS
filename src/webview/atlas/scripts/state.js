@@ -7,6 +7,9 @@ const localStreamResponses = document.getElementById("local-stream-responses");
 const saveInterruptedResponses = document.getElementById(
   "save-interrupted-responses",
 );
+const sideBarLocationInputs = Array.from(
+  document.querySelectorAll('input[name="atlas-side-bar-location"]'),
+);
 const localEngineTimeout = document.getElementById("local-engine-timeout");
 const contextProfileInputs = Array.from(
   document.querySelectorAll("input[data-context-profile-target]"),

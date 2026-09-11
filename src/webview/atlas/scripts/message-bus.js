@@ -56,6 +56,10 @@ window.addEventListener("message", (event) => {
     releaseAtlasLoading();
   }
 
+  if (message.type === "posicaoAtlasAlterada") {
+    setSideBarLocation(message.value?.sideBarLocation);
+  }
+
   if (message.type === "downloadEngineConfiguradaStatus") {
     updateEngineDownloadStatus(message.value);
   }

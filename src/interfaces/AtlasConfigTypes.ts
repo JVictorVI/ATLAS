@@ -1,6 +1,7 @@
 export type JsonMap = Record<string, unknown>;
 
 export type AtlasRagIndexingMode = "full" | "incremental";
+export type AtlasSideBarLocation = "left" | "right";
 
 export interface AtlasGeneralSettings {
   theme: string;
@@ -65,6 +66,7 @@ export interface AtlasEngineSettings {
 export interface AtlasUiSettings {
   defaultView: string;
   showTips: boolean;
+  sideBarLocation: AtlasSideBarLocation;
 }
 
 export interface AtlasLlmDefaults {
