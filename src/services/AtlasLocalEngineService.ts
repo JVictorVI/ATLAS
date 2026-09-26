@@ -8,7 +8,10 @@ import {
 } from "child_process";
 import { AtlasConfigManager } from "../managers/AtlasConfigManager";
 import { AtlasModelConfig } from "../interfaces/AtlasConfigTypes";
-import { ATLAS_LOCAL_MODEL_DEFAULTS } from "./AtlasLocalModelDefaults";
+import {
+  ATLAS_LOCAL_MODEL_DEFAULTS,
+  validateLocalContextWindow,
+} from "./AtlasLocalModelDefaults";
 import { getAtlasStoragePath } from "../utils/AtlasStoragePaths";
 import { AtlasRuntimeDiagnostics } from "../utils/AtlasRuntimeDiagnostics";
 import { logAtlasRuntimeError } from "./AtlasRuntimeLog";
@@ -319,6 +322,9 @@ export class AtlasLocalEngineService {
   }
 
   private buildLlamaServerArgs(model: AtlasModelConfig): string[] {
+    const contextWindow = validateLocalContextWindow(
+      model.parameters.contextWindow ?? ATLAS_LOCAL_MODEL_DEFAULTS.contextWindow,
+    );
     const args = [
       "--host",
       this.host,
@@ -327,10 +333,7 @@ export class AtlasLocalEngineService {
       "--model",
       model.path!,
       "--ctx-size",
-      String(
-        model.parameters.contextWindow ??
-          ATLAS_LOCAL_MODEL_DEFAULTS.contextWindow,
-      ),
+      String(contextWindow),
     ];
 
     const gpuLayers = Number(model.parameters.gpuLayers ?? 0);

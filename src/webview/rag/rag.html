@@ -415,13 +415,14 @@
           </label>
 
           <label class="field">
-            <span>Atraso antes de reindexar</span>
+            <span>Atraso antes de reindexar (ms)</span>
             <input
               id="rag-debounce"
               type="number"
               min="500"
               max="60000"
               step="500"
+              value="5000"
             />
             <small
               >Tempo em milissegundos após a última alteração detectada</small
@@ -457,7 +458,7 @@
           <h3>Reindexação Automática</h3>
           <div class="option-list">
             <label class="toggle-option compact-toggle">
-              <input id="auto-index-enabled" type="checkbox" />
+              <input id="auto-index-enabled" type="checkbox" checked />
               <span class="checkbox" aria-hidden="true"></span>
               <span
                 >Reindexa automaticamente após alterações nos arquivos do
@@ -648,7 +649,7 @@
           <label class="field">
             <span>Quantidade máxima de resultados (topK)</span>
             <input id="rag-top-k" type="number" min="1" max="30" step="1" />
-            <small>Entre 1 e 30 chunks por consulta</small>
+            <small>Entre 1 e 30 trechos no contexto final do perfil Personalizado</small>
           </label>
 
           <label class="field">

@@ -359,7 +359,7 @@ window.addEventListener("message", (event) => {
   }
 
   if (debounceInput) {
-    debounceInput.value = String(settings.autoIndexDebounceMs ?? 2000);
+    debounceInput.value = String(settings.autoIndexDebounceMs ?? 5000);
   }
 
   if (relevanceModeInput) {
@@ -371,7 +371,7 @@ window.addEventListener("message", (event) => {
   }
 
   if (maxChunksPerFileInput) {
-    maxChunksPerFileInput.value = String(settings.maxChunksPerFile ?? 2);
+    maxChunksPerFileInput.value = String(settings.maxChunksPerFile ?? 3);
   }
 
   if (sourcePriorityInput) {

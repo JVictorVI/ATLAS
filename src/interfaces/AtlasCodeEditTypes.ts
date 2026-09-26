@@ -28,6 +28,7 @@ export interface AtlasCodeEditResult extends AtlasCodeEditPlan {
   documentUri: string;
   appliedEdits: number;
   approved: boolean;
+  undoToken?: string;
 }
 
 export interface AtlasCodeEditConfirmation {

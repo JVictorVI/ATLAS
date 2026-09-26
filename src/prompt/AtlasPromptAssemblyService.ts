@@ -83,6 +83,12 @@ export class AtlasPromptAssemblyService {
         role: "system",
         content: [
           "Contexto recuperado relevante:",
+          ...(mode === "architectural-analysis"
+            ? [
+                "Na análise arquitetural, use os trechos recuperados como evidência complementar sempre que houver relação concreta com o código analisado. Integre essa relação ao longo dos tópicos pertinentes, indicando Fonte e Linhas quando disponíveis e explicando o que o outro arquivo confirma, amplia ou contradiz; não deixe as referências apenas para a síntese.",
+                "Não force relações com trechos sem pertinência nem atribua ao código analisado comportamentos vistos apenas em outro arquivo. Na Visão geral, mantenha somente os nomes curtos dos problemas.",
+              ]
+            : []),
           ...input.ragContext.map((item) => `- ${item}`),
         ].join("\n"),
       });

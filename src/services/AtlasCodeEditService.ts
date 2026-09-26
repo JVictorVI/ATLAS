@@ -13,6 +13,12 @@ import { AtlasInferenceService } from "./AtlasInferenceService";
 
 const PREVIEW_SCHEME = "atlas-code-edit-preview";
 
+type AppliedEditSnapshot = {
+  documentUri: vscode.Uri;
+  beforeContent: string;
+  afterContent: string;
+};
+
 class AtlasCodeEditPreviewProvider
   implements vscode.TextDocumentContentProvider, vscode.Disposable
 {
@@ -38,6 +44,8 @@ class AtlasCodeEditPreviewProvider
 
 export class AtlasCodeEditService implements vscode.Disposable {
   private readonly previewProvider = new AtlasCodeEditPreviewProvider();
+  private readonly appliedEditSnapshots = new Map<string, AppliedEditSnapshot>();
+  private nextUndoToken = 0;
   private readonly previewRegistration =
     vscode.workspace.registerTextDocumentContentProvider(
       PREVIEW_SCHEME,
@@ -75,12 +83,27 @@ export class AtlasCodeEditService implements vscode.Disposable {
         initialDocumentVersion,
       );
     }
-    const appliedEdits = approved
-      ? await this.applyLineEdits(
-          request.editorContext.document,
-          normalizedPlan.edits,
-        )
-      : 0;
+    let appliedEdits = 0;
+    let undoToken: string | undefined;
+
+    if (approved && normalizedPlan.edits.length) {
+      const document = request.editorContext.document;
+      const beforeContent = document.getText();
+      const afterContent = this.buildPreviewContent(
+        document,
+        normalizedPlan.edits,
+      );
+
+      if (beforeContent !== afterContent) {
+        appliedEdits = await this.applyLineEdits(document, normalizedPlan.edits);
+        undoToken = String(++this.nextUndoToken);
+        this.appliedEditSnapshots.set(undoToken, {
+          documentUri: document.uri,
+          beforeContent,
+          afterContent,
+        });
+      }
+    }
 
     return {
       ...this.getFinalPlan(normalizedPlan, approved),
@@ -88,10 +111,45 @@ export class AtlasCodeEditService implements vscode.Disposable {
       documentUri: request.editorContext.document.uri.toString(),
       appliedEdits,
       approved,
+      undoToken,
     };
   }
 
+  public async undoAppliedEdit(token: string): Promise<void> {
+    const snapshot = this.appliedEditSnapshots.get(token);
+
+    if (!snapshot) {
+      throw new Error("Esta alteração não está mais disponível para desfazer.");
+    }
+
+    const document = await vscode.workspace.openTextDocument(snapshot.documentUri);
+
+    if (document.getText() !== snapshot.afterContent) {
+      throw new Error(
+        "O arquivo mudou após a edição do ATLAS. Para preservar as mudanças posteriores, esta ação não foi desfeita.",
+      );
+    }
+
+    const workspaceEdit = new vscode.WorkspaceEdit();
+    workspaceEdit.replace(
+      document.uri,
+      new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length)),
+      snapshot.beforeContent,
+    );
+
+    if (!(await vscode.workspace.applyEdit(workspaceEdit))) {
+      throw new Error("O VS Code recusou a reversão das alterações.");
+    }
+
+    this.appliedEditSnapshots.delete(token);
+  }
+
+  public discardUndoSnapshot(token: string): void {
+    this.appliedEditSnapshots.delete(token);
+  }
+
   public dispose(): void {
+    this.appliedEditSnapshots.clear();
     this.previewRegistration.dispose();
     this.previewProvider.dispose();
   }
@@ -133,7 +191,7 @@ export class AtlasCodeEditService implements vscode.Disposable {
     return [
       {
         role: "system",
-        content: this.buildEditSystemMessage(),
+        content: this.buildEditSystemMessage(request.source),
       },
       {
         role: "user",
@@ -142,7 +200,9 @@ export class AtlasCodeEditService implements vscode.Disposable {
     ];
   }
 
-  private buildEditSystemMessage(): string {
+  private buildEditSystemMessage(
+    source: AtlasCodeEditRequest["source"],
+  ): string {
     return [
       "Você é o ATLAS em modo de edição aplicada de código.",
       "",
@@ -157,16 +217,23 @@ export class AtlasCodeEditService implements vscode.Disposable {
       "- replacement deve conter o bloco completo que substituirá as linhas indicadas, sem prefixos de numeração",
       "- preserve comportamento quando a solicitação for refatoração",
       "- não introduza padrões, interfaces ou camadas se o ganho não compensar a complexidade",
+      ...(source === "architectural-analysis"
+        ? [
+            "- percorra todas as sugestões concretas de refatoração da análise arquitetural e aplique todas as que forem pertinentes, seguras, compatíveis entre si e realizáveis no arquivo atual; não se limite à primeira sugestão ou à de maior prioridade",
+            "- indique em rationale quais sugestões não puderam ser aplicadas e por quê, sem forçar mudanças que exijam outros arquivos, contexto ausente ou risco injustificado",
+          ]
+        : []),
       "- se não houver edição segura, retorne edits como array vazio e explique em summary/rationale",
+      "- escreva summary, rationale e todos os itens de verification em português do Brasil, mesmo que o código ou a análise anterior estejam em inglês; preserve identificadores, nomes de APIs e comandos técnicos",
       "- não invente APIs, arquivos, imports ou símbolos que não sejam inferíveis pelo código recebido",
       "- mantenha identificadores existentes quando não houver motivo técnico para renomear",
       "",
       "Schema obrigatorio:",
       "{",
-      '  "summary": "resumo curto da alteração ou do motivo para não alterar",',
-      '  "rationale": "justificativa técnica ligada a comportamento, teste, manutenção, acoplamento, coesão ou custo de mudança",',
+      '  "summary": "resumo curto em português do Brasil da alteração ou do motivo para não alterar",',
+      '  "rationale": "justificativa técnica em português do Brasil ligada a comportamento, teste, manutenção, acoplamento, coesão ou custo de mudança",',
       '  "risk": "low" | "medium" | "high",',
-      '  "verification": ["passos objetivos para validar a mudança"],',
+      '  "verification": ["passos objetivos em português do Brasil para validar a mudança"],',
       '  "edits": [',
       "    {",
       '      "startLine": 1,',
@@ -187,6 +254,8 @@ export class AtlasCodeEditService implements vscode.Disposable {
           "",
           "Análise arquitetural que deve orientar a refatoração:",
           request.architectureAnalysis,
+          "",
+          "Considere todas as sugestões concretas de refatoração desta análise, respeitando as restrições de segurança e de edição do arquivo atual.",
         ]
       : [];
     const structureBlock = request.structureContext

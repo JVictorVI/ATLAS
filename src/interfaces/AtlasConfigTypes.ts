@@ -198,6 +198,7 @@ export interface AtlasCustomSettings {
   /** @deprecated Mantido apenas para migrar configurações anteriores. */
   contextProfile?: AtlasContextProfileSettings;
   contextProfiles?: AtlasContextProfilesSettings;
+  contextProfileRagVersion?: number;
   localEngine?: AtlasLocalEngineCustomConfig;
   saveInterruptedResponses?: boolean;
 

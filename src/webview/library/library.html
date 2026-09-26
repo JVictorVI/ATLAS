@@ -140,12 +140,17 @@
               <label for="param-context">Tamanho do contexto</label>
               <small class="field-description" id="param-context-description">
                 Total de tokens que o modelo mantém por conversa, incluindo a
-                entrada e a resposta. Valores maiores usam mais memória.
+                entrada e a resposta. Máximo: 1.000.000 de tokens. Valores
+                maiores usam mais memória.
               </small>
               <input
                 type="number"
                 id="param-context"
                 value="8192"
+                min="1"
+                max="1000000"
+                step="1"
+                required
                 aria-describedby="param-context-description"
               />
             </div>

@@ -55,7 +55,7 @@ Na tela **Configurações Gerais**, a seção **Contexto local** controla:
 custom.localEngine.dynamicContextWindow
 ```
 
-Quando o modo está como **Automático**, o ATLAS pode ajustar e salvar o `contextWindow` do modelo local. O `maxTokens` não é alterado por esse fluxo. Quando está como **Fixo**, o ATLAS apenas informa o erro e orienta o usuário a aumentar o contexto na Biblioteca ou ativar o ajuste automático.
+O modo **Automático** é o padrão. Nele, o ATLAS pode ajustar e salvar o `contextWindow` do modelo local até o máximo de 1.000.000 de tokens. O `maxTokens` não é alterado por esse fluxo. Quando está como **Fixo**, o ATLAS apenas informa o erro e orienta o usuário a aumentar o contexto na Biblioteca ou ativar o ajuste automático.
 
 ### Fluxo normal
 
@@ -92,7 +92,7 @@ O ajuste é feito em `LocalApiService.adjustDynamicContextWindow`.
 Constantes atuais:
 
 ```text
-LOCAL_CONTEXT_GROWTH_CAP = 65536
+ATLAS_LOCAL_CONTEXT_MAX_TOKENS = 1000000
 LOCAL_CONTEXT_GROWTH_PADDING = 512
 ```
 
@@ -112,7 +112,7 @@ currentContext + 1
 O próximo contexto é a próxima potência de 2, limitado pelo teto local:
 
 ```text
-nextContext = min(65536, nextPowerOfTwo(minimumContext))
+nextContext = min(1000000, nextPowerOfTwo(minimumContext))
 ```
 
 O limite de `maxTokens` permanece o valor configurado no modelo ou nos defaults globais.
@@ -167,7 +167,7 @@ Os logs incluem modelo, contexto anterior, novo contexto, tokens solicitados e t
 
 ### Limitações do ajuste automático
 
-- O teto atual é `65536` tokens.
+- O teto atual é `1000000` tokens, tanto no ajuste automático quanto na configuração manual do modelo.
 - O ajuste depende do erro retornado pela engine local; se a engine não retornar uma mensagem reconhecível, o ATLAS trata como erro local comum.
 - O modo automático não escolhe quais trechos de contexto entram no prompt. Essa seleção é feita antes, pelos perfis de contexto, RAG, histórico e contexto do editor.
 - Em modo fixo, o ATLAS não altera nem salva `contextWindow`.
@@ -659,22 +659,33 @@ Quando o chat precisa de contexto RAG:
 1. `ChatResponseController` solicita `AtlasRagService.retrieveContext`.
 2. O serviço verifica se o RAG está ativo e se o modo cloud tem permissão para receber contexto.
 3. Resolve o índice da pasta atual ou, quando ela não possui índice pesquisável próprio, os projetos indexados descendentes.
-4. Gera embedding da pergunta.
+4. Gera embeddings das consultas: o pedido textual nos fluxos comuns ou trechos do código do editor na análise arquitetural.
 5. Consulta as coleções dos projetos selecionados e, se habilitado, coleções externas.
-6. Pede, em cada coleção selecionada, mais candidatos que o `topK` final:
+6. Pede, em cada coleção selecionada, mais candidatos que o `topK` final. Na análise arquitetural, as consultas vetoriais são agrupadas em lotes de até 16:
 
 ```text
-candidateCount = max(rag.topK * 5, rag.topK)
+Consulta textual: candidateCount = max(perfil.topK * 5, perfil.topK)
+Análise arquitetural: candidateCount = max(perfil.topK * 2, ceil(perfil.topK * 5 / quantidadeDeConsultas))
 ```
 
-7. Aplica filtros de relevância, arquivos gerados, material complementar, arquivo ativo, linguagem, diretório e limite por arquivo.
+7. Reúne os candidatos das consultas, remove chunks duplicados e aplica filtros de relevância, arquivos gerados, material complementar, arquivo ativo, linguagem, diretório e limite por arquivo.
 8. Aplica prioridade de fonte (`code`, `documentation` ou `balanced`).
 9. Diversifica por arquivo quando `rag.diversifyFiles` está ativo.
-10. Monta o contexto final respeitando `rag.maxContextCharacters`.
+10. Monta o contexto final respeitando o `ragMaxContextCharacters` do perfil ativo.
 
 Se o orçamento de caracteres for atingido, a seleção para antes de adicionar o próximo chunk.
 
 Cada fonte retornada ao chat inclui `projectId`, distância, relevância, tipo, caminho e linhas quando disponíveis.
+
+O número final de trechos enviados ao modelo respeita o `topK` do perfil de contexto ativo: Equilibrado (4), Avançado (6) ou o valor salvo no perfil Personalizado (1 a 30). O perfil Leve não inclui RAG. O limite de caracteres do RAG também vem do perfil e pode reduzir ainda mais a quantidade enviada. Esses limites não reduzem a quantidade de blocos do código usados para consultar o índice.
+
+Na análise arquitetural, a recuperação usa o código selecionado no editor ou, se não houver seleção, o arquivo aberto. O ATLAS cobre todo esse código com consultas de até 1.200 caracteres, sem limite fixo de quatro consultas. No arquivo completo, usa a linha inicial dos símbolos fornecidos pelo VS Code como fronteira preferencial de corte, incluindo métodos, classes e outras declarações. Se não houver um símbolo adequado, prefere cortar entre linhas. Na seleção do editor, usa a divisão por linhas. Uma linha isolada maior que o limite pode ser cortada por caracteres.
+
+Cada consulta contém o texto do código, não apenas nomes de métodos ou classes. A divisão não cria obrigatoriamente uma consulta por símbolo: métodos curtos podem ficar juntos, enquanto um método longo pode ocupar várias consultas. Ao escolher uma fronteira de símbolo, o ATLAS prefere que o bloco tenha pelo menos 600 caracteres. Todas as consultas geradas são usadas na busca em lotes de até 16; o `topK` do perfil limita os trechos recuperados enviados ao modelo, não as consultas feitas a partir do código.
+
+A frase fixa do botão não é usada como consulta RAG. O arquivo ativo é excluído dos resultados dessa busca, para priorizar relações em outros arquivos; o código do editor segue como base principal da análise, sujeito ao limite do perfil de contexto. A busca só ocorre quando o RAG, o perfil de contexto e o destino local/cloud permitem.
+
+Na análise arquitetural, o terminal de execução da extensão registra a estratégia de divisão e a quantidade de consultas, cada trecho de código enviado ao modelo de embeddings, cada trecho único retornado pela busca vetorial antes dos filtros (com o número da consulta correspondente) e cada trecho incluído no contexto final enviado ao modelo de geração. As mensagens usam o prefixo `[ATLAS RAG]` e o identificador da busca; também informam quando não há índice ou resultado disponível.
 
 ### 6.1 Resolução de projetos pela pasta atual
 
@@ -711,29 +722,31 @@ Na edição direta, a consulta usa o pedido do usuário. Na refatoração guiada
 | `rag.embeddingModelsDir` | Pasta customizada de modelos de embeddings. |
 | `rag.chunkSize` | Tamanho alvo dos chunks textuais. |
 | `rag.chunkOverlap` | Sobreposição textual entre chunks. |
-| `rag.maxContextCharacters` | Orçamento de contexto RAG injetado no prompt. |
-| `rag.topK` | Quantidade final de resultados recuperados. |
+| `rag.maxContextCharacters` | Valor inicial para o perfil Personalizado; a recuperação usa o limite de caracteres do perfil ativo. |
+| `rag.topK` | Valor inicial para o perfil Personalizado; a recuperação usa o `ragTopK` do perfil ativo. |
 | `rag.maxChunksPerFile` | Limite de chunks por arquivo após filtros. |
 | `rag.autoIndex` | Habilita reindexação automática por watcher. |
 | `rag.promptIndexOnChange` | Pergunta se deve reindexar quando o watcher detecta alterações. |
 | `rag.indexOnStartup` | Detecta e reindexa projetos prontos/desatualizados ao inicializar o ATLAS. |
 | `rag.promptBeforeStartupIndex` | Pergunta antes de executar a reindexação de inicialização. |
 | `rag.indexingMode` | Define indexação `full` ou `incremental`. |
-| `rag.autoIndexDebounceMs` | Atraso antes da reindexação automática. |
+| `rag.autoIndexDebounceMs` | Atraso em milissegundos antes da reindexação automática. |
 | `rag.allowCloudContext` | Permite enviar contexto RAG para modelos cloud. |
 | `rag.offlineOnly` | Bloqueia RAG no modo cloud quando ativo. |
 | `rag.includeExternalDocuments` | Inclui materiais complementares na recuperação. |
 | `rag.useInCodeEditing` | Permite usar RAG em edições aplicadas e refatorações. |
 | `rag.showSources` | Persiste e mostra fontes RAG nos metadados da resposta. |
 
-Defaults atuais de recuperação:
+Defaults atuais de RAG:
 
 ```text
+autoIndex: true
+autoIndexDebounceMs: 5000
 topK: 6
 maxContextCharacters: 12000
 relevanceMode: maxDistance
 relevanceThreshold: 0.9
-maxChunksPerFile: 2
+maxChunksPerFile: 3
 diversifyFiles: true
 excludeActiveFile: true
 includeExternalDocuments: true

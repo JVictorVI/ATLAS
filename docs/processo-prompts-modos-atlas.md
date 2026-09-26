@@ -32,9 +32,9 @@ apply-edit
 architecture-guided-edit
 ```
 
-No `developer-assistant`, pedidos operacionais claros como ajustar, criar, corrigir, alterar, implementar, renomear, extrair ou refatorar podem ser desviados para edição aplicada do arquivo atual quando `custom.refactoring.enabled !== false`. Por padrão, essa decisão usa a heurística local; quando `custom.refactoring.useModelIntentDetection === true`, o modelo ativo classifica a intenção antes da resposta normal. Perguntas exploratórias e pedidos explícitos de não edição permanecem como resposta textual.
+No `developer-assistant`, pedidos operacionais claros como ajustar, criar, corrigir, alterar, implementar, renomear, extrair ou refatorar podem ser desviados para edição aplicada do arquivo atual quando `custom.refactoring.enabled !== false`. Por padrão, o modelo ativo classifica a intenção antes da resposta normal; quando `custom.refactoring.useModelIntentDetection === false`, a decisão usa a heurística local. Perguntas exploratórias e pedidos explícitos de não edição permanecem como resposta textual.
 
-No `architectural-analysis`, a resposta continua sendo a análise formal. Quando a resposta for elegível, a Webview pode exibir a ação `Refatorar com base nesta análise`, usando a análise recém-gerada como critério para a mudança.
+No `architectural-analysis`, a resposta continua sendo a análise formal. Quando o RAG participa, a busca usa trechos do código selecionado ou do arquivo aberto como consultas, não a frase genérica do pedido de análise. Quando a resposta for elegível, a Webview pode exibir a ação `Refatorar com base nesta análise`, usando a análise recém-gerada como critério para a mudança.
 
 O modo `quick-analysis` permanece parseável e não aplica edições automaticamente.
 
@@ -168,23 +168,27 @@ Essa ordem preserva a política do ATLAS como instrução mais alta e deixa a pe
 | Modo | Prompt |
 | --- | --- |
 | `developer-assistant` | Assistente técnico geral de desenvolvimento. |
-| `architectural-analysis` | Análise formal em 8 tópicos obrigatórios. |
+| `architectural-analysis` | Análise formal em até oito tópicos, conforme a complexidade e a evidência do código. |
 | `quick-analysis` | Saída exclusivamente JSON com achados por linha. |
 
 ## Análise arquitetural
 
-O modo arquitetural exige resposta em oito tópicos Markdown:
+O modo arquitetural primeiro avalia o código principal quanto a tamanho, responsabilidades, regras, dependências e alcance, usando o contexto adicional para confirmar relações. A triagem não aparece na resposta. Código de complexidade moderada ou maior, escopo relevante ou tamanho significativo recebe a análise completa nos oito tópicos. Código simples e de alcance limitado recebe apenas os tópicos com conclusões sustentadas; o tamanho, isoladamente, não determina a escolha.
 
-1. Decisão de design observável no código analisado.
-2. Trade-offs arquiteturais explícitos da decisão.
-3. Princípios, responsabilidades e fronteiras tensionadas.
-4. Evolução do risco conforme o sistema cresce.
-5. Cenários concretos que pressionam mudança arquitetural.
-6. Grau de impacto arquitetural e custo de mudança.
-7. Impacto em testes, isolamento e verificabilidade.
-8. Síntese crítica da decisão e prioridade de atenção.
+A resposta abre com `### Visão geral`, que lista somente os nomes curtos dos problemas detectados, um por item em negrito, sem complementos. Os tópicos usados mantêm seus títulos e ordem; `### Síntese e prioridade de atenção` encerra a análise em ambos os casos. Na análise completa, um tópico sem achado relevante registra isso em uma frase. Na análise simples, esse tópico é omitido. Se faltar contexto em um tópico apresentado, a limitação é declarada. Não se criam cenários hipotéticos para preencher o formato.
 
-Dentro do último tópico, a subseção **Sugestões de refatoração** explica brevemente o que poderia ser alterado, como fazer isso em linhas gerais, por que seguir esse caminho e quais impactos e ganhos esperar. A linguagem deve ser acessível, e a resposta não inclui código nem uma implementação final. Se a análise não justificar uma mudança, o ATLAS informa que não recomenda refatorar naquele momento.
+Quando houver trechos RAG, a mensagem de contexto orienta a usar os que tenham relação concreta com o código analisado como evidência complementar ao longo dos tópicos pertinentes. A análise indica a fonte e as linhas disponíveis e explica a relação observável; não força relações com resultados irrelevantes nem acrescenta explicações à Visão geral.
+
+1. Decisões de projeto observadas.
+2. Benefícios e custos das decisões.
+3. Responsabilidades e fronteiras entre componentes.
+4. Riscos na evolução do sistema.
+5. Cenários que justificam reavaliação.
+6. Impacto arquitetural e custo de mudança.
+7. Efeitos sobre testes e verificabilidade.
+8. Síntese e prioridade de atenção.
+
+A subseção **Sugestões de refatoração** explica brevemente o que poderia ser alterado, como fazer isso em linhas gerais, por que seguir esse caminho e quais impactos e ganhos esperar. A linguagem deve ser acessível, e a resposta não inclui código nem uma implementação final. Se a análise não justificar uma mudança, o ATLAS informa que não recomenda refatorar naquele momento.
 
 ## Análise rápida
 

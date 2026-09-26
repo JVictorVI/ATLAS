@@ -30,7 +30,7 @@ export class AtlasConfigDefaults {
       },
       rag: {
         enabled: true,
-        autoIndex: false,
+        autoIndex: true,
         allowLocalContext: true,
         allowCloudContext: false,
         offlineOnly: true,
@@ -80,10 +80,10 @@ export class AtlasConfigDefaults {
         promptIndexOnChange: false,
         indexOnStartup: false,
         promptBeforeStartupIndex: false,
-        autoIndexDebounceMs: 2000,
+        autoIndexDebounceMs: 5000,
         relevanceMode: "maxDistance",
         relevanceThreshold: 0.9,
-        maxChunksPerFile: 2,
+        maxChunksPerFile: 3,
         diversifyFiles: true,
         excludeActiveFile: true,
         includeExternalDocuments: true,
@@ -118,6 +118,7 @@ export class AtlasConfigDefaults {
         localModels: {},
       },
       custom: {
+        contextProfileRagVersion: 1,
         contextProfiles: {
           local: AtlasContextProfileService.getDefaultProfile(),
           cloud: AtlasContextProfileService.getDefaultProfile(),
@@ -125,7 +126,7 @@ export class AtlasConfigDefaults {
         saveInterruptedResponses: true,
         refactoring: {
           enabled: true,
-          useModelIntentDetection: false,
+          useModelIntentDetection: true,
         },
         localEngine: {
           dynamicContextWindow: true,
@@ -187,6 +188,19 @@ export class AtlasConfigDefaults {
         legacyContextProfile,
       ),
     };
+    if (partial.custom?.contextProfileRagVersion !== 1) {
+      for (const executionMode of ["local", "cloud"] as const) {
+        const profile = contextProfiles[executionMode];
+        if (profile.mode === "custom") {
+          contextProfiles[executionMode] = AtlasContextProfileService.normalize({
+            ...profile,
+            ragTopK: ragPartial.topK ?? defaults.rag.topK,
+            ragMaxContextCharacters:
+              ragPartial.maxContextCharacters ?? defaults.rag.maxContextCharacters,
+          });
+        }
+      }
+    }
     const legacyLlmCloudDefaults = this.pickDefinedCloudRequestDefaults(
       partial.llms?.defaults,
     );
@@ -248,6 +262,7 @@ export class AtlasConfigDefaults {
       custom: {
         ...(defaults.custom ?? {}),
         ...(partial.custom ?? {}),
+        contextProfileRagVersion: 1,
         contextProfiles,
         localEngine: {
           ...defaultLocalEngine,
@@ -265,7 +280,7 @@ export class AtlasConfigDefaults {
           useModelIntentDetection:
             partial.custom?.refactoring?.useModelIntentDetection ??
             defaults.custom?.refactoring?.useModelIntentDetection ??
-            false,
+            true,
         },
         staticAnalysis: {
           enabled:

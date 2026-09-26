@@ -184,6 +184,8 @@ Argumentos atuais:
 --ctx-size <model.parameters.contextWindow || 8192>
 ```
 
+O `contextWindow` deve ser um inteiro de 1 a 1.000.000 de tokens. O ATLAS valida esse limite ao salvar os parâmetros e antes de iniciar a engine.
+
 Se `gpuLayers > 0`, adiciona:
 
 ```text

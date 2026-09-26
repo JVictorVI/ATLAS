@@ -1,4 +1,5 @@
 import { createHash } from "crypto";
+import * as path from "path";
 import * as vscode from "vscode";
 import { ChatMessage } from "../interfaces/ApiTypes";
 import { AtlasConfigManager } from "../managers/AtlasConfigManager";
@@ -1113,9 +1114,30 @@ export class AtlasCodeEditController {
     }
 
     if (result.appliedEdits > 0) {
-      vscode.window.showInformationMessage(
-        `ATLAS: ${result.appliedEdits} edição(ões) aplicada(s) em ${result.targetFile}.`,
-      );
+      const undoToken = result.undoToken;
+      const message = `ATLAS: refatoração aplicada em ${path.basename(result.targetFile)}`;
+
+      if (!undoToken) {
+        void vscode.window.showInformationMessage(message);
+        return;
+      }
+
+      void Promise.resolve(
+        vscode.window.showInformationMessage(message, "Desfazer"),
+      )
+        .then(async (selection) => {
+          if (selection !== "Desfazer") {
+            return;
+          }
+
+          await this.codeEditService.undoAppliedEdit(undoToken);
+          await vscode.window.showInformationMessage("Alterações desfeitas.");
+        })
+        .catch((error: unknown) => {
+          const message = error instanceof Error ? error.message : String(error);
+          void vscode.window.showErrorMessage(`ATLAS: ${message}`);
+        })
+        .finally(() => this.codeEditService.discardUndoSnapshot(undoToken));
       return;
     }
 

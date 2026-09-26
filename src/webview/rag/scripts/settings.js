@@ -111,7 +111,10 @@ function saveRagSettings() {
     autoIndexDebounceMs < 500 ||
     autoIndexDebounceMs > 60000
   ) {
-    showFeedback("O debounce deve ficar entre 500 e 60.000 ms.", "warning");
+    showFeedback(
+      "O atraso antes de reindexar deve ficar entre 500 e 60.000 ms.",
+      "warning",
+    );
     debounceInput?.focus();
     return;
   }

@@ -133,6 +133,8 @@ enabled: true
 allowLocalContext: true
 allowCloudContext: false
 offlineOnly: true
+autoIndex: true
+autoIndexDebounceMs: 5000
 indexingMode: incremental
 includeMarkdownFiles: true
 includeConfigFiles: true
@@ -251,6 +253,8 @@ custom.localEngine.timeout
 custom.saveInterruptedResponses
 ```
 
+`dynamicContextWindow` inicia ativado. Os perfis de contexto locais mantêm o modo automático, que pode ampliar a janela até 1.000.000 de tokens; a opção **Fixo** continua disponível.
+
 ### Refatoração aplicada
 
 ```text
@@ -260,7 +264,7 @@ custom.refactoring.useModelIntentDetection
 
 Quando `enabled` está `false`, o ATLAS não aplica edições diretamente, não exibe novas ações de refatoração em análises arquiteturais e responde pedidos operacionais em modo textual.
 
-Quando `useModelIntentDetection` está `true`, o ATLAS pede ao modelo ativo para classificar se a mensagem atual deve virar edição aplicada antes da resposta textual comum. Quando está `false`, usa a heurística local padrão.
+Quando `useModelIntentDetection` está `true` (padrão), o ATLAS pede ao modelo ativo para classificar se a mensagem atual deve virar edição aplicada antes da resposta textual comum. Quando está `false`, usa a heurística local.
 
 O contexto recuperado pelo RAG só pode ser incluído nesse fluxo quando `rag.useInCodeEditing` está `true`, além das permissões do perfil e do destino local/cloud.
 
@@ -282,7 +286,7 @@ Defaults atuais:
 ```text
 custom.saveInterruptedResponses: true
 custom.refactoring.enabled: true
-custom.refactoring.useModelIntentDetection: false
+custom.refactoring.useModelIntentDetection: true
 custom.localEngine.dynamicContextWindow: true
 custom.localEngine.prepareOnAtlasOpen: true
 custom.localEngine.stream: true
@@ -353,7 +357,7 @@ ambientes.
 
 ### Custom
 
-Preserva ajustes finos vindos das telas específicas. Campos numéricos são normalizados com limites.
+Preserva ajustes finos vindos das telas específicas. O `topK` e o limite de caracteres usados na recuperação vêm dos campos `ragTopK` e `ragMaxContextCharacters` do perfil Personalizado ativo; a tela de RAG permite alterá-los para o modo de execução atual. Campos numéricos são normalizados com limites.
 
 Ao selecionar `light`, `balanced` ou `advanced`, a Webview envia `applyContextProfilePreset: true`. Nesse caso, `ChatMessageRouter` aplica também os efeitos associados ao preset em RAG, análise estática e `custom.localEngine.dynamicContextWindow`.
 
@@ -364,8 +368,8 @@ Se o usuário altera manualmente uma opção gerenciada pelo preset, como contex
 | Mensagem Webview | Handler | O que altera |
 | --- | --- | --- |
 | `salvarConfiguracoesCloud` | `handleSaveCloudConfigs` | `cloudConfigs`. |
-| `salvarConfiguracoesAtlas` | `handleSaveAtlasSettings` | O perfil local ou cloud em `custom.contextProfiles`, `custom.localEngine`, `custom.refactoring`, `custom.staticAnalysis`, `rag.topK`, `rag.maxContextCharacters`. |
-| `salvarConfiguracoesRag` | `handleSaveRagSettings` | `rag`. |
+| `salvarConfiguracoesAtlas` | `handleSaveAtlasSettings` | O perfil local ou cloud em `custom.contextProfiles`, `custom.localEngine`, `custom.refactoring` e `custom.staticAnalysis`. |
+| `salvarConfiguracoesRag` | `handleSaveRagSettings` | `rag` e, quando os limites de recuperação são editados, o perfil Personalizado do modo atual. |
 | `restaurarConfiguracoesAtlas` | `handleRestoreAtlasSettings` | Restaura defaults de perfil/contexto, refatoração, análise estática e seleção/pasta de embeddings, preservando a configuração da engine local e os dados do usuário. |
 | `selecionarModo` | `handleSelectMode` | `llms.selection.mode`. |
 | `selecionarModelo` | `handleSelectModel` | modelo local ou cloud ativo. |

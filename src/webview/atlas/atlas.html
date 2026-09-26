@@ -298,12 +298,13 @@
                   name="context-window-mode"
                   id="context-window-dynamic"
                   value="dynamic"
+                  checked
                 />
                 <span>
                   <strong>Automático</strong>
                   <small>
                     Ajusta e salva apenas o tamanho de contexto quando
-                    necessário
+                    necessário, até 1.000.000 de tokens
                   </small>
                 </span>
               </label>
@@ -641,7 +642,7 @@
               <small>
                 Antes de gerar uma resposta, o ATLAS pede ao modelo para decidir
                 se a mensagem deve virar edição aplicada. Quando desativado, usa
-                a heurística local padrão. Pode consumir mais tokens e aumentar
+                a heurística local. Pode consumir mais tokens e aumentar
                 o tempo de resposta, mas melhora a precisão da decisão
               </small>
             </span>

@@ -45,7 +45,9 @@ export class PaymentGatewayClient {
     this.remoteCharges.set(request.idempotencyKey, response);
 
     if (Math.random() > 0.85) {
-      throw new Error("payment provider timed out after processing the request");
+      throw new Error(
+        "payment provider timed out after processing the request",
+      );
     }
 
     return response;
@@ -59,7 +61,11 @@ export class PaymentGatewayClient {
 export class FraudClient {
   constructor(private readonly config: MarketplaceSettings) {}
 
-  async isAllowed(user: User, amount: number, clientIp: string): Promise<boolean> {
+  async isAllowed(
+    user: User,
+    amount: number,
+    clientIp: string,
+  ): Promise<boolean> {
     try {
       logger.info("fraud score request", {
         url: this.config.fraudApiUrl,
@@ -92,11 +98,7 @@ export class ShippingClient {
 }
 
 export class NotificationClient {
-  async sendEmail(
-    to: string,
-    subject: string,
-    body: string,
-  ): Promise<void> {
+  async sendEmail(to: string, subject: string, body: string): Promise<void> {
     await delay(3);
     logger.info("email sent", { to, subject, body });
   }

@@ -66,7 +66,7 @@ Os blocos podem ser copiados diretamente para o PlantText ou para uma extensão 
 ## Pontos consolidados da versão 1.3
 
 - `AtlasPromptModeResolver` passou a decidir entre `developer-assistant`, `architectural-analysis` e `quick-analysis` por uma heurística pontuada, combinando frases explícitas, sinais arquiteturais fortes, termos contextuais, intenção de análise e termos de desenvolvimento.
-- `AtlasSystemPromptPolicyService` agora define um prompt arquitetural obrigatório em 8 tópicos Markdown, um prompt de análise rápida com taxonomia de categorias/severidades e regras rígidas para saída JSON, além de orientações para não transformar respostas comuns em análise formal.
+- `AtlasSystemPromptPolicyService` define um prompt arquitetural com Visão geral seguida de 8 tópicos fixos, com menção breve quando faltar achado relevante em algum deles, um prompt de análise rápida com taxonomia de categorias/severidades e regras rígidas para saída JSON, além de orientações para não transformar respostas comuns em análise formal.
 - `ChatMessageRouter` serializa `activeGenerations` combinando resposta textual, análise rápida e edição aplicada por sessão; a Webview usa `generationId` para restaurar loading parcial e ignorar eventos atrasados de gerações canceladas.
 - `AtlasQuickAnalysisService` numera o arquivo antes de enviar ao modelo, força o modo `quick-analysis`, extrai arrays JSON mesmo quando há texto extra e normaliza aliases de severidade e categoria.
 - `AtlasQuickAnalysisController` aceita origem da execução (`button` ou `chat`), propaga `sessionId` para a Webview, sanitiza intervalos de linha, limpa decorações quando não há achados e aplica cores/hover por severidade.

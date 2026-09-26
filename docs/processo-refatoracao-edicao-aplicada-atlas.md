@@ -46,7 +46,7 @@ Responsabilidades principais:
 | Configuração | Default | Efeito |
 | --- | --- | --- |
 | `custom.refactoring.enabled` | `true` | Habilita a edição direta e a refatoração guiada por análise. |
-| `custom.refactoring.useModelIntentDetection` | `false` | Usa o modelo ativo para classificar a intenção de editar; desativada, mantém a heurística local. |
+| `custom.refactoring.useModelIntentDetection` | `true` | Usa o modelo ativo para classificar a intenção de editar; desativada, mantém a heurística local. |
 | `custom.staticAnalysis.enabled` | `true` | Habilita a coleta estrutural global. |
 | `custom.staticAnalysis.useInRefactoring` | `true` | Autoriza estrutura, diagnósticos e relações como apoio à refatoração. |
 | `rag.useInCodeEditing` | `false` | Autoriza o uso de trechos RAG em edições aplicadas e refatorações. |
@@ -139,7 +139,7 @@ Quando o botão é acionado:
 2. o arquivo aberto é comparado com o `documentUri` armazenado;
 3. o hash SHA-256 do conteúdo atual é comparado com `contentHash`;
 4. se o arquivo mudou, o fluxo é bloqueado e uma nova análise deve ser executada;
-5. a análise arquitetural completa passa a orientar o plano de edição;
+5. a análise arquitetural completa passa a orientar o plano de edição, que deve considerar todas as sugestões concretas aplicáveis com segurança ao arquivo atual e justificar as que não puderem ser aplicadas;
 6. o ATLAS segue para a mesma etapa de prévia e confirmação usada na edição direta.
 
 Essa validação evita aplicar uma recomendação antiga sobre uma versão diferente do arquivo.
@@ -181,7 +181,7 @@ O RAG só participa quando `rag.useInCodeEditing === true`, o perfil inclui RAG 
 }
 ```
 
-O prompt exige mudanças pequenas, seguras e limitadas ao arquivo atual. Para refatorações, o comportamento deve ser preservado. Se não houver alteração segura, o modelo deve retornar `edits: []` e justificar a decisão.
+O prompt exige mudanças pequenas, seguras e limitadas ao arquivo atual. Os campos textuais `summary`, `rationale` e `verification` devem vir em português do Brasil, preservando identificadores, nomes de APIs e comandos técnicos. Para refatorações, o comportamento deve ser preservado. Se não houver alteração segura, o modelo deve retornar `edits: []` e justificar a decisão.
 
 ## Validação do plano
 
@@ -211,6 +211,8 @@ Quando há edições propostas:
 Se o arquivo for modificado enquanto o plano ou a confirmação estiverem pendentes, a aplicação é bloqueada e o ATLAS solicita uma nova prévia. Isso evita usar intervalos de linhas que já ficaram desatualizados.
 
 Se o plano vier sem edições, não há diff. O fluxo é concluído como `Nenhuma alteração aplicada`.
+
+Após aplicar uma ou mais edições efetivas, o VS Code mostra a notificação `ATLAS: refatoração aplicada em <nome do arquivo>` com a ação `Desfazer`. A ação restaura o conteúdo anterior somente se o arquivo ainda corresponder ao resultado aplicado pelo ATLAS. Se houver mudanças posteriores, a reversão é recusada para preservá-las.
 
 ## Persistência e eventos da Webview
 

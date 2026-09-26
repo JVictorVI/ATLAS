@@ -772,6 +772,17 @@ export class ChatMessageRouter {
         showSources: payload.showSources === true,
       });
 
+      if (payload.updateContextProfileRecovery === true) {
+        const executionMode = this.deps.configManager.getCurrentMode();
+        const profile = this.deps.configManager.getContextProfile(executionMode);
+        if (profile.mode === "custom") {
+          this.deps.configManager.setContextProfile(
+            { ...profile, ragTopK: topK, ragMaxContextCharacters: maxContextCharacters },
+            executionMode,
+          );
+        }
+      }
+
       if (indexShapeChanged) {
         this.deps.markRagProjectsOutdated(
           "As configurações de indexação foram alteradas; reindexe o projeto.",
@@ -1127,13 +1138,23 @@ export class ChatMessageRouter {
     settings: AtlasRagSettings = this.deps.configManager.getSection("rag"),
     embeddingModels: RagEmbeddingModelInfo[] = this.deps.refreshRagEmbeddingModels(),
   ) {
+    const profile = this.deps.configManager.getContextProfile();
+    const profileRag = this.deps.configManager.getContextProfileRag();
     const reconciledSettings = this.reconcileRagEmbeddingModelSelection(
       settings,
       embeddingModels,
     );
+    const displayedSettings =
+      profile.mode === "custom"
+        ? {
+            ...reconciledSettings,
+            topK: profileRag.topK,
+            maxContextCharacters: profileRag.maxContextCharacters,
+          }
+        : reconciledSettings;
 
     return {
-      settings: reconciledSettings,
+      settings: displayedSettings,
       runtime,
       projects: this.deps.listRagProjects(),
       externalDocuments: this.deps.listExternalRagDocuments(),
@@ -4308,9 +4329,14 @@ export class ChatMessageRouter {
           typeof payload.staticAnalysisEnabled === "boolean"
             ? payload.staticAnalysisEnabled
             : current.includeStaticAnalysis,
-        ragTopK: payload.contextRagTopK ?? config.rag.topK,
+        ragTopK:
+          payload.contextRagTopK ??
+          (current.mode === "custom" ? current.ragTopK : config.rag.topK),
         ragMaxContextCharacters:
-          payload.contextRagLimit ?? config.rag.maxContextCharacters,
+          payload.contextRagLimit ??
+          (current.mode === "custom"
+            ? current.ragMaxContextCharacters
+            : config.rag.maxContextCharacters),
       },
       current,
     );
@@ -4342,14 +4368,26 @@ export class ChatMessageRouter {
       local: {
         ...contextProfiles.local,
         mode: "custom",
-        ragTopK: config.rag.topK,
-        ragMaxContextCharacters: config.rag.maxContextCharacters,
+        ragTopK:
+          contextProfiles.local.mode === "custom"
+            ? contextProfiles.local.ragTopK
+            : config.rag.topK,
+        ragMaxContextCharacters:
+          contextProfiles.local.mode === "custom"
+            ? contextProfiles.local.ragMaxContextCharacters
+            : config.rag.maxContextCharacters,
       },
       cloud: {
         ...contextProfiles.cloud,
         mode: "custom",
-        ragTopK: config.rag.topK,
-        ragMaxContextCharacters: config.rag.maxContextCharacters,
+        ragTopK:
+          contextProfiles.cloud.mode === "custom"
+            ? contextProfiles.cloud.ragTopK
+            : config.rag.topK,
+        ragMaxContextCharacters:
+          contextProfiles.cloud.mode === "custom"
+            ? contextProfiles.cloud.ragMaxContextCharacters
+            : config.rag.maxContextCharacters,
       },
     };
 
@@ -4494,7 +4532,7 @@ export class ChatMessageRouter {
           {
             ...profile,
             dynamicContextWindow:
-              effects?.localEngine.dynamicContextWindow ?? mode !== "light",
+              effects?.localEngine.dynamicContextWindow ?? true,
             staticAnalysis: {
               enabled: staticAnalysis?.enabled === true,
               quick: staticAnalysis?.useInQuickAnalysis === true,

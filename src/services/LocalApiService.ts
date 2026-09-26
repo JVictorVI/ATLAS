@@ -6,9 +6,11 @@ import {
 import { AtlasModelConfig } from "../interfaces/AtlasConfigTypes";
 import { AtlasConfigManager } from "../managers/AtlasConfigManager";
 import { AtlasLocalEngineService } from "./AtlasLocalEngineService";
-import { ATLAS_LOCAL_MODEL_DEFAULTS } from "./AtlasLocalModelDefaults";
+import {
+  ATLAS_LOCAL_CONTEXT_MAX_TOKENS,
+  ATLAS_LOCAL_MODEL_DEFAULTS,
+} from "./AtlasLocalModelDefaults";
 
-const LOCAL_CONTEXT_GROWTH_CAP = 65536;
 const LOCAL_CONTEXT_GROWTH_PADDING = 512;
 
 type LocalContextOverflow = {
@@ -217,22 +219,28 @@ export class LocalApiService {
       model.parameters.contextWindow,
       overflow.availableTokens || ATLAS_LOCAL_MODEL_DEFAULTS.contextWindow,
     );
-    const minimumContext = Math.max(
+    const requiredContext =
       overflow.requestedTokens > 0
         ? overflow.requestedTokens + LOCAL_CONTEXT_GROWTH_PADDING
-        : 0,
-      currentContext + 1,
-    );
-    const nextContext = Math.min(
-      LOCAL_CONTEXT_GROWTH_CAP,
-      this.nextPowerOfTwo(minimumContext),
-    );
+        : 0;
 
-    if (nextContext <= currentContext) {
+    if (requiredContext > ATLAS_LOCAL_CONTEXT_MAX_TOKENS) {
       throw new Error(
-        `A mensagem exige ${overflow.requestedTokens} tokens, mas o limite dinâmico de contexto (${LOCAL_CONTEXT_GROWTH_CAP}) ja foi atingido.`,
+        `A requisição precisa de ${requiredContext} tokens de contexto, acima do limite local de ${ATLAS_LOCAL_CONTEXT_MAX_TOKENS}.`,
       );
     }
+
+    if (currentContext >= ATLAS_LOCAL_CONTEXT_MAX_TOKENS) {
+      throw new Error(
+        `O limite automático de contexto local (${ATLAS_LOCAL_CONTEXT_MAX_TOKENS} tokens) já foi atingido.`,
+      );
+    }
+
+    const minimumContext = Math.max(requiredContext, currentContext + 1);
+    const nextContext = Math.min(
+      ATLAS_LOCAL_CONTEXT_MAX_TOKENS,
+      this.nextPowerOfTwo(minimumContext),
+    );
 
     const updatedConfig = this.configManager.updateModel(model.id, {
       parameters: {

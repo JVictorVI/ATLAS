@@ -77,6 +77,11 @@
         return;
       }
 
+      const contextInput = ui.getById("param-context");
+      if (contextInput && !contextInput.reportValidity()) {
+        return;
+      }
+
       vscode.postMessage({
         type: "saveModelParams",
         modelId: state.selectedModelId,

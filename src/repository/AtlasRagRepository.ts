@@ -289,9 +289,26 @@ export class AtlasRagRepository {
     queryEmbedding: number[],
     topK: number,
   ): Promise<RagSearchResult[]> {
+    const results = await this.searchMany(
+      collectionName,
+      [queryEmbedding],
+      topK,
+    );
+    return results[0] ?? [];
+  }
+
+  public async searchMany(
+    collectionName: string,
+    queryEmbeddings: number[][],
+    topK: number,
+  ): Promise<RagSearchResult[][]> {
+    if (!queryEmbeddings.length) {
+      return [];
+    }
+
     const collection = await this.getCollection(collectionName);
     const result = await collection.query<RagChunkMetadata>({
-      queryEmbeddings: [queryEmbedding],
+      queryEmbeddings,
       nResults: topK,
       include: [
         IncludeEnum.documents,
@@ -299,36 +316,39 @@ export class AtlasRagRepository {
         IncludeEnum.distances,
       ],
     });
-    const ids = result.ids[0] ?? [];
-    const documents = result.documents?.[0] ?? [];
-    const metadatas = result.metadatas?.[0] ?? [];
-    const distances = result.distances?.[0] ?? [];
 
-    return ids.flatMap((chunkId, index) => {
-      const metadata = metadatas[index];
-      const content = documents[index];
+    return queryEmbeddings.map((_, queryIndex) => {
+      const ids = result.ids[queryIndex] ?? [];
+      const documents = result.documents?.[queryIndex] ?? [];
+      const metadatas = result.metadatas?.[queryIndex] ?? [];
+      const distances = result.distances?.[queryIndex] ?? [];
 
-      if (!metadata || content === null || content === undefined) {
-        return [];
-      }
+      return ids.flatMap((chunkId, index) => {
+        const metadata = metadatas[index];
+        const content = documents[index];
 
-      return [
-        {
-          chunkId,
-          projectId: String(metadata.projectId),
-          sourceId: String(metadata.sourceId),
-          content,
-          relativePath: String(metadata.relativePath),
-          sourceType:
-            metadata.sourceType === "document" ? "document" : "code",
-          externalDocument: metadata.externalDocument === true,
-          distance: Number(distances[index] ?? 0),
-          language: this.optionalString(metadata.language),
-          startLine: this.optionalNumber(metadata.startLine),
-          endLine: this.optionalNumber(metadata.endLine),
-          symbolName: this.optionalString(metadata.symbolName),
-        },
-      ];
+        if (!metadata || content === null || content === undefined) {
+          return [];
+        }
+
+        return [
+          {
+            chunkId,
+            projectId: String(metadata.projectId),
+            sourceId: String(metadata.sourceId),
+            content,
+            relativePath: String(metadata.relativePath),
+            sourceType:
+              metadata.sourceType === "document" ? "document" : "code",
+            externalDocument: metadata.externalDocument === true,
+            distance: Number(distances[index] ?? 0),
+            language: this.optionalString(metadata.language),
+            startLine: this.optionalNumber(metadata.startLine),
+            endLine: this.optionalNumber(metadata.endLine),
+            symbolName: this.optionalString(metadata.symbolName),
+          },
+        ];
+      });
     });
   }
 

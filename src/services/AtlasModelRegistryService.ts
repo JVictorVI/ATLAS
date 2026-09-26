@@ -3,6 +3,7 @@ import {
   AtlasModelConfig,
 } from "../interfaces/AtlasConfigTypes";
 import { AtlasConfigRepository } from "../repository/AtlasConfigRepository";
+import { validateLocalContextWindow } from "./AtlasLocalModelDefaults";
 
 export class AtlasModelRegistryService {
   constructor(private readonly repository: AtlasConfigRepository) {}
@@ -52,6 +53,10 @@ export class AtlasModelRegistryService {
     modelId: string,
     partialData: Partial<AtlasModelConfig>,
   ): AtlasConfigSchema {
+    if (partialData.parameters?.contextWindow !== undefined) {
+      validateLocalContextWindow(partialData.parameters.contextWindow);
+    }
+
     const config = this.repository.load();
     const existing = config.llms.localModels[modelId];
 

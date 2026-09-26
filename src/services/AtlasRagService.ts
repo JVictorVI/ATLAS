@@ -1118,10 +1118,20 @@ export class AtlasRagService {
   }
 
   public async retrieveContext(
-    query: string,
+    query: string | string[],
     signal?: AbortSignal,
+    excludedFilePath?: string,
   ): Promise<RagContextResult> {
+    const isArchitecturalCodeQuery = Array.isArray(query);
+    const queries = (isArchitecturalCodeQuery ? query : [query])
+      .map((item) => item.trim())
+      .filter(Boolean);
     const searchId = crypto.randomUUID().slice(0, 8);
+    const logArchitectureSearch = (message: string) => {
+      if (isArchitecturalCodeQuery) {
+        console.log(`[ATLAS RAG][${searchId}] ${message}`);
+      }
+    };
     const startedAt = Date.now();
     const config = this.configManager.getConfig();
     const contextProfileRag = this.configManager.getContextProfileRag();
@@ -1129,10 +1139,15 @@ export class AtlasRagService {
       ...config.rag,
       topK: contextProfileRag.topK,
       maxContextCharacters: contextProfileRag.maxContextCharacters,
+      excludeActiveFile: isArchitecturalCodeQuery || config.rag.excludeActiveFile,
     };
 
     console.group(`[ATLAS RAG][${searchId}] Busca semântica`);
-    console.log("Pergunta:", query);
+    console.log("Consultas:", {
+      origem: Array.isArray(query) ? "código do editor" : "pedido textual",
+      quantidade: queries.length,
+      totalCaracteres: queries.reduce((total, item) => total + item.length, 0),
+    });
     console.log("Configuração:", {
       enabled: settings.enabled,
       mode: this.configManager.getCurrentMode(),
@@ -1144,10 +1159,13 @@ export class AtlasRagService {
       maxContextCharacters: settings.maxContextCharacters,
     });
 
-    if (!settings.enabled || !query.trim()) {
+    if (!settings.enabled || !queries.length) {
+      logArchitectureSearch(
+        !settings.enabled ? "RAG desativado." : "Nenhum código para consultar.",
+      );
       console.log(
         "Busca ignorada:",
-        !settings.enabled ? "RAG desabilitado." : "Pergunta vazia.",
+        !settings.enabled ? "RAG desabilitado." : "Consulta vazia.",
       );
       console.groupEnd();
       return { context: [], sources: [] };
@@ -1157,6 +1175,7 @@ export class AtlasRagService {
       this.configManager.isCloudMode() &&
       (settings.offlineOnly || !settings.allowCloudContext)
     ) {
+      logArchitectureSearch("RAG não autorizado para o modo cloud.");
       console.log(
         "Busca bloqueada: contexto RAG não autorizado para o modo cloud.",
       );
@@ -1168,6 +1187,7 @@ export class AtlasRagService {
       this.configManager.isLocalMode() &&
       settings.allowLocalContext === false
     ) {
+      logArchitectureSearch("RAG não autorizado para o modo local.");
       console.log(
         "Busca bloqueada: contexto RAG nÃ£o autorizado para o modo local.",
       );
@@ -1204,6 +1224,7 @@ export class AtlasRagService {
     const canSearchExternal = externalCollectionNames.length > 0;
 
     if (!canSearchProject && !canSearchExternal) {
+      logArchitectureSearch("Nenhum índice pesquisável disponível.");
       console.log("Busca ignorada: não há índice pesquisável.", {
         projectId,
         projectFound: Boolean(project),
@@ -1232,21 +1253,31 @@ export class AtlasRagService {
 
     try {
       const embeddingStartedAt = Date.now();
-      console.log("Gerando embedding da pergunta...");
-      const queryEmbedding = await this.embeddingService.embedQuery(
-        query,
+      if (isArchitecturalCodeQuery) {
+        queries.forEach((item, index) => {
+          logArchitectureSearch(
+            `Consulta ${index + 1}/${queries.length} enviada ao modelo de embeddings:\n${item}`,
+          );
+        });
+      }
+      console.log("Gerando embeddings das consultas...");
+      const queryEmbeddings = await this.embeddingService.embedDocuments(
+        queries,
         signal,
       );
-      console.log("Embedding gerado:", {
-        dimensions: queryEmbedding.length,
+      console.log("Embeddings gerados:", {
+        count: queryEmbeddings.length,
+        dimensions: queryEmbeddings[0]?.length ?? 0,
         durationMs: Date.now() - embeddingStartedAt,
-        preview: queryEmbedding
+        preview: queryEmbeddings[0]
           .slice(0, 6)
           .map((value) => Number(value.toFixed(5))),
       });
 
       const queryStartedAt = Date.now();
-      const candidateCount = Math.max(settings.topK * 5, settings.topK);
+      const candidateCount = isArchitecturalCodeQuery
+        ? Math.max(settings.topK * 2, Math.ceil((settings.topK * 5) / queries.length))
+        : Math.max(settings.topK * 5, settings.topK);
       console.log("Consultando ChromaDB...", {
         projectCollectionNames: searchableProjects.map(
           (item) => item.collectionName,
@@ -1254,20 +1285,38 @@ export class AtlasRagService {
         externalCollectionNames,
         topK: settings.topK,
         candidateCount,
+        queryCount: queries.length,
       });
-      const candidates = (
-        await Promise.all([
+      const uniqueCandidates = new Map<
+        string,
+        { result: RagSearchResult; queryIndex: number }
+      >();
+      let returnedCount = 0;
+      for (
+        let offset = 0;
+        offset < queryEmbeddings.length;
+        offset += AtlasEmbeddingService.batchSize
+      ) {
+        this.throwIfAborted(signal);
+        const batch = queryEmbeddings.slice(
+          offset,
+          offset + AtlasEmbeddingService.batchSize,
+        );
+        const batchResults = await Promise.all([
           ...searchableProjects.map((item) =>
-            this.repository.search(
-                item.collectionName,
-                queryEmbedding,
-                candidateCount,
-              ),
+            this.repository.searchMany(
+              item.collectionName,
+              batch,
+              candidateCount,
+            ),
           ),
           ...externalCollectionNames.map((collectionName) =>
             this.repository
-              .search(collectionName, queryEmbedding, candidateCount)
-              .catch((error) => {
+              .searchMany(collectionName, batch, candidateCount)
+              .catch((error): RagSearchResult[][] => {
+                if (signal?.aborted) {
+                  throw error;
+                }
                 console.warn(
                   "[ATLAS RAG] Falha ao consultar materiais complementares:",
                   error,
@@ -1275,17 +1324,52 @@ export class AtlasRagService {
                 return [];
               }),
           ),
-        ])
-      )
-        .flat()
-        .sort((left, right) => left.distance - right.distance);
+        ]);
+        for (const collectionResults of batchResults) {
+          collectionResults.forEach((queryResults, index) => {
+            for (const candidate of queryResults) {
+              returnedCount += 1;
+              const key = `${candidate.projectId}:${candidate.chunkId}`;
+              const previous = uniqueCandidates.get(key);
+
+              if (!previous || candidate.distance < previous.result.distance) {
+                uniqueCandidates.set(key, {
+                  result: candidate,
+                  queryIndex: offset + index,
+                });
+              }
+            }
+          });
+        }
+        logArchitectureSearch(
+          `Consultas ${offset + 1}-${Math.min(offset + batch.length, queryEmbeddings.length)}/${queryEmbeddings.length} concluídas.`,
+        );
+      }
+      const candidates = [...uniqueCandidates.values()].map((item) => item.result).sort(
+        (left, right) => left.distance - right.distance,
+      );
+      if (isArchitecturalCodeQuery) {
+        logArchitectureSearch(
+          `${returnedCount} retorno(s) da busca vetorial; ${candidates.length} trecho(s) únicos após remover duplicatas.`,
+        );
+        candidates.forEach((candidate, index) => {
+          const matchedQuery = uniqueCandidates.get(
+            `${candidate.projectId}:${candidate.chunkId}`,
+          )?.queryIndex;
+          logArchitectureSearch(
+            `Trecho recuperado ${index + 1}/${candidates.length} (antes dos filtros, consulta ${(matchedQuery ?? 0) + 1}): ${candidate.relativePath}:${candidate.startLine ?? "?"}-${candidate.endLine ?? "?"} | distância ${candidate.distance.toFixed(4)} | chunk ${candidate.chunkId}\n${candidate.content}`,
+          );
+        });
+      }
       const results = this.selectRetrievalResults(
         candidates,
         settings,
         searchableProjects,
+        excludedFilePath,
       );
       console.log("Resultados retornados:", {
-        candidates: candidates.length,
+        candidates: returnedCount,
+        uniqueCandidates: candidates.length,
         selected: results.length,
         durationMs: Date.now() - queryStartedAt,
       });
@@ -1363,8 +1447,22 @@ export class AtlasRagService {
         durationMs: Date.now() - startedAt,
       });
 
+      if (isArchitecturalCodeQuery) {
+        logArchitectureSearch(
+          `${results.length} trecho(s) selecionados após os filtros; ${context.length} trecho(s) incluídos no contexto final.`,
+        );
+        context.forEach((chunk, index) => {
+          logArchitectureSearch(
+            `Trecho ${index + 1}/${context.length} enviado ao modelo de geração:\n${chunk}`,
+          );
+        });
+      }
+
       return { context, sources };
     } catch (error) {
+      logArchitectureSearch(
+        `Falha na recuperação: ${error instanceof Error ? error.message : String(error)}`,
+      );
       console.error("Falha durante a busca RAG:", error);
       throw error;
     } finally {
@@ -1376,15 +1474,17 @@ export class AtlasRagService {
     candidates: RagSearchResult[],
     settings: ReturnType<AtlasConfigManager["getConfig"]>["rag"],
     searchableProjects: RagProjectIndex[],
+    excludedFilePath?: string,
   ): RagSearchResult[] {
-    const activeDocument = vscode.window.activeTextEditor?.document;
+    const activeFilePath =
+      excludedFilePath ?? vscode.window.activeTextEditor?.document.uri.fsPath;
     const activeFilesByProject = new Map<string, string>();
 
-    if (activeDocument) {
+    if (activeFilePath) {
       for (const project of searchableProjects) {
         const relativePath = getContainedRelativePath(
           project.rootPath,
-          activeDocument.uri.fsPath,
+          activeFilePath,
         );
 
         if (relativePath !== null) {

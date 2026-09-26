@@ -6,6 +6,7 @@ import { AtlasPromptMode } from "../interfaces/AtlasPromptTypes";
 import { RagContextSource } from "../interfaces/AtlasRagTypes";
 import { AtlasInferenceService } from "../services/AtlasInferenceService";
 import { AtlasCodeEditController } from "./AtlasCodeEditController";
+import { buildArchitectureRagQueries } from "../utils/AtlasArchitectureRagQueries";
 import {
   AtlasContextProfileSettings,
   AtlasRagSettings,
@@ -205,9 +206,33 @@ export class ChatResponseController {
         ragDestinationAllowed
       ) {
         try {
+          const architectureSymbolLines =
+            promptResult.mode === "architectural-analysis" && rawEditorContext
+              ? await this.getArchitectureRagSymbolStartLines(rawEditorContext)
+              : [];
+          const ragQuery =
+            promptResult.mode === "architectural-analysis" && rawEditorContext
+              ? buildArchitectureRagQueries(
+                  rawEditorContext.code,
+                  architectureSymbolLines,
+                )
+              : String(data.value ?? "");
+          if (Array.isArray(ragQuery) && rawEditorContext) {
+            console.log("[ATLAS RAG] Divisão do código para a busca:", {
+              origem: rawEditorContext.source,
+              estrategia: architectureSymbolLines.length
+                ? "símbolos e linhas"
+                : "linhas",
+              caracteresDoCodigo: rawEditorContext.code.length,
+              consultas: ragQuery.length,
+            });
+          }
           const retrieval = await this.deps.getRagContext(
-            String(data.value ?? ""),
+            ragQuery,
             responseController.signal,
+            promptResult.mode === "architectural-analysis"
+              ? rawEditorContext?.document.uri.fsPath
+              : undefined,
           );
           ragContext = retrieval.context;
           ragSources = retrieval.sources;
@@ -641,6 +666,44 @@ export class ChatResponseController {
         maxCharacters,
       },
     };
+  }
+
+  private async getArchitectureRagSymbolStartLines(
+    editorContext: AtlasEditorContext,
+  ): Promise<number[]> {
+    if (editorContext.source !== "document") {
+      return [];
+    }
+
+    try {
+      const symbols = await vscode.commands.executeCommand<
+        vscode.DocumentSymbol[] | vscode.SymbolInformation[] | undefined
+      >("vscode.executeDocumentSymbolProvider", editorContext.document.uri);
+      const lines: number[] = [];
+      const addSymbol = (symbol: vscode.DocumentSymbol): void => {
+        lines.push(symbol.range.start.line + 1);
+        symbol.children.forEach(addSymbol);
+      };
+
+      for (const symbol of symbols ?? []) {
+        if ("children" in symbol) {
+          addSymbol(symbol);
+        } else if (
+          symbol.location.uri.toString() ===
+          editorContext.document.uri.toString()
+        ) {
+          lines.push(symbol.location.range.start.line + 1);
+        }
+      }
+
+      return lines;
+    } catch (error) {
+      console.warn(
+        "[ATLAS RAG] Símbolos do editor indisponíveis; dividindo as consultas por linhas:",
+        error,
+      );
+      return [];
+    }
   }
 
   private truncateCodeContext(code: string, maxCharacters: number): string {

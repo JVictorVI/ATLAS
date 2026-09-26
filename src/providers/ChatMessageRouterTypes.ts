@@ -205,8 +205,9 @@ export type RouterDependencies = {
   deleteRagProject: (projectId: string) => Promise<void>;
   deleteAllRagProjects: () => Promise<void>;
   getRagContext: (
-    query: string,
+    query: string | string[],
     signal?: AbortSignal,
+    excludedFilePath?: string,
   ) => Promise<RagContextResult>;
   markRagProjectsOutdated: (reason: string) => void;
 };

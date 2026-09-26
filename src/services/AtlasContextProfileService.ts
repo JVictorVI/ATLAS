@@ -91,7 +91,7 @@ export class AtlasContextProfileService {
       },
       staticAnalysis: this.getPresetStaticAnalysis(mode),
       localEngine: {
-        dynamicContextWindow: mode !== "light",
+        dynamicContextWindow: true,
       },
     };
   }
@@ -112,15 +112,10 @@ export class AtlasContextProfileService {
   ): AtlasContextProfileEffects["rag"] {
     const profile = this.resolve(config, executionMode);
 
-    return profile.mode === "custom"
-      ? {
-          topK: config.rag.topK,
-          maxContextCharacters: config.rag.maxContextCharacters,
-        }
-      : {
-          topK: profile.ragTopK,
-          maxContextCharacters: profile.ragMaxContextCharacters,
-        };
+    return {
+      topK: profile.ragTopK,
+      maxContextCharacters: profile.ragMaxContextCharacters,
+    };
   }
 
   public static normalize(
