@@ -1,5 +1,10 @@
 import * as vscode from "vscode";
 
+export type AtlasCodeContextSegment = {
+  code: string;
+  startLine: number;
+};
+
 export type AtlasEditorContext = {
   document: vscode.TextDocument;
   code: string;
@@ -14,5 +19,6 @@ export type AtlasEditorContext = {
   truncation?: {
     originalCharacters: number;
     maxCharacters: number;
+    segments: AtlasCodeContextSegment[];
   };
 };

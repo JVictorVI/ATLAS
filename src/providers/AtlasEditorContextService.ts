@@ -1,6 +1,7 @@
 import * as path from "path";
 import * as vscode from "vscode";
 import { AtlasEditorContext } from "../interfaces/AtlasEditorTypes";
+import { addCodeLineNumbers, omittedCodeMarker } from "../utils/AtlasCodeContext";
 
 export class AtlasEditorContextService {
   public getFullDocumentContext(): AtlasEditorContext | null {
@@ -42,7 +43,7 @@ export class AtlasEditorContextService {
     if (hasSelection) {
       return {
         document,
-        code: selectedText.trim(),
+        code: selectedText,
         fileName: path.basename(document.fileName),
         languageId: document.languageId,
         lineCount: document.lineCount,
@@ -71,6 +72,19 @@ export class AtlasEditorContextService {
   }
 
   public buildEditorAnalysisContext(editorContext: AtlasEditorContext): string {
+    const firstLine =
+      editorContext.source === "selection"
+        ? (editorContext.selection?.startLine ?? 1)
+        : 1;
+    const numberedCode = editorContext.truncation
+      ? editorContext.truncation.segments
+          .map((segment) => addCodeLineNumbers(segment.code, segment.startLine))
+          .join(`\n\n${omittedCodeMarker}\n\n`)
+      : addCodeLineNumbers(editorContext.code, firstLine);
+    const numberingInstructions = [
+      "Os prefixos '<linha> |' indicam as linhas originais do arquivo e não fazem parte do código.",
+      "Use esses números ao citar linhas; não renumere os trechos nem atribua conteúdo às linhas omitidas.",
+    ];
     const truncationNotice = editorContext.truncation
       ? [
           `Conteúdo limitado pelo perfil de contexto: ${editorContext.code.length} de ${editorContext.truncation.originalCharacters} caracteres enviados.`,
@@ -88,8 +102,9 @@ export class AtlasEditorContextService {
         "Trate este conteúdo como um trecho isolado para análise técnica focal, sem assumir visão completa do sistema.",
         "Considere prioritariamente o trecho selecionado abaixo como base da resposta:",
         ...truncationNotice,
+        ...numberingInstructions,
         "```",
-        editorContext.code,
+        numberedCode,
         "```",
       ].join("\n");
     }
@@ -102,8 +117,9 @@ export class AtlasEditorContextService {
       "",
       "Considere o código abaixo como base principal da análise:",
       ...truncationNotice,
+      ...numberingInstructions,
       "```",
-      editorContext.code,
+      numberedCode,
       "```",
     ].join("\n");
   }

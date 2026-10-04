@@ -23,6 +23,7 @@ import { AtlasEmbeddingService } from "./AtlasEmbeddingService";
 import { AtlasExternalDocumentParser } from "./AtlasExternalDocumentParser";
 import { chunkExternalDocument } from "../utils/AtlasExternalDocumentChunks";
 import { getContainedRelativePath } from "../utils/AtlasPathUtils";
+import { formatRagCodeContent } from "../utils/AtlasRagCodeContext";
 
 export class AtlasRagService {
   private readonly watchers = new Map<string, vscode.FileSystemWatcher>();
@@ -973,7 +974,7 @@ export class AtlasRagService {
     const settings = this.configManager.getConfig().rag;
     return this.hashText(
       JSON.stringify({
-        indexerVersion: "rag-project-index-v2",
+        indexerVersion: "rag-project-index-v3",
         embeddingModel: this.embeddingService.getModelId(),
         chunkSize: settings.chunkSize,
         chunkOverlap: settings.chunkOverlap,
@@ -1392,9 +1393,43 @@ export class AtlasRagService {
 
       const context: string[] = [];
       const sources: RagContextSource[] = [];
+      const sourceContents = new Map<string, string | null>();
       let currentSize = 0;
 
       for (const result of results) {
+        this.throwIfAborted(signal);
+        let sourceContent: string | undefined;
+        if (result.sourceType === "code") {
+          const sourceProject = searchableProjects.find(
+            (item) => item.projectId === result.projectId,
+          );
+          if (sourceProject) {
+            const sourcePath = path.resolve(
+              sourceProject.rootPath, result.relativePath,
+            );
+            if (getContainedRelativePath(sourceProject.rootPath, sourcePath) !== null) {
+              if (!sourceContents.has(sourcePath)) {
+                try {
+                  const bytes = await vscode.workspace.fs.readFile(
+                    vscode.Uri.file(sourcePath),
+                  );
+                  sourceContents.set(sourcePath, Buffer.from(bytes).toString("utf8"));
+                } catch {
+                  sourceContents.set(sourcePath, null);
+                }
+              }
+              sourceContent = sourceContents.get(sourcePath) ?? undefined;
+            }
+          }
+        }
+        this.throwIfAborted(signal);
+        const content = formatRagCodeContent(result, sourceContent);
+        if (content === null) {
+          console.warn(
+            `[ATLAS RAG][${searchId}] Trecho com linhas inconsistentes ignorado; reindexe ${result.relativePath}.`,
+          );
+          continue;
+        }
         const displayPath = this.getRetrievalDisplayPath(
           result,
           rootPath,
@@ -1407,7 +1442,7 @@ export class AtlasRagService {
             : undefined,
           `Distância vetorial: ${result.distance.toFixed(4)}`,
           "",
-          result.content,
+          content,
         ]
           .filter((item): item is string => Boolean(item))
           .join("\n");
@@ -2370,7 +2405,7 @@ export class AtlasRagService {
       0,
       Math.min(configuredOverlap, Math.floor(chunkSize / 2)),
     );
-    const lines = content.split(/\r?\n/);
+    const lines = content.split(/\r\n|\r|\n/);
     const chunks: Array<{
       content: string;
       startLine: number;
@@ -2393,9 +2428,9 @@ export class AtlasRagService {
         endIndex += 1;
       }
 
-      const text = lines.slice(startIndex, endIndex).join("\n").trim();
+      const text = lines.slice(startIndex, endIndex).join("\n");
 
-      if (text) {
+      if (text.trim()) {
         chunks.push({
           content: text,
           startLine: startIndex + 1,

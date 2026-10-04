@@ -83,6 +83,7 @@ export class AtlasPromptAssemblyService {
         role: "system",
         content: [
           "Contexto recuperado relevante:",
+          "Nos trechos de código, os prefixos '<linha> |' são referências às linhas originais da fonte, não fazem parte do código. Use esses números ao citar linhas e preserve o arquivo de origem de cada referência.",
           ...(mode === "architectural-analysis"
             ? [
                 "Na análise arquitetural, use os trechos recuperados como evidência complementar sempre que houver relação concreta com o código analisado. Integre essa relação ao longo dos tópicos pertinentes, indicando Fonte e Linhas quando disponíveis e explicando o que o outro arquivo confirma, amplia ou contradiz; não deixe as referências apenas para a síntese.",

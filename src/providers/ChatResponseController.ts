@@ -7,6 +7,7 @@ import { RagContextSource } from "../interfaces/AtlasRagTypes";
 import { AtlasInferenceService } from "../services/AtlasInferenceService";
 import { AtlasCodeEditController } from "./AtlasCodeEditController";
 import { buildArchitectureRagQueries } from "../utils/AtlasArchitectureRagQueries";
+import { truncateCodeContext } from "../utils/AtlasCodeContext";
 import {
   AtlasContextProfileSettings,
   AtlasRagSettings,
@@ -658,12 +659,21 @@ export class ChatResponseController {
       return editorContext;
     }
 
+    const firstLine =
+      editorContext.source === "selection"
+        ? (editorContext.selection?.startLine ?? 1)
+        : 1;
+    const truncated = truncateCodeContext(
+      editorContext.code, maxCharacters, firstLine,
+    );
+
     return {
       ...editorContext,
-      code: this.truncateCodeContext(editorContext.code, maxCharacters),
+      code: truncated.code,
       truncation: {
         originalCharacters: editorContext.code.length,
         maxCharacters,
+        segments: truncated.segments,
       },
     };
   }
@@ -704,24 +714,6 @@ export class ChatResponseController {
       );
       return [];
     }
-  }
-
-  private truncateCodeContext(code: string, maxCharacters: number): string {
-    const marker = "\n\n/* ... conteúdo omitido pelo perfil de contexto ... */\n\n";
-    const available = Math.max(0, maxCharacters - marker.length);
-
-    if (available <= 0) {
-      return code.slice(0, maxCharacters);
-    }
-
-    const headSize = Math.ceil(available * 0.65);
-    const tailSize = available - headSize;
-
-    return [
-      code.slice(0, headSize).trimEnd(),
-      marker.trimEnd(),
-      code.slice(-tailSize).trimStart(),
-    ].join("\n\n");
   }
 
   public serializeActiveGenerations(): ActiveGenerationPayload[] {

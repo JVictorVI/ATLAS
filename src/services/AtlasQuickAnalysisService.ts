@@ -3,6 +3,7 @@ import { AtlasConfigManager } from "../managers/AtlasConfigManager";
 import { AtlasPromptAssemblyService } from "../prompt/AtlasPromptAssemblyService";
 import { AtlasInferenceService } from "./AtlasInferenceService";
 import { AtlasDocumentStructureService } from "./AtlasDocumentStructureService";
+import { addCodeLineNumbers } from "../utils/AtlasCodeContext";
 import {
   AtlasQuickIssue,
   AtlasQuickIssueCategory,
@@ -65,8 +66,8 @@ export class AtlasQuickAnalysisService {
     languageId?: string,
     fileName?: string,
   ): string {
-    const numberedCode = this.addLineNumbers(code);
-    const lineCount = numberedCode.lineCount;
+    const numberedCode = addCodeLineNumbers(code);
+    const lineCount = code.split(/\r\n|\r|\n/).length;
 
     return [
       "Realize uma análise rápida arquitetural do código abaixo.",
@@ -91,26 +92,10 @@ export class AtlasQuickAnalysisService {
       `Total de linhas recebidas: ${lineCount}`,
       "",
       "Código numerado:",
-      numberedCode.content,
+      numberedCode,
     ]
       .filter(Boolean)
       .join("\n");
-  }
-
-  private addLineNumbers(code: string): { content: string; lineCount: number } {
-    const lines = code.split(/\r\n|\r|\n/);
-    const width = String(lines.length).length;
-    const content = lines
-      .map((line, index) => {
-        const lineNumber = String(index + 1).padStart(width, " ");
-        return `${lineNumber} | ${line}`;
-      })
-      .join("\n");
-
-    return {
-      content,
-      lineCount: lines.length,
-    };
   }
 
   private async buildOptionalStructureSummary(

@@ -8,6 +8,8 @@ Este documento transcreve os prompts que definem o comportamento conversacional 
 
 O `AtlasPromptAssemblyService` seleciona um dos prompts-base. Dependendo das configurações e do modo, também pode inserir memória arquitetural, diretivas personalizadas, contexto do editor, RAG e histórico recente.
 
+O código do editor e os trechos RAG de código são enviados ao modelo de geração no formato `<linha> | conteúdo`, usando as linhas originais da fonte. Seleções e trechos limitados pelo perfil mantêm esses números. Os prefixos servem apenas como referências e não integram o código original. A análise rápida e a edição aplicada usam o mesmo formatador em `../utils/AtlasCodeContext.ts`.
+
 ## Assistente de desenvolvimento
 
 Modo: `developer-assistant`.

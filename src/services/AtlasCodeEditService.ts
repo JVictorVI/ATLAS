@@ -8,8 +8,8 @@ import {
   AtlasCodeEditRisk,
   AtlasLineEdit,
 } from "../interfaces/AtlasCodeEditTypes";
-import { AtlasEditorContext } from "../interfaces/AtlasEditorTypes";
 import { AtlasInferenceService } from "./AtlasInferenceService";
+import { addCodeLineNumbers } from "../utils/AtlasCodeContext";
 
 const PREVIEW_SCHEME = "atlas-code-edit-preview";
 
@@ -248,7 +248,11 @@ export class AtlasCodeEditService implements vscode.Disposable {
   }
 
   private buildEditUserMessage(request: AtlasCodeEditRequest): string {
-    const numberedCode = this.addLineNumbers(request.editorContext);
+    const firstLine =
+      request.editorContext.source === "selection"
+        ? (request.editorContext.selection?.startLine ?? 1)
+        : 1;
+    const numberedCode = addCodeLineNumbers(request.editorContext.code, firstLine);
     const architectureBlock = request.architectureAnalysis
       ? [
           "",
@@ -300,23 +304,6 @@ export class AtlasCodeEditService implements vscode.Disposable {
       "Código numerado:",
       numberedCode,
     ].join("\n");
-  }
-
-  private addLineNumbers(editorContext: AtlasEditorContext): string {
-    const lines = editorContext.code.split(/\r\n|\r|\n/);
-    const firstLine =
-      editorContext.source === "selection" && editorContext.selection
-        ? editorContext.selection.startLine
-        : 1;
-    const lastLine = firstLine + lines.length - 1;
-    const width = String(lastLine).length;
-
-    return lines
-      .map((line, index) => {
-        const lineNumber = String(firstLine + index).padStart(width, " ");
-        return `${lineNumber} | ${line}`;
-      })
-      .join("\n");
   }
 
   private parsePlan(raw: string): AtlasCodeEditPlan {
