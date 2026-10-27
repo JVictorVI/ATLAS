@@ -4,7 +4,7 @@
   "publisher": "vscode",
   "icon": "assets/atlas-logo.png",
   "license": "UNLICENSED",
-  "description": "Assistente Técnico, Lógico e Arquitetural de Software",
+  "description": "Assistente Técnico para Leitura e Análise de Software",
   "version": "0.0.1",
   "repository": {
     "type": "git",
@@ -21,7 +21,9 @@
     "onCommand:atlas.baixarEngineAi"
   ],
   "main": "./dist/extension.js",
-  "extensionKind": ["workspace"],
+  "extensionKind": [
+    "workspace"
+  ],
   "contributes": {
     "viewsContainers": {
       "activitybar": [

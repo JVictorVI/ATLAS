@@ -1,6 +1,4 @@
-﻿ATLAS é uma extensão para Visual Studio Code que atua como um assistente técnico, lógico e arquitetural de software. A proposta do projeto é ajudar desenvolvedores a analisar código, discutir decisões de design, revisar riscos arquiteturais e interagir com modelos de linguagem diretamente dentro do editor.
-
-O identificador canônico da extensão é `vscode.atlas`. No catálogo de extensões, o produto é apresentado como **ATLAS** e usa o logo disponível em `assets/atlas-logo.png`.
+﻿ATLAS é uma extensão para Visual Studio Code que atua como um assistente técnico para leitura e análise de software. A proposta do projeto é ajudar desenvolvedores a analisar código, discutir decisões de design, revisar riscos arquiteturais e interagir com modelos de linguagem diretamente dentro do editor.
 
 ## Sobre o Projeto
 
